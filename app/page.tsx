@@ -1,51 +1,72 @@
-import { DeployButton } from "@/components/deploy-button";
-import { EnvVarWarning } from "@/components/env-var-warning";
-import { AuthButton } from "@/components/auth-button";
-import { Hero } from "@/components/hero";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { ConnectSupabaseSteps } from "@/components/tutorial/connect-supabase-steps";
-import { SignUpUserSteps } from "@/components/tutorial/sign-up-user-steps";
-import { hasEnvVars } from "@/lib/utils";
-import Link from "next/link";
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
-export default function Home() {
+export default async function HomePage() {
+  // Check if user is already authenticated
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // If authenticated, redirect to protected area
+  if (user) {
+    redirect('/protected');
+  }
+
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-20 items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-5 items-center font-semibold">
-              <Link href={"/"}>Next.js Supabase Starter</Link>
-              <div className="flex items-center gap-2">
-                <DeployButton />
-              </div>
-            </div>
-            {!hasEnvVars ? <EnvVarWarning /> : <AuthButton />}
-          </div>
-        </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-          <Hero />
-          <main className="flex-1 flex flex-col gap-6 px-4">
-            <h2 className="font-medium text-xl mb-4">Next steps</h2>
-            {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />}
-          </main>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
+      <div className="text-center space-y-8 px-4 max-w-3xl">
+        <div className="space-y-4">
+          <h1 className="text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-600">
+            Trazo OS
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-600">
+            Edge-native container farm operating system
+          </p>
+          <p className="text-base text-gray-500 max-w-2xl mx-auto">
+            Manage your container infrastructure with multi-regional data residency. 
+            Your data stays in your region - US or Canada.
+          </p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <Link 
+            href="/auth/sign-up"
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+          >
+            Get Started
+          </Link>
+          <Link 
+            href="/auth/login"
+            className="px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-colors font-medium"
+          >
+            Log In
+          </Link>
         </div>
 
-        <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
-          <p>
-            Powered by{" "}
-            <a
-              href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-              target="_blank"
-              className="font-bold hover:underline"
-              rel="noreferrer"
-            >
-              Supabase
-            </a>
-          </p>
-          <ThemeSwitcher />
-        </footer>
+        <div className="pt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          <div className="p-6 bg-white rounded-lg shadow-sm">
+            <div className="text-3xl mb-2">🌎</div>
+            <h3 className="font-semibold text-gray-900 mb-2">Multi-Regional</h3>
+            <p className="text-sm text-gray-600">
+              Data residency in US or Canada based on your preference
+            </p>
+          </div>
+          <div className="p-6 bg-white rounded-lg shadow-sm">
+            <div className="text-3xl mb-2">🔒</div>
+            <h3 className="font-semibold text-gray-900 mb-2">Secure</h3>
+            <p className="text-sm text-gray-600">
+              Enterprise-grade security with region-specific compliance
+            </p>
+          </div>
+          <div className="p-6 bg-white rounded-lg shadow-sm">
+            <div className="text-3xl mb-2">⚡</div>
+            <h3 className="font-semibold text-gray-900 mb-2">Edge-Native</h3>
+            <p className="text-sm text-gray-600">
+              Optimized for edge computing and container orchestration
+            </p>
+          </div>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

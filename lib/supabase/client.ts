@@ -9,13 +9,6 @@ export function createClient(region?: Region) {
   const selectedRegion = region || getStoredRegion();
   const config = getRegionConfig(selectedRegion);
 
-  // Debug logging
-  console.log('🔍 Creating Supabase client:', {
-    selectedRegion,
-    url: config.url,
-    anonKeyPrefix: config.anonKey.substring(0, 20) + '...'
-  });
-
   return createBrowserClient(config.url, config.anonKey);
 }
 

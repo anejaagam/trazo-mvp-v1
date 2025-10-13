@@ -23,8 +23,6 @@ export function SignUpForm() {
     setError(null);
 
     try {
-      console.log('🚀 Starting signup for region:', region);
-      
       // Store region FIRST (before auth)
       setStoredRegion(region);
 
@@ -33,12 +31,9 @@ export function SignUpForm() {
         process.env.NODE_ENV === 'production' ? '; Secure' : ''
       }`;
 
-      console.log('📝 Region stored in localStorage and cookie:', region);
-
       // Create client for selected region
       const supabase = createClient(region);
 
-      console.log('🔐 Calling signUp with region metadata:', region);
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,

@@ -30,16 +30,8 @@ export function getRegionConfig(region: Region): RegionConfig {
   const canUrl = process.env.NEXT_PUBLIC_CAN_SUPABASE_URL || process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL;
   const canAnonKey = process.env.NEXT_PUBLIC_CAN_SUPABASE_ANON_KEY || process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY;
 
-  console.log('🇨🇦 Canada config check:', {
-    hasUrl: !!canUrl,
-    hasAnonKey: !!canAnonKey,
-    url: canUrl?.substring(0, 30) + '...' || 'undefined',
-    isClientSide: typeof window !== 'undefined',
-  });
-
   if (!canUrl || !canAnonKey) {
-    console.warn('⚠️  Canada region config not found, falling back to US config');
-    console.warn('💡 Tip: In .env.local, use NEXT_PUBLIC_CAN_SUPABASE_URL for browser access');
+    // Fallback to US config if Canada config is not available
     return {
       url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
       anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -47,7 +39,6 @@ export function getRegionConfig(region: Region): RegionConfig {
     };
   }
 
-  console.log('✅ Using Canada Supabase configuration');
   return {
     url: canUrl,
     anonKey: canAnonKey,

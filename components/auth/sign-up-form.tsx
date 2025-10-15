@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient, setStoredRegion } from '@/lib/supabase/client';
 import { RegionSelector } from './region-selector';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import type { Region } from '@/lib/types/region';
 
 export function SignUpForm() {
@@ -64,100 +66,111 @@ export function SignUpForm() {
   }
 
   return (
-    <form onSubmit={handleSignUp} className="space-y-4 max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Create Account</h1>
+    <div className="w-full max-w-md mx-auto">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="font-display text-display-4 font-semibold text-foreground mb-2">
+          Create Account
+        </h1>
+        <p className="font-body text-body-base text-muted-foreground">
+          Join thousands of farmers using Trazo to transform their operations
+        </p>
+      </div>
 
+      {/* Error Alert */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-          {error}
+        <div className="mb-6 p-4 bg-destructive/10 border-2 border-destructive/20 text-destructive rounded-lg">
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <span className="font-body text-body-sm font-medium">{error}</span>
+          </div>
         </div>
       )}
 
-      <RegionSelector
-        value={region}
-        onChange={setRegion}
-        disabled={loading}
-        required
-      />
+      {/* Form */}
+      <form onSubmit={handleSignUp} className="space-y-6">
+        {/* Region Selector */}
+        <div className="space-y-2">
+          
+          <RegionSelector
+            value={region}
+            onChange={setRegion}
+            disabled={loading}
+            required
+          />
+        </div>
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium mb-1">
-          Email <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="email"
+        {/* Email Input */}
+        <Input
           type="email"
+          label="Email Address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={loading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="you@example.com"
+          placeholder="you@farmname.com"
+          error={error?.includes('email') ? 'Please check your email address' : undefined}
         />
-      </div>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium mb-1">
-          Password <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="password"
+        {/* Password Input */}
+        <Input
           type="password"
+          label="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={loading}
           minLength={6}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="••••••••"
+          placeholder="Create a secure password"
+          helperText="At least 6 characters"
         />
-        <p className="text-xs text-gray-500 mt-1">At least 6 characters</p>
-      </div>
 
-      <div>
-        <label htmlFor="fullName" className="block text-sm font-medium mb-1">
-          Full Name
-        </label>
-        <input
-          id="fullName"
+        {/* Full Name Input */}
+        <Input
           type="text"
+          label="Full Name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           disabled={loading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="John Doe"
         />
-      </div>
 
-      <div>
-        <label htmlFor="companyName" className="block text-sm font-medium mb-1">
-          Company Name
-        </label>
-        <input
-          id="companyName"
+        {/* Company Name Input */}
+        <Input
           type="text"
+          label="Farm/Company Name"
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           disabled={loading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Acme Farms"
+          placeholder="Green Valley Farms"
         />
-      </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors"
-      >
-        {loading ? 'Creating account...' : 'Sign Up'}
-      </button>
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          size="lg"
+          loading={loading}
+          disabled={loading}
+          className="w-full"
+        >
+          {loading ? 'Creating account...' : 'Create Account'}
+        </Button>
 
-      <p className="text-sm text-center text-gray-600">
-        Already have an account?{' '}
-        <a href="/auth/login" className="text-blue-600 hover:underline">
-          Log in
-        </a>
-      </p>
-    </form>
+        {/* Sign In Link */}
+        <div className="text-center pt-4">
+          <p className="font-body text-body-sm text-muted-foreground">
+            Already have an account?{' '}
+            <a 
+              href="/auth/login" 
+              className="font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              Sign in
+            </a>
+          </p>
+        </div>
+      </form>
+    </div>
   );
 }

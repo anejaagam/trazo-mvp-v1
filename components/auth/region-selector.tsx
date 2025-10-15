@@ -12,8 +12,8 @@ interface RegionSelectorProps {
 export function RegionSelector({ value, onChange, disabled, required }: RegionSelectorProps) {
   return (
     <div className="space-y-2">
-      <label htmlFor="region" className="block text-sm font-medium">
-        Region {required && <span className="text-red-500">*</span>}
+      <label htmlFor="region" className="block font-body text-body-sm font-medium text-foreground">
+        Region {required && <span className="text-destructive">*</span>}
       </label>
       <select
         id="region"
@@ -21,7 +21,7 @@ export function RegionSelector({ value, onChange, disabled, required }: RegionSe
         onChange={(e) => onChange(e.target.value as Region)}
         disabled={disabled}
         required={required}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full h-10 px-3 py-2 font-body text-body-base border-2 border-border bg-background text-foreground rounded-lg shadow-sm transition-all duration-200 hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
         {Object.entries(REGION_INFO).map(([key, info]) => (
           <option key={key} value={key}>
@@ -29,7 +29,7 @@ export function RegionSelector({ value, onChange, disabled, required }: RegionSe
           </option>
         ))}
       </select>
-      <p className="text-xs text-gray-500">
+      <p className="font-body text-body-xs text-muted-foreground">
         Your data will be stored in {REGION_INFO[value].name} ({REGION_INFO[value].supabaseRegion})
       </p>
     </div>

@@ -1,60 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@300;400;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    /* Brand colors based on Figma tokens */
+    --background: 240 10% 98%; /* Very light green-tinted white */
+    --foreground: 162 35% 15%; /* Dark green for text */
+    --card: 240 10% 98%;
+    --card-foreground: 162 35% 15%;
+    --popover: 240 10% 98%;
+    --popover-foreground: 162 35% 15%;
+    
+    /* Primary - Brand lighter green */
+    --primary: 125 24% 63%; /* #7eb081 */
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - Brand dark green */
+    --secondary: 162 24% 41%; /* #52665d */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Muted using neutral tones */
+    --muted: 162 15% 75%; /* Light neutral */
+    --muted-foreground: 162 15% 45%;
+    
+    /* Accent using brand lighter green lighter shade */
+    --accent: 125 24% 85%; /* Very light green */
+    --accent-foreground: 162 35% 15%;
+    
+    /* Information using brand blue */
+    --info: 213 78% 75%; /* #99c2f1 */
+    --info-foreground: 0 0% 100%;
+    
+    /* Destructive (errors) */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    
+    /* Borders and inputs using neutral tones */
+    --border: 162 15% 85%;
+    --input: 162 15% 85%;
+    --ring: 125 24% 63%; /* Primary color for focus rings */
+    
+    /* Chart colors using brand palette */
+    --chart-1: 125 24% 63%; /* Primary green */
+    --chart-2: 162 24% 41%; /* Secondary green */
+    --chart-3: 213 78% 75%; /* Brand blue */
+    --chart-4: 125 24% 50%; /* Darker green */
+    --chart-5: 125 24% 75%; /* Lighter green */
+    
+    --radius: 8px; /* Updated to match Figma */
   }
+
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Dark mode using darker brand colors */
+    --background: 162 35% 8%; /* Very dark green */
+    --foreground: 125 24% 95%; /* Very light green */
+    --card: 162 35% 10%;
+    --card-foreground: 125 24% 95%;
+    --popover: 162 35% 8%;
+    --popover-foreground: 125 24% 95%;
+    
+    --primary: 125 24% 63%; /* Keep primary green */
+    --primary-foreground: 162 35% 8%;
+    
+    --secondary: 162 15% 20%; /* Darker neutral */
+    --secondary-foreground: 125 24% 95%;
+    
+    --muted: 162 15% 15%;
+    --muted-foreground: 162 15% 65%;
+    
+    --accent: 162 15% 15%;
+    --accent-foreground: 125 24% 95%;
+    
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 85% 97%;
+    
+    --border: 162 15% 15%;
+    --input: 162 15% 15%;
+    --ring: 125 24% 63%;
+    
+    --chart-1: 125 24% 70%;
+    --chart-2: 162 24% 50%;
+    --chart-3: 213 78% 80%;
+    --chart-4: 125 24% 45%;
+    --chart-5: 125 24% 85%;
   }
 }
 
@@ -63,6 +94,41 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
+  }
+  
+  /* Typography hierarchy using Figma tokens */
+  h1 {
+    @apply font-display text-display-1 font-semibold text-foreground;
+  }
+  h2 {
+    @apply font-display text-display-2 font-semibold text-foreground;
+  }
+  h3 {
+    @apply font-display text-display-3 font-semibold text-foreground;
+  }
+  h4 {
+    @apply font-display text-display-4 font-semibold text-foreground;
+  }
+  h5 {
+    @apply font-display text-display-5 font-semibold text-foreground;
+  }
+  h6 {
+    @apply font-display text-display-6 font-semibold text-foreground;
+  }
+}
+
+@layer components {
+  /* Custom component styles using design tokens */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 focus:ring-2 focus:ring-secondary focus:ring-offset-2;
+  }
+  
+  .input-field {
+    @apply bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary;
   }
 }

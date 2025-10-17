@@ -1,0 +1,167 @@
+import { Batch, BatchGroup, Pod, TimelineEvent } from '../types/batch';
+
+export const mockPods: Pod[] = [
+  { 
+    id: 'pod-1', 
+    name: 'Pod A1', 
+    location: 'Zone 1', 
+    capacity: 100,
+    canopyArea: 500,
+    usedCanopyArea: 450
+  },
+  { 
+    id: 'pod-2', 
+    name: 'Pod A2', 
+    location: 'Zone 1', 
+    capacity: 100,
+    canopyArea: 500,
+    usedCanopyArea: 300
+  },
+  { 
+    id: 'pod-3', 
+    name: 'Pod B1', 
+    location: 'Zone 2', 
+    capacity: 150,
+    canopyArea: 750,
+    usedCanopyArea: 600
+  },
+  { 
+    id: 'pod-4', 
+    name: 'Pod B2', 
+    location: 'Zone 2', 
+    capacity: 150,
+    canopyArea: 750,
+    usedCanopyArea: 100
+  },
+  { 
+    id: 'pod-5', 
+    name: 'Pod C1', 
+    location: 'Zone 3', 
+    capacity: 200,
+    canopyArea: 1000,
+    usedCanopyArea: 50
+  },
+];
+
+export const mockBatches: Batch[] = [
+  {
+    id: 'batch-1',
+    name: 'BTH-2025-001',
+    cultivar: 'Blue Dream',
+    cultivarId: 'cult-1',
+    stage: 'flowering',
+    startDate: '2025-01-15',
+    groupId: 'group-1',
+    podIds: ['pod-1', 'pod-2'],
+    plantCount: 180,
+    createdAt: '2025-01-15T08:00:00Z',
+    quarantineStatus: 'none',
+  },
+  {
+    id: 'batch-2',
+    name: 'BTH-2025-002',
+    cultivar: 'OG Kush',
+    cultivarId: 'cult-2',
+    stage: 'vegetative',
+    startDate: '2025-02-01',
+    groupId: 'group-1',
+    podIds: ['pod-3'],
+    plantCount: 120,
+    createdAt: '2025-02-01T08:00:00Z',
+    quarantineStatus: 'none',
+  },
+  {
+    id: 'batch-3',
+    name: 'BTH-2025-003',
+    cultivar: 'Sour Diesel',
+    cultivarId: 'cult-3',
+    stage: 'propagation',
+    startDate: '2025-03-10',
+    podIds: ['pod-4'],
+    plantCount: 100,
+    createdAt: '2025-03-10T08:00:00Z',
+    quarantineStatus: 'none',
+  },
+  {
+    id: 'batch-4',
+    name: 'BTH-2024-089',
+    cultivar: 'Girl Scout Cookies',
+    cultivarId: 'cult-4',
+    stage: 'closed',
+    startDate: '2024-12-01',
+    podIds: ['pod-5'],
+    plantCount: 200,
+    createdAt: '2024-12-01T08:00:00Z',
+    harvestDate: '2025-02-15',
+    closedDate: '2025-03-01',
+    quarantineStatus: 'none',
+    yieldData: {
+      wetWeight: 45.5,
+      dryWeight: 12.3,
+      waste: 2.1,
+    },
+  },
+];
+
+export const mockGroups: BatchGroup[] = [
+  {
+    id: 'group-1',
+    name: 'Spring 2025 Production',
+    description: 'Primary production batches for Q1 2025',
+    batchIds: ['batch-1', 'batch-2'],
+    createdAt: '2025-01-15T08:00:00Z',
+  },
+];
+
+export const mockTimelineEvents: TimelineEvent[] = [
+  {
+    id: 'event-1',
+    batchId: 'batch-1',
+    type: 'stage_change',
+    timestamp: '2025-01-15T08:00:00Z',
+    description: 'Batch created in propagation stage',
+    data: { fromStage: null, toStage: 'propagation' },
+  },
+  {
+    id: 'event-2',
+    batchId: 'batch-1',
+    type: 'stage_change',
+    timestamp: '2025-01-29T10:30:00Z',
+    description: 'Transitioned to vegetative stage',
+    data: { fromStage: 'propagation', toStage: 'vegetative' },
+  },
+  {
+    id: 'event-3',
+    batchId: 'batch-1',
+    type: 'alarm',
+    timestamp: '2025-02-05T14:20:00Z',
+    description: 'High temperature alarm triggered',
+    data: { metric: 'temperature', value: 32.5, threshold: 30 },
+  },
+  {
+    id: 'event-4',
+    batchId: 'batch-1',
+    type: 'override',
+    timestamp: '2025-02-05T14:45:00Z',
+    description: 'Manual temperature override applied',
+    data: { parameter: 'temperature_setpoint', oldValue: 28, newValue: 26 },
+    userId: 'user-1',
+  },
+  {
+    id: 'event-5',
+    batchId: 'batch-1',
+    type: 'stage_change',
+    timestamp: '2025-02-28T09:00:00Z',
+    description: 'Transitioned to flowering stage',
+    data: { fromStage: 'vegetative', toStage: 'flowering' },
+  },
+  {
+    id: 'event-6',
+    batchId: 'batch-1',
+    type: 'qa_check',
+    timestamp: '2025-03-15T11:00:00Z',
+    description: 'Weekly quality assurance inspection',
+    data: { inspector: 'Jane Smith', status: 'passed', notes: 'Healthy growth, no pests detected' },
+    evidenceUrls: ['https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=400'],
+  },
+];

@@ -8,6 +8,7 @@ export default async function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -21,6 +22,11 @@ export default async function ProtectedLayout({
             </Link>
           </div>
           <div className="flex items-center gap-4">
+            {isDevMode && (
+              <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                DEV MODE
+              </span>
+            )}
             {user && (
               <span className="text-sm text-muted-foreground">
                 {user.email}

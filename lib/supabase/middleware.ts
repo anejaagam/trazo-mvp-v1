@@ -7,6 +7,9 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  // Check if we're in development mode and should bypass auth
+  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+  
   // Get region from cookie (default to US)
   const regionCookie = request.cookies.get('user_region');
   const region = (regionCookie?.value === 'CA' ? 'CA' : 'US') as Region;
@@ -38,6 +41,11 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // In development mode, skip authentication checks
+  if (isDevMode) {
+    return supabaseResponse;
+  }
 
   if (
     !user &&

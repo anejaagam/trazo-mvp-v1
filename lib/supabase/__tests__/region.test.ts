@@ -27,8 +27,8 @@ describe('Region Configuration', () => {
     });
 
     it('should return Canada configuration when region is CA', () => {
-      process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'https://test-ca.supabase.co';
-      process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'test-ca-anon-key';
+      process.env.NEXT_PUBLIC_CAN_SUPABASE_URL = 'https://test-ca.supabase.co';
+      process.env.NEXT_PUBLIC_CAN_SUPABASE_ANON_KEY = 'test-ca-anon-key';
       process.env.CAN_SUPABASE_SERVICE_ROLE_KEY = 'test-ca-service-role-key';
 
       const config = getRegionConfig('CA');
@@ -55,7 +55,7 @@ describe('Region Configuration', () => {
     it('should pass validation when all required env vars are present', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test-us.supabase.co';
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-us-anon-key';
-      process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'https://test-ca.supabase.co';
+      process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL = 'https://test-ca.supabase.co';
       process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'test-ca-anon-key';
 
       expect(() => validateRegionConfig()).not.toThrow();
@@ -64,7 +64,7 @@ describe('Region Configuration', () => {
     it('should throw error when US URL is missing', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-us-anon-key';
-      process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'https://test-ca.supabase.co';
+      process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL = 'https://test-ca.supabase.co';
       process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'test-ca-anon-key';
 
       expect(() => validateRegionConfig()).toThrow('Missing NEXT_PUBLIC_SUPABASE_URL');
@@ -73,7 +73,7 @@ describe('Region Configuration', () => {
     it('should throw error when US anon key is missing', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test-us.supabase.co';
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'https://test-ca.supabase.co';
+      process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL = 'https://test-ca.supabase.co';
       process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'test-ca-anon-key';
 
       expect(() => validateRegionConfig()).toThrow('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
@@ -82,16 +82,16 @@ describe('Region Configuration', () => {
     it('should throw error when Canada URL is missing', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test-us.supabase.co';
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-us-anon-key';
-      delete process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY;
+      delete process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL;
       process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'test-ca-anon-key';
 
-      expect(() => validateRegionConfig()).toThrow('Missing CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY');
+      expect(() => validateRegionConfig()).toThrow('Missing CAN_NEXT_PUBLIC_CASUPABASE_URL');
     });
 
     it('should throw error when Canada anon key is missing', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test-us.supabase.co';
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-us-anon-key';
-      process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'https://test-ca.supabase.co';
+      process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL = 'https://test-ca.supabase.co';
       delete process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY;
 
       expect(() => validateRegionConfig()).toThrow('Missing CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY');
@@ -100,12 +100,12 @@ describe('Region Configuration', () => {
     it('should list all missing environment variables', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      delete process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY;
+      delete process.env.CAN_NEXT_PUBLIC_CASUPABASE_URL;
       delete process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY;
 
       expect(() => validateRegionConfig()).toThrow(/Missing NEXT_PUBLIC_SUPABASE_URL/);
       expect(() => validateRegionConfig()).toThrow(/Missing NEXT_PUBLIC_SUPABASE_ANON_KEY/);
-      expect(() => validateRegionConfig()).toThrow(/Missing CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY/);
+      expect(() => validateRegionConfig()).toThrow(/Missing CAN_NEXT_PUBLIC_CASUPABASE_URL/);
       expect(() => validateRegionConfig()).toThrow(/Missing CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY/);
     });
   });

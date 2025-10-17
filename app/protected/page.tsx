@@ -5,15 +5,27 @@ import { Badge } from "@/components/ui/badge";
 import { REGION_INFO } from "@/lib/types/region";
 
 export default async function ProtectedPage() {
+  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
   const supabase = await createClient();
 
   const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
+  
+  // In development mode, create a mock user if no real user exists
+  const effectiveUser = isDevMode && !user ? {
+    email: 'dev@trazo.com',
+    user_metadata: {
+      full_name: 'Development User',
+      company_name: 'Trazo Development',
+      region: 'US'
+    }
+  } : user;
+
+  if (!isDevMode && (error || !user)) {
     redirect("/auth/login");
   }
 
   // Get user's region from metadata
-  const userRegion = user.user_metadata?.region || 'US';
+  const userRegion = effectiveUser?.user_metadata?.region || 'US';
   const regionInfo = REGION_INFO[userRegion as keyof typeof REGION_INFO];
 
   return (
@@ -34,30 +46,32 @@ export default async function ProtectedPage() {
           <CardContent className="space-y-3">
             <div>
               <div className="text-sm font-medium text-muted-foreground">Email</div>
-              <div className="text-sm">{user.email}</div>
+              <div className="text-sm">{effectiveUser?.email}</div>
             </div>
-            {user.user_metadata?.full_name && (
+            {effectiveUser?.user_metadata?.full_name && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">Full Name</div>
-                <div className="text-sm">{user.user_metadata.full_name}</div>
+                <div className="text-sm">{effectiveUser.user_metadata.full_name}</div>
               </div>
             )}
-            {user.user_metadata?.company_name && (
+            {effectiveUser?.user_metadata?.company_name && (
               <div>
                 <div className="text-sm font-medium text-muted-foreground">Company</div>
-                <div className="text-sm">{user.user_metadata.company_name}</div>
+                <div className="text-sm">{effectiveUser.user_metadata.company_name}</div>
               </div>
             )}
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">Account Created</div>
-              <div className="text-sm">
-                {new Date(user.created_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+            {effectiveUser && 'created_at' in effectiveUser && (
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">Account Created</div>
+                <div className="text-sm">
+                  {new Date(effectiveUser.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 

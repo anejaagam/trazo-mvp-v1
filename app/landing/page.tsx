@@ -103,7 +103,7 @@ export default function LandingPage() {
       </section>
 
       {/* Feature Cards Section - Sticky Scroll */}
-      <section className="py-24 bg-black">
+      <section className="py-24 bg-black ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-24">
             {/* Card 1 - Unified Operations Dashboard */}
@@ -128,7 +128,7 @@ export default function LandingPage() {
                   <div className="text-[0.9rem] uppercase tracking-[0.01em] leading-[1.3] text-[#b2ff00] font-normal">
                     Unified operations dashboard
                   </div>
-                  <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
+                  <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] text-white font-medium leading-[1.04] tracking-tight">
                     Control every container, one platform
                   </h2>
                   <p className="text-[1.13rem] leading-[1.6] text-white/70">
@@ -160,7 +160,7 @@ export default function LandingPage() {
                   <div className="text-[0.9rem] uppercase tracking-[0.01em] leading-[1.3] text-[#b2ff00] font-normal">
                     Automated regulatory management
                   </div>
-                  <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
+                  <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
                     Compliance, simplified and continuous
                   </h2>
                   <p className="text-[1.13rem] leading-[1.6] text-white/70">
@@ -192,7 +192,7 @@ export default function LandingPage() {
                   <div className="text-[0.9rem] uppercase tracking-[0.01em] leading-[1.3] text-[#b2ff00] font-normal">
                     Universal device compatibility
                   </div>
-                  <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
+                  <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] text-white lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
                     Integrate with any hardware fleet
                   </h2>
                   <p className="text-[1.13rem] leading-[1.6] text-white/70">
@@ -206,7 +206,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Grid Section */}
-      <section className="py-24 bg-[#111]">
+      <section className="py-24 bg-[#111] ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div 
             ref={featuresGrid.ref}
@@ -216,8 +216,8 @@ export default function LandingPage() {
                 : 'opacity-0 translate-y-20'
             }`}
           >
-            <div className="text-center mb-16 max-w-3xl mx-auto">
-              <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight mb-6">
+            <div className="text-center mb-16 max-w-3xl mx-auto ">
+              <h2 className="text-[1.45rem] sm:text-[1.81rem] text-white md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight mb-6">
                 Unify container farm operations
               </h2>
               <p className="text-[1.13rem] leading-[1.6] text-white/60">
@@ -230,13 +230,13 @@ export default function LandingPage() {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-[#b2ff00]/50 transition-all duration-300 group">
               <div className="w-12 h-12 mb-4 text-[#b2ff00] transition-transform duration-300 group-hover:scale-110">
                 <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none">
-                  <path d="M9.24998 18.7103C6.60958 17.6271 4.75 15.0307 4.75 12C4.75 8.96938 6.60958 6.37304 9.24997 5.28979" strokeWidth="1.5" strokeLinejoin="round" stroke="currentColor"></path>
-                  <path d="M14.75 5.28979C17.3904 6.37303 19.25 8.96938 19.25 12.0001C19.25 15.0307 17.3904 17.6271 14.75 18.7103" strokeWidth="1.5" strokeLinejoin="round" stroke="currentColor"></path>
-                  <path d="M4 19.2501L8.99998 19.2501C9.13805 19.2501 9.24998 19.1381 9.24998 19.0001L9.24997 14" strokeWidth="1.5" strokeLinejoin="round" stroke="currentColor"></path>
-                  <path d="M20 4.75L15 4.75003C14.8619 4.75003 14.75 4.86196 14.75 5.00003L14.75 10.0001" strokeWidth="1.5" strokeLinejoin="round" stroke="currentColor"></path>
+                  <path d="M9.24998 18.7103C6.60958 17.6271 4.75 15.0307 4.75 12C4.75 8.96938 6.60958 6.37304 9.24997 5.28979" strokeWidth="1.5" strokeLinejoin="round" stroke="white"></path>
+                  <path d="M14.75 5.28979C17.3904 6.37303 19.25 8.96938 19.25 12.0001C19.25 15.0307 17.3904 17.6271 14.75 18.7103" strokeWidth="1.5" strokeLinejoin="round" stroke="white"></path>
+                  <path d="M4 19.2501L8.99998 19.2501C9.13805 19.2501 9.24998 19.1381 9.24998 19.0001L9.24997 14" strokeWidth="1.5" strokeLinejoin="round" stroke="white"></path>
+                  <path d="M20 4.75L15 4.75003C14.8619 4.75003 14.75 4.86196 14.75 5.00003L14.75 10.0001" strokeWidth="1.5" strokeLinejoin="round" stroke="white"></path>
                 </svg>
               </div>
-              <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
+              <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] text-white tracking-tight mb-3">
                 Integrated environment automation
               </h3>
               <p className="text-[1rem] leading-[1.6] text-white/60">
@@ -248,10 +248,10 @@ export default function LandingPage() {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-[#b2ff00]/50 transition-all duration-300 group">
               <div className="w-12 h-12 mb-4 text-[#b2ff00] transition-transform duration-300 group-hover:scale-110">
                 <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M9.5 9C9.5 7.61929 10.6193 6.5 12 6.5C13.3807 6.5 14.5 7.61929 14.5 9C14.5 10.3807 13.3807 11.5 12 11.5C10.6193 11.5 9.5 10.3807 9.5 9ZM12 5C9.79086 5 8 6.79086 8 9C8 11.2091 9.79086 13 12 13C14.2091 13 16 11.2091 16 9C16 6.79086 14.2091 5 12 5ZM8.75 13.5C6.67893 13.5 5 15.1789 5 17.25V19H6.5V17.25C6.5 16.0074 7.50736 15 8.75 15H15.25C16.4926 15 17.5 16.0074 17.5 17.25V19H19V17.25C19 15.1789 17.3211 13.5 15.25 13.5H8.75Z" fill="currentColor"></path>
+                  <path fillRule="evenodd" clipRule="evenodd" d="M9.5 9C9.5 7.61929 10.6193 6.5 12 6.5C13.3807 6.5 14.5 7.61929 14.5 9C14.5 10.3807 13.3807 11.5 12 11.5C10.6193 11.5 9.5 10.3807 9.5 9ZM12 5C9.79086 5 8 6.79086 8 9C8 11.2091 9.79086 13 12 13C14.2091 13 16 11.2091 16 9C16 6.79086 14.2091 5 12 5ZM8.75 13.5C6.67893 13.5 5 15.1789 5 17.25V19H6.5V17.25C6.5 16.0074 7.50736 15 8.75 15H15.25C16.4926 15 17.5 16.0074 17.5 17.25V19H19V17.25C19 15.1789 17.3211 13.5 15.25 13.5H8.75Z" fill="white"></path>
                 </svg>
               </div>
-              <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
+              <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
                 Real-time compliance tracking
               </h3>
               <p className="text-[1rem] leading-[1.6] text-white/60">
@@ -263,13 +263,13 @@ export default function LandingPage() {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-[#b2ff00]/50 transition-all duration-300 group">
               <div className="w-12 h-12 mb-4 text-[#b2ff00] transition-transform duration-300 group-hover:scale-110">
                 <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none">
-                  <path d="M4 12C8.41828 12 12 8.41828 12 4C12 8.41828 15.5817 12 20 12C15.5817 12 12 15.5817 12 20C12 15.5817 8.41828 12 4 12Z" strokeWidth="1.5" strokeLinejoin="round" stroke="currentColor"></path>
+                  <path d="M4 12C8.41828 12 12 8.41828 12 4C12 8.41828 15.5817 12 20 12C15.5817 12 12 15.5817 12 20C12 15.5817 8.41828 12 4 12Z" strokeWidth="1.5" strokeLinejoin="round" stroke="white"></path>
                 </svg>
               </div>
-              <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
+              <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
                 Unified workflow management
               </h3>
-              <p className="text-[1rem] leading-[1.6] text-white/60">
+              <p className="text-[1rem] leading-[1.6]  text-white/60">
                 Streamline scheduling, task coordination, and labor tracking with hardware-agnostic tools.
               </p>
             </div>
@@ -278,10 +278,10 @@ export default function LandingPage() {
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-[#b2ff00]/50 transition-all duration-300 group">
               <div className="w-12 h-12 mb-4 text-[#b2ff00] transition-transform duration-300 group-hover:scale-110">
                 <svg width="100%" height="100%" viewBox="0 0 50 50" fill="none">
-                  <path d="M 31.1875 3.25 C 30.9375 3.292969 30.714844 3.425781 30.5625 3.625 L 11.5 27.375 C 11.257813 27.675781 11.210938 28.085938 11.378906 28.433594 C 11.546875 28.78125 11.898438 29 12.28125 29 L 22.75 29 L 17.75 45.4375 C 17.566406 45.910156 17.765625 46.441406 18.210938 46.679688 C 18.65625 46.917969 19.207031 46.789063 19.5 46.375 L 38.5 22.625 C 38.742188 22.324219 38.789063 21.914063 38.621094 21.566406 C 38.453125 21.21875 38.101563 21 37.71875 21 L 27.625 21 L 32.28125 4.53125 C 32.371094 4.222656 32.308594 3.886719 32.109375 3.632813 C 31.910156 3.378906 31.601563 3.238281 31.28125 3.25 C 31.25 3.25 31.21875 3.25 31.1875 3.25 Z M 29.03125 8.71875 L 25.3125 21.71875 C 25.222656 22.023438 25.285156 22.351563 25.472656 22.601563 C 25.664063 22.855469 25.964844 23.003906 26.28125 23 L 35.625 23 L 21.1875 41.09375 L 25.09375 28.28125 C 25.183594 27.976563 25.121094 27.648438 24.933594 27.398438 C 24.742188 27.144531 24.441406 26.996094 24.125 27 L 14.375 27 Z" strokeWidth="1.5" strokeLinejoin="round" stroke="currentColor"></path>
+                  <path d="M 31.1875 3.25 C 30.9375 3.292969 30.714844 3.425781 30.5625 3.625 L 11.5 27.375 C 11.257813 27.675781 11.210938 28.085938 11.378906 28.433594 C 11.546875 28.78125 11.898438 29 12.28125 29 L 22.75 29 L 17.75 45.4375 C 17.566406 45.910156 17.765625 46.441406 18.210938 46.679688 C 18.65625 46.917969 19.207031 46.789063 19.5 46.375 L 38.5 22.625 C 38.742188 22.324219 38.789063 21.914063 38.621094 21.566406 C 38.453125 21.21875 38.101563 21 37.71875 21 L 27.625 21 L 32.28125 4.53125 C 32.371094 4.222656 32.308594 3.886719 32.109375 3.632813 C 31.910156 3.378906 31.601563 3.238281 31.28125 3.25 C 31.25 3.25 31.21875 3.25 31.1875 3.25 Z M 29.03125 8.71875 L 25.3125 21.71875 C 25.222656 22.023438 25.285156 22.351563 25.472656 22.601563 C 25.664063 22.855469 25.964844 23.003906 26.28125 23 L 35.625 23 L 21.1875 41.09375 L 25.09375 28.28125 C 25.183594 27.976563 25.121094 27.648438 24.933594 27.398438 C 24.742188 27.144531 24.441406 26.996094 24.125 27 L 14.375 27 Z" strokeWidth="1.5" strokeLinejoin="round" stroke="white" fill='white'></path>
                 </svg>
               </div>
-              <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
+              <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight mb-3">
                 Energy and Demand Response
               </h3>
               <p className="text-[1rem] leading-[1.6] text-white/60">
@@ -314,7 +314,7 @@ export default function LandingPage() {
           }`}
         >
           <div className="text-center space-y-6">
-            <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
+            <h2 className="text-[1.45rem] sm:text-[1.81rem] text-white md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight">
               Unify, automate, and scale container farms
             </h2>
             <p className="text-[1.13rem] leading-[1.6] text-white/70 max-w-3xl mx-auto">
@@ -347,7 +347,7 @@ export default function LandingPage() {
               <div className="text-[0.9rem] uppercase tracking-[0.01em] leading-[1.3] text-[#b2ff00] font-normal mb-4">
                 Support & compliance
               </div>
-              <h2 className="text-[1.45rem] sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight mb-6">
+              <h2 className="text-[1.45rem] text-white sm:text-[1.81rem] md:text-[2.26rem] lg:text-[2.83rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.04] tracking-tight mb-6">
                 Container farm FAQ
               </h2>
               <p className="text-[1.13rem] leading-[1.6] text-white/60">
@@ -358,7 +358,7 @@ export default function LandingPage() {
           <div className="space-y-4">
             <div className="border-t border-white/10 pt-6 hover:border-white/20 transition-colors duration-300">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
+                <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
                   How does the platform integrate with existing equipment?
                 </h3>
                 <div className="text-[1.13rem] leading-[1.6] text-white/60 lg:col-span-2">
@@ -369,7 +369,7 @@ export default function LandingPage() {
             
             <div className="border-t border-white/10 pt-6 hover:border-white/20 transition-colors duration-300">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
+                <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
                   What compliance features are included?
                 </h3>
                 <div className="text-[1.13rem] leading-[1.6] text-white/60 lg:col-span-2">
@@ -380,7 +380,7 @@ export default function LandingPage() {
             
             <div className="border-t border-white/10 pt-6 hover:border-white/20 transition-colors duration-300">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
+                <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
                   Can I monitor multiple containers and zones?
                 </h3>
                 <div className="text-[1.13rem] leading-[1.6] text-white/60 lg:col-span-2">
@@ -391,7 +391,7 @@ export default function LandingPage() {
             
             <div className="border-t border-white/10 pt-6 hover:border-white/20 transition-colors duration-300">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <h3 className="text-[1.41rem] font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
+                <h3 className="text-[1.41rem] text-white font-[family-name:var(--font-lexend)] font-medium leading-[1.3] tracking-tight lg:col-span-1">
                   Is the system scalable for different farm sizes?
                 </h3>
                 <div className="text-[1.13rem] leading-[1.6] text-white/60 lg:col-span-2">

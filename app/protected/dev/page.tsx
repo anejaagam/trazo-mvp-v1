@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { isDevModeActive } from "@/lib/dev-mode";
 
 export default function DevDashboard() {
-  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+  const isDevMode = isDevModeActive();
 
   if (!isDevMode) {
     return (

@@ -89,6 +89,8 @@ CREATE TABLE users (
     'org_admin', 'site_manager', 'head_grower', 'operator', 
     'compliance_qa', 'executive_viewer', 'installer_tech', 'support'
   )),
+  status TEXT DEFAULT 'active' CHECK (status IN ('invited', 'active', 'suspended', 'deactivated')),
+  idp TEXT DEFAULT 'local' CHECK (idp IN ('local', 'google', 'microsoft', 'okta')),
   additional_permissions TEXT[], -- Array of additional permission keys
   emergency_contact_name TEXT,
   emergency_contact_phone TEXT,

@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { LogoutButton } from '@/components/auth/logout-button'
+import { ThemeSwitcher } from '@/components/theme-switcher'
 
 interface DashboardHeaderProps {
   user: {
@@ -49,6 +50,9 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
 
         {/* Right side - Notifications and user menu */}
         <div className="flex items-center gap-4">
+          {/* Theme Switcher */}
+          <ThemeSwitcher />
+          
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

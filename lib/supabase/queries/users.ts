@@ -119,39 +119,71 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 /**
  * Invite a new user to the organization
- * This creates a user record and sends an invitation email
+ * This creates an auth user and sends an invitation email via Supabase Auth
+ * The user profile will be automatically created by the database trigger
  */
 export async function inviteUser(invite: UserInvite): Promise<User> {
   const supabase = await createClient();
 
-  // First, check if user already exists
-  const existingUser = await getUserByEmail(invite.email);
-  if (existingUser) {
+  // First, check if user already exists in auth.users
+  // Note: Supabase doesn't have a direct getUserByEmail admin method
+  // We'll check the profile table first, then let inviteUserByEmail handle duplicates
+  const existingProfile = await getUserByEmail(invite.email);
+  if (existingProfile) {
     throw new Error('A user with this email already exists');
   }
 
-  // Create the user record with 'invited' status
-  const { data: user, error: userError } = await supabase
+  // Invite user via Supabase Auth - this will send an email invitation
+  const { data: authData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    invite.email,
+    {
+      data: {
+        full_name: invite.full_name,
+        role: invite.role,
+        organization_id: invite.organization_id,
+      },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/dashboard`,
+    }
+  );
+
+  if (inviteError) {
+    throw new Error(`Failed to invite user: ${inviteError.message}`);
+  }
+
+  if (!authData.user) {
+    throw new Error('Failed to create auth user');
+  }
+
+  // Update the auto-created user profile with invited status
+  const { data: user, error: updateError } = await supabase
     .from('users')
-    .insert({
+    .update({
+      status: 'invited',
+      role: invite.role,
+      organization_id: invite.organization_id,
+    })
+    .eq('id', authData.user.id)
+    .select()
+    .single();
+
+  if (updateError) {
+    // Log error but don't fail - the user was invited successfully
+    console.error('Failed to update user profile:', updateError);
+    // Return a partial user object
+    return {
+      id: authData.user.id,
       email: invite.email,
       full_name: invite.full_name,
       role: invite.role,
       organization_id: invite.organization_id,
       status: 'invited',
-      idp: 'local', // Default to local auth
-    })
-    .select()
-    .single();
-
-  if (userError) {
-    throw new Error(`Failed to create user: ${userError.message}`);
+    } as User;
   }
 
   // If site assignments are provided, create them
   if (invite.site_ids && invite.site_ids.length > 0) {
     const siteAssignments = invite.site_ids.map(siteId => ({
-      user_id: user.id,
+      user_id: authData.user.id,
       site_id: siteId,
     }));
 
@@ -164,9 +196,6 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
       console.error('Failed to create site assignments:', assignmentError);
     }
   }
-
-  // TODO: Send invitation email via Supabase Auth
-  // await supabase.auth.admin.inviteUserByEmail(invite.email)
 
   return user as User;
 }
@@ -298,6 +327,7 @@ export async function deleteUser(userId: string): Promise<void> {
  * Resend invitation to a user
  */
 export async function resendInvitation(userId: string): Promise<void> {
+  const supabase = await createClient();
   const user = await getUserById(userId);
   
   if (!user) {
@@ -308,9 +338,22 @@ export async function resendInvitation(userId: string): Promise<void> {
     throw new Error('Can only resend invitations to users with invited status');
   }
 
-  // TODO: Resend invitation email via Supabase Auth
-  // const supabase = await createClient();
-  // await supabase.auth.admin.inviteUserByEmail(user.email)
+  // Resend invitation email via Supabase Auth
+  const { error } = await supabase.auth.admin.inviteUserByEmail(
+    user.email,
+    {
+      data: {
+        full_name: user.full_name,
+        role: user.role,
+        organization_id: user.organization_id,
+      },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/dashboard`,
+    }
+  );
+
+  if (error) {
+    throw new Error(`Failed to resend invitation: ${error.message}`);
+  }
 }
 
 /**

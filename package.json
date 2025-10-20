@@ -12,6 +12,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
+    "test:user-flow": "ts-node --project scripts/tsconfig.json scripts/test-user-flow.ts",
     "seed:dev": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts",
     "seed:clean": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts --clean"
   },

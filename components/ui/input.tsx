@@ -40,8 +40,9 @@ export interface InputProps
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, variant, size, label, helperText, error, ...props }, ref) => {
+    const generatedId = React.useId();
     const inputVariant = error ? "error" : variant;
-    const inputId = props.id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const inputId = props.id || generatedId;
     
     return (
       <div className="space-y-1">

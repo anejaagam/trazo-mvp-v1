@@ -45,7 +45,7 @@ export function SignUpForm() {
             full_name: fullName,
             company_name: companyName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/protected`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
         },
       });
 

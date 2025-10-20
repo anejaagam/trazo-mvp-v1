@@ -842,63 +842,15 @@ CREATE INDEX idx_audit_log_timestamp ON audit_log(timestamp DESC);
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =====================================================
 
--- Enable RLS on all tables
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sites ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pods ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cultivars ENABLE ROW LEVEL SECURITY;
-ALTER TABLE batches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE batch_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE plant_tags ENABLE ROW LEVEL SECURITY;
-ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE inventory_movements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE waste_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE recipe_applications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE control_overrides ENABLE ROW LEVEL SECURITY;
-ALTER TABLE telemetry_readings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE alarms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE alarm_policies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sop_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE compliance_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE evidence_vault ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
-
--- Example RLS policies (organization-scoped data access)
-
--- Users can only see data from their own organization
-CREATE POLICY "Users can view their org's data"
-  ON batches FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Users can view their org's inventory"
-  ON inventory_items FOR SELECT
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    )
-  );
-
--- Role-based insert policies
-CREATE POLICY "Managers can create batches"
-  ON batches FOR INSERT
-  WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM users 
-      WHERE id = auth.uid() 
-      AND role IN ('org_admin', 'site_manager', 'head_grower')
-    )
-  );
-
--- Similar patterns for other tables...
--- (Additional RLS policies would be created for each table based on role requirements)
+-- NOTE: Row Level Security policies have been moved to a separate file
+-- Apply rls-policies.sql AFTER this schema file has been successfully applied
+-- Location: /lib/supabase/rls-policies.sql
+--
+-- The RLS policies file contains:
+-- - ENABLE ROW LEVEL SECURITY for all tables
+-- - Helper functions for permission checking
+-- - Comprehensive policies for all tables based on roles and organization scope
+-- - Policies for audit trail immutability (no updates/deletes on audit tables)
 
 -- =====================================================
 -- FUNCTIONS & TRIGGERS
@@ -906,12 +858,16 @@ CREATE POLICY "Managers can create batches"
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 -- Apply trigger to tables with updated_at column
 CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations
@@ -949,9 +905,13 @@ CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
 
 -- Function to log all changes to audit_log
 CREATE OR REPLACE FUNCTION log_audit_trail()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-  INSERT INTO audit_log (
+  INSERT INTO public.audit_log (
     organization_id,
     user_id,
     action,
@@ -972,7 +932,7 @@ BEGIN
   );
   RETURN COALESCE(NEW, OLD);
 END;
-$$ language 'plpgsql';
+$$;
 
 -- Apply audit trigger to critical tables
 CREATE TRIGGER audit_batches AFTER INSERT OR UPDATE OR DELETE ON batches
@@ -998,18 +958,22 @@ CREATE TRIGGER audit_users AFTER INSERT OR UPDATE OR DELETE ON users
 
 -- Function to automatically create batch events
 CREATE OR REPLACE FUNCTION create_batch_event()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
   -- Create event for new batches
   IF TG_OP = 'INSERT' THEN
-    INSERT INTO batch_events (batch_id, event_type, to_value, user_id, notes)
+    INSERT INTO public.batch_events (batch_id, event_type, to_value, user_id, notes)
     VALUES (NEW.id, 'created', row_to_json(NEW), auth.uid(), 'Batch created');
     RETURN NEW;
   END IF;
   
   -- Create event for stage changes
   IF TG_OP = 'UPDATE' AND OLD.stage != NEW.stage THEN
-    INSERT INTO batch_events (batch_id, event_type, from_value, to_value, user_id, notes)
+    INSERT INTO public.batch_events (batch_id, event_type, from_value, to_value, user_id, notes)
     VALUES (NEW.id, 'stage_change', 
            jsonb_build_object('stage', OLD.stage), 
            jsonb_build_object('stage', NEW.stage), 
@@ -1019,7 +983,7 @@ BEGIN
   
   -- Create event for plant count changes
   IF TG_OP = 'UPDATE' AND OLD.plant_count != NEW.plant_count THEN
-    INSERT INTO batch_events (batch_id, event_type, from_value, to_value, user_id, notes)
+    INSERT INTO public.batch_events (batch_id, event_type, from_value, to_value, user_id, notes)
     VALUES (NEW.id, 'plant_count_update',
            jsonb_build_object('plant_count', OLD.plant_count),
            jsonb_build_object('plant_count', NEW.plant_count),
@@ -1029,7 +993,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$;
 
 CREATE TRIGGER batch_event_trigger 
   AFTER INSERT OR UPDATE ON batches
@@ -1037,10 +1001,14 @@ CREATE TRIGGER batch_event_trigger
 
 -- Function to update inventory quantities after movements
 CREATE OR REPLACE FUNCTION update_inventory_quantity()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    UPDATE inventory_items 
+    UPDATE public.inventory_items 
     SET current_quantity = current_quantity + 
         CASE 
           WHEN NEW.movement_type IN ('receive', 'return', 'adjust') THEN NEW.quantity
@@ -1050,14 +1018,14 @@ BEGIN
     WHERE id = NEW.item_id;
     
     -- Check for low stock alerts
-    INSERT INTO inventory_alerts (item_id, alert_type, threshold_value)
+    INSERT INTO public.inventory_alerts (item_id, alert_type, threshold_value)
     SELECT NEW.item_id, 'low_stock', minimum_quantity
-    FROM inventory_items 
+    FROM public.inventory_items 
     WHERE id = NEW.item_id 
       AND current_quantity <= minimum_quantity 
       AND minimum_quantity IS NOT NULL
       AND NOT EXISTS (
-        SELECT 1 FROM inventory_alerts 
+        SELECT 1 FROM public.inventory_alerts 
         WHERE item_id = NEW.item_id 
         AND alert_type = 'low_stock' 
         AND is_acknowledged = FALSE
@@ -1066,7 +1034,7 @@ BEGIN
   
   RETURN COALESCE(NEW, OLD);
 END;
-$$ language 'plpgsql';
+$$;
 
 CREATE TRIGGER inventory_movement_trigger 
   AFTER INSERT ON inventory_movements
@@ -1076,16 +1044,9 @@ CREATE TRIGGER inventory_movement_trigger
 -- SEED DATA
 -- =====================================================
 
--- Insert default inventory categories
-INSERT INTO inventory_categories (organization_id, name, description, track_lot_numbers, track_expiry, require_coa) VALUES
-('00000000-0000-0000-0000-000000000000', 'CO2 Tanks', 'Carbon dioxide tanks for plant growth', false, false, true),
-('00000000-0000-0000-0000-000000000000', 'Filters', 'Air and water filtration systems', true, false, false),
-('00000000-0000-0000-0000-000000000000', 'Nutrients', 'Plant nutrition solutions and supplements', true, true, true),
-('00000000-0000-0000-0000-000000000000', 'Chemicals', 'Cleaning and sanitation chemicals', true, true, true),
-('00000000-0000-0000-0000-000000000000', 'Growing Medium', 'Soil, rockwool, perlite, etc.', true, false, false),
-('00000000-0000-0000-0000-000000000000', 'Seeds & Genetics', 'Seeds, clones, tissue culture', true, true, false),
-('00000000-0000-0000-0000-000000000000', 'Packaging', 'Containers, labels, harvest supplies', true, false, false),
-('00000000-0000-0000-0000-000000000000', 'Equipment', 'Tools, sensors, replacement parts', false, false, false);
+-- NOTE: Seed data has been moved to /lib/supabase/seed-data.ts
+-- Run `npm run seed:dev` after schema is applied to populate test data
+-- This ensures proper organization IDs and user references
 
 -- =====================================================
 -- COMMENTS & DOCUMENTATION

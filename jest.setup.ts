@@ -59,3 +59,34 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test-us.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-us-anon-key';
 process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'https://test-ca.supabase.co';
 process.env.CAN_NEXT_PUBLIC_CASUPABASE_ANON_KEY = 'test-ca-anon-key';
+
+// Mock Next.js server Request/Response for API routes
+// @ts-expect-error - Mock class for testing
+global.Request = class Request {
+  constructor(public url: string, public init?: RequestInit) {}
+  async json() {
+    return {};
+  }
+  async text() {
+    return '';
+  }
+};
+
+// @ts-expect-error - Mock class for testing
+global.Response = class Response {
+  constructor(public body?: BodyInit | null, public init?: ResponseInit) {}
+  async json() {
+    return {};
+  }
+};
+
+// Mock NextResponse for API route testing
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: jest.fn((body, init) => ({
+      status: init?.status || 200,
+      json: async () => body,
+      ok: (init?.status || 200) >= 200 && (init?.status || 200) < 300,
+    })),
+  },
+}));

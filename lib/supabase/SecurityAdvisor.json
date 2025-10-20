@@ -1,0 +1,257 @@
+[
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.user_site_assignments\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "user_site_assignments",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_user_site_assignments"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.user_permissions\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "user_permissions",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_user_permissions"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.batch_pod_assignments\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "batch_pod_assignments",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_batch_pod_assignments"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.inventory_categories\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "inventory_categories",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_inventory_categories"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.inventory_alerts\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "inventory_alerts",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_inventory_alerts"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.device_status\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "device_status",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_device_status"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.alarm_routes\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "alarm_routes",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_alarm_routes"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.notifications\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "notifications",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_notifications"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.task_steps\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "task_steps",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_task_steps"
+  },
+  {
+    "name": "rls_disabled_in_public",
+    "title": "RLS Disabled in Public",
+    "level": "ERROR",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects cases where row level security (RLS) has not been enabled on tables in schemas exposed to PostgREST",
+    "detail": "Table \\`public.task_dependencies\\` is public, but RLS has not been enabled.",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0013_rls_disabled_in_public",
+    "metadata": {
+      "name": "task_dependencies",
+      "type": "table",
+      "schema": "public"
+    },
+    "cache_key": "rls_disabled_in_public_public_task_dependencies"
+  }
+]
+
+[
+  {
+    "name": "function_search_path_mutable",
+    "title": "Function Search Path Mutable",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects functions where the search_path parameter is not set.",
+    "detail": "Function \\`public.update_updated_at_column\\` has a role mutable search_path",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable",
+    "metadata": {
+      "name": "update_updated_at_column",
+      "type": "function",
+      "schema": "public"
+    },
+    "cache_key": "function_search_path_mutable_public_update_updated_at_column_da5ac28a58c8b4bb30209bf0d3d7082c"
+  },
+  {
+    "name": "function_search_path_mutable",
+    "title": "Function Search Path Mutable",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects functions where the search_path parameter is not set.",
+    "detail": "Function \\`public.log_audit_trail\\` has a role mutable search_path",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable",
+    "metadata": {
+      "name": "log_audit_trail",
+      "type": "function",
+      "schema": "public"
+    },
+    "cache_key": "function_search_path_mutable_public_log_audit_trail_a0989e6b576a88d4889cd219ee27cc1e"
+  },
+  {
+    "name": "function_search_path_mutable",
+    "title": "Function Search Path Mutable",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects functions where the search_path parameter is not set.",
+    "detail": "Function \\`public.create_batch_event\\` has a role mutable search_path",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable",
+    "metadata": {
+      "name": "create_batch_event",
+      "type": "function",
+      "schema": "public"
+    },
+    "cache_key": "function_search_path_mutable_public_create_batch_event_422c59988923a6b7be59a0cf6b0214e8"
+  },
+  {
+    "name": "function_search_path_mutable",
+    "title": "Function Search Path Mutable",
+    "level": "WARN",
+    "facing": "EXTERNAL",
+    "categories": [
+      "SECURITY"
+    ],
+    "description": "Detects functions where the search_path parameter is not set.",
+    "detail": "Function \\`public.update_inventory_quantity\\` has a role mutable search_path",
+    "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable",
+    "metadata": {
+      "name": "update_inventory_quantity",
+      "type": "function",
+      "schema": "public"
+    },
+    "cache_key": "function_search_path_mutable_public_update_inventory_quantity_3ba9f410967ffccd58e499ffe68e250f"
+  }
+]

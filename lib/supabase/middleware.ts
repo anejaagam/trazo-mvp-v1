@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getRegionConfig, type Region } from './region';
+import { isDevModeActive, shouldBypassAuth, logDevMode } from '@/lib/dev-mode';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -8,7 +9,13 @@ export async function updateSession(request: NextRequest) {
   });
 
   // Check if we're in development mode and should bypass auth
-  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+  const devModeActive = isDevModeActive();
+  const bypassAuth = shouldBypassAuth(request.nextUrl.pathname);
+  
+  if (devModeActive && bypassAuth) {
+    logDevMode(`Middleware - ${request.nextUrl.pathname}`);
+    return supabaseResponse;
+  }
   
   // Get region from cookie (default to US)
   const regionCookie = request.cookies.get('user_region');
@@ -42,8 +49,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // In development mode, skip authentication checks
-  if (isDevMode) {
+  // In development mode, skip authentication checks (already bypassed at top if needed)
+  // This is a fallback check for any routes that weren't caught by the early return
+  if (devModeActive && bypassAuth) {
     return supabaseResponse;
   }
 

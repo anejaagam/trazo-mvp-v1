@@ -12,7 +12,10 @@ export default function SignUpStep2() {
   const [formData, setFormData] = useState({
     companyName: "",
     companyWebsite: "",
-    farmLocation: ""
+    farmLocation: "",
+    jurisdiction: "",
+    plantType: "",
+    dataRegion: "" // us or canada
   });
 
   useEffect(() => {
@@ -106,6 +109,71 @@ export default function SignUpStep2() {
                 </p>
               </div>
 
+              {/* Plant Type Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="plantType" required>Plant Type</Label>
+                <select
+                  id="plantType"
+                  value={formData.plantType}
+                  onChange={(e) => handleInputChange('plantType', e.target.value)}
+                  className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
+                >
+                  <option value="">Select Plant Type</option>
+                  <option value="cannabis">Cannabis</option>
+                  <option value="produce">Produce</option>
+                </select>
+                <p className="text-sm text-neutral-600">
+                  Select the primary type of plants you will be growing. This determines compliance requirements and available features.
+                </p>
+              </div>
+
+              {/* Jurisdiction Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="jurisdiction" required>Regulatory Jurisdiction</Label>
+                <select
+                  id="jurisdiction"
+                  value={formData.jurisdiction}
+                  onChange={(e) => handleInputChange('jurisdiction', e.target.value)}
+                  className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
+                >
+                  <option value="">Select Jurisdiction</option>
+                  {formData.plantType === 'cannabis' && (
+                    <>
+                      <option value="oregon">Oregon (Metrc)</option>
+                      <option value="maryland">Maryland (Metrc)</option>
+                      <option value="canada">Canada (CTLS)</option>
+                    </>
+                  )}
+                  {formData.plantType === 'produce' && (
+                    <option value="primus_gfs">PrimusGFS Certification</option>
+                  )}
+                  {!formData.plantType && (
+                    <option value="" disabled>Please select plant type first</option>
+                  )}
+                </select>
+                <p className="text-sm text-neutral-600">
+                  Select the regulatory framework that applies to your operation. This configures compliance rules, reporting requirements, and tracking standards.
+                </p>
+              </div>
+
+              {/* Data Region Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="dataRegion" required>Data Region</Label>
+                <select
+                  id="dataRegion"
+                  value={formData.dataRegion}
+                  onChange={(e) => handleInputChange('dataRegion', e.target.value)}
+                  className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
+                >
+                  <option value="">Select Data Region</option>
+                  <option value="us">United States</option>
+                  <option value="canada">Canada</option>
+                </select>
+                <p className="text-sm text-neutral-600">
+                  Choose where your data will be stored. Your data will remain in the selected region to comply with data residency requirements.
+                </p>
+              </div>
+
               {/* Navigation Buttons */}
               <div className="flex justify-center gap-4 pt-12">
                 <Button 
@@ -120,7 +188,7 @@ export default function SignUpStep2() {
                   variant="default"
                   size="lg"
                   onClick={handleNext}
-                  disabled={!formData.companyName || !formData.farmLocation}
+                  disabled={!formData.companyName || !formData.farmLocation || !formData.plantType || !formData.jurisdiction || !formData.dataRegion}
                   className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
                 >
                   Next

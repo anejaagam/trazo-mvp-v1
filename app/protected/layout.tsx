@@ -2,15 +2,23 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { isDevModeActive, DEV_MOCK_AUTH_USER, logDevMode } from "@/lib/dev-mode";
 
 export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const isDevMode = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+  const devMode = isDevModeActive();
+  
+  if (devMode) {
+    logDevMode('Protected Layout');
+  }
+  
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = devMode 
+    ? { data: { user: DEV_MOCK_AUTH_USER } } 
+    : await supabase.auth.getUser();
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -22,7 +30,7 @@ export default async function ProtectedLayout({
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            {isDevMode && (
+            {devMode && (
               <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
                 DEV MODE
               </span>

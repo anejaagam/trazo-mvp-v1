@@ -69,8 +69,8 @@ export function LoginForm() {
           process.env.NODE_ENV === 'production' ? '; Secure' : ''
         }`;
 
-        // Redirect to protected area
-        router.push('/protected');
+        // Redirect to dashboard
+        router.push('/dashboard');
         router.refresh();
       }
     } catch (err: any) {
@@ -82,18 +82,16 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-4 max-w-md mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Log In</h1>
-
+    <form onSubmit={handleLogin} className="space-y-6">
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+        <div className="p-3 bg-error-50 border border-error-200 text-error-700 rounded-md text-sm">
           {error}
         </div>
       )}
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium mb-1">
-          Email
+      <div className="space-y-2">
+        <label htmlFor="email" className="block text-sm font-medium text-secondary-800">
+          Email or Username
         </label>
         <input
           id="email"
@@ -102,13 +100,13 @@ export function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={loading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="you@example.com"
+          className="w-full px-3 py-2 bg-brand-lighter-green-400/40 border border-secondary-500 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lightest-green-800 focus:border-transparent"
+          placeholder="Enter your email or username"
         />
       </div>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium mb-1">
+      <div className="space-y-2">
+        <label htmlFor="password" className="block text-sm font-medium text-secondary-800">
           Password
         </label>
         <input
@@ -118,25 +116,44 @@ export function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={loading}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="••••••••"
+          className="w-full px-3 py-2 bg-brand-lighter-green-400/40 border border-secondary-500 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lightest-green-800 focus:border-transparent"
+          placeholder="Enter your password"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors"
-      >
-        {loading ? 'Logging in...' : 'Log In'}
-      </button>
-
-      <p className="text-sm text-center text-gray-600">
-        Don&apos;t have an account?{' '}
-        <a href="/auth/sign-up" className="text-blue-600 hover:underline">
-          Sign up
+      {/* Forgot Password Link */}
+      <div className="text-center">
+        <a 
+          href="/auth/forgot-password" 
+          className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
+        >
+          Forgot Password?
         </a>
-      </p>
+      </div>
+
+      {/* Login Button */}
+      <div className="flex justify-center">
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 disabled:bg-gray-400 disabled:text-gray-600 font-medium px-8 py-2 rounded-md transition-colors text-lg"
+        >
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
+      </div>
+
+      {/* Sign up link */}
+      <div className="text-center pt-4">
+        <p className="text-sm text-neutral-600">
+          Don&apos;t have an account?{' '}
+          <a 
+            href="/auth/sign-up" 
+            className="text-information-600 hover:text-information-800 font-medium"
+          >
+            Sign up
+          </a>
+        </p>
+      </div>
     </form>
   );
 }

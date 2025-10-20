@@ -14,7 +14,7 @@ export default function SignUpStep1() {
     name: "",
     email: "",
     phoneNumber: "",
-    role: ""
+    role: "org_admin" // First user is always org_admin
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -87,23 +87,11 @@ export default function SignUpStep1() {
                 />
               </div>
 
-              {/* Role Dropdown */}
-              <div className="space-y-2">
-                <Label htmlFor="role" required>Role</Label>
-                <div className="relative">
-                  <select
-                    id="role"
-                    value={formData.role}
-                    onChange={(e) => handleInputChange('role', e.target.value)}
-                    className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
-                  >
-                    <option value="">Select Role</option>
-                    <option value="farm-owner">Farm Owner</option>
-                    <option value="farm-manager">Farm Manager</option>
-                    <option value="technician">Technician</option>
-                    <option value="researcher">Researcher</option>
-                  </select>
-                </div>
+              {/* Note about role assignment */}
+              <div className="bg-information-50 border border-information-200 rounded-lg p-4">
+                <p className="text-sm text-information-800">
+                  <strong>Note:</strong> As the first person to sign up, you will be assigned the <strong>Organization Admin</strong> role with full access to manage your organization, users, and all features.
+                </p>
               </div>
 
               {/* Next Button */}
@@ -112,7 +100,7 @@ export default function SignUpStep1() {
                   variant="default"
                   size="lg"
                   onClick={handleNext}
-                  disabled={!formData.name || !formData.email || !formData.phoneNumber || !formData.role}
+                  disabled={!formData.name || !formData.email || !formData.phoneNumber}
                   className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
                 >
                   Next

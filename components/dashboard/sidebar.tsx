@@ -215,26 +215,44 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     navItems.push({
       title: 'Administration',
       href: '/dashboard/admin',
-      icon: <Settings className="h-4 w-4" />,
-      permission: 'users:view',
+      icon: <Shield className="h-4 w-4" />,
+      permission: 'user:view',
       children: [
         {
-          title: 'Users & Roles',
+          title: 'Overview',
+          href: '/dashboard/admin',
+          icon: <BarChart3 className="h-4 w-4" />,
+          permission: 'user:view'
+        },
+        {
+          title: 'User Management',
           href: '/dashboard/admin/users',
           icon: <Users className="h-4 w-4" />,
           permission: 'user:view'
+        },
+        {
+          title: 'Roles & Permissions',
+          href: '/dashboard/admin/roles',
+          icon: <Shield className="h-4 w-4" />,
+          permission: 'user:view'
+        },
+        {
+          title: 'Audit Log',
+          href: '/dashboard/admin/audit',
+          icon: <FileText className="h-4 w-4" />,
+          permission: 'audit:view'
+        },
+        {
+          title: 'API Tokens',
+          href: '/dashboard/admin/api-tokens',
+          icon: <Settings className="h-4 w-4" />,
+          permission: 'api:manage'
         },
         {
           title: 'Organization',
           href: '/dashboard/admin/organization',
           icon: <Building2 className="h-4 w-4" />,
           permission: 'org:settings'
-        },
-        {
-          title: 'System Settings',
-          href: '/dashboard/admin/settings',
-          icon: <Settings className="h-4 w-4" />,
-          permission: 'system:configure'
         }
       ]
     })

@@ -320,7 +320,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           <img
             src="/images/Monogram_White.svg"
             alt="Trazo Logo"
-            className="h-6 w-6 object-contain"
+            className="h-6 w-6 object-contain invert dark:invert-0"
           />
           <span>Trazo</span>
         </Link>

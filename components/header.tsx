@@ -19,7 +19,7 @@ export function Header({ variant = "landing", showNavigation = true }: HeaderPro
             <img
               src="/images/Monogram_White.svg"
               alt="TRAZO Logo"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain invert dark:invert-0"
             />
           </div>
           <div className="text-brand-cream text-4xl font-display font-semibold tracking-wider">

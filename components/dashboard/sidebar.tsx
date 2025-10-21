@@ -317,7 +317,11 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       {/* Logo/Branding */}
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-          <Building2 className="h-6 w-6" />
+          <img
+            src="/images/Monogram_White.svg"
+            alt="Trazo Logo"
+            className="h-6 w-6 object-contain"
+          />
           <span>Trazo</span>
         </Link>
       </div>

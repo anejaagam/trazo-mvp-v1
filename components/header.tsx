@@ -16,7 +16,11 @@ export function Header({ variant = "landing", showNavigation = true }: HeaderPro
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
           <div className="w-9 h-10 relative">
-            <div className="w-9 h-10 bg-secondary-600 rounded" /> {/* Placeholder for logo */}
+            <img
+              src="/images/Monogram_White.svg"
+              alt="TRAZO Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="text-brand-cream text-4xl font-display font-semibold tracking-wider">
             TRAZO

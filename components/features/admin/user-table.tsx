@@ -20,6 +20,7 @@ import {
 import { Search, MoreVertical, UserCheck, UserX, Mail, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserWithOrg, UserStatus } from '@/types/admin';
+import { UserRoleDialog } from '@/components/features/admin/user-role-dialog';
 
 interface UserTableProps {
   users: UserWithOrg[];
@@ -29,6 +30,9 @@ interface UserTableProps {
 export function UserTable({ users, onUserUpdated }: UserTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserRole, setSelectedUserRole] = useState<UserWithOrg['role'] | undefined>(undefined);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -151,6 +155,12 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
     return labels[role] || role;
   };
 
+  const openRoleDialog = (user: UserWithOrg) => {
+    setSelectedUserId(user.id);
+    setSelectedUserRole(user.role);
+    setRoleDialogOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       {/* Search */}
@@ -257,7 +267,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openRoleDialog(user)}>
                             <Shield className="mr-2 h-4 w-4" />
                             Manage Roles
                           </DropdownMenuItem>
@@ -275,6 +285,14 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
       <div className="text-sm text-muted-foreground">
         Showing {filteredUsers.length} of {users.length} users
       </div>
+
+      <UserRoleDialog
+        open={roleDialogOpen}
+        onClose={() => setRoleDialogOpen(false)}
+        userId={selectedUserId}
+        currentRole={selectedUserRole as any}
+        onUpdated={onUserUpdated}
+      />
     </div>
   );
 }

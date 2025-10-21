@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Typecheck and run tests",
+			"type": "shell",
+			"command": "npm run -s typecheck && npm run -s test -w",
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

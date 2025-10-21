@@ -87,7 +87,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
           </div>
 
           {/* Selected Role Info */}
-          <Card className="bg-slate-50 border-slate-200">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-lg">{selectedRoleData?.name}</CardTitle>
               <CardDescription>{selectedRoleData?.description}</CardDescription>
@@ -95,7 +95,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
             <CardContent>
               <div className="flex items-center gap-4 text-sm">
                 <div>
-                  <span className="text-slate-600">Permissions:</span>
+                  <span className="text-muted-foreground">Permissions:</span>
                   <span className="ml-2 font-medium">
                     {selectedRolePermissions.includes('*')
                       ? 'All (Wildcard)'
@@ -122,7 +122,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
                 return (
                   <div key={group} className="space-y-2">
                     <h3 className="font-medium text-brand-dark-green-700">{group}</h3>
-                    <div className="border rounded-lg bg-white">
+                    <div className="rounded-lg border bg-card">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -164,7 +164,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4">
-          <div className="border rounded-lg bg-white">
+          <div className="rounded-lg border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>

@@ -316,7 +316,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   return (
     <aside className={cn('flex flex-col bg-background', className)}>
       {/* Logo/Branding */}
-      <div className="flex h-16 items-center border-b px-6">
+      <div className="flex h-16 items-center border-b px-6 bg-green-600">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <img
             src="/images/colorLogo.png"

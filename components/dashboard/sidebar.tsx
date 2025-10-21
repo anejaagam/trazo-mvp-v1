@@ -1,3 +1,4 @@
+
 'use client'
 
 import { ReactNode } from 'react'
@@ -318,9 +319,14 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <img
+            src="/images/colorLogo.png"
+            alt="Trazo Logo"
+            className="h-6 w-6 object-contain dark:hidden"
+          />
+          <img
             src="/images/Monogram_White.svg"
             alt="Trazo Logo"
-            className="h-6 w-6 object-contain invert dark:invert-0"
+            className="h-6 w-6 object-contain hidden dark:block"
           />
           <span>Trazo</span>
         </Link>

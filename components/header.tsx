@@ -17,9 +17,14 @@ export function Header({ variant = "landing", showNavigation = true }: HeaderPro
         <Link href="/" className="flex items-center gap-3">
           <div className="w-9 h-10 relative">
             <img
+              src="/images/colorLogo.png"
+              alt="TRAZO Logo"
+              className="w-full h-full object-contain dark:hidden"
+            />
+            <img
               src="/images/Monogram_White.svg"
               alt="TRAZO Logo"
-              className="w-full h-full object-contain invert dark:invert-0"
+              className="w-full h-full object-contain hidden dark:block"
             />
           </div>
           <div className="text-brand-cream text-4xl font-display font-semibold tracking-wider">

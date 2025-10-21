@@ -165,30 +165,4 @@
     animation: fade-in-up 1s ease-out 0.2s forwards;
     opacity: 0;
   }
-
-  /*
-    Dark-mode defensive overrides
-    Many components use hard-coded `bg-white`, `bg-white/*`, `border-white`, or `text-black` utilities.
-    Those utilities are absolute and don't respect our CSS variables. To quickly improve dark mode
-    appearance without refactoring all components, remap those utility usages to semantic tokens
-    when the `.dark` class is present.
-  */
-  .dark [class*="bg-white"] {
-    /* covers bg-white and bg-white/5, etc. */
-    background-color: hsl(var(--card)) !important;
-  }
-
-  .dark [class*="border-white"] {
-    border-color: hsl(var(--border)) !important;
-  }
-
-  .dark [class*="text-black"] {
-    color: hsl(var(--card-foreground)) !important;
-  }
-
-  /* Buttons/overlays that rely on white background with opacity (eg. bg-white/5) should use popover/card tokens */
-  .dark [class*="bg-white/"] {
-    /* fallback for opacity variants (bg-white/5 etc) — use card color so elements are readable in dark mode */
-    background-color: hsl(var(--card)) !important;
-  }
 }

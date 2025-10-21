@@ -155,7 +155,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
     <div className="space-y-4">
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search users by name or email..."
           value={searchQuery}
@@ -165,7 +165,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
       </div>
 
       {/* Users Table */}
-      <div className="border rounded-lg bg-white">
+      <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
@@ -181,7 +181,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-500 py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   No users found
                 </TableCell>
               </TableRow>
@@ -195,7 +195,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
                     <TableCell>
                       <div>
                         <div className="font-medium">{user.full_name}</div>
-                        <div className="text-sm text-slate-500">{user.email}</div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -212,7 +212,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
                         {getRoleBadge(user.role)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-slate-500">
+                    <TableCell className="text-sm text-muted-foreground">
                       {user.last_login_at
                         ? new Date(user.last_login_at).toLocaleString()
                         : '—'}
@@ -272,7 +272,7 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
         </Table>
       </div>
 
-      <div className="text-sm text-slate-500">
+      <div className="text-sm text-muted-foreground">
         Showing {filteredUsers.length} of {users.length} users
       </div>
     </div>

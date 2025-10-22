@@ -13,15 +13,32 @@ export default function SignUpStep1() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     phoneNumber: "",
     role: "org_admin" // First user is always org_admin
   });
+  const [passwordError, setPasswordError] = useState("");
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear password error when user types
+    if (field === 'password' || field === 'confirmPassword') {
+      setPasswordError("");
+    }
   };
 
   const handleNext = () => {
+    // Validate passwords
+    if (formData.password.length < 6) {
+      setPasswordError("Password must be at least 6 characters long");
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+    
     // Store form data and navigate to step 2
     localStorage.setItem('signupStep1', JSON.stringify(formData));
     window.location.href = '/auth/sign-up/step-2';
@@ -75,6 +92,38 @@ export default function SignUpStep1() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="password" required>Password</Label>
+                <Field
+                  id="password"
+                  type="password"
+                  placeholder="Create a secure password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  rightIcon={<User className="w-4 h-4" />}
+                  className="bg-brand-lighter-green-50/60"
+                />
+                <p className="text-sm text-neutral-600">
+                  Must be at least 6 characters long
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" required>Confirm Password</Label>
+                <Field
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Re-enter your password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  rightIcon={<User className="w-4 h-4" />}
+                  className="bg-brand-lighter-green-50/60"
+                />
+                {passwordError && (
+                  <p className="text-sm text-error">{passwordError}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="phoneNumber" required>Phone Number</Label>
                 <Field
                   id="phoneNumber"
@@ -100,7 +149,7 @@ export default function SignUpStep1() {
                   variant="default"
                   size="lg"
                   onClick={handleNext}
-                  disabled={!formData.name || !formData.email || !formData.phoneNumber}
+                  disabled={!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.phoneNumber}
                   className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
                 >
                   Next

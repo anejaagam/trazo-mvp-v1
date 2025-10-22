@@ -6,8 +6,9 @@ import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/form-label";
 import { Header } from "@/components/header";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Package } from "lucide-react";
+import { completeSignup } from "../actions";
 
 export default function SignUpStep4() {
   const [formData, setFormData] = useState({
@@ -15,6 +16,8 @@ export default function SignUpStep4() {
     cropType: "produce", // produce or cannabis
     growingEnvironment: "indoor" // indoor or outdoor
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // Check if user completed previous steps
@@ -30,23 +33,46 @@ export default function SignUpStep4() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleComplete = () => {
-    // Store final form data and complete signup
-    localStorage.setItem('signupStep4', JSON.stringify(formData));
+  const handleComplete = async () => {
+    setIsSubmitting(true);
+    setError("");
     
-    // Combine all form data
-    const allFormData = {
-      step1: JSON.parse(localStorage.getItem('signupStep1') || '{}'),
-      step2: JSON.parse(localStorage.getItem('signupStep2') || '{}'),
-      step3: JSON.parse(localStorage.getItem('signupStep3') || '{}'),
-      step4: formData
-    };
-    
-    console.log('Complete signup data:', allFormData);
-    
-    // Here you would typically submit to your API
-    // For now, redirect to success page
-    window.location.href = '/auth/sign-up-success';
+    try {
+      // Store final form data
+      localStorage.setItem('signupStep4', JSON.stringify(formData));
+      
+      // Get all form data from localStorage
+      const step1Data = localStorage.getItem('signupStep1');
+      const step2Data = localStorage.getItem('signupStep2');
+      const step3Data = localStorage.getItem('signupStep3');
+      
+      if (!step1Data || !step2Data || !step3Data) {
+        throw new Error('Missing form data from previous steps');
+      }
+      
+      // Create FormData object for server action
+      const submitFormData = new FormData();
+      submitFormData.append('step1Data', step1Data);
+      submitFormData.append('step2Data', step2Data);
+      submitFormData.append('step3Data', step3Data);
+      submitFormData.append('step4Data', JSON.stringify(formData));
+      
+      console.log('Submitting signup data...');
+      
+      // Call server action
+      await completeSignup(submitFormData);
+      
+      // Clear localStorage after successful signup
+      localStorage.removeItem('signupStep1');
+      localStorage.removeItem('signupStep2');
+      localStorage.removeItem('signupStep3');
+      localStorage.removeItem('signupStep4');
+      
+    } catch (err) {
+      console.error('Error completing signup:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create account. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   const handleBack = () => {
@@ -93,24 +119,20 @@ export default function SignUpStep4() {
               {/* Crop Type Selection */}
               <div className="space-y-3">
                 <Label>Type of Crop</Label>
-                <div className="flex gap-4">
+                <RadioGroup
+                  value={formData.cropType}
+                  onValueChange={(value) => handleInputChange('cropType', value)}
+                  className="flex gap-4"
+                >
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="produce"
-                      checked={formData.cropType === 'produce'}
-                      onCheckedChange={() => handleInputChange('cropType', 'produce')}
-                    />
-                    <Label htmlFor="produce" className="text-sm">Produce</Label>
+                    <RadioGroupItem value="produce" id="produce" />
+                    <Label htmlFor="produce" className="text-sm font-normal">Produce</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="cannabis"
-                      checked={formData.cropType === 'cannabis'}
-                      onCheckedChange={() => handleInputChange('cropType', 'cannabis')}
-                    />
-                    <Label htmlFor="cannabis" className="text-sm">Cannabis</Label>
+                    <RadioGroupItem value="cannabis" id="cannabis" />
+                    <Label htmlFor="cannabis" className="text-sm font-normal">Cannabis</Label>
                   </div>
-                </div>
+                </RadioGroup>
                 <p className="text-sm text-neutral-600">
                   Select the primary type of crop you cultivate. This helps us customize our tools and recommendations for your specific needs.
                 </p>
@@ -119,28 +141,31 @@ export default function SignUpStep4() {
               {/* Growing Environment Selection */}
               <div className="space-y-3">
                 <Label>Growing Environment</Label>
-                <div className="flex gap-4">
+                <RadioGroup
+                  value={formData.growingEnvironment}
+                  onValueChange={(value) => handleInputChange('growingEnvironment', value)}
+                  className="flex gap-4"
+                >
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="indoor"
-                      checked={formData.growingEnvironment === 'indoor'}
-                      onCheckedChange={() => handleInputChange('growingEnvironment', 'indoor')}
-                    />
-                    <Label htmlFor="indoor" className="text-sm">Indoor</Label>
+                    <RadioGroupItem value="indoor" id="indoor" />
+                    <Label htmlFor="indoor" className="text-sm font-normal">Indoor</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="outdoor"
-                      checked={formData.growingEnvironment === 'outdoor'}
-                      onCheckedChange={() => handleInputChange('growingEnvironment', 'outdoor')}
-                    />
-                    <Label htmlFor="outdoor" className="text-sm">Outdoor</Label>
+                    <RadioGroupItem value="outdoor" id="outdoor" />
+                    <Label htmlFor="outdoor" className="text-sm font-normal">Outdoor</Label>
                   </div>
-                </div>
+                </RadioGroup>
                 <p className="text-sm text-neutral-600">
                   Indicate whether your farm operates indoors or outdoors. This affects the types of environmental controls and monitoring systems you may require.
                 </p>
               </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="bg-error/10 border border-error/20 rounded-lg p-4">
+                  <p className="text-sm text-error">{error}</p>
+                </div>
+              )}
 
               {/* Navigation Buttons */}
               <div className="flex justify-center gap-4 pt-12">
@@ -148,6 +173,7 @@ export default function SignUpStep4() {
                   variant="outline"
                   size="lg"
                   onClick={handleBack}
+                  disabled={isSubmitting}
                   className="px-8"
                 >
                   Back
@@ -156,10 +182,10 @@ export default function SignUpStep4() {
                   variant="default"
                   size="lg"
                   onClick={handleComplete}
-                  disabled={!formData.numberOfContainers}
+                  disabled={!formData.numberOfContainers || isSubmitting}
                   className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
                 >
-                  Complete Setup
+                  {isSubmitting ? 'Creating Account...' : 'Complete Setup'}
                 </Button>
               </div>
             </div>

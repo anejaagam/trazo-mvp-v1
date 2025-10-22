@@ -6,6 +6,13 @@ import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/form-label";
 import { Header } from "@/components/header";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Building2 } from "lucide-react";
 
 export default function SignUpStep2() {
@@ -112,16 +119,18 @@ export default function SignUpStep2() {
               {/* Plant Type Selection */}
               <div className="space-y-2">
                 <Label htmlFor="plantType" required>Plant Type</Label>
-                <select
-                  id="plantType"
+                <Select
                   value={formData.plantType}
-                  onChange={(e) => handleInputChange('plantType', e.target.value)}
-                  className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
+                  onValueChange={(value) => handleInputChange('plantType', value)}
                 >
-                  <option value="">Select Plant Type</option>
-                  <option value="cannabis">Cannabis</option>
-                  <option value="produce">Produce</option>
-                </select>
+                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
+                    <SelectValue placeholder="Select Plant Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cannabis">Cannabis</SelectItem>
+                    <SelectItem value="produce">Produce</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-neutral-600">
                   Select the primary type of plants you will be growing. This determines compliance requirements and available features.
                 </p>
@@ -130,27 +139,27 @@ export default function SignUpStep2() {
               {/* Jurisdiction Selection */}
               <div className="space-y-2">
                 <Label htmlFor="jurisdiction" required>Regulatory Jurisdiction</Label>
-                <select
-                  id="jurisdiction"
+                <Select
                   value={formData.jurisdiction}
-                  onChange={(e) => handleInputChange('jurisdiction', e.target.value)}
-                  className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
+                  onValueChange={(value) => handleInputChange('jurisdiction', value)}
+                  disabled={!formData.plantType}
                 >
-                  <option value="">Select Jurisdiction</option>
-                  {formData.plantType === 'cannabis' && (
-                    <>
-                      <option value="oregon">Oregon (Metrc)</option>
-                      <option value="maryland">Maryland (Metrc)</option>
-                      <option value="canada">Canada (CTLS)</option>
-                    </>
-                  )}
-                  {formData.plantType === 'produce' && (
-                    <option value="primus_gfs">PrimusGFS Certification</option>
-                  )}
-                  {!formData.plantType && (
-                    <option value="" disabled>Please select plant type first</option>
-                  )}
-                </select>
+                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
+                    <SelectValue placeholder={!formData.plantType ? "Please select plant type first" : "Select Jurisdiction"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.plantType === 'cannabis' && (
+                      <>
+                        <SelectItem value="oregon">Oregon (Metrc)</SelectItem>
+                        <SelectItem value="maryland">Maryland (Metrc)</SelectItem>
+                        <SelectItem value="canada">Canada (CTLS)</SelectItem>
+                      </>
+                    )}
+                    {formData.plantType === 'produce' && (
+                      <SelectItem value="primus_gfs">PrimusGFS Certification</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-neutral-600">
                   Select the regulatory framework that applies to your operation. This configures compliance rules, reporting requirements, and tracking standards.
                 </p>
@@ -159,16 +168,18 @@ export default function SignUpStep2() {
               {/* Data Region Selection */}
               <div className="space-y-2">
                 <Label htmlFor="dataRegion" required>Data Region</Label>
-                <select
-                  id="dataRegion"
+                <Select
                   value={formData.dataRegion}
-                  onChange={(e) => handleInputChange('dataRegion', e.target.value)}
-                  className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg focus:outline-none focus:border-information-600"
+                  onValueChange={(value) => handleInputChange('dataRegion', value)}
                 >
-                  <option value="">Select Data Region</option>
-                  <option value="us">United States</option>
-                  <option value="canada">Canada</option>
-                </select>
+                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
+                    <SelectValue placeholder="Select Data Region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="us">United States</SelectItem>
+                    <SelectItem value="canada">Canada</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-neutral-600">
                   Choose where your data will be stored. Your data will remain in the selected region to comply with data residency requirements.
                 </p>

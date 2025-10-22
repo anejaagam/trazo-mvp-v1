@@ -124,7 +124,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
 
                 return (
                   <div key={group} className="space-y-2">
-                    <h3 className="font-medium text-brand-dark-green-700">{group}</h3>
+                    <h3 className="font-medium text-brand-dark-green-700 dark:text-brand-lighter-green-400">{group}</h3>
                     <div className="rounded-lg border bg-card">
                       <Table>
                         <TableHeader>
@@ -144,7 +144,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
                                 <TableCell className="font-mono text-sm">
                                   {permission}
                                 </TableCell>
-                                <TableCell className="text-sm text-slate-600">
+                                <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                                   {permData.description}
                                 </TableCell>
                                 <TableCell className="text-center">
@@ -192,7 +192,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
                           <span className="font-medium">{role.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-slate-600">
+                      <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                         {role.description}
                       </TableCell>
                       <TableCell>
@@ -206,7 +206,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
                         {userCounts[roleKey] !== undefined ? (
                           <Badge variant="secondary">{userCounts[roleKey]} users</Badge>
                         ) : (
-                          <span className="text-sm text-slate-400">—</span>
+                          <span className="text-sm text-slate-400 dark:text-slate-500">—</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -227,25 +227,25 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
               <div className="space-y-3 text-sm">
                 <div className="flex items-start gap-3">
                   <Badge className="mt-0.5">org_admin</Badge>
-                  <p className="text-slate-600">
+                  <p className="text-slate-600 dark:text-slate-300">
                     Full administrative access across the entire organization. Can manage users, sites, and all settings.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
                   <Badge className="mt-0.5">site_manager</Badge>
-                  <p className="text-slate-600">
+                  <p className="text-slate-600 dark:text-slate-300">
                     Manages specific sites. Can handle day-to-day operations, user assignments, and site-level configurations.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
                   <Badge className="mt-0.5">head_grower</Badge>
-                  <p className="text-slate-600">
+                  <p className="text-slate-600 dark:text-slate-300">
                     Advanced cultivation operations. Creates recipes, manages batches, and oversees growing operations.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
                   <Badge className="mt-0.5">operator</Badge>
-                  <p className="text-slate-600">
+                  <p className="text-slate-600 dark:text-slate-300">
                     Day-to-day operations. Executes tasks, records data, and performs routine maintenance.
                   </p>
                 </div>

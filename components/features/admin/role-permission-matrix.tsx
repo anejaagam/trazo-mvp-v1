@@ -60,9 +60,19 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
   return (
     <div className="space-y-6">
       <Tabs defaultValue="matrix" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="matrix">Permission Matrix</TabsTrigger>
-          <TabsTrigger value="roles">Role Details</TabsTrigger>
+        <TabsList className="bg-muted dark:bg-brand-dark-green-900/30">
+          <TabsTrigger 
+            value="matrix"
+            className="data-[state=active]:bg-brand-dark-green-700 data-[state=active]:text-white dark:data-[state=active]:bg-green-700 dark:text-slate-300"
+          >
+            Permission Matrix
+          </TabsTrigger>
+          <TabsTrigger 
+            value="roles"
+            className="data-[state=active]:bg-brand-dark-green-700 data-[state=active]:text-white dark:data-[state=active]:bg-green-700 dark:text-slate-300"
+          >
+            Role Details
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="matrix" className="space-y-4">

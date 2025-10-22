@@ -164,6 +164,7 @@ export default {
         'display': ['Lato', 'serif'], // For headings and semibold text from Figma
         'body': ['Lato', 'system-ui', 'sans-serif'], // For body text
         'sans': ['Lato', 'system-ui', 'sans-serif'], // Default sans
+        'playfair': ['"Playfair Display"', 'serif'], // Brand display font for Trazo wordmark
       },
       fontSize: {
         // Figma heading sizes

@@ -316,7 +316,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   return (
     <aside className={cn('flex flex-col bg-background', className)}>
       {/* Logo/Branding */}
-      <div className="flex h-16 items-center border-b px-6 bg-green-600">
+      <div className="flex h-16 items-center border-b px-6 bg-green-900">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-xl">
           <img
             src="/images/colorLogo.png"
@@ -324,11 +324,11 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             className="h-10 w-10 object-contain dark:hidden"
           />
           <img
-            src="/images/Monogram_White.svg"
+            src="/images/colorLogo.png"
             alt="Trazo Logo"
             className="h-10 w-10 object-contain hidden dark:block"
           />
-          <span>Trazo</span>
+            <span className="font-playfair text-[#E5F4EA] tracking-[0.04em] text-2xl md:text-3xl">Trazo</span>
         </Link>
       </div>
 

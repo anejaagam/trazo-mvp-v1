@@ -31,7 +31,7 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ user, className }: DashboardHeaderProps) {
   return (
-    <header className={`${className} bg-green-600`}>
+    <header className={`${className} bg-green-900`}>
       <div className="flex items-center justify-between h-full">
         {/* Left side - Mobile menu and search */}
         <div className="flex items-center gap-4">

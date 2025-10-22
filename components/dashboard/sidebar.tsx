@@ -328,7 +328,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             alt="Trazo Logo"
             className="h-10 w-10 object-contain hidden dark:block"
           />
-            <span className="font-playfair text-[#E5F4EA] tracking-[0.04em] text-2xl md:text-3xl">Trazo</span>
+            <span className="font-playfair text-[#E5F4EA] tracking-[0.09em] text-2xl md:text-3xl">TRAZO</span>
         </Link>
       </div>
 

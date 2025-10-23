@@ -7,12 +7,16 @@ import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 export default async function InventoryOverviewPage() {
   let userRole: string
   let siteId: string
+  let organizationId: string
+  let userId: string
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
     logDevMode('Inventory Overview Page')
     userRole = DEV_MOCK_USER.role
     siteId = 'dev-site-123' // Mock site ID
+    organizationId = 'dev-org-123' // Mock organization ID
+    userId = DEV_MOCK_USER.id // Mock user ID
   } else {
     // PRODUCTION MODE: Get actual user data
     const supabase = await createClient()
@@ -39,6 +43,8 @@ export default async function InventoryOverviewPage() {
 
     userRole = userData.role
     siteId = userData.site_id || userData.organization_id
+    organizationId = userData.organization_id
+    userId = user.id
   }
 
   return (
@@ -53,6 +59,8 @@ export default async function InventoryOverviewPage() {
       <InventoryDashboard
         siteId={siteId}
         userRole={userRole}
+        organizationId={organizationId}
+        userId={userId}
       />
     </div>
   )

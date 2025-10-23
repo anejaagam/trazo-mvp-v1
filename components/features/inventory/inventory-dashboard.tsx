@@ -33,10 +33,15 @@ import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryMovement } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
+import { ItemFormDialog } from './item-form-dialog'
+import { ReceiveInventoryDialog } from './receive-inventory-dialog'
+import { IssueInventoryDialog } from './issue-inventory-dialog'
 
 interface InventoryDashboardProps {
   siteId: string
   userRole: string
+  organizationId: string
+  userId: string
 }
 
 // Types based on database views
@@ -79,7 +84,7 @@ interface ActiveLotView {
   days_until_expiry: number | null
 }
 
-export function InventoryDashboard({ siteId, userRole }: InventoryDashboardProps) {
+export function InventoryDashboard({ siteId, userRole, organizationId, userId }: InventoryDashboardProps) {
   const { can } = usePermissions(userRole as RoleKey)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,6 +97,11 @@ export function InventoryDashboard({ siteId, userRole }: InventoryDashboardProps
   const [lowStockItems, setLowStockItems] = useState<StockBalanceView[]>([])
   const [expiringLots, setExpiringLots] = useState<ActiveLotView[]>([])
   const [recentMovements, setRecentMovements] = useState<InventoryMovement[]>([])
+
+  // Dialog states
+  const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
+  const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false)
+  const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false)
 
   useEffect(() => {
     // Check permission before loading
@@ -176,6 +186,75 @@ export function InventoryDashboard({ siteId, userRole }: InventoryDashboardProps
     loadDashboardData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId])
+
+  // Refresh dashboard after successful operations
+  const handleDialogSuccess = () => {
+    // Reload dashboard data
+    if (!can('inventory:view')) return
+
+    async function reloadData() {
+      try {
+        setError(null)
+
+        // DEV MODE: Use empty data (no database calls)
+        if (isDevModeActive()) {
+          setTotalItems(0)
+          setLowStockCount(0)
+          setExpiringCount(0)
+          setRecentMovementsCount(0)
+          setLowStockItems([])
+          setExpiringLots([])
+          setRecentMovements([])
+          return
+        }
+
+        // PRODUCTION MODE: Reload all dashboard data
+        const supabase = createClient()
+        
+        const [
+          stockBalances,
+          belowMinimum,
+          expiring,
+          movements,
+        ] = await Promise.all([
+          supabase
+            .from('inventory_stock_balances')
+            .select('*')
+            .eq('site_id', siteId),
+          supabase
+            .from('inventory_stock_balances')
+            .select('*')
+            .eq('site_id', siteId)
+            .in('stock_status', ['below_par', 'reorder', 'out_of_stock']),
+          supabase
+            .from('inventory_active_lots')
+            .select('*')
+            .eq('site_id', siteId)
+            .in('expiry_status', ['expired', 'expiring_soon'])
+            .order('expiry_date', { ascending: true })
+            .limit(10),
+          supabase
+            .from('inventory_movements')
+            .select('*')
+            .eq('site_id', siteId)
+            .order('timestamp', { ascending: false })
+            .limit(10),
+        ])
+
+        setTotalItems(stockBalances.data?.length || 0)
+        setLowStockCount(belowMinimum.data?.length || 0)
+        setExpiringCount(expiring.data?.length || 0)
+        setRecentMovementsCount(movements.data?.length || 0)
+        setLowStockItems(belowMinimum.data || [])
+        setExpiringLots(expiring.data || [])
+        setRecentMovements(movements.data || [])
+      } catch (err) {
+        console.error('Error reloading dashboard data:', err)
+      }
+    }
+
+    reloadData()
+  }
 
   if (!can('inventory:view')) {
     return (
@@ -495,21 +574,54 @@ export function InventoryDashboard({ siteId, userRole }: InventoryDashboardProps
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="flex gap-2">
-            <Button>
+            <Button onClick={() => setIsAddItemDialogOpen(true)}>
               <Package className="h-4 w-4 mr-2" />
               Add Item
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => setIsReceiveDialogOpen(true)}>
               <TrendingUp className="h-4 w-4 mr-2" />
               Receive Inventory
             </Button>
-            <Button variant="outline">
-              <TrendingDown className="h-4 w-4 mr-2" />
-              Issue to Batch
-            </Button>
+            {can('inventory:consume') && (
+              <Button variant="outline" onClick={() => setIsIssueDialogOpen(true)}>
+                <TrendingDown className="h-4 w-4 mr-2" />
+                Issue to Batch
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Dialogs */}
+      <ItemFormDialog
+        open={isAddItemDialogOpen}
+        onOpenChange={setIsAddItemDialogOpen}
+        organizationId={organizationId}
+        siteId={siteId}
+        userId={userId}
+        userRole={userRole}
+        onSuccess={handleDialogSuccess}
+      />
+
+      <ReceiveInventoryDialog
+        open={isReceiveDialogOpen}
+        onOpenChange={setIsReceiveDialogOpen}
+        organizationId={organizationId}
+        siteId={siteId}
+        userId={userId}
+        userRole={userRole}
+        onSuccess={handleDialogSuccess}
+      />
+
+      <IssueInventoryDialog
+        open={isIssueDialogOpen}
+        onOpenChange={setIsIssueDialogOpen}
+        organizationId={organizationId}
+        siteId={siteId}
+        userId={userId}
+        userRole={userRole}
+        onSuccess={handleDialogSuccess}
+      />
     </div>
   )
 }

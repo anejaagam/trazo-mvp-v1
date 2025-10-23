@@ -10,13 +10,13 @@
 import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  BottomSheetDialog as Dialog,
+  BottomSheetDialogContent as DialogContent,
+  BottomSheetDialogDescription as DialogDescription,
+  BottomSheetDialogFooter as DialogFooter,
+  BottomSheetDialogHeader as DialogHeader,
+  BottomSheetDialogTitle as DialogTitle,
+} from './bottom-sheet-dialog'
 import {
   Form,
   FormControl,
@@ -285,7 +285,7 @@ export function ReceiveInventoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             <div className="flex items-center gap-2">

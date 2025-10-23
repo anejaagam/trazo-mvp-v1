@@ -10,13 +10,13 @@
 import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/use-permissions'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  BottomSheetDialog as Dialog,
+  BottomSheetDialogContent as DialogContent,
+  BottomSheetDialogDescription as DialogDescription,
+  BottomSheetDialogFooter as DialogFooter,
+  BottomSheetDialogHeader as DialogHeader,
+  BottomSheetDialogTitle as DialogTitle,
+} from './bottom-sheet-dialog'
 import {
   Form,
   FormControl,
@@ -225,7 +225,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             <div className="flex items-center gap-2">
@@ -249,8 +249,9 @@ export function ItemFormDialog({
                 <TabsTrigger value="supplier">Supplier</TabsTrigger>
               </TabsList>
 
-              {/* Basic Info Tab */}
-              <TabsContent value="basic" className="space-y-4 mt-4">
+              <div className="min-h-[450px]">
+                {/* Basic Info Tab */}
+                <TabsContent value="basic" className="space-y-4 mt-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -474,6 +475,7 @@ export function ItemFormDialog({
                   </p>
                 </div>
               </TabsContent>
+              </div>
             </Tabs>
 
             {/* Error Display */}

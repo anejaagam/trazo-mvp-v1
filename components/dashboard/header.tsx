@@ -55,14 +55,14 @@ const navigationCategories = [
 export function DashboardHeader({ user, className }: DashboardHeaderProps) {
   return (
     <header className={`${className} bg-green-900`}>
-      <div className="flex items-center justify-between h-16 px-6">
+      <div className="relative flex items-center justify-between h-16 pl-6 pr-0">
         {/* Left: Search */}
-        <div className="flex items-center gap-4 flex-1 max-w-xl">
+        <div className="flex items-center gap-4 max-w-xl">
           <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
             <Menu className="h-5 w-5" />
           </Button>
           
-          <div className="relative hidden md:flex flex-1">
+          <div className="relative hidden md:flex">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
             <Input
               placeholder="Search..."
@@ -94,7 +94,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
         </nav>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 -mr-4">
           <ThemeSwitcher />
           
           <DropdownMenu>

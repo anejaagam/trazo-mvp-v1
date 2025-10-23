@@ -3241,26 +3241,31 @@ export function WasteDisposalForm() {
 
 ### Phase 2: Priority 1 Features ← START HERE (ORIGINAL CHECKLIST PRIORITIES)
 
-#### Identity & Roles
-- [ ] Migrate admin components to `/components/features/admin/`
-- [ ] Create `/app/dashboard/admin/` pages
-- [ ] Implement user table with CRUD operations
-- [ ] Implement role management interface
-- [ ] Implement permission matrix view
-- [ ] Create audit log viewer
-- [ ] Add permission checks to all admin pages
+#### Identity & Roles ✅ COMPLETE
+- [x] Migrate admin components to `/components/features/admin/`
+- [x] Create `/app/dashboard/admin/` pages
+- [x] Implement user table with CRUD operations
+- [x] Implement role management interface
+- [x] Implement permission matrix view
+- [x] Create audit log viewer
+- [x] Add permission checks to all admin pages
 
-#### Inventory
+#### Inventory ⏳ IN PROGRESS (See InventoryIntegrationSteps.md for detailed progress)
+- [ ] Enhance database schema (add `inventory_lots` table)
+- [ ] Create type definitions in `/types/inventory.ts`
 - [ ] Migrate inventory components to `/components/features/inventory/`
 - [ ] Create `/app/dashboard/inventory/` pages
 - [ ] Implement inventory queries in `/lib/supabase/queries/inventory.ts`
 - [ ] Create inventory dashboard with summary cards
 - [ ] Implement item creation/editing with par levels
-- [ ] Implement movement tracking (receive, consume, transfer, dispose)
-- [ ] **Consolidate waste management** (merge batch + inventory prototypes)
-- [ ] Add jurisdiction-aware waste disposal form
+- [ ] Implement lot tracking (FIFO/LIFO)
+- [ ] Implement movement tracking (receive, issue, adjust, dispose)
+- [ ] **Consolidate waste management** (create shared components for batch + inventory)
+- [ ] Add jurisdiction-aware waste disposal form (uses `useJurisdiction()`)
 - [ ] Implement low stock alerts
+- [ ] Implement expiry alerts
 - [ ] Add inventory exports (CSV/PDF)
+- [ ] **NOTE**: Comprehensive compliance features (Metrc packages, CTLS integration, PrimusGFS audit prep, transfer manifests, label generation) deferred to Phase 3: Compliance Engine
 
 #### Monitoring & Telemetry
 - [ ] Migrate monitoring components to `/components/features/monitoring/`

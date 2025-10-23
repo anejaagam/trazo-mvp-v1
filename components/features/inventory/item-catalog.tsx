@@ -72,13 +72,6 @@ interface ItemCatalogProps {
 type SortField = 'name' | 'sku' | 'current_quantity' | 'item_type' | 'updated_at'
 type SortOrder = 'asc' | 'desc'
 
-interface Filters {
-  search: string
-  itemType: ItemType | 'all'
-  stockStatus: 'all' | 'ok' | 'low' | 'out'
-  isActive: boolean
-}
-
 export function ItemCatalog({
   organizationId,
   siteId,
@@ -95,18 +88,24 @@ export function ItemCatalog({
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
   const [filteredItems, setFilteredItems] = useState<InventoryItemWithStock[]>([])
   
-  // Filters and sorting
-  const [filters, setFilters] = useState<Filters>({
-    search: '',
-    itemType: 'all',
-    stockStatus: 'all',
-    isActive: true,
-  })
+  // Separate backend filters (trigger DB query) from client-side filters
+  const [itemType, setItemType] = useState<ItemType | 'all'>('all')
+  const [isActive, setIsActive] = useState(true)
+  
+  // Client-side filters (applied after fetching)
+  const [search, setSearch] = useState('')
+  const [stockStatus, setStockStatus] = useState<'all' | 'ok' | 'low' | 'out'>('all')
+  
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
 
-  // Load items
+  // Load items from database (only when backend filters change)
   useEffect(() => {
+    // Check permission before loading
+    if (!can('inventory:view')) {
+      return
+    }
+
     async function loadItems() {
       try {
         setIsLoading(true)
@@ -125,12 +124,12 @@ export function ItemCatalog({
           .from('inventory_items')
           .select('*')
           .eq('site_id', siteId)
-          .eq('is_active', filters.isActive)
+          .eq('is_active', isActive)
           .order('name', { ascending: true })
 
         // Apply item type filter
-        if (filters.itemType !== 'all') {
-          query = query.eq('item_type', filters.itemType)
+        if (itemType !== 'all') {
+          query = query.eq('item_type', itemType)
         }
 
         const { data, error: queryError } = await query
@@ -145,18 +144,17 @@ export function ItemCatalog({
       }
     }
 
-    if (can('inventory:view')) {
-      loadItems()
-    }
-  }, [organizationId, siteId, filters.isActive, filters.itemType, can])
+    loadItems()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, siteId, isActive, itemType])
 
-  // Apply filters and sorting
+  // Apply client-side filters and sorting
   useEffect(() => {
     let result = [...items]
 
     // Search filter
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
+    if (search) {
+      const searchLower = search.toLowerCase()
       result = result.filter(
         (item) =>
           item.name.toLowerCase().includes(searchLower) ||
@@ -166,11 +164,11 @@ export function ItemCatalog({
     }
 
     // Stock status filter
-    if (filters.stockStatus !== 'all') {
+    if (stockStatus !== 'all') {
       result = result.filter((item) => {
-        if (filters.stockStatus === 'out') {
+        if (stockStatus === 'out') {
           return item.current_quantity === 0
-        } else if (filters.stockStatus === 'low') {
+        } else if (stockStatus === 'low') {
           return (
             item.current_quantity > 0 &&
             item.minimum_quantity !== undefined &&
@@ -227,7 +225,7 @@ export function ItemCatalog({
     })
 
     setFilteredItems(result)
-  }, [items, filters, sortField, sortOrder])
+  }, [items, search, stockStatus, sortField, sortOrder])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -302,10 +300,8 @@ export function ItemCatalog({
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, SKU, or notes..."
-                value={filters.search}
-                onChange={(e) =>
-                  setFilters({ ...filters, search: e.target.value })
-                }
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
@@ -313,10 +309,8 @@ export function ItemCatalog({
 
           {/* Item Type Filter */}
           <Select
-            value={filters.itemType}
-            onValueChange={(value) =>
-              setFilters({ ...filters, itemType: value as ItemType | 'all' })
-            }
+            value={itemType}
+            onValueChange={(value) => setItemType(value as ItemType | 'all')}
           >
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Item Type" />
@@ -337,13 +331,8 @@ export function ItemCatalog({
 
           {/* Stock Status Filter */}
           <Select
-            value={filters.stockStatus}
-            onValueChange={(value) =>
-              setFilters({
-                ...filters,
-                stockStatus: value as 'all' | 'ok' | 'low' | 'out',
-              })
-            }
+            value={stockStatus}
+            onValueChange={(value) => setStockStatus(value as 'all' | 'ok' | 'low' | 'out')}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Stock Status" />
@@ -358,13 +347,11 @@ export function ItemCatalog({
 
           {/* Active/Inactive Toggle */}
           <Button
-            variant={filters.isActive ? 'default' : 'outline'}
-            onClick={() =>
-              setFilters({ ...filters, isActive: !filters.isActive })
-            }
+            variant={isActive ? 'default' : 'outline'}
+            onClick={() => setIsActive(!isActive)}
           >
             <Filter className="h-4 w-4 mr-2" />
-            {filters.isActive ? 'Active' : 'All Items'}
+            {isActive ? 'Active' : 'All Items'}
           </Button>
         </div>
 

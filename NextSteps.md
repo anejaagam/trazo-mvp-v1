@@ -1,39 +1,56 @@
-# TRAZO MVP - Next Steps & Integration Roadmap# TRAZO MVP Integration Document: Feature Consolidation & Migration Plan
+# TRAZO MVP - Next Steps & Integration Roadmap
 
+**Last Updated:** 2024 (Phase 7: Database Integration Complete)
+**Document Version:** 2.0
+**Purpose:** Guide for integrating remaining features into Trazo MVP
 
+---
 
-**Last Updated:** October 19, 2025  **Document Version:** 1.5  
+## 🎯 CURRENT STATUS
 
-**Purpose:** Guide for integrating remaining features into Trazo MVP**Date:** October 16, 2025  
-
-**Last Updated:** October 20, 2025 (Post Code Inspection & Documentation Consolidation)  
-
----**Purpose:** Comprehensive guide for LLM agent to integrate standalone React prototypes into the main Next.js Trazo MVP repository
-
-
-
-## 🎯 CURRENT STATUS## 🎯 CURRENT STATUS: CODE INSPECTION COMPLETE - READY FOR INVENTORY
-
-
-
-### **Project Phase**### 🔍 **LATEST UPDATE: Code Inspection & Documentation Consolidation (Oct 20, 2025)**
-
+### **Project Phase**
 - ✅ **Phase 1: Foundation** - COMPLETE
+- ✅ **Phase 2: Core Integration** - COMPLETE
+- ✅ **Phase 7: Database Integration** - COMPLETE ⭐ NEW
+- 🚀 **Phase 8: Feature Integration** - Ready to begin
 
-- ✅ **Phase 2: Core Integration** - COMPLETE**Comprehensive inspection completed across `/app`, `/lib`, `/hooks`, `/components`:**
+### **Test Status**
+- 164/173 tests passing (94.8%)
+- 10/11 test suites passing
+- Production-ready quality
 
-- 🚀 **Next: Feature Integration** - Ready to begin
+### 🎉 **LATEST UPDATE: Signup Database Integration Complete (Phase 7)**
+
+**Completed Tasks:**
+28. **Fixed actions.ts field references** ✅ - jurisdiction/plant_type moved from step2 → step4
+29. **Removed duplicate cropType field** ✅ - Only plant_type remains
+30. **Enhanced database trigger** ✅ - handle_new_user() now creates organization AND user profile
+31. **Organization auto-creation** ✅ - Uses company_name, jurisdiction, plant_type, data_region from signup
+32. **User profile creation** ✅ - Includes emergency contacts, role, organization link
+33. **Documentation created** ✅ - `/docs/SIGNUP_DATABASE_INTEGRATION.md` with full details
+
+**What Works Now:**
+- ✅ User completes 4-step signup form
+- ✅ actions.ts sends all data to supabase.auth.signUp()
+- ✅ Trigger automatically creates organization from signup data
+- ✅ Trigger creates user profile linked to organization
+- ✅ Emergency contacts stored in user profile
+- ✅ First user gets org_admin role
+- ✅ Multi-region support (US/Canada)
+
+**Test Status:** 164/173 passing (94.8%) - Maintained quality ✅
+
+---
+
+## 🔍 **PREVIOUS UPDATE: Code Inspection & Documentation Consolidation (Phase 6)**
+
+**Comprehensive inspection completed across `/app`, `/lib`, `/hooks`, `/components`:**
 
 **Errors Fixed:**
-
-### **Test Status**20. **Missing `idp` field in dev mock user** ✅ - Fixed in `admin/users/page.tsx`
-
-- 164/173 tests passing (94.8%)21. **Duplicate flex class in tabs.tsx** ✅ - Removed redundant class
-
-- 10/11 test suites passing22. **Deprecated moduleResolution** ✅ - Updated `scripts/tsconfig.json`
-
-- Production-ready quality23. **Missing UserStatus import** ✅ - Added to `lib/supabase/queries/users.ts`
-
+20. **Missing `idp` field in dev mock user** ✅ - Fixed in `admin/users/page.tsx`
+21. **Duplicate flex class in tabs.tsx** ✅ - Removed redundant class
+22. **Deprecated moduleResolution** ✅ - Updated `scripts/tsconfig.json`
+23. **Missing UserStatus import** ✅ - Added to `lib/supabase/queries/users.ts`
 24. **Routing inconsistency** ✅ - All auth flows now redirect to `/dashboard` (not `/protected`)
 
 ### **What's Complete**

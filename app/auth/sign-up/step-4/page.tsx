@@ -7,14 +7,22 @@ import { Label } from "@/components/ui/form-label";
 import { Header } from "@/components/header";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Package } from "lucide-react";
 import { completeSignup } from "../actions";
 
 export default function SignUpStep4() {
   const [formData, setFormData] = useState({
     numberOfContainers: "",
-    cropType: "produce", // produce or cannabis
-    growingEnvironment: "indoor" // indoor or outdoor
+    growingEnvironment: "indoor", // indoor or outdoor
+    plantType: "", // cannabis or produce
+    jurisdiction: "" // regulatory jurisdiction
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -26,6 +34,17 @@ export default function SignUpStep4() {
     const step3Data = localStorage.getItem('signupStep3');
     if (!step1Data || !step2Data || !step3Data) {
       window.location.href = '/auth/sign-up';
+    }
+
+    // Load existing step 4 data if returning (back button)
+    const savedStep4Data = localStorage.getItem('signupStep4');
+    if (savedStep4Data) {
+      try {
+        const parsedData = JSON.parse(savedStep4Data);
+        setFormData(parsedData);
+      } catch (error) {
+        console.error('Error loading step 4 data:', error);
+      }
     }
   }, []);
 
@@ -116,25 +135,52 @@ export default function SignUpStep4() {
                 </p>
               </div>
 
-              {/* Crop Type Selection */}
-              <div className="space-y-3">
-                <Label>Type of Crop</Label>
-                <RadioGroup
-                  value={formData.cropType}
-                  onValueChange={(value) => handleInputChange('cropType', value)}
-                  className="flex gap-4"
+              {/* Plant Type Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="plantType" required>Plant Type</Label>
+                <Select
+                  value={formData.plantType}
+                  onValueChange={(value) => handleInputChange('plantType', value)}
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="produce" id="produce" />
-                    <Label htmlFor="produce" className="text-sm font-normal">Produce</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cannabis" id="cannabis" />
-                    <Label htmlFor="cannabis" className="text-sm font-normal">Cannabis</Label>
-                  </div>
-                </RadioGroup>
+                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
+                    <SelectValue placeholder="Select Plant Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cannabis">Cannabis</SelectItem>
+                    <SelectItem value="produce">Produce</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-neutral-600">
-                  Select the primary type of crop you cultivate. This helps us customize our tools and recommendations for your specific needs.
+                  Select the primary type of plants you will be growing. This determines compliance requirements and available features.
+                </p>
+              </div>
+
+              {/* Jurisdiction Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="jurisdiction" required>Regulatory Jurisdiction</Label>
+                <Select
+                  value={formData.jurisdiction}
+                  onValueChange={(value) => handleInputChange('jurisdiction', value)}
+                  disabled={!formData.plantType}
+                >
+                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
+                    <SelectValue placeholder={!formData.plantType ? "Please select plant type first" : "Select Jurisdiction"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formData.plantType === 'cannabis' && (
+                      <>
+                        <SelectItem value="oregon">Oregon (Metrc)</SelectItem>
+                        <SelectItem value="maryland">Maryland (Metrc)</SelectItem>
+                        <SelectItem value="canada">Canada (CTLS)</SelectItem>
+                      </>
+                    )}
+                    {formData.plantType === 'produce' && (
+                      <SelectItem value="primus_gfs">PrimusGFS Certification</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-neutral-600">
+                  Select the regulatory framework that applies to your operation. This configures compliance rules, reporting requirements, and tracking standards.
                 </p>
               </div>
 
@@ -182,7 +228,7 @@ export default function SignUpStep4() {
                   variant="default"
                   size="lg"
                   onClick={handleComplete}
-                  disabled={!formData.numberOfContainers || isSubmitting}
+                  disabled={!formData.numberOfContainers || !formData.plantType || !formData.jurisdiction || isSubmitting}
                   className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
                 >
                   {isSubmitting ? 'Creating Account...' : 'Complete Setup'}

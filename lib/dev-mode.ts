@@ -7,17 +7,17 @@
  * - Only works when NODE_ENV === 'development'
  * - Automatically disabled in production builds
  * - All checks include explicit environment validation
+ * - Controlled by NEXT_PUBLIC_DEV_MODE environment variable
  */
-
-// 🚨 MASTER DEV MODE SWITCH - Set to true to bypass authentication globally
-export const DEV_MODE_ENABLED = true
 
 /**
  * Check if dev mode is currently active
- * Only returns true in development environment
+ * Only returns true when:
+ * 1. NEXT_PUBLIC_DEV_MODE is explicitly set to 'true'
+ * 2. AND NODE_ENV === 'development'
  */
 export function isDevModeActive(): boolean {
-  return DEV_MODE_ENABLED && process.env.NODE_ENV === 'development'
+  return process.env.NEXT_PUBLIC_DEV_MODE === 'true' && process.env.NODE_ENV === 'development'
 }
 
 /**

@@ -94,6 +94,11 @@ export function InventoryDashboard({ siteId, userRole }: InventoryDashboardProps
   const [recentMovements, setRecentMovements] = useState<InventoryMovement[]>([])
 
   useEffect(() => {
+    // Check permission before loading
+    if (!can('inventory:view')) {
+      return
+    }
+
     async function loadDashboardData() {
       try {
         setIsLoading(true)
@@ -168,10 +173,9 @@ export function InventoryDashboard({ siteId, userRole }: InventoryDashboardProps
       }
     }
 
-    if (can('inventory:view')) {
-      loadDashboardData()
-    }
-  }, [siteId, can])
+    loadDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId])
 
   if (!can('inventory:view')) {
     return (

@@ -89,12 +89,12 @@ export function UserRoleDialog({ open, onClose, userId, currentRole, onUpdated }
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="start" className="w-[400px]">
                 {Object.entries(ROLES).map(([key, roleData]) => (
                   <SelectItem key={key} value={key}>
-                    <div className="flex flex-col py-1">
+                    <div className="flex flex-col py-1 text-left">
                       <div className="font-medium">{roleData.name}</div>
-                      <div className="text-xs text-slate-500">{roleData.description}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{roleData.description}</div>
                     </div>
                   </SelectItem>
                 ))}

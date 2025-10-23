@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<continuation-instructions>
+  <project-info>
+    <name>TRAZO MVP v1</name>
+    <description>Cultivation facility management system</description>
+    <server-port>3000</server-port>
+    <dev-mode-status>false</dev-mode-status>
+  </project-info>
+
+  <critical-issue>
+    <problem>User signup creates auth.users record but fails to create public.users profile</problem>
+    <error-code>PGRST116: Cannot coerce the result to a single JSON object</error-code>
+    <root-cause>Database trigger handle_new_user() is broken in US database</root-cause>
+    <affected-user>agam@infinitygreen.ca (signup partially failed)</affected-user>
+  </critical-issue>
+
+  <database-status>
+    <canada-database>
+      <project-id>eilgxbhyoufoforxuyek</project-id>
+      <status>FIXED ✅</status>
+      <trigger-status>Working correctly</trigger-status>
+      <test-result>Creates org and user profile successfully</test-result>
+    </canada-database>
+    
+    <us-database>
+      <project-id>srrrfkgbcrgtplpekwji</project-id>
+      <status>BROKEN ❌</status>
+      <trigger-status>Multiple failures preventing profile creation</trigger-status>
+      <known-issues>
+        <issue>Wrong column: NEW.app_metadata should be NEW.raw_app_meta_data</issue>
+        <issue>Case mismatch: data_region expects 'us' not 'US'</issue>
+        <issue>Case mismatch: plant_type expects 'cannabis' not 'Cannabis'</issue>
+        <issue>Audit function crashes on missing name/title columns</issue>
+      </known-issues>
+    </us-database>
+  </database-status>
+
+  <immediate-tasks>
+    <task priority="1">
+      <action>Connect to US Supabase via MCP</action>
+      <mcp-server>Supabase MCP (US)</mcp-server>
+      <project-ref>srrrfkgbcrgtplpekwji</project-ref>
+    </task>
+
+    <task priority="2">
+      <action>Compare trigger functions between Canada (working) and US (broken)</action>
+      <sql-query><![CDATA[
+-- Run on BOTH databases and compare outputs
+SELECT prosrc FROM pg_proc WHERE proname = 'handle_new_user';
+
+-- Check constraints
+SELECT conname, consrc FROM pg_constraint 
+WHERE conrelid = 'organizations'::regclass 
+AND conname IN ('organizations_data_region_check', 'organizations_plant_type_check');
+
+-- Check audit function
+SELECT prosrc FROM pg_proc WHERE proname = 'log_audit_trail';
+      ]]></sql-query>
+    </task>
+
+    <task priority="3">
+      <action>Apply fixes to US database</action>
+      <source-file>/fix-signup-trigger.sql</source-file>
+      <description>Contains all necessary fixes that were successfully applied to Canada database</description>
+    </task>
+
+    <task priority="4">
+      <action>Verify fix by testing new signup</action>
+      <test-email>Use NEW email (not agam@infinitygreen.ca)</test-email>
+      <verification-queries><![CDATA[
+-- After signup, verify all records created
+SELECT id, email FROM auth.users WHERE email = 'test@example.com';
+SELECT * FROM public.users WHERE email = 'test@example.com';
+SELECT * FROM public.organizations WHERE contact_email = 'test@example.com';
+      ]]></verification-queries>
+    </task>
+  </immediate-tasks>
+
+  <files-to-review>
+    <file path="/fix-signup-trigger.sql">Complete migration script with all fixes</file>
+    <file path="/app/auth/sign-up/actions.ts">Signup action (already fixed)</file>
+    <file path="/lib/dev-mode.ts">Dev mode check (already fixed)</file>
+    <file path="/.env.local">NEXT_PUBLIC_DEV_MODE=false (auth is live)</file>
+    <file path="/docs/SIGNUP_DATABASE_INTEGRATION.md">Documentation of intended behavior</file>
+  </files-to-review>
+
+  <success-criteria>
+    <criterion>US database trigger matches Canada database (working version)</criterion>
+    <criterion>New signups create auth.users AND public.users records</criterion>
+    <criterion>Login works without PGRST116 error</criterion>
+    <criterion>Dashboard shows real user data (name, org, no dev banner)</criterion>
+    <criterion>Test coverage maintains 94.8% (164/173 tests passing)</criterion>
+  </success-criteria>
+
+  <context-for-next-agent>
+    <note>Previous agent fixed Canada database via MCP, confirmed working</note>
+    <note>US database is the main app database and needs same fixes</note>
+    <note>User already attempted signup with agam@infinitygreen.ca - use fresh email</note>
+    <note>Server runs on port 3000 (not 3002 as previously mentioned)</note>
+    <note>Dev mode is OFF - real authentication is active</note>
+    <note>MCP configuration has both US and Canada Supabase connections available</note>
+  </context-for-next-agent>
+
+  <command-sequence>
+    <step>1. Start dev server: npm run dev (port 3000)</step>
+    <step>2. Connect to US Supabase MCP</step>
+    <step>3. Compare triggers between databases</step>
+    <step>4. Apply fixes from /fix-signup-trigger.sql</step>
+    <step>5. Test signup with new email</step>
+    <step>6. Verify dashboard login works</step>
+  </command-sequence>
+</continuation-instructions>

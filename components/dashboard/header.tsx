@@ -3,7 +3,6 @@
 import { 
   Bell, 
   Menu, 
-  Search, 
   User,
   Package,
   ClipboardList,
@@ -14,7 +13,6 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { LogoutButton } from '@/components/auth/logout-button'
 import { ThemeSwitcher } from '@/components/theme-switcher'
+import { GlobalSearch } from '@/components/dashboard/global-search'
 import Link from 'next/link'
 
 interface DashboardHeaderProps {
@@ -57,17 +56,13 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
     <header className={`${className} bg-green-900`}>
       <div className="relative flex items-center justify-between h-16 pl-6 pr-0">
         {/* Left: Search */}
-        <div className="flex items-center gap-4 max-w-xl">
+        <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
             <Menu className="h-5 w-5" />
           </Button>
           
-          <div className="relative hidden md:flex">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-            <Input
-              placeholder="Search..."
-              className="w-full pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-white/30 focus-visible:bg-white/15 h-9"
-            />
+          <div className="hidden md:block">
+            <GlobalSearch />
           </div>
         </div>
 

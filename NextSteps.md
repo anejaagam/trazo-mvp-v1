@@ -42,6 +42,49 @@
 
 ---
 
+### 🌎 NEW: US ↔ CA Database Parity + RBAC Verification
+We synchronized the US Supabase project to the Canada canonical baseline.
+
+Completed now:
+- ✅ RLS policies aligned across all domain tables (inventory, tasks, alarms, batches, compliance, etc.)
+- ✅ Canonical function bodies applied: `log_audit_trail`, `update_inventory_quantity`
+- ✅ `handle_new_user()` hardened with fixed function search_path; auth trigger in both regions confirmed
+- ✅ Local typecheck and test suite passed post‑sync
+
+Advisory takeaways (tracked below):
+- ⚠️ `public.signup_trigger_errors` flagged for RLS disabled. Changing this requires careful handling (function invoker rights vs SECURITY DEFINER). We’ll address with one of: move to a private schema, make function SECURITY DEFINER + service-only policy, or retain current but restrict API exposure. Pending decision.
+- ℹ️ “Unindexed foreign keys” and “multiple permissive policies” warnings are acceptable for MVP; we’ll iterate as those features scale.
+
+Next actions for DB parity (low risk, incremental):
+1) Decide on `signup_trigger_errors` hardening (schema move vs RLS + SECURITY DEFINER)
+2) Add targeted indexes for high-traffic FK paths once usage patterns stabilize
+3) Optionally refactor RLS policies that call auth.* to the “(select auth.*())” pattern for planner performance
+4) Re-run advisors after any DB change; keep both regions in lockstep
+
+---
+
+### 🧹 Database Data Reset (US & CA)
+We wiped application data in both Supabase projects to start from a clean slate while preserving schema, RLS, functions, triggers, and views.
+
+What was done:
+- ✅ Truncated all tables in the public schema with RESTART IDENTITY CASCADE (US & CA)
+- ✅ Left auth schema (auth.users, etc.) untouched to avoid admin lockout
+- ✅ Preserved all DDL (tables, functions, RLS, triggers, views)
+
+### 🔐 Auth Reset (US & CA)
+Per request, we also cleared Supabase Auth data without re-seeding:
+
+- ✅ Deleted rows across all auth.* tables (excluding schema_migrations), using dependency-aware multi-pass deletes (no TRUNCATE privileges required)
+- ✅ Kept schema/config intact; no re-seed performed
+- ⚠️ Existing sessions and refresh tokens are invalidated; login requires new signup flow
+
+Notes:
+- If you want a full auth reset too, confirm and we’ll safely remove users using the Admin API and re-seed a bootstrap account.
+- Storage objects (if any) were not modified.
+
+Next:
+- Re-seed minimal fixtures via `npm run seed:dev` when ready.
+
 ## 🔍 **PREVIOUS UPDATE: Code Inspection & Documentation Consolidation (Phase 6)**
 
 **Comprehensive inspection completed across `/app`, `/lib`, `/hooks`, `/components`:**

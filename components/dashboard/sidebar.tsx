@@ -90,23 +90,35 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       permission: 'inventory:view',
       children: [
         {
-          title: 'Current Stock',
-          href: '/dashboard/inventory/stock',
+          title: 'Overview',
+          href: '/dashboard/inventory',
+          icon: <BarChart3 className="h-4 w-4" />,
+          permission: 'inventory:view'
+        },
+        {
+          title: 'Item Catalog',
+          href: '/dashboard/inventory/items',
           icon: <Package className="h-4 w-4" />,
           permission: 'inventory:view'
         },
         {
-          title: 'Receiving',
-          href: '/dashboard/inventory/receiving',
-          icon: <Package className="h-4 w-4" />,
-          permission: 'inventory:receive'
+          title: 'Movements Log',
+          href: '/dashboard/inventory/movements',
+          icon: <ClipboardList className="h-4 w-4" />,
+          permission: 'inventory:view'
         },
         {
           title: 'Low Stock Alerts',
           href: '/dashboard/inventory/alerts',
           icon: <AlertTriangle className="h-4 w-4" />,
           permission: 'inventory:view',
-          badge: '3' // TODO: Get actual count
+          badge: '3' // TODO: Get actual count from real data
+        },
+        {
+          title: 'Waste Tracking',
+          href: '/dashboard/inventory/waste',
+          icon: <Trash2 className="h-4 w-4" />,
+          permission: 'inventory:waste'
         }
       ]
     },

@@ -290,9 +290,47 @@ CREATE TABLE inventory_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Lot tracking for batch/expiry management
+CREATE TABLE inventory_lots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+  lot_code TEXT NOT NULL, -- Lot/batch number from supplier or internal
+  quantity_received DECIMAL(10,2) NOT NULL,
+  quantity_remaining DECIMAL(10,2) NOT NULL,
+  unit_of_measure TEXT NOT NULL,
+  
+  -- Tracking information
+  received_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expiry_date DATE,
+  manufacture_date DATE,
+  
+  -- Supplier/Source information
+  supplier_name TEXT,
+  purchase_order_number TEXT,
+  invoice_number TEXT,
+  cost_per_unit DECIMAL(10,2),
+  
+  -- Compliance documentation
+  certificate_of_analysis_url TEXT,
+  material_safety_data_sheet_url TEXT,
+  test_results_url TEXT,
+  
+  -- Compliance tracking (for jurisdictions requiring package UIDs)
+  compliance_package_uid TEXT, -- Metrc UID, CTLS tracking number, etc.
+  compliance_package_type TEXT, -- For categorization in compliance systems
+  
+  storage_location TEXT,
+  notes TEXT,
+  is_active BOOLEAN DEFAULT TRUE, -- False when lot is fully consumed
+  created_by UUID NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE inventory_movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+  lot_id UUID REFERENCES inventory_lots(id), -- Track which lot was used
   movement_type TEXT NOT NULL CHECK (movement_type IN (
     'receive', 'consume', 'transfer', 'adjust', 'dispose', 'return', 'reserve', 'unreserve'
   )),
@@ -819,8 +857,15 @@ CREATE INDEX idx_batch_events_batch ON batch_events(batch_id, timestamp DESC);
 
 -- Inventory indexes
 CREATE INDEX idx_inventory_org_site ON inventory_items(organization_id, site_id, item_type);
+CREATE INDEX idx_inventory_items_expiry ON inventory_items(expiry_date) WHERE expiry_date IS NOT NULL AND is_active = TRUE;
+CREATE INDEX idx_inventory_lots_item ON inventory_lots(item_id, is_active);
+CREATE INDEX idx_inventory_lots_expiry ON inventory_lots(expiry_date) WHERE expiry_date IS NOT NULL AND is_active = TRUE;
+CREATE INDEX idx_inventory_lots_compliance_uid ON inventory_lots(compliance_package_uid) WHERE compliance_package_uid IS NOT NULL;
 CREATE INDEX idx_inventory_movements_item ON inventory_movements(item_id, timestamp DESC);
+CREATE INDEX idx_inventory_movements_lot ON inventory_movements(lot_id);
 CREATE INDEX idx_inventory_movements_batch ON inventory_movements(batch_id);
+CREATE INDEX idx_inventory_movements_type_time ON inventory_movements(movement_type, timestamp DESC);
+CREATE INDEX idx_inventory_alerts_unack ON inventory_alerts(item_id, alert_type) WHERE is_acknowledged = FALSE;
 
 -- Task indexes
 CREATE INDEX idx_tasks_assigned ON tasks(assigned_to, status, due_date);
@@ -839,6 +884,182 @@ CREATE INDEX idx_evidence_vault_related ON evidence_vault(related_to_type, relat
 CREATE INDEX idx_audit_log_entity ON audit_log(entity_type, entity_id, timestamp DESC);
 CREATE INDEX idx_audit_log_user ON audit_log(user_id, timestamp DESC);
 CREATE INDEX idx_audit_log_timestamp ON audit_log(timestamp DESC);
+
+-- =====================================================
+-- VIEWS FOR INVENTORY MANAGEMENT
+-- =====================================================
+
+-- View for current stock balances per item
+CREATE OR REPLACE VIEW inventory_stock_balances AS
+SELECT 
+  i.id AS item_id,
+  i.organization_id,
+  i.site_id,
+  i.name AS item_name,
+  i.sku,
+  i.item_type,
+  i.category_id,
+  i.unit_of_measure,
+  i.current_quantity AS on_hand,
+  i.reserved_quantity,
+  (i.current_quantity - i.reserved_quantity) AS available,
+  i.minimum_quantity AS par_level,
+  i.reorder_point,
+  CASE 
+    WHEN i.minimum_quantity IS NOT NULL AND i.current_quantity < i.minimum_quantity THEN 'below_par'
+    WHEN i.reorder_point IS NOT NULL AND i.current_quantity <= i.reorder_point THEN 'reorder'
+    WHEN i.current_quantity = 0 THEN 'out_of_stock'
+    ELSE 'ok'
+  END AS stock_status,
+  i.storage_location,
+  i.updated_at AS last_updated
+FROM inventory_items i
+WHERE i.is_active = TRUE;
+
+-- View for lots with remaining quantity
+CREATE OR REPLACE VIEW inventory_active_lots AS
+SELECT 
+  l.id AS lot_id,
+  l.item_id,
+  i.name AS item_name,
+  i.organization_id,
+  i.site_id,
+  l.lot_code,
+  l.quantity_received,
+  l.quantity_remaining,
+  l.unit_of_measure,
+  l.received_date,
+  l.expiry_date,
+  l.manufacture_date,
+  l.supplier_name,
+  l.compliance_package_uid,
+  l.storage_location,
+  CASE 
+    WHEN l.expiry_date IS NULL THEN NULL
+    WHEN l.expiry_date < CURRENT_DATE THEN 'expired'
+    WHEN l.expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 'expiring_soon'
+    WHEN l.expiry_date <= CURRENT_DATE + INTERVAL '90 days' THEN 'expiring'
+    ELSE 'ok'
+  END AS expiry_status,
+  CASE 
+    WHEN l.expiry_date IS NOT NULL THEN (l.expiry_date - CURRENT_DATE)
+    ELSE NULL
+  END AS days_until_expiry,
+  l.created_at,
+  l.updated_at
+FROM inventory_lots l
+JOIN inventory_items i ON l.item_id = i.id
+WHERE l.is_active = TRUE AND l.quantity_remaining > 0;
+
+-- View for movement summary by item
+CREATE OR REPLACE VIEW inventory_movement_summary AS
+SELECT 
+  i.id AS item_id,
+  i.name AS item_name,
+  i.organization_id,
+  i.site_id,
+  COUNT(m.id) AS total_movements,
+  SUM(CASE WHEN m.movement_type = 'receive' THEN m.quantity ELSE 0 END) AS total_received,
+  SUM(CASE WHEN m.movement_type = 'consume' THEN m.quantity ELSE 0 END) AS total_consumed,
+  SUM(CASE WHEN m.movement_type = 'adjust' THEN m.quantity ELSE 0 END) AS total_adjusted,
+  SUM(CASE WHEN m.movement_type = 'dispose' THEN m.quantity ELSE 0 END) AS total_disposed,
+  SUM(CASE WHEN m.movement_type = 'transfer' THEN m.quantity ELSE 0 END) AS total_transferred,
+  MAX(m.timestamp) AS last_movement_date
+FROM inventory_items i
+LEFT JOIN inventory_movements m ON i.id = m.item_id
+WHERE i.is_active = TRUE
+GROUP BY i.id, i.name, i.organization_id, i.site_id;
+
+-- =====================================================
+-- HELPER FUNCTIONS FOR INVENTORY
+-- =====================================================
+
+-- Function to update item quantity after movement
+CREATE OR REPLACE FUNCTION update_inventory_quantity()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  quantity_delta DECIMAL(10,2);
+BEGIN
+  -- Calculate how much to add or subtract from current_quantity
+  quantity_delta := CASE NEW.movement_type
+    WHEN 'receive' THEN NEW.quantity
+    WHEN 'return' THEN NEW.quantity
+    WHEN 'consume' THEN -NEW.quantity
+    WHEN 'dispose' THEN -NEW.quantity
+    WHEN 'transfer' THEN -NEW.quantity
+    WHEN 'adjust' THEN NEW.quantity  -- Can be positive or negative
+    WHEN 'reserve' THEN 0  -- Doesn't change total, only reserved
+    WHEN 'unreserve' THEN 0
+    ELSE 0
+  END;
+  
+  -- Update item quantity
+  UPDATE public.inventory_items
+  SET 
+    current_quantity = current_quantity + quantity_delta,
+    reserved_quantity = CASE NEW.movement_type
+      WHEN 'reserve' THEN reserved_quantity + NEW.quantity
+      WHEN 'unreserve' THEN reserved_quantity - NEW.quantity
+      ELSE reserved_quantity
+    END,
+    updated_at = NOW()
+  WHERE id = NEW.item_id;
+  
+  -- If lot_id is provided, update lot quantity
+  IF NEW.lot_id IS NOT NULL AND NEW.movement_type IN ('consume', 'dispose', 'transfer') THEN
+    UPDATE public.inventory_lots
+    SET 
+      quantity_remaining = quantity_remaining - NEW.quantity,
+      is_active = CASE WHEN (quantity_remaining - NEW.quantity) <= 0 THEN FALSE ELSE TRUE END,
+      updated_at = NOW()
+    WHERE id = NEW.lot_id;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
+
+-- Trigger to update inventory on movement
+CREATE TRIGGER trigger_update_inventory_quantity
+AFTER INSERT ON inventory_movements
+FOR EACH ROW
+EXECUTE FUNCTION update_inventory_quantity();
+
+-- Function to check and create inventory alerts
+CREATE OR REPLACE FUNCTION check_inventory_alerts()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  -- Check for low stock
+  IF NEW.current_quantity <= NEW.minimum_quantity AND NEW.minimum_quantity IS NOT NULL THEN
+    INSERT INTO public.inventory_alerts (item_id, alert_type, threshold_value)
+    VALUES (NEW.id, 'low_stock', NEW.minimum_quantity)
+    ON CONFLICT DO NOTHING;
+  END IF;
+  
+  -- Check for out of stock
+  IF NEW.current_quantity <= 0 THEN
+    INSERT INTO public.inventory_alerts (item_id, alert_type, threshold_value)
+    VALUES (NEW.id, 'out_of_stock', 0)
+    ON CONFLICT DO NOTHING;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
+
+-- Trigger to check alerts on inventory update
+CREATE TRIGGER trigger_check_inventory_alerts
+AFTER UPDATE OF current_quantity ON inventory_items
+FOR EACH ROW
+EXECUTE FUNCTION check_inventory_alerts();
 
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -894,6 +1115,9 @@ CREATE TRIGGER update_batches_updated_at BEFORE UPDATE ON batches
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_inventory_items_updated_at BEFORE UPDATE ON inventory_items
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_inventory_lots_updated_at BEFORE UPDATE ON inventory_lots
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_recipes_updated_at BEFORE UPDATE ON recipes

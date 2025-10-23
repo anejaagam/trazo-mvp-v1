@@ -17,10 +17,10 @@ export default async function AdminDashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-display-4 font-semibold text-brand-dark-green-700">
+          <h1 className="text-display-4 font-semibold text-brand-dark-green-700 dark:text-brand-lighter-green-400">
             Admin Dashboard
           </h1>
-          <p className="text-body-base text-slate-600 mt-2">
+          <p className="text-body-base text-slate-600 dark:text-slate-300 mt-2">
             Identity, roles, and access management (Dev Mode)
           </p>
         </div>
@@ -33,7 +33,7 @@ export default async function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">1</div>
-              <p className="text-xs text-muted-foreground">Mock data in dev mode</p>
+              <p className="text-xs text-muted-foreground dark:text-slate-400">Mock data in dev mode</p>
             </CardContent>
           </Card>
 
@@ -44,7 +44,7 @@ export default async function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">1</div>
-              <p className="text-xs text-muted-foreground">Mock data in dev mode</p>
+              <p className="text-xs text-muted-foreground dark:text-slate-400">Mock data in dev mode</p>
             </CardContent>
           </Card>
 
@@ -55,7 +55,7 @@ export default async function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Mock data in dev mode</p>
+              <p className="text-xs text-muted-foreground dark:text-slate-400">Mock data in dev mode</p>
             </CardContent>
           </Card>
         </div>
@@ -75,10 +75,10 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-display-4 font-semibold text-brand-dark-green-700">
+        <h1 className="text-display-4 font-semibold text-brand-dark-green-700 dark:text-brand-lighter-green-400">
           Admin Dashboard
         </h1>
-        <p className="text-body-base text-slate-600 mt-2">
+        <p className="text-body-base text-slate-600 dark:text-slate-300 mt-2">
           Manage users, roles, permissions, and access control
         </p>
       </div>
@@ -92,7 +92,7 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{usersCount.count || 0}</div>
-            <p className="text-xs text-slate-500">Across all organizations</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Across all organizations</p>
           </CardContent>
         </Card>
 
@@ -103,7 +103,7 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeSessionsCount.count || 0}</div>
-            <p className="text-xs text-slate-500">Currently active</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Currently active</p>
           </CardContent>
         </Card>
 
@@ -114,7 +114,7 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-slate-500">Predefined roles</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Predefined roles</p>
           </CardContent>
         </Card>
 
@@ -125,7 +125,7 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{auditEventsCount.count || 0}</div>
-            <p className="text-xs text-slate-500">Last 24 hours</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Last 24 hours</p>
           </CardContent>
         </Card>
       </div>
@@ -146,7 +146,7 @@ export default async function AdminDashboardPage() {
                 <Users className="h-5 w-5 text-brand-lighter-green-600" />
                 <div>
                   <div className="font-medium">Manage Users</div>
-                  <div className="text-sm text-slate-500">Invite, suspend, or update user roles</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">Invite, suspend, or update user roles</div>
                 </div>
               </div>
             </a>
@@ -158,7 +158,7 @@ export default async function AdminDashboardPage() {
                 <Shield className="h-5 w-5 text-brand-lighter-green-600" />
                 <div>
                   <div className="font-medium">Roles & Permissions</div>
-                  <div className="text-sm text-slate-500">View permission matrix and role details</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">View permission matrix and role details</div>
                 </div>
               </div>
             </a>
@@ -170,7 +170,7 @@ export default async function AdminDashboardPage() {
                 <FileText className="h-5 w-5 text-brand-lighter-green-600" />
                 <div>
                   <div className="font-medium">Audit Log</div>
-                  <div className="text-sm text-slate-500">Review system activity and changes</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">Review system activity and changes</div>
                 </div>
               </div>
             </a>
@@ -183,9 +183,9 @@ export default async function AdminDashboardPage() {
             <CardDescription>Latest administrative actions</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm text-slate-600">
+            <div className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
               <p>Recent activity feed will be displayed here...</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 Connect to audit log for real-time updates
               </p>
             </div>

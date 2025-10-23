@@ -37,10 +37,10 @@ export default async function UsersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-display-4 font-semibold text-brand-dark-green-700">
+          <h1 className="text-display-4 font-semibold text-brand-dark-green-700 dark:text-brand-lighter-green-400">
             User Management
           </h1>
-          <p className="text-body-base text-slate-600 mt-2">
+          <p className="text-body-base text-slate-600 dark:text-slate-300 mt-2">
             Invite users, manage roles, and control access (Dev Mode)
           </p>
         </div>
@@ -83,10 +83,10 @@ export default async function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-display-4 font-semibold text-brand-dark-green-700">
+        <h1 className="text-display-4 font-semibold text-brand-dark-green-700 dark:text-brand-lighter-green-400">
           User Management
         </h1>
-        <p className="text-body-base text-slate-600 mt-2">
+        <p className="text-body-base text-slate-600 dark:text-slate-300 mt-2">
           Invite users, manage roles, and control access
         </p>
       </div>

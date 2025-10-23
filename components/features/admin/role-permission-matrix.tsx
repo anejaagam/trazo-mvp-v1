@@ -86,7 +86,7 @@ export function RolePermissionMatrix({ userCounts = {} }: RolePermissionMatrixPr
                 size="sm"
                 className={selectedRole === key 
                   ? '' 
-                  : 'border-brand-lighter-green-600 text-brand-dark-green-700 dark:text-brand-lighter-green-400 hover:bg-brand-lighter-green-50 dark:hover:bg-brand-dark-green-900/20 hover:text-brand-dark-green-700 dark:hover:text-brand-lighter-green-300'}
+                  : 'border-brand-lighter-green-600 text-brand-dark-green-700 dark:text-brand-lighter-green-400 hover:bg-brand-lighter-green-50 dark:hover:bg-green-900 hover:text-brand-dark-green-700 dark:hover:text-brand-lighter-green-200'}
               >
                 <Shield className="mr-2 h-4 w-4" />
                 {role.name}

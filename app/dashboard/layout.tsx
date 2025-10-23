@@ -21,7 +21,7 @@ export default async function DashboardLayout({
     return (
       <div className="flex h-screen bg-background">
         {/* Dev mode banner */}
-        <div className={DEV_MODE_BANNER.className}>
+        <div className={DEV_MODE_BANNER.className} style={DEV_MODE_BANNER.style}>
           {DEV_MODE_BANNER.text}
         </div>
         

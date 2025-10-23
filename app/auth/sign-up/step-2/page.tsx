@@ -20,8 +20,6 @@ export default function SignUpStep2() {
     companyName: "",
     companyWebsite: "",
     farmLocation: "",
-    jurisdiction: "",
-    plantType: "",
     dataRegion: "" // us or canada
   });
 
@@ -30,6 +28,17 @@ export default function SignUpStep2() {
     const step1Data = localStorage.getItem('signupStep1');
     if (!step1Data) {
       window.location.href = '/auth/sign-up';
+    }
+
+    // Load existing step 2 data if returning from later steps
+    const savedStep2Data = localStorage.getItem('signupStep2');
+    if (savedStep2Data) {
+      try {
+        const parsedData = JSON.parse(savedStep2Data);
+        setFormData(parsedData);
+      } catch (error) {
+        console.error('Error loading step 2 data:', error);
+      }
     }
   }, []);
 
@@ -116,55 +125,6 @@ export default function SignUpStep2() {
                 </p>
               </div>
 
-              {/* Plant Type Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="plantType" required>Plant Type</Label>
-                <Select
-                  value={formData.plantType}
-                  onValueChange={(value) => handleInputChange('plantType', value)}
-                >
-                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
-                    <SelectValue placeholder="Select Plant Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cannabis">Cannabis</SelectItem>
-                    <SelectItem value="produce">Produce</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-neutral-600">
-                  Select the primary type of plants you will be growing. This determines compliance requirements and available features.
-                </p>
-              </div>
-
-              {/* Jurisdiction Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="jurisdiction" required>Regulatory Jurisdiction</Label>
-                <Select
-                  value={formData.jurisdiction}
-                  onValueChange={(value) => handleInputChange('jurisdiction', value)}
-                  disabled={!formData.plantType}
-                >
-                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
-                    <SelectValue placeholder={!formData.plantType ? "Please select plant type first" : "Select Jurisdiction"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.plantType === 'cannabis' && (
-                      <>
-                        <SelectItem value="oregon">Oregon (Metrc)</SelectItem>
-                        <SelectItem value="maryland">Maryland (Metrc)</SelectItem>
-                        <SelectItem value="canada">Canada (CTLS)</SelectItem>
-                      </>
-                    )}
-                    {formData.plantType === 'produce' && (
-                      <SelectItem value="primus_gfs">PrimusGFS Certification</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-neutral-600">
-                  Select the regulatory framework that applies to your operation. This configures compliance rules, reporting requirements, and tracking standards.
-                </p>
-              </div>
-
               {/* Data Region Selection */}
               <div className="space-y-2">
                 <Label htmlFor="dataRegion" required>Data Region</Label>
@@ -199,7 +159,7 @@ export default function SignUpStep2() {
                   variant="default"
                   size="lg"
                   onClick={handleNext}
-                  disabled={!formData.companyName || !formData.farmLocation || !formData.plantType || !formData.jurisdiction || !formData.dataRegion}
+                  disabled={!formData.companyName || !formData.farmLocation || !formData.dataRegion}
                   className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
                 >
                   Next

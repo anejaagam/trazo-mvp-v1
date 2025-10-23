@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -19,6 +19,19 @@ export default function SignUpStep1() {
     role: "org_admin" // First user is always org_admin
   });
   const [passwordError, setPasswordError] = useState("");
+
+  useEffect(() => {
+    // Load existing step 1 data if returning from later steps
+    const savedStep1Data = localStorage.getItem('signupStep1');
+    if (savedStep1Data) {
+      try {
+        const parsedData = JSON.parse(savedStep1Data);
+        setFormData(parsedData);
+      } catch (error) {
+        console.error('Error loading step 1 data:', error);
+      }
+    }
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

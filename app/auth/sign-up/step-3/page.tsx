@@ -22,6 +22,17 @@ export default function SignUpStep3() {
     if (!step1Data || !step2Data) {
       window.location.href = '/auth/sign-up';
     }
+
+    // Load existing step 3 data if returning from later steps
+    const savedStep3Data = localStorage.getItem('signupStep3');
+    if (savedStep3Data) {
+      try {
+        const parsedData = JSON.parse(savedStep3Data);
+        setFormData(parsedData);
+      } catch (error) {
+        console.error('Error loading step 3 data:', error);
+      }
+    }
   }, []);
 
   const handleInputChange = (field: string, value: string) => {

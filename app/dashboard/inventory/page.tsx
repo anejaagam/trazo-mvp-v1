@@ -14,8 +14,8 @@ export default async function InventoryOverviewPage() {
   if (isDevModeActive()) {
     logDevMode('Inventory Overview Page')
     userRole = DEV_MOCK_USER.role
-    siteId = 'dev-site-123' // Mock site ID
-    organizationId = 'dev-org-123' // Mock organization ID
+    siteId = DEV_MOCK_USER.site_assignments[0].site_id // Mock site ID
+    organizationId = DEV_MOCK_USER.organization_id // Mock organization ID
     userId = DEV_MOCK_USER.id // Mock user ID
   } else {
     // PRODUCTION MODE: Get actual user data

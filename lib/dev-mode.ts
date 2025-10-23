@@ -23,17 +23,18 @@ export function isDevModeActive(): boolean {
 /**
  * Mock user data for development mode
  * Simulates an org_admin user with full permissions
+ * Using valid UUIDs for database compatibility
  */
 export const DEV_MOCK_USER = {
-  id: 'dev-user-123',
+  id: '00000000-0000-0000-0000-000000000001', // Valid UUID for dev user
   email: 'dev@trazo.ag',
   full_name: 'Dev User',
   phone: '+1234567890',
   role: 'org_admin',
   is_active: true,
-  organization_id: 'dev-org-123',
+  organization_id: '00000000-0000-0000-0000-000000000010', // Valid UUID for dev org
   organization: {
-    id: 'dev-org-123',
+    id: '00000000-0000-0000-0000-000000000010',
     name: 'Development Farm',
     jurisdiction: 'maryland_cannabis',
     plant_type: 'cannabis',
@@ -41,7 +42,7 @@ export const DEV_MOCK_USER = {
   },
   site_assignments: [
     {
-      site_id: 'dev-site-123',
+      site_id: '00000000-0000-0000-0000-000000000020', // Valid UUID for dev site
       site_name: 'Main Facility'
     }
   ]
@@ -51,7 +52,7 @@ export const DEV_MOCK_USER = {
  * Mock Supabase auth user for development mode
  */
 export const DEV_MOCK_AUTH_USER = {
-  id: 'dev-user-123',
+  id: '00000000-0000-0000-0000-000000000001', // Valid UUID for dev user
   email: 'dev@trazo.ag',
   aud: 'authenticated',
   role: 'authenticated',

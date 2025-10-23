@@ -20,7 +20,7 @@ export default async function InventoryMovementsPage() {
     logDevMode('Inventory Movements Page')
     userRole = DEV_MOCK_USER.role
     organizationId = DEV_MOCK_USER.organization_id
-    siteId = 'dev-site-123'
+    siteId = DEV_MOCK_USER.site_assignments[0].site_id
   } else {
     // PRODUCTION MODE: Get actual user data
     const supabase = await createClient()

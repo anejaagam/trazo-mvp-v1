@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client'
+import { isDevModeActive } from '@/lib/dev-mode'
 import type {
   InventoryItemFilters,
   InsertInventoryItem,
@@ -20,6 +21,36 @@ export async function getInventoryItems(
   filters?: InventoryItemFilters
 ) {
   try {
+    // In dev mode, use the dev API which bypasses RLS with service role
+    if (isDevModeActive()) {
+      const params = new URLSearchParams({ siteId })
+      const response = await fetch(`/api/dev/inventory?${params}`)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to fetch inventory items')
+      }
+      const { data } = await response.json()
+      
+      // Apply client-side filters since API doesn't support them yet
+      let filteredData = data
+      if (filters?.item_type) {
+        filteredData = filteredData.filter((item: any) => item.item_type === filters.item_type)
+      }
+      if (filters?.category_id) {
+        filteredData = filteredData.filter((item: any) => item.category_id === filters.category_id)
+      }
+      if (filters?.search) {
+        const searchLower = filters.search.toLowerCase()
+        filteredData = filteredData.filter((item: any) => 
+          item.name?.toLowerCase().includes(searchLower) || 
+          item.sku?.toLowerCase().includes(searchLower)
+        )
+      }
+      
+      return { data: filteredData, error: null }
+    }
+
+    // Production path with RLS
     const supabase = createClient()
     let query = supabase
       .from('inventory_items')
@@ -76,6 +107,24 @@ export async function getInventoryItemById(itemId: string) {
  */
 export async function createInventoryItem(item: InsertInventoryItem) {
   try {
+    // In dev mode, use service role API to bypass RLS
+    if (isDevModeActive()) {
+      const response = await fetch('/api/dev/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create inventory item')
+      }
+      
+      const { data } = await response.json()
+      return { data, error: null }
+    }
+
+    // Production mode: use regular client
     const supabase = createClient()
     const { data, error } = await supabase
       .from('inventory_items')
@@ -99,6 +148,24 @@ export async function updateInventoryItem(
   updates: UpdateInventoryItem
 ) {
   try {
+    // In dev mode, use service role API to bypass RLS
+    if (isDevModeActive()) {
+      const response = await fetch('/api/dev/inventory', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: itemId, ...updates })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update inventory item')
+      }
+      
+      const { data } = await response.json()
+      return { data, error: null }
+    }
+
+    // Production mode: use regular client
     const supabase = createClient()
     const { data, error } = await supabase
       .from('inventory_items')

@@ -15,8 +15,8 @@ export default async function InventoryItemsPage() {
     logDevMode('Inventory Items Page')
     userId = DEV_MOCK_USER.id
     userRole = DEV_MOCK_USER.role
-    siteId = 'dev-site-123'
-    organizationId = 'dev-org-123'
+    siteId = DEV_MOCK_USER.site_assignments[0].site_id
+    organizationId = DEV_MOCK_USER.organization_id
   } else {
     // PRODUCTION MODE: Get actual user data
     const supabase = await createClient()

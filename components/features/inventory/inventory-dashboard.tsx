@@ -114,28 +114,23 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         setIsLoading(true)
         setError(null)
 
-        // DEV MODE: Use empty data (no database calls)
-        if (isDevModeActive()) {
-          setTotalItems(0)
-          setLowStockCount(0)
-          setExpiringCount(0)
-          setRecentMovementsCount(0)
-          setLowStockItems([])
-          setExpiringLots([])
-          setRecentMovements([])
-          setIsLoading(false)
-          return
-        }
-
-        // PRODUCTION MODE: Load all dashboard data in parallel using client-side Supabase
+        // Load all dashboard data in parallel using client-side Supabase
+        // This works in both dev and production mode now that we have seeded data
         const supabase = createClient()
         
         const [
+          items,
           stockBalances,
           belowMinimum,
           expiring,
           movements,
         ] = await Promise.all([
+          // Get all inventory items (works with RLS in both dev and prod)
+          supabase
+            .from('inventory_items')
+            .select('*')
+            .eq('site_id', siteId)
+            .eq('is_active', true),
           // Get stock balances view
           supabase
             .from('inventory_stock_balances')
@@ -165,7 +160,8 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         ])
 
         // Set summary counts
-        setTotalItems(stockBalances.data?.length || 0)
+        // Use inventory_items count as fallback if views don't work
+        setTotalItems(items.data?.length || stockBalances.data?.length || 0)
         setLowStockCount(belowMinimum.data?.length || 0)
         setExpiringCount(expiring.data?.length || 0)
         setRecentMovementsCount(movements.data?.length || 0)
@@ -196,19 +192,8 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
       try {
         setError(null)
 
-        // DEV MODE: Use empty data (no database calls)
-        if (isDevModeActive()) {
-          setTotalItems(0)
-          setLowStockCount(0)
-          setExpiringCount(0)
-          setRecentMovementsCount(0)
-          setLowStockItems([])
-          setExpiringLots([])
-          setRecentMovements([])
-          return
-        }
-
-        // PRODUCTION MODE: Reload all dashboard data
+        // In dev mode, we still want to reload data from the database
+        // since we're now actually creating records via the service role API
         const supabase = createClient()
         
         const [

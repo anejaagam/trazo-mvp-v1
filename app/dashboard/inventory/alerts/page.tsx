@@ -7,7 +7,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
-import { isDevModeActive, logDevMode } from '@/lib/dev-mode'
+import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import {
   Card,
   CardContent,
@@ -33,7 +33,7 @@ export default async function LowStockAlertsPage() {
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
     logDevMode('Low Stock Alerts Page')
-    siteId = 'dev-site-123'
+    siteId = DEV_MOCK_USER.site_assignments[0].site_id
   } else {
     // PRODUCTION MODE: Get actual user data
     const supabase = await createClient()

@@ -111,9 +111,14 @@ export function ItemCatalog({
         setIsLoading(true)
         setError(null)
 
-        // DEV MODE: Use empty data (no database calls)
+        // DEV MODE: Fetch via dev API which uses service role
         if (isDevModeActive()) {
-          setItems([])
+          const response = await fetch(`/api/dev/inventory?siteId=${siteId}`)
+          if (!response.ok) {
+            throw new Error('Failed to fetch inventory items')
+          }
+          const { data } = await response.json()
+          setItems(data || [])
           setIsLoading(false)
           return
         }

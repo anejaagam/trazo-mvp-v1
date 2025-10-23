@@ -118,9 +118,19 @@ export function ReceiveInventoryDialog({
     async function loadItems() {
       if (!open) return
 
-      // DEV MODE: Use empty data (no database calls)
+      // DEV MODE: Fetch via dev API which uses service role
       if (isDevModeActive()) {
-        setItems([])
+        try {
+          const response = await fetch(`/api/dev/inventory?siteId=${siteId}`)
+          if (!response.ok) {
+            throw new Error('Failed to fetch inventory items')
+          }
+          const { data } = await response.json()
+          setItems(data || [])
+        } catch (err) {
+          console.error('Error loading items in dev mode:', err)
+          setError('Failed to load inventory items')
+        }
         return
       }
 

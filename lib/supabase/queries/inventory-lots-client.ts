@@ -118,6 +118,12 @@ export async function getAvailableLots(
  */
 export async function createLot(lot: InsertInventoryLot) {
   try {
+    // In dev mode, skip lot creation for now (lots not fully supported)
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
+      console.warn('Dev mode: Skipping lot creation (not yet supported)')
+      return { data: null, error: null }
+    }
+
     const supabase = createClient()
     const { data, error } = await supabase
       .from('inventory_lots')

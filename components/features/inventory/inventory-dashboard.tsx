@@ -114,8 +114,46 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         setIsLoading(true)
         setError(null)
 
-        // Load all dashboard data in parallel using client-side Supabase
-        // This works in both dev and production mode now that we have seeded data
+        // In dev mode, fetch via dev API which uses service role
+        if (isDevModeActive()) {
+          const [itemsRes, movementsRes] = await Promise.all([
+            fetch(`/api/dev/inventory?siteId=${siteId}`),
+            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=10`)
+          ])
+          
+          if (!itemsRes.ok || !movementsRes.ok) {
+            throw new Error('Failed to fetch dashboard data')
+          }
+          
+          const { data: items } = await itemsRes.json()
+          const { data: movements } = await movementsRes.json()
+          
+          // Calculate low stock items (items with current_quantity < minimum_quantity)
+          const lowStock = items?.filter((item: any) => 
+            item.minimum_quantity && item.current_quantity < item.minimum_quantity
+          ) || []
+          
+          // Calculate expiring items (items with expiry_date within 30 days)
+          const now = new Date()
+          const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+          const expiring = items?.filter((item: any) => {
+            if (!item.expiry_date) return false
+            const expiryDate = new Date(item.expiry_date)
+            return expiryDate >= now && expiryDate <= thirtyDaysFromNow
+          }) || []
+          
+          setTotalItems(items?.length || 0)
+          setLowStockCount(lowStock.length)
+          setExpiringCount(expiring.length)
+          setRecentMovementsCount(movements?.length || 0)
+          setLowStockItems([]) // Views not available in dev mode
+          setExpiringLots([]) // Views not available in dev mode
+          setRecentMovements(movements || [])
+          setIsLoading(false)
+          return
+        }
+
+        // PRODUCTION MODE: Load all dashboard data in parallel using client-side Supabase
         const supabase = createClient()
         
         const [
@@ -125,7 +163,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           expiring,
           movements,
         ] = await Promise.all([
-          // Get all inventory items (works with RLS in both dev and prod)
+          // Get all inventory items
           supabase
             .from('inventory_items')
             .select('*')
@@ -150,11 +188,14 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             .in('expiry_status', ['expired', 'expiring_soon'])
             .order('expiry_date', { ascending: true })
             .limit(10),
-          // Get recent movements
+          // Get recent movements (join through items to get site_id)
           supabase
             .from('inventory_movements')
-            .select('*')
-            .eq('site_id', siteId)
+            .select(`
+              *,
+              inventory_items!inner(site_id)
+            `)
+            .eq('inventory_items.site_id', siteId)
             .order('timestamp', { ascending: false })
             .limit(10),
         ])
@@ -192,16 +233,59 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
       try {
         setError(null)
 
-        // In dev mode, we still want to reload data from the database
-        // since we're now actually creating records via the service role API
+        // In dev mode, fetch via dev API which uses service role
+        if (isDevModeActive()) {
+          const [itemsRes, movementsRes] = await Promise.all([
+            fetch(`/api/dev/inventory?siteId=${siteId}`),
+            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=10`)
+          ])
+          
+          if (!itemsRes.ok || !movementsRes.ok) {
+            throw new Error('Failed to fetch dashboard data')
+          }
+          
+          const { data: items } = await itemsRes.json()
+          const { data: movements } = await movementsRes.json()
+          
+          // Calculate low stock items
+          const lowStock = items?.filter((item: any) => 
+            item.minimum_quantity && item.current_quantity < item.minimum_quantity
+          ) || []
+          
+          // Calculate expiring items
+          const now = new Date()
+          const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+          const expiring = items?.filter((item: any) => {
+            if (!item.expiry_date) return false
+            const expiryDate = new Date(item.expiry_date)
+            return expiryDate >= now && expiryDate <= thirtyDaysFromNow
+          }) || []
+          
+          setTotalItems(items?.length || 0)
+          setLowStockCount(lowStock.length)
+          setExpiringCount(expiring.length)
+          setRecentMovementsCount(movements?.length || 0)
+          setLowStockItems([])
+          setExpiringLots([])
+          setRecentMovements(movements || [])
+          return
+        }
+
+        // PRODUCTION MODE: Load data using Supabase client
         const supabase = createClient()
         
         const [
+          items,
           stockBalances,
           belowMinimum,
           expiring,
           movements,
         ] = await Promise.all([
+          supabase
+            .from('inventory_items')
+            .select('*')
+            .eq('site_id', siteId)
+            .eq('is_active', true),
           supabase
             .from('inventory_stock_balances')
             .select('*')
@@ -220,13 +304,16 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             .limit(10),
           supabase
             .from('inventory_movements')
-            .select('*')
-            .eq('site_id', siteId)
+            .select(`
+              *,
+              inventory_items!inner(site_id)
+            `)
+            .eq('inventory_items.site_id', siteId)
             .order('timestamp', { ascending: false })
             .limit(10),
         ])
 
-        setTotalItems(stockBalances.data?.length || 0)
+        setTotalItems(items.data?.length || stockBalances.data?.length || 0)
         setLowStockCount(belowMinimum.data?.length || 0)
         setExpiringCount(expiring.data?.length || 0)
         setRecentMovementsCount(movements.data?.length || 0)

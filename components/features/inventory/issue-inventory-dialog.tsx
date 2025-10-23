@@ -176,9 +176,16 @@ export function IssueInventoryDialog({
     setIsLoadingItems(true)
     setError(null)
     try {
-      // DEV MODE: Use empty data (no database calls)
+      // DEV MODE: Fetch via dev API which uses service role
       if (isDevModeActive()) {
-        setItems([])
+        const response = await fetch(`/api/dev/inventory?siteId=${siteId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch inventory items')
+        }
+        const { data } = await response.json()
+        // Filter to items with available quantity > 0
+        const itemsWithStock = (data || []).filter((item: InventoryItemWithStock) => (item.current_quantity || 0) > 0)
+        setItems(itemsWithStock)
         return
       }
 
@@ -191,7 +198,7 @@ export function IssueInventoryDialog({
       if (fetchError) throw fetchError
       
       // Filter to items with available_quantity > 0
-      const itemsWithStock = data?.filter(item => (item.available_quantity || 0) > 0) || []
+      const itemsWithStock = (data || []).filter((item: InventoryItemWithStock) => (item.available_quantity || 0) > 0)
       setItems(itemsWithStock)
     } catch (err) {
       console.error('Error loading inventory items:', err)

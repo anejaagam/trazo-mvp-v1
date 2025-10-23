@@ -95,10 +95,23 @@ export function MovementsLog({
   const loadData = async () => {
     setIsLoading(true)
     try {
-      // DEV MODE: Use empty arrays (no database calls)
+      // DEV MODE: Fetch via dev API which uses service role
       if (isDevModeActive()) {
-        setMovements([])
-        setItems([])
+        const [movementsRes, itemsRes] = await Promise.all([
+          fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=100`),
+          fetch(`/api/dev/inventory?siteId=${siteId}`)
+        ])
+        
+        if (!movementsRes.ok || !itemsRes.ok) {
+          throw new Error('Failed to fetch data')
+        }
+        
+        const { data: movementsData } = await movementsRes.json()
+        const { data: itemsData } = await itemsRes.json()
+        
+        setMovements(movementsData || [])
+        const itemsList = itemsData?.map((item: any) => ({ id: item.id, name: item.name })) || []
+        setItems(itemsList)
         return
       }
 
@@ -114,7 +127,7 @@ export function MovementsLog({
         organization_id: organizationId,
         is_active: true,
       })
-      const itemsList = itemsData?.map(item => ({ id: item.id, name: item.name })) || []
+      const itemsList = (itemsData || []).map((item: { id: string; name: string }) => ({ id: item.id, name: item.name }))
       setItems(itemsList)
     } catch (err) {
       console.error('Error loading movements:', err)

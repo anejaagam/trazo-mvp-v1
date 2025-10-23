@@ -83,7 +83,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-white/80 hover:text-white hover:bg-white/10 gap-2"
+                  className="text-white/80 hover:text-white hover:bg-white/10 gap-2 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
                 >
                   <Icon className="h-4 w-4" />
                   {item.label}
@@ -99,8 +99,12 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative text-white hover:bg-white/10">
-                <Bell className="h-5 w-5" />
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="relative text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
+              >
+                <Bell className="h-7 w-7" />
                 <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 border-0 text-[10px]">
                   3
                 </Badge>
@@ -129,7 +133,10 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="text-white hover:bg-white/10 gap-2 h-9">
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-white/10 gap-2 h-9 !bg-transparent dark:!bg-transparent dark:hover:!bg-white/10"
+              >
                 <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center">
                   <User className="h-4 w-4" />
                 </div>

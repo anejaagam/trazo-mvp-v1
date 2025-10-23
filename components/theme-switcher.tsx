@@ -31,7 +31,7 @@ const ThemeSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size={"sm"} className="text-brand-lighter-green-600 hover:text-brand-lighter-green-700">
+        <Button variant="ghost" size={"sm"} className="text-brand-lighter-green-600 hover:text-brand-lighter-green-700 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]">
           {theme === "light" ? (
             <Sun
               key="light"

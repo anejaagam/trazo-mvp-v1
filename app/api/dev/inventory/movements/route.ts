@@ -90,11 +90,19 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient()
 
     // Get the current quantity from the related inventory item
-    const { data: item } = await supabase
+    const { data: item, error: itemError } = await supabase
       .from('inventory_items')
       .select('current_quantity')
       .eq('id', body.item_id)
       .single()
+    
+    if (itemError) {
+      console.error('Dev mode item fetch error:', itemError)
+      return NextResponse.json(
+        { error: 'Failed to fetch item: ' + itemError.message, details: itemError },
+        { status: 400 }
+      )
+    }
 
     if (!item) {
       return NextResponse.json(

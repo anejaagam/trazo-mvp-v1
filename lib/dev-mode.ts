@@ -37,10 +37,10 @@ export function isDevModeActive(): boolean {
 /**
  * Mock user data for development mode
  * Simulates an org_admin user with full permissions
- * Using valid UUIDs for database compatibility
+ * Using the actual auth user ID created by fix-dev-org script
  */
 export const DEV_MOCK_USER = {
-  id: '00000000-0000-0000-0000-000000000001', // Valid UUID for dev user
+  id: 'e96a1d5a-c867-4752-a690-01a914a86c85', // Actual auth user ID from Supabase
   email: 'dev@trazo.ag',
   full_name: 'Dev User',
   phone: '+1234567890',
@@ -66,7 +66,7 @@ export const DEV_MOCK_USER = {
  * Mock Supabase auth user for development mode
  */
 export const DEV_MOCK_AUTH_USER = {
-  id: '00000000-0000-0000-0000-000000000001', // Valid UUID for dev user
+  id: 'e96a1d5a-c867-4752-a690-01a914a86c85', // Actual auth user ID from Supabase
   email: 'dev@trazo.ag',
   aud: 'authenticated',
   role: 'authenticated',

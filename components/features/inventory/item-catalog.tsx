@@ -648,7 +648,11 @@ export function ItemCatalog({
                   return (
                     <TableRow
                       key={item.id}
-                      className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-muted/30' : ''}`}
+                      className={`group cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'bg-primary/10 hover:bg-primary/15 border-l-4 border-l-primary' 
+                          : 'hover:bg-accent/50 hover:shadow-sm'
+                      }`}
                       onClick={() => onItemSelect?.(item)}
                     >
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -660,9 +664,11 @@ export function ItemCatalog({
                       </TableCell>
                       <TableCell className="font-medium">
                         <div>
-                          <div className="font-medium">{item.name}</div>
+                          <div className="font-semibold group-hover:text-primary transition-colors">
+                            {item.name}
+                          </div>
                           {item.notes && (
-                            <div className="text-sm text-muted-foreground truncate max-w-xs">
+                            <div className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">
                               {item.notes}
                             </div>
                           )}

@@ -8,6 +8,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { WelcomeBanner } from '@/components/features/onboarding/welcome-banner'
+import { createClient } from '@/lib/supabase/server'
 
 // Mock data - in real app this would come from database
 const dashboardData = {
@@ -40,7 +42,24 @@ const dashboardData = {
   }
 }
 
-export default function DashboardPage() {
+type UserRow = { role: string | null; organization: { jurisdiction: string | null } | null }
+
+export default async function DashboardPage() {
+  // Fetch current user's role and org jurisdiction for onboarding banner
+  const supabase = await createClient()
+  const { data: auth } = await supabase.auth.getUser()
+  let userRole: string | null = null
+  let jurisdictionId: string | null = null
+  if (auth?.user) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('role, organization:organizations(jurisdiction)')
+      .eq('id', auth.user.id)
+      .single<UserRow>()
+    userRole = user?.role ?? null
+    jurisdictionId = user?.organization?.jurisdiction ?? null
+  }
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -50,6 +69,9 @@ export default function DashboardPage() {
           Welcome back! Here&apos;s what&apos;s happening with your operations.
         </p>
       </div>
+
+      {/* Onboarding banner (shows once per browser) */}
+      <WelcomeBanner role={userRole} jurisdictionId={jurisdictionId ?? undefined} />
 
       {/* Key metrics cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

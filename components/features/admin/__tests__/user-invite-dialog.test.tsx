@@ -29,11 +29,12 @@ describe('UserInviteDialog', () => {
   describe('Rendering', () => {
     it('should render when open', () => {
       render(
-        <UserInviteDialog
-          open={true}
-          onClose={mockOnClose}
-          organizationId={mockOrganizationId}
-        />
+          <UserInviteDialog
+            open={true}
+            onClose={mockOnClose}
+            organizationId={mockOrganizationId}
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByText('Invite User')).toBeInTheDocument();
@@ -46,7 +47,8 @@ describe('UserInviteDialog', () => {
           open={false}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+          inviterRole="org_admin"
+          />
       );
       
       expect(screen.queryByText('Invite User')).not.toBeInTheDocument();
@@ -58,7 +60,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
@@ -72,7 +75,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
@@ -85,7 +89,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByText(/the user will receive an email invitation/i)).toBeInTheDocument();
@@ -100,7 +105,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const nameInput = screen.getByLabelText(/full name/i) as HTMLInputElement;
@@ -115,7 +121,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const emailInput = screen.getByLabelText(/email address/i) as HTMLInputElement;
@@ -130,7 +137,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const nameInput = screen.getByLabelText(/full name/i);
@@ -146,7 +154,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const nameInput = screen.getByLabelText(/full name/i);
@@ -162,7 +171,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByPlaceholderText('John Doe')).toBeInTheDocument();
@@ -177,7 +187,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const submitButton = screen.getByRole('button', { name: /send invitation/i });
@@ -190,7 +201,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const nameInput = screen.getByLabelText(/full name/i);
@@ -212,7 +224,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const cancelButton = screen.getByRole('button', { name: /cancel/i });
@@ -227,7 +240,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       // Fill form and submit to trigger loading
@@ -250,7 +264,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId="org1"
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByText('Invite User')).toBeInTheDocument();
@@ -260,7 +275,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId="org2"
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByText('Invite User')).toBeInTheDocument();
@@ -272,7 +288,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByText('Invite User')).toBeInTheDocument();
@@ -286,7 +303,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const nameInput = screen.getByLabelText(/full name/i);
@@ -302,7 +320,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       // Radix Dialog components have ARIA attributes
@@ -318,7 +337,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       // Note: Radix UI Select dropdowns are complex to test
@@ -339,7 +359,8 @@ describe('UserInviteDialog', () => {
           onClose={mockOnClose}
           onInvited={mockOnInvited}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       const nameInput = screen.getByLabelText(/full name/i);
@@ -360,7 +381,8 @@ describe('UserInviteDialog', () => {
           open={false}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.queryByText('Invite User')).not.toBeInTheDocument();
@@ -370,7 +392,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       expect(screen.getByText('Invite User')).toBeInTheDocument();
@@ -382,7 +405,8 @@ describe('UserInviteDialog', () => {
           open={true}
           onClose={mockOnClose}
           organizationId={mockOrganizationId}
-        />
+            inviterRole="org_admin"
+          />
       );
       
       // ROLES should be imported and used in the component

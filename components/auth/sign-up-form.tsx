@@ -25,6 +25,13 @@ export function SignUpForm() {
     setError(null);
 
     try {
+      // Basic password complexity: 8+ chars, 1 upper, 1 lower, 1 number
+      const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+      if (!strong.test(password)) {
+        setError('Password must be at least 8 characters and include upper, lower, and a number')
+        setLoading(false)
+        return
+      }
       // Store region FIRST (before auth)
       setStoredRegion(region);
 
@@ -44,8 +51,10 @@ export function SignUpForm() {
             region,
             full_name: fullName,
             company_name: companyName,
+            // Enforce admin-only self-signup on this lightweight form as well
+            role: 'org_admin',
           },
-          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm/signup`,
         },
       });
 
@@ -122,9 +131,9 @@ export function SignUpForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={loading}
-          minLength={6}
+          minLength={8}
           placeholder="Create a secure password"
-          helperText="At least 6 characters"
+          helperText="Min 8 chars, include upper, lower and a number"
         />
 
         {/* Full Name Input */}

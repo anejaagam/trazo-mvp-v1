@@ -6,6 +6,16 @@
 
 ---
 
+## 🔐 Auth hardening (Immediate)
+
+- Enable Supabase Auth leaked password protection (US and CA projects): Dashboard → Authentication → Password → Enable “Compromised password protection”.
+- Ensure no domain restrictions: Keep “Domain allow/deny lists” empty to permit any email domain as requested.
+- SITE_URL during development: Confirmed as `http://localhost:3000` via `NEXT_PUBLIC_SITE_URL` in `.env.local`.
+- Email links updated to new confirm routes:
+  - Self‑signup: `/auth/confirm/signup` → redirects to Login on success
+  - Invite: `/auth/confirm/invite` → redirects to Update Password, then Login
+  - Recovery: `/auth/confirm/recovery` → redirects to Update Password, then Login
+
 ## 🎯 CURRENT STATUS
 
 ### **Project Phase**

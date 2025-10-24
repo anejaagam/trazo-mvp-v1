@@ -32,12 +32,13 @@ export async function completeSignup(formData: FormData) {
     password: step1Data.password,
     options: {
       // Include region in the verification redirect URL so the confirm route can target the correct Supabase project
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?region=${region}&next=/dashboard`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm/signup?region=${region}`,
       data: {
         // Personal info
         full_name: step1Data.name,
         phone: step1Data.phoneNumber,
-        role: step1Data.role,
+        // Enforce admin-only self-signup
+        role: 'org_admin',
         
         // Company info
         company_name: step2Data.companyName,

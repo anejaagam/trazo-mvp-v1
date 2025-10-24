@@ -10,6 +10,7 @@ import { updateUserRole } from '@/lib/supabase/queries/users';
 import { isDevModeActive, logDevMode } from '@/lib/dev-mode';
 import { isValidRole } from '@/lib/rbac/roles';
 import type { RoleKey } from '@/lib/rbac/types';
+import { canAssignRole } from '@/lib/rbac/hierarchy';
 
 export async function PATCH(
   request: NextRequest,
@@ -58,8 +59,31 @@ export async function PATCH(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
+    // Ensure inviter and target user belong to same organization
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('id, organization_id')
+      .eq('id', id)
+      .single();
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
+    }
+
+    if (targetUser.organization_id !== userData.organization_id) {
+      return NextResponse.json({ error: 'Cannot modify users in other organizations' }, { status: 403 });
+    }
+
+    // Enforce role hierarchy: non-admins cannot assign equal or higher roles
+    if (!canAssignRole(userData.role as RoleKey, role as RoleKey)) {
+      return NextResponse.json(
+        { error: 'You cannot assign equal or higher privileges than your own' },
+        { status: 403 }
+      );
+    }
+
     // Update role
-    const updated = await updateUserRole(id, role as RoleKey);
+  const updated = await updateUserRole(id, role as RoleKey);
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error('Error updating user role:', error);

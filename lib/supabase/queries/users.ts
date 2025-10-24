@@ -4,6 +4,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/admin';
+import type { Region } from '@/lib/supabase/region';
 import type {
   User,
   UserWithOrg,
@@ -123,7 +125,23 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  * The user profile will be automatically created by the database trigger
  */
 export async function inviteUser(invite: UserInvite): Promise<User> {
-  const supabase = await createClient();
+  // Determine org region using service client (bypass RLS)
+  let orgRegion: Region = 'US'
+  const serviceForLookup = await createServiceClient('US')
+  {
+    const { data: org } = await serviceForLookup
+      .from('organizations')
+      .select('id, data_region')
+      .eq('id', invite.organization_id)
+      .single()
+    if (org?.data_region && typeof org.data_region === 'string') {
+      const dr = org.data_region.toLowerCase()
+      orgRegion = dr.startsWith('ca') ? 'CA' : 'US'
+    }
+  }
+  // Use service role client for Admin API in the target region
+  const service = await createServiceClient(orgRegion)
+  // Regular client (session-bound) not needed here
 
   // First, check if user already exists in auth.users
   // Note: Supabase doesn't have a direct getUserByEmail admin method
@@ -134,7 +152,7 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
   }
 
   // Invite user via Supabase Auth - this will send an email invitation
-  const { data: authData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+  const { data: authData, error: inviteError } = await service.auth.admin.inviteUserByEmail(
     invite.email,
     {
       data: {
@@ -142,7 +160,7 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
         role: invite.role,
         organization_id: invite.organization_id,
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/dashboard`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm/invite?region=${orgRegion}`,
     }
   );
 
@@ -155,20 +173,32 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
   }
 
   // Update the auto-created user profile with invited status
-  const { data: user, error: updateError } = await supabase
-    .from('users')
-    .update({
-      status: 'invited',
-      role: invite.role,
-      organization_id: invite.organization_id,
-    })
-    .eq('id', authData.user.id)
-    .select()
-    .single();
+  // Try to update profile using service client (avoid RLS + trigger timing race)
+  let user: User | null = null
+  let updateError: unknown = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // Small delay to allow trigger to create profile
+    if (attempt > 0) await new Promise(r => setTimeout(r, 150 * attempt))
+    const { data, error } = await service
+      .from('users')
+      .update({
+        status: 'invited',
+        role: invite.role,
+        organization_id: invite.organization_id,
+      })
+      .eq('id', authData.user.id)
+      .select()
+      .single()
+    if (!error && data) { user = data as unknown as User; break }
+    updateError = error
+  // If not found, retry; otherwise break
+  // Narrow error type for code check without using 'any'
+  if (error && typeof (error as { code?: string }).code !== 'undefined' && (error as { code?: string }).code !== 'PGRST116') break
+  }
 
-  if (updateError) {
+  if (updateError || !user) {
     // Log error but don't fail - the user was invited successfully
-    console.error('Failed to update user profile:', updateError);
+    console.error('Failed to update user profile after invite:', updateError);
     // Return a partial user object
     return {
       id: authData.user.id,
@@ -180,14 +210,14 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
     } as User;
   }
 
-  // If site assignments are provided, create them
+  // If site assignments are provided, create them (service client to avoid RLS headaches)
   if (invite.site_ids && invite.site_ids.length > 0) {
     const siteAssignments = invite.site_ids.map(siteId => ({
       user_id: authData.user.id,
       site_id: siteId,
     }));
 
-    const { error: assignmentError } = await supabase
+    const { error: assignmentError } = await service
       .from('user_site_assignments')
       .insert(siteAssignments);
 
@@ -339,7 +369,22 @@ export async function resendInvitation(userId: string): Promise<void> {
   }
 
   // Resend invitation email via Supabase Auth
-  const { error } = await supabase.auth.admin.inviteUserByEmail(
+  // Determine region from user's organization
+  let orgRegion: Region = 'US'
+  if (user.organization_id) {
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('data_region')
+      .eq('id', user.organization_id)
+      .single()
+    if (org?.data_region && typeof org.data_region === 'string') {
+      const dr = org.data_region.toLowerCase()
+      orgRegion = dr.startsWith('ca') ? 'CA' : 'US'
+    }
+  }
+  // Use service role client for Admin API
+  const service = await createServiceClient(orgRegion)
+  const { error } = await service.auth.admin.inviteUserByEmail(
     user.email,
     {
       data: {
@@ -347,7 +392,7 @@ export async function resendInvitation(userId: string): Promise<void> {
         role: user.role,
         organization_id: user.organization_id,
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/dashboard`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm/invite?region=${orgRegion}`,
     }
   );
 

@@ -37,25 +37,30 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const siteId = searchParams.get('siteId')
+    const itemId = searchParams.get('item_id')
     const limit = searchParams.get('limit') || '10'
-
-    if (!siteId) {
-      return NextResponse.json(
-        { error: 'siteId is required' },
-        { status: 400 }
-      )
-    }
 
     const supabase = createServiceClient()
 
-    // Get movements by joining with inventory_items to filter by site
-    const { data, error } = await supabase
+    let query = supabase
       .from('inventory_movements')
       .select(`
         *,
         inventory_items!inner(site_id, name, sku)
       `)
-      .eq('inventory_items.site_id', siteId)
+
+    // Filter by item_id if provided
+    if (itemId) {
+      query = query.eq('item_id', itemId)
+    }
+
+    // Filter by site_id if provided
+    if (siteId) {
+      query = query.eq('inventory_items.site_id', siteId)
+    }
+
+    // Apply limit and ordering
+    const { data, error } = await query
       .order('timestamp', { ascending: false })
       .limit(parseInt(limit))
 

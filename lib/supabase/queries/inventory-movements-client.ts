@@ -20,10 +20,15 @@ export async function getMovements(
 ) {
   try {
     const supabase = createClient()
+    
+    // Need to join with inventory_items to filter by site_id
     let query = supabase
       .from('inventory_movements')
-      .select('*')
-      .eq('site_id', siteId)
+      .select(`
+        *,
+        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure)
+      `)
+      .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })
 
     // Apply filters
@@ -58,8 +63,11 @@ export async function getRecentMovements(siteId: string, limit: number = 10) {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('inventory_movements')
-      .select('*')
-      .eq('site_id', siteId)
+      .select(`
+        *,
+        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure)
+      `)
+      .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })
       .limit(limit)
 

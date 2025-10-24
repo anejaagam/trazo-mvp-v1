@@ -62,7 +62,6 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser()
 
   if (!user) {
-    console.log('Dashboard layout: No user found')
     redirect('/auth/login')
   }
 
@@ -77,7 +76,7 @@ export default async function DashboardLayout({
     .single()
 
   if (error || !userDetails) {
-    console.error('Dashboard layout: Error fetching user details:', error)
+    console.error('Error fetching user details:', error)
     redirect('/auth/login')
   }
 

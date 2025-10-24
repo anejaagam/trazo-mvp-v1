@@ -23,7 +23,6 @@ export default async function InventoryOverviewPage() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      console.log('No user found, redirecting to login')
       redirect('/auth/login')
     }
 
@@ -34,28 +33,22 @@ export default async function InventoryOverviewPage() {
       .eq('id', user.id)
       .single()
 
-    console.log('User data:', userData, 'Error:', userError)
-
     if (!userData || userError) {
-      console.log('Failed to fetch user data:', userError)
       redirect('/auth/login')
     }
 
     // Check permission
     if (!canPerformAction(userData.role, 'inventory:view')) {
-      console.log('User does not have inventory:view permission')
       redirect('/dashboard')
     }
 
     // Then get site assignments separately
-    const { data: siteAssignments, error: siteError } = await supabase
+    const { data: siteAssignments } = await supabase
       .from('user_site_assignments')
       .select('site_id')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .limit(1)
-
-    console.log('Site assignments:', siteAssignments, 'Error:', siteError)
 
     userRole = userData.role
     organizationId = userData.organization_id

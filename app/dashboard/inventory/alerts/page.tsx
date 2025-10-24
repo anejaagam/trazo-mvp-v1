@@ -1,13 +1,8 @@
-/**
- * Low Stock Alerts Page
- * 
- * Displays items that are below minimum stock levels or out of stock
- */
-
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
+import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 import {
   Card,
   CardContent,
@@ -67,8 +62,14 @@ export default async function LowStockAlertsPage() {
       .eq('is_active', true)
       .limit(1)
 
-    // Get site_id from user_site_assignments or fall back to organization_id
-    siteId = siteAssignments?.[0]?.site_id || userData.organization_id
+    // Get site_id from user_site_assignments or get/create default site
+    if (siteAssignments?.[0]?.site_id) {
+      siteId = siteAssignments[0].site_id
+    } else {
+      // No site assignment, get or create a default site for the organization
+      const { data: defaultSiteId } = await getOrCreateDefaultSite(userData.organization_id)
+      siteId = defaultSiteId || userData.organization_id
+    }
   }
 
   // Fetch low stock items from the database (skip in dev mode)

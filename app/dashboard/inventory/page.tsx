@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { InventoryDashboard } from '@/components/features/inventory/inventory-dashboard'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
+import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 
 export default async function InventoryOverviewPage() {
   let userRole: string
@@ -54,8 +55,14 @@ export default async function InventoryOverviewPage() {
     organizationId = userData.organization_id
     userId = user.id
     
-    // Get site_id from user_site_assignments or fall back to organization_id
-    siteId = siteAssignments?.[0]?.site_id || organizationId
+    // Get site_id from user_site_assignments or get/create default site
+    if (siteAssignments?.[0]?.site_id) {
+      siteId = siteAssignments[0].site_id
+    } else {
+      // No site assignment, get or create a default site for the organization
+      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+      siteId = defaultSiteId || organizationId
+    }
   }
 
   return (

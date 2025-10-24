@@ -463,6 +463,7 @@ export function ItemCatalog({
               <TableBody>
                 {filteredItems.map((item) => {
                   const stockStatus = getStockStatus(item)
+                  const isSelected = false // No selection state currently implemented
                   return (
                     <TableRow
                       key={item.id}

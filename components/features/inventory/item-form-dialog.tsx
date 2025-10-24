@@ -40,7 +40,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertCircle, Loader2, Package } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { createInventoryItem, updateInventoryItem } from '@/lib/supabase/queries/inventory-client'
+import { createInventoryItemAction, updateInventoryItemAction } from '@/app/actions/inventory'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryItem } from '@/types/inventory'
 
@@ -172,26 +172,34 @@ export function ItemFormDialog({
 
       if (isEditMode && item) {
         // Update existing item
-        const { data: updatedItem, error: updateError } = await updateInventoryItem(
+        const { data: updatedItem, error: updateError } = await updateInventoryItemAction(
           item.id,
           cleanData
         )
 
-        if (updateError) throw updateError
+        if (updateError) {
+          throw new Error(updateError.message || 'Failed to update item')
+        }
         if (updatedItem) {
           onSuccess?.(updatedItem)
           onOpenChange(false)
         }
       } else {
-        // Create new item
-        const { data: newItem, error: createError } = await createInventoryItem({
+        // Create new item - use server action to avoid RLS issues
+        const { data: newItem, error: createError } = await createInventoryItemAction({
           organization_id: organizationId,
           site_id: siteId,
           created_by: userId,
           ...cleanData,
         })
-
-        if (createError) throw createError
+        
+        if (createError) {
+          console.error('Create error details:', createError)
+          throw new Error(
+            createError.message || 
+            'Failed to create item'
+          )
+        }
         if (newItem) {
           onSuccess?.(newItem)
           onOpenChange(false)

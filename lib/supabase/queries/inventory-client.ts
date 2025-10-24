@@ -124,15 +124,32 @@ export async function createInventoryItem(item: InsertInventoryItem) {
       return { data, error: null }
     }
 
-    // Production mode: use regular client
+    // Production mode: Check user record first
     const supabase = createClient()
+    
+    // Debug: Check if user exists and has proper role
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: userRecord } = await supabase
+        .from('users')
+        .select('id, role, organization_id')
+        .eq('id', user.id)
+        .single()
+      
+      console.log('Current user record:', userRecord)
+      console.log('Trying to insert item with org_id:', item.organization_id)
+    }
+    
     const { data, error } = await supabase
       .from('inventory_items')
       .insert(item)
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error creating item:', error)
+      throw error
+    }
     return { data, error: null }
   } catch (error) {
     console.error('Error in createInventoryItem:', error)

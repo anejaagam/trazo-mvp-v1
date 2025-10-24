@@ -23,28 +23,46 @@ export default async function InventoryOverviewPage() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
+      console.log('No user found, redirecting to login')
       redirect('/auth/login')
     }
 
-    const { data: userData } = await supabase
+    // First, get the basic user data
+    const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role, organization_id, site_id')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single()
 
-    if (!userData) {
+    console.log('User data:', userData, 'Error:', userError)
+
+    if (!userData || userError) {
+      console.log('Failed to fetch user data:', userError)
       redirect('/auth/login')
     }
 
     // Check permission
     if (!canPerformAction(userData.role, 'inventory:view')) {
+      console.log('User does not have inventory:view permission')
       redirect('/dashboard')
     }
 
+    // Then get site assignments separately
+    const { data: siteAssignments, error: siteError } = await supabase
+      .from('user_site_assignments')
+      .select('site_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+
+    console.log('Site assignments:', siteAssignments, 'Error:', siteError)
+
     userRole = userData.role
-    siteId = userData.site_id || userData.organization_id
     organizationId = userData.organization_id
     userId = user.id
+    
+    // Get site_id from user_site_assignments or fall back to organization_id
+    siteId = siteAssignments?.[0]?.site_id || organizationId
   }
 
   return (

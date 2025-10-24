@@ -30,13 +30,14 @@ export default async function InventoryMovementsPage() {
       redirect('/auth/login')
     }
 
-    const { data: userData } = await supabase
+    // First, get the basic user data
+    const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role, organization_id, site_id')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single()
 
-    if (!userData) {
+    if (!userData || userError) {
       redirect('/auth/login')
     }
 
@@ -45,9 +46,19 @@ export default async function InventoryMovementsPage() {
       redirect('/dashboard')
     }
 
+    // Then get site assignments separately
+    const { data: siteAssignments } = await supabase
+      .from('user_site_assignments')
+      .select('site_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+
     userRole = userData.role
     organizationId = userData.organization_id
-    siteId = userData.site_id || ''
+    
+    // Get site_id from user_site_assignments or fall back to organization_id
+    siteId = siteAssignments?.[0]?.site_id || organizationId
   }
 
   return (

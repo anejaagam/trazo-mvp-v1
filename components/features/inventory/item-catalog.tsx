@@ -52,26 +52,11 @@ import {
   AlertCircle,
   ArrowUpDown,
   Plus,
-  Trash2,
-  Archive,
-  CheckSquare,
-  Square,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryItemWithStock, ItemType } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 
 interface ItemCatalogProps {
   organizationId: string
@@ -103,12 +88,6 @@ export function ItemCatalog({
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
   const [filteredItems, setFilteredItems] = useState<InventoryItemWithStock[]>([])
   
-  // Batch selection
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  
   // Separate backend filters (trigger DB query) from client-side filters
   const [itemType, setItemType] = useState<ItemType | 'all'>('all')
   const [isActive, setIsActive] = useState(true)
@@ -132,14 +111,9 @@ export function ItemCatalog({
         setIsLoading(true)
         setError(null)
 
-        // DEV MODE: Fetch via dev API which uses service role
+        // DEV MODE: Use empty data (no database calls)
         if (isDevModeActive()) {
-          const response = await fetch(`/api/dev/inventory?siteId=${siteId}`)
-          if (!response.ok) {
-            throw new Error('Failed to fetch inventory items')
-          }
-          const { data } = await response.json()
-          setItems(data || [])
+          setItems([])
           setIsLoading(false)
           return
         }
@@ -288,110 +262,6 @@ export function ItemCatalog({
     })
   }
 
-  // Batch selection handlers
-  const toggleSelectAll = () => {
-    if (selectedItems.size === filteredItems.length) {
-      setSelectedItems(new Set())
-    } else {
-      setSelectedItems(new Set(filteredItems.map(item => item.id)))
-    }
-  }
-
-  const toggleSelectItem = (itemId: string) => {
-    const newSelected = new Set(selectedItems)
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId)
-    } else {
-      newSelected.add(itemId)
-    }
-    setSelectedItems(newSelected)
-  }
-
-  // Delete handlers
-  const handleDeleteClick = (itemId: string) => {
-    setItemToDelete(itemId)
-    setShowDeleteDialog(true)
-  }
-
-  const handleBulkDeleteClick = () => {
-    if (selectedItems.size === 0) return
-    setItemToDelete('bulk')
-    setShowDeleteDialog(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (!itemToDelete) return
-
-    try {
-      setIsDeleting(true)
-      const itemsToDelete = itemToDelete === 'bulk' 
-        ? Array.from(selectedItems) 
-        : [itemToDelete]
-
-      // In dev mode, use dev API
-      if (isDevModeActive()) {
-        for (const id of itemsToDelete) {
-          const response = await fetch('/api/dev/inventory', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, is_active: false })
-          })
-          if (!response.ok) throw new Error('Failed to delete item')
-        }
-      } else {
-        // Production mode
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('inventory_items')
-          .update({ is_active: false })
-          .in('id', itemsToDelete)
-
-        if (error) throw error
-      }
-
-      // Reload items
-      setItems(items.filter(item => !itemsToDelete.includes(item.id)))
-      setSelectedItems(new Set())
-      setShowDeleteDialog(false)
-      setItemToDelete(null)
-    } catch (err) {
-      console.error('Error deleting items:', err)
-      setError('Failed to delete items')
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  const handleBulkArchive = async () => {
-    if (selectedItems.size === 0) return
-
-    try {
-      const itemsToArchive = Array.from(selectedItems)
-
-      if (isDevModeActive()) {
-        for (const id of itemsToArchive) {
-          await fetch('/api/dev/inventory', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, is_active: false })
-          })
-        }
-      } else {
-        const supabase = createClient()
-        await supabase
-          .from('inventory_items')
-          .update({ is_active: false })
-          .in('id', itemsToArchive)
-      }
-
-      setItems(items.filter(item => !itemsToArchive.includes(item.id)))
-      setSelectedItems(new Set())
-    } catch (err) {
-      console.error('Error archiving items:', err)
-      setError('Failed to archive items')
-    }
-  }
-
   if (!can('inventory:view')) {
     return (
       <Alert variant="destructive">
@@ -422,51 +292,8 @@ export function ItemCatalog({
         </div>
       </CardHeader>
       <CardContent>
-        {/* Filters and Bulk Actions */}
-        <div className="space-y-4 mb-6">
-          {/* Bulk Actions Bar */}
-          {selectedItems.size > 0 && (
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <div className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="font-medium">
-                  {selectedItems.size} item{selectedItems.size > 1 ? 's' : ''} selected
-                </span>
-              </div>
-              <div className="flex gap-2">
-                {can('inventory:delete') && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleBulkArchive}
-                    >
-                      <Archive className="h-4 w-4 mr-2" />
-                      Archive
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleBulkDeleteClick}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
-                  </>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedItems(new Set())}
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="flex flex-col md:flex-row gap-4">
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
           {/* Search */}
           <div className="flex-1">
             <div className="relative">
@@ -527,7 +354,6 @@ export function ItemCatalog({
             {isActive ? 'Active' : 'All Items'}
           </Button>
         </div>
-        </div>
 
         {/* Results Count */}
         <div className="mb-4 text-sm text-muted-foreground">
@@ -575,13 +401,6 @@ export function ItemCatalog({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedItems.size === filteredItems.length && filteredItems.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
                   <TableHead>
                     <Button
                       variant="ghost"
@@ -644,20 +463,12 @@ export function ItemCatalog({
               <TableBody>
                 {filteredItems.map((item) => {
                   const stockStatus = getStockStatus(item)
-                  const isSelected = selectedItems.has(item.id)
                   return (
                     <TableRow
                       key={item.id}
-                      className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-muted/30' : ''}`}
+                      className="cursor-pointer hover:bg-muted/50"
                       onClick={() => onItemSelect?.(item)}
                     >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelectItem(item.id)}
-                          aria-label={`Select ${item.name}`}
-                        />
-                      </TableCell>
                       <TableCell className="font-medium">
                         <div>
                           <div className="font-medium">{item.name}</div>
@@ -745,18 +556,6 @@ export function ItemCatalog({
                                 Issue
                               </DropdownMenuItem>
                             )}
-                            {can('inventory:delete') && (
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeleteClick(item.id)
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Remove Item
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -768,31 +567,6 @@ export function ItemCatalog({
           </div>
         )}
       </CardContent>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {itemToDelete === 'bulk' 
-                ? `This will permanently delete ${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''}. This action cannot be undone.`
-                : 'This will permanently delete this item. This action cannot be undone.'
-              }
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   )
 }

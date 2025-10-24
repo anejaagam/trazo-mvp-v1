@@ -27,12 +27,14 @@ import {
 import { toast } from 'sonner';
 import { ROLES } from '@/lib/rbac/roles';
 import type { RoleKey } from '@/lib/rbac/types';
+import { canAssignRole } from '@/lib/rbac/hierarchy';
 
 interface UserInviteDialogProps {
   open: boolean;
   onClose: () => void;
   onInvited?: () => void;
   organizationId: string;
+  inviterRole: RoleKey;
 }
 
 export function UserInviteDialog({
@@ -40,6 +42,7 @@ export function UserInviteDialog({
   onClose,
   onInvited,
   organizationId,
+  inviterRole,
 }: UserInviteDialogProps) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -150,7 +153,9 @@ export function UserInviteDialog({
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(ROLES).map(([key, roleData]) => (
+                {Object.entries(ROLES)
+                  .filter(([key]) => canAssignRole(inviterRole, key as RoleKey))
+                  .map(([key, roleData]) => (
                   <SelectItem key={key} value={key}>
                     <div className="flex flex-col py-1">
                       <div className="font-medium">{roleData.name}</div>
@@ -182,7 +187,7 @@ export function UserInviteDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!email || !fullName || !role || loading}>
+            <Button type="submit" disabled={!email || !fullName || !role || !canAssignRole(inviterRole, role as RoleKey) || loading}>
               {loading ? 'Sending...' : 'Send Invitation'}
             </Button>
           </DialogFooter>

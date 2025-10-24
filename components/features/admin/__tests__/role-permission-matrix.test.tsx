@@ -23,8 +23,9 @@ describe('RolePermissionMatrix', () => {
     it('should render with user counts', () => {
       render(<RolePermissionMatrix userCounts={mockUserCounts} />);
       
-      expect(screen.getByText('5')).toBeInTheDocument();
-      expect(screen.getByText('12')).toBeInTheDocument();
+      // Multiple elements may contain these numbers; ensure at least one appears
+      expect(screen.getAllByText('5').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('12').length).toBeGreaterThan(0);
     });
 
     it('should render without user counts', () => {
@@ -79,9 +80,9 @@ describe('RolePermissionMatrix', () => {
     it('should display user count badges on role buttons', () => {
       render(<RolePermissionMatrix userCounts={mockUserCounts} />);
       
-      // Check for user count badges
-      expect(screen.getByText('5')).toBeInTheDocument(); // org_admin
-      expect(screen.getByText('12')).toBeInTheDocument(); // site_manager
+      // Check for user count badges (may appear in multiple places)
+      expect(screen.getAllByText('5').length).toBeGreaterThan(0); // org_admin
+      expect(screen.getAllByText('12').length).toBeGreaterThan(0); // site_manager
     });
   });
 
@@ -119,7 +120,7 @@ describe('RolePermissionMatrix', () => {
       
       // Should show user count for org_admin (default selected)
       expect(screen.getByText('Users:')).toBeInTheDocument();
-      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getAllByText('5').length).toBeGreaterThan(0);
     });
   });
 
@@ -230,7 +231,7 @@ describe('RolePermissionMatrix', () => {
       render(<RolePermissionMatrix userCounts={partialCounts} />);
       
       // Should still render
-      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getAllByText('5').length).toBeGreaterThan(0);
     });
 
     it('should handle role selection changes', () => {
@@ -275,28 +276,28 @@ describe('RolePermissionMatrix', () => {
   });
 
   describe('Role Details Table', () => {
-    it('should display permission counts in role table', () => {
+    it('should display permission counts in role table', async () => {
       render(<RolePermissionMatrix userCounts={mockUserCounts} />);
       
       const rolesTab = screen.getByRole('tab', { name: /role details/i });
       fireEvent.click(rolesTab);
       
-      // Should show "All" for wildcard permissions
-      expect(screen.getByText('All')).toBeInTheDocument();
+      // Should show "All" for wildcard permissions (org_admin)
+      expect(await screen.findByText('All')).toBeInTheDocument();
       
       // Should show specific counts for other roles
-      const permCountBadges = screen.getAllByText(/permissions/i);
+      const permCountBadges = await screen.findAllByText(/permissions/i);
       expect(permCountBadges.length).toBeGreaterThan(0);
     });
 
-    it('should display user counts in role table', () => {
+    it('should display user counts in role table', async () => {
       render(<RolePermissionMatrix userCounts={mockUserCounts} />);
       
       const rolesTab = screen.getByRole('tab', { name: /role details/i });
       fireEvent.click(rolesTab);
       
       // Should show user counts - checking for text containing "users"
-      const userCountText = screen.getAllByText(/\d+ users/i);
+      const userCountText = await screen.findAllByText(/\d+ users/i);
       expect(userCountText.length).toBeGreaterThan(0);
     });
 

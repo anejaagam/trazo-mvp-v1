@@ -244,8 +244,8 @@ describe('DashboardSidebar', () => {
 
       render(<DashboardSidebar user={mockUser} />);
 
-      expect(screen.getByText('Current Stock')).toBeInTheDocument();
-      expect(screen.getByText('Receiving')).toBeInTheDocument();
+      expect(screen.getByText('Item Catalog')).toBeInTheDocument();
+      expect(screen.getByText('Movements Log')).toBeInTheDocument();
     });
 
     it('should hide nested items if parent permission is denied', () => {

@@ -20,19 +20,21 @@ import {
 import { Search, MoreVertical, UserCheck, UserX, Mail, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserWithOrg, UserStatus } from '@/types/admin';
+import type { RoleKey } from '@/lib/rbac/types';
 import { UserRoleDialog } from '@/components/features/admin/user-role-dialog';
 
 interface UserTableProps {
   users: UserWithOrg[];
+  inviterRole: import('@/lib/rbac/types').RoleKey;
   onUserUpdated?: () => void;
 }
 
-export function UserTable({ users, onUserUpdated }: UserTableProps) {
+export function UserTable({ users, inviterRole, onUserUpdated }: UserTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selectedUserRole, setSelectedUserRole] = useState<UserWithOrg['role'] | undefined>(undefined);
+  const [selectedUserRole, setSelectedUserRole] = useState<RoleKey | undefined>(undefined);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -290,7 +292,8 @@ export function UserTable({ users, onUserUpdated }: UserTableProps) {
         open={roleDialogOpen}
         onClose={() => setRoleDialogOpen(false)}
         userId={selectedUserId}
-        currentRole={selectedUserRole as any}
+        currentRole={selectedUserRole}
+        inviterRole={inviterRole}
         onUpdated={onUserUpdated}
       />
     </div>

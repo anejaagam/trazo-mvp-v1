@@ -79,7 +79,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           title: 'Harvest Queue',
           href: '/dashboard/batches/harvest',
           icon: <Package className="h-4 w-4" />,
-          permission: 'batch:harvest'
+          permission: 'batch:stage_change'
         }
       ]
     },
@@ -126,25 +126,25 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       title: 'Environmental Controls',
       href: '/dashboard/environmental',
       icon: <Thermometer className="h-4 w-4" />,
-      permission: 'environmental:view',
+      permission: 'control:view',
       children: [
         {
           title: 'Live Monitoring',
           href: '/dashboard/environmental/monitoring',
           icon: <Thermometer className="h-4 w-4" />,
-          permission: 'environmental:view'
+          permission: 'monitoring:view'
         },
         {
           title: 'Recipes',
           href: '/dashboard/environmental/recipes',
           icon: <Settings className="h-4 w-4" />,
-          permission: 'environmental:recipes:view'
+          permission: 'control:view'
         },
         {
           title: 'Alarms',
           href: '/dashboard/environmental/alarms',
           icon: <AlertTriangle className="h-4 w-4" />,
-          permission: 'alarms:view',
+          permission: 'alarm:view',
           badge: '2' // TODO: Get actual count
         }
       ]
@@ -153,25 +153,25 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       title: 'Tasks & Workflows',
       href: '/dashboard/tasks',
       icon: <ClipboardList className="h-4 w-4" />,
-      permission: 'tasks:view',
+      permission: 'task:view',
       children: [
         {
           title: 'My Tasks',
           href: '/dashboard/tasks/assigned',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'tasks:view'
+          permission: 'task:view'
         },
         {
           title: 'SOPs',
           href: '/dashboard/tasks/sops',
           icon: <FileText className="h-4 w-4" />,
-          permission: 'sops:view'
+          permission: 'task:view'
         },
         {
           title: 'Schedule',
           href: '/dashboard/tasks/schedule',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'tasks:schedule'
+          permission: 'task:assign'
         }
       ]
     },
@@ -179,19 +179,19 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       title: 'Waste Management',
       href: '/dashboard/waste',
       icon: <Trash2 className="h-4 w-4" />,
-      permission: 'waste:view',
+      permission: 'inventory:waste',
       children: [
         {
           title: 'Disposal Log',
           href: '/dashboard/waste/disposal',
           icon: <Trash2 className="h-4 w-4" />,
-          permission: 'waste:view'
+          permission: 'inventory:waste'
         },
         {
           title: 'Schedule Disposal',
           href: '/dashboard/waste/schedule',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'waste:create'
+          permission: 'inventory:waste'
         }
       ]
     },
@@ -205,19 +205,19 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           title: 'Reports',
           href: '/dashboard/compliance/reports',
           icon: <FileText className="h-4 w-4" />,
-          permission: 'compliance:reports:view'
+          permission: 'compliance:view'
         },
         {
           title: 'Evidence Vault',
           href: '/dashboard/compliance/evidence',
           icon: <Shield className="h-4 w-4" />,
-          permission: 'compliance:evidence:view'
+          permission: 'compliance:view'
         },
         {
           title: 'Audit Trail',
           href: '/dashboard/compliance/audit',
           icon: <FileText className="h-4 w-4" />,
-          permission: 'compliance:audit:view'
+          permission: 'audit:view'
         }
       ]
     }

@@ -9,6 +9,7 @@ import { canPerformAction } from '@/lib/rbac/guards';
 import { inviteUser } from '@/lib/supabase/queries/users';
 import { isDevModeActive, logDevMode } from '@/lib/dev-mode';
 import type { RoleKey } from '@/lib/rbac/types';
+import { canAssignRole } from '@/lib/rbac/hierarchy';
 
 export async function POST(request: NextRequest) {
   try {
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
     if (!hasPermission.allowed) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Enforce role hierarchy: non-admins cannot invite users with equal or higher privileges
+    const targetRole = role as RoleKey;
+    if (!canAssignRole(userData.role as RoleKey, targetRole)) {
+      return NextResponse.json(
+        { error: 'You cannot invite a user with equal or higher privileges' },
         { status: 403 }
       );
     }

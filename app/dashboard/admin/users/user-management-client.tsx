@@ -17,9 +17,10 @@ import { useRouter } from 'next/navigation';
 interface UserManagementClientProps {
   initialUsers: UserWithOrg[];
   organizationId: string;
+  inviterRole: import('@/lib/rbac/types').RoleKey;
 }
 
-export function UserManagementClient({ initialUsers, organizationId }: UserManagementClientProps) {
+export function UserManagementClient({ initialUsers, organizationId, inviterRole }: UserManagementClientProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const router = useRouter();
 
@@ -45,7 +46,7 @@ export function UserManagementClient({ initialUsers, organizationId }: UserManag
           </div>
         </CardHeader>
         <CardContent>
-          <UserTable users={initialUsers} onUserUpdated={handleUserUpdated} />
+          <UserTable users={initialUsers} inviterRole={inviterRole} onUserUpdated={handleUserUpdated} />
         </CardContent>
       </Card>
 
@@ -54,6 +55,7 @@ export function UserManagementClient({ initialUsers, organizationId }: UserManag
         onClose={() => setInviteOpen(false)}
         onInvited={handleUserUpdated}
         organizationId={organizationId}
+        inviterRole={inviterRole}
       />
     </>
   );

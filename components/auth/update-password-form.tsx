@@ -31,10 +31,17 @@ export function UpdatePasswordForm({
     setError(null);
 
     try {
+      // Basic password complexity: 8+ chars, 1 upper, 1 lower, 1 number
+      const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
+      if (!strong.test(password)) {
+        setError('Password must be at least 8 characters and include upper, lower, and a number')
+        setIsLoading(false)
+        return
+      }
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      // After successful password set, send them to login as requested
+      router.push("/auth/login?reset=1");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -64,6 +71,7 @@ export function UpdatePasswordForm({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">Min 8 chars, include upper, lower and a number</p>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>

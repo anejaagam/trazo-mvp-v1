@@ -25,6 +25,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { ROLES } from '@/lib/rbac/roles';
 import type { RoleKey } from '@/lib/rbac/types';
+import { canAssignRole } from '@/lib/rbac/hierarchy';
 import { toast } from 'sonner';
 
 interface UserRoleDialogProps {
@@ -33,9 +34,10 @@ interface UserRoleDialogProps {
   userId: string | null;
   currentRole?: RoleKey;
   onUpdated?: () => void;
+  inviterRole: RoleKey;
 }
 
-export function UserRoleDialog({ open, onClose, userId, currentRole, onUpdated }: UserRoleDialogProps) {
+export function UserRoleDialog({ open, onClose, userId, currentRole, onUpdated, inviterRole }: UserRoleDialogProps) {
   const [role, setRole] = useState<RoleKey | ''>(currentRole || '');
   const [loading, setLoading] = useState(false);
 
@@ -90,7 +92,9 @@ export function UserRoleDialog({ open, onClose, userId, currentRole, onUpdated }
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent align="start" className="w-[400px]">
-                {Object.entries(ROLES).map(([key, roleData]) => (
+                {Object.entries(ROLES)
+                  .filter(([key]) => canAssignRole(inviterRole, key as RoleKey))
+                  .map(([key, roleData]) => (
                   <SelectItem key={key} value={key}>
                     <div className="flex flex-col py-1 text-left">
                       <div className="font-medium">{roleData.name}</div>
@@ -104,7 +108,7 @@ export function UserRoleDialog({ open, onClose, userId, currentRole, onUpdated }
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!role || loading}>{loading ? 'Saving...' : 'Save'}</Button>
+          <Button onClick={handleSubmit} disabled={!role || !canAssignRole(inviterRole, role as RoleKey) || loading}>{loading ? 'Saving...' : 'Save'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

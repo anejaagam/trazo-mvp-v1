@@ -323,6 +323,58 @@ describe('POST /api/admin/users/invite', () => {
   });
 
   describe('User Invitation', () => {
+    it('should block inviting equal or higher role for non-admin', async () => {
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-123' } },
+        error: null,
+      });
+      // inviter is site_manager in org-123
+      mockSingle.mockResolvedValue({
+        data: { role: 'site_manager', organization_id: 'org-123' },
+        error: null,
+      });
+      (canPerformAction as jest.Mock).mockReturnValue({ allowed: true });
+
+      const request = createRequest({
+        email: 'peer@example.com',
+        full_name: 'Peer',
+        role: 'site_manager',
+        organization_id: 'org-123',
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.error).toContain('equal or higher');
+    });
+
+    it('should allow inviting lower role for non-admin', async () => {
+      mockGetUser.mockResolvedValue({
+        data: { user: { id: 'user-123' } },
+        error: null,
+      });
+      // inviter is site_manager in org-123
+      mockSingle.mockResolvedValue({
+        data: { role: 'site_manager', organization_id: 'org-123' },
+        error: null,
+      });
+      (canPerformAction as jest.Mock).mockReturnValue({ allowed: true });
+      (inviteUser as jest.Mock).mockResolvedValue({ id: 'new-user-id' });
+
+      const request = createRequest({
+        email: 'op@example.com',
+        full_name: 'Operator',
+        role: 'operator',
+        organization_id: 'org-123',
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+    });
     it('should call inviteUser with correct parameters', async () => {
       mockGetUser.mockResolvedValue({
         data: { user: { id: 'user-123' } },

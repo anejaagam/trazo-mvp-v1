@@ -20,6 +20,7 @@ const config: Config = {
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
+    '/e2e/',
     '/__tests__/test-helpers\\.[jt]s$',
     '/__tests__/.*\\.helpers\\.[jt]s$',
   ],

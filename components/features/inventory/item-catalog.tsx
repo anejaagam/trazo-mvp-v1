@@ -27,6 +27,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -39,6 +40,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
@@ -52,6 +54,7 @@ import {
   AlertCircle,
   ArrowUpDown,
   Plus,
+  Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
@@ -67,6 +70,8 @@ interface ItemCatalogProps {
   onEditItem?: (item: InventoryItemWithStock) => void
   onReceiveInventory?: (item: InventoryItemWithStock) => void
   onIssueInventory?: (item: InventoryItemWithStock) => void
+  onDeleteItem?: (item: InventoryItemWithStock) => void
+  onBatchDelete?: (items: InventoryItemWithStock[]) => void
 }
 
 type SortField = 'name' | 'sku' | 'current_quantity' | 'item_type' | 'updated_at'
@@ -81,12 +86,17 @@ export function ItemCatalog({
   onEditItem,
   onReceiveInventory,
   onIssueInventory,
+  onDeleteItem,
+  onBatchDelete,
 }: ItemCatalogProps) {
   const { can } = usePermissions(userRole as RoleKey)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
   const [filteredItems, setFilteredItems] = useState<InventoryItemWithStock[]>([])
+  
+  // Selection state
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   
   // Separate backend filters (trigger DB query) from client-side filters
   const [itemType, setItemType] = useState<ItemType | 'all'>('all')
@@ -262,6 +272,38 @@ export function ItemCatalog({
     })
   }
 
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredItems.map(item => item.id)))
+    } else {
+      setSelectedItems(new Set())
+    }
+  }
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems)
+    if (checked) {
+      newSelected.add(itemId)
+    } else {
+      newSelected.delete(itemId)
+    }
+    setSelectedItems(newSelected)
+  }
+
+  const handleBatchDelete = () => {
+    if (selectedItems.size === 0) return
+    
+    const itemsToDelete = items.filter(item => selectedItems.has(item.id))
+    if (onBatchDelete) {
+      onBatchDelete(itemsToDelete)
+    }
+    setSelectedItems(new Set())
+  }
+
+  const isAllSelected = filteredItems.length > 0 && selectedItems.size === filteredItems.length
+  const isSomeSelected = selectedItems.size > 0 && selectedItems.size < filteredItems.length
+
   if (!can('inventory:view')) {
     return (
       <Alert variant="destructive">
@@ -356,8 +398,36 @@ export function ItemCatalog({
         </div>
 
         {/* Results Count */}
-        <div className="mb-4 text-sm text-muted-foreground">
-          Showing {filteredItems.length} of {items.length} items
+        <div className="mb-4 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {filteredItems.length} of {items.length} items
+            {selectedItems.size > 0 && (
+              <span className="ml-2 font-medium text-primary">
+                ({selectedItems.size} selected)
+              </span>
+            )}
+          </div>
+          
+          {/* Batch Actions */}
+          {selectedItems.size > 0 && can('inventory:delete') && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBatchDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected ({selectedItems.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedItems(new Set())}
+              >
+                Clear Selection
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Loading State */}
@@ -401,6 +471,14 @@ export function ItemCatalog({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all items"
+                      className={isSomeSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                    />
+                  </TableHead>
                   <TableHead>
                     <Button
                       variant="ghost"
@@ -463,18 +541,27 @@ export function ItemCatalog({
               <TableBody>
                 {filteredItems.map((item) => {
                   const stockStatus = getStockStatus(item)
-                  const isSelected = false // No selection state currently implemented
+                  const isSelected = selectedItems.has(item.id)
                   return (
                     <TableRow
                       key={item.id}
-                      className={`group cursor-pointer transition-all ${
+                      className={`group transition-all ${
                         isSelected 
                           ? 'bg-primary/10 hover:bg-primary/15 border-l-4 border-l-primary' 
                           : 'hover:bg-accent/50 hover:shadow-sm'
                       }`}
-                      onClick={() => onItemSelect?.(item)}
                     >
-                      <TableCell className="font-medium">
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
+                          aria-label={`Select ${item.name}`}
+                        />
+                      </TableCell>
+                      <TableCell 
+                        className="font-medium cursor-pointer"
+                        onClick={() => onItemSelect?.(item)}
+                      >
                         <div>
                           <div className="font-semibold group-hover:text-primary transition-colors">
                             {item.name}
@@ -562,6 +649,21 @@ export function ItemCatalog({
                                 <TrendingDown className="h-4 w-4 mr-2" />
                                 Issue
                               </DropdownMenuItem>
+                            )}
+                            {can('inventory:delete') && onDeleteItem && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onDeleteItem(item)
+                                  }}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>

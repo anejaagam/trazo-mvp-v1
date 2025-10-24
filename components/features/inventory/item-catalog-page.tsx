@@ -6,6 +6,7 @@ import { ItemFormDialog } from './item-form-dialog'
 import { ReceiveInventoryDialog } from './receive-inventory-dialog'
 import { IssueInventoryDialog } from './issue-inventory-dialog'
 import { ItemDetailSheet } from './item-detail-sheet'
+import { DeleteItemsDialog } from './delete-items-dialog'
 import type { InventoryItemWithStock } from '@/types/inventory'
 
 interface ItemCatalogPageProps {
@@ -26,6 +27,8 @@ export function ItemCatalogPage({
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
   const [issueDialogOpen, setIssueDialogOpen] = useState(false)
   const [detailSheetOpen, setDetailSheetOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [itemsToDelete, setItemsToDelete] = useState<InventoryItemWithStock[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
 
   const handleRefresh = () => {
@@ -57,6 +60,16 @@ export function ItemCatalogPage({
     setDetailSheetOpen(true)
   }
 
+  const handleDeleteItem = (item: InventoryItemWithStock) => {
+    setItemsToDelete([item])
+    setDeleteDialogOpen(true)
+  }
+
+  const handleBatchDelete = (items: InventoryItemWithStock[]) => {
+    setItemsToDelete(items)
+    setDeleteDialogOpen(true)
+  }
+
   return (
     <>
       <ItemCatalog
@@ -69,6 +82,8 @@ export function ItemCatalogPage({
         onEditItem={handleEditItem}
         onReceiveInventory={handleReceiveInventory}
         onIssueInventory={handleIssueInventory}
+        onDeleteItem={handleDeleteItem}
+        onBatchDelete={handleBatchDelete}
       />
 
       {/* Item Form Dialog */}
@@ -133,6 +148,17 @@ export function ItemCatalogPage({
         onIssue={(item) => {
           setDetailSheetOpen(false)
           handleIssueInventory(item)
+        }}
+      />
+
+      {/* Delete Items Dialog */}
+      <DeleteItemsDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        items={itemsToDelete}
+        onSuccess={() => {
+          setDeleteDialogOpen(false)
+          handleRefresh()
         }}
       />
     </>

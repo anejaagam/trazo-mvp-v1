@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 
 export async function completeSignup(formData: FormData) {
   // Extract all form data from the steps
@@ -17,12 +18,21 @@ export async function completeSignup(formData: FormData) {
   // Create Supabase client for the selected region
   const supabase = await createClient(region)
 
+  // Persist the user's chosen region in a cookie so the confirmation handler can resolve it later
+  try {
+    const cookieStore = await cookies()
+    cookieStore.set('user_region', region, { path: '/', httpOnly: false, sameSite: 'lax' })
+  } catch (e) {
+    console.warn('Could not set user_region cookie during signup:', e)
+  }
+
   // Create user with Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email: step1Data.email,
     password: step1Data.password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/dashboard`,
+      // Include region in the verification redirect URL so the confirm route can target the correct Supabase project
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?region=${region}&next=/dashboard`,
       data: {
         // Personal info
         full_name: step1Data.name,

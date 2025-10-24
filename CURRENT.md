@@ -29,7 +29,21 @@
 - Database: Enhanced `handle_new_user()` trigger function
 - `/docs/SIGNUP_DATABASE_INTEGRATION.md` - Complete integration guide
 
-### 🏗️ **PREVIOUS: INVENTORY PHASE 5 COMPLETE** (October 21, 2025)
+### � Multi‑Region Supabase Parity (US ↔ CA) — Complete
+The US database has been synchronized to the Canada canonical model.
+
+What’s aligned now:
+- ✅ RLS policies: Full suite across inventory, tasks, alarms, batches, compliance, etc. (matches CA)
+- ✅ Functions: `log_audit_trail`, `update_inventory_quantity` updated to canonical; `handle_new_user` hardened with fixed search_path
+- ✅ Triggers: Inventory, batch, and updated_at triggers consistent across regions
+- ✅ Auth: `auth.users` AFTER INSERT trigger invokes `public.handle_new_user()` in both regions
+
+Security and health checks:
+- ✅ Typecheck + tests: Passed locally after sync (see Test Status above)
+- ⚠️ Advisors: One known item left intentionally deferred — `public.signup_trigger_errors` has RLS disabled (used only for internal error capture). Changing this requires revisiting the trigger’s execution context; tracked in NextSteps.md
+- 🔎 Advisory warnings for “unindexed foreign keys” and “multiple permissive policies” are informational and will be addressed when those areas are exercised at scale
+
+### �🏗️ **PREVIOUS: INVENTORY PHASE 5 COMPLETE** (October 21, 2025)
 **All 7 inventory UI components built, tested, and dev-mode ready!**
 
 **Runtime Errors Fixed:**

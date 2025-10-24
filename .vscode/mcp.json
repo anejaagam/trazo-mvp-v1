@@ -1,4 +1,5 @@
 {
+
     "servers": {
         "Supabase MCP (US)": {
             "url": "https://mcp.supabase.com/mcp?project_ref=srrrfkgbcrgtplpekwji&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage",
@@ -9,9 +10,9 @@
             "type": "http"
         },
         "Notion": {
-          "url": "https://mcp.notion.com/mcp",
-        "type": "http"
-    }
+            "url": "https://mcp.notion.com/mcp",
+            "type": "http"
+        }
     },
     "inputs": []
 }

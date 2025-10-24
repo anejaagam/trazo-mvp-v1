@@ -2,6 +2,14 @@ import type { Permission, PermissionKey } from './types'
 
 // Comprehensive permission definitions for Trazo MVP
 export const PERMISSIONS: Record<PermissionKey, Permission> = {
+  // Dashboard
+  'dashboard:view': {
+    key: 'dashboard:view',
+    name: 'View Dashboard',
+    description: 'Access the dashboard overview',
+    resource: 'dashboard',
+    action: 'view'
+  },
   // Batch permissions
   'batch:view': {
     key: 'batch:view',

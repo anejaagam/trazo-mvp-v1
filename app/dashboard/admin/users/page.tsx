@@ -47,6 +47,7 @@ export default async function UsersPage() {
         <UserManagementClient 
           initialUsers={mockUsers}
           organizationId={DEV_MOCK_USER.organization_id}
+          inviterRole={DEV_MOCK_USER.role}
         />
       </div>
     );
@@ -94,6 +95,7 @@ export default async function UsersPage() {
       <UserManagementClient 
         initialUsers={usersData.data} 
         organizationId={userData.organization_id}
+        inviterRole={userData.role}
       />
     </div>
   );

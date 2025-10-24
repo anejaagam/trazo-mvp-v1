@@ -16,6 +16,7 @@ export const ROLES: Record<RoleKey, Role> = {
     description: 'Manages operations for specific sites within the organization',
     isSystemRole: true,
     permissions: [
+      'dashboard:view',
       // User management (site-scoped)
       'user:view',
       'user:create', 
@@ -84,6 +85,7 @@ export const ROLES: Record<RoleKey, Role> = {
     description: 'Senior cultivation expert responsible for crop production',
     isSystemRole: true,
     permissions: [
+      'dashboard:view',
       // Batch management (full)
       'batch:view',
       'batch:create',
@@ -130,6 +132,7 @@ export const ROLES: Record<RoleKey, Role> = {
     description: 'Day-to-day operations and task execution',
     isSystemRole: true,
     permissions: [
+      'dashboard:view',
       // Basic batch viewing
       'batch:view',
       'batch:update', // Basic updates like plant counts
@@ -165,6 +168,7 @@ export const ROLES: Record<RoleKey, Role> = {
     description: 'Manages compliance, quality assurance, and regulatory requirements',
     isSystemRole: true,
     permissions: [
+      'dashboard:view',
       // Full compliance access
       'compliance:view',
       'compliance:export',
@@ -199,6 +203,7 @@ export const ROLES: Record<RoleKey, Role> = {
     description: 'Read-only access for executives and stakeholders',
     isSystemRole: true,
     permissions: [
+      'dashboard:view',
       // View-only access across all areas
       'batch:view',
       'inventory:view',
@@ -221,6 +226,7 @@ export const ROLES: Record<RoleKey, Role> = {
     isSystemRole: true,
     timeLimit: 480, // 8 hours in minutes
     permissions: [
+      'dashboard:view',
       // System-level access
       'pod:configure',
       'pod:calibrate',
@@ -244,6 +250,7 @@ export const ROLES: Record<RoleKey, Role> = {
     isSystemRole: true,
     timeLimit: 240, // 4 hours in minutes
     permissions: [
+      'dashboard:view',
       // Read-only operational access
       'batch:view',
       'inventory:view',

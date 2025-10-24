@@ -41,6 +41,8 @@ export type RoleKey =
   | 'support'
 
 export type PermissionKey = 
+  // Dashboard
+  | 'dashboard:view'
   // Batch permissions
   | 'batch:view'
   | 'batch:create'

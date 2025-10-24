@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get("token_hash");
   const code = searchParams.get("code"); // Legacy format
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next");
   const regionParam = searchParams.get("region");
   
   // Also check for confirmation token (older format)
@@ -55,7 +55,18 @@ export async function GET(request: NextRequest) {
   };
   const supabase = createClientFor(region);
 
-  // Handle PKCE flow (preferred - current Supabase default)
+  // If type present and we have token, forward to type-specific route for new flow
+  if (type && (token_hash || code)) {
+    const base = `/auth/confirm/${type}`
+    const qs = new URLSearchParams()
+    if (token_hash) qs.set('token_hash', token_hash)
+    if (code) qs.set('code', code)
+    if (regionParam) qs.set('region', regionParam)
+    if (next) qs.set('next', next)
+    redirect(`${base}?${qs.toString()}`)
+  }
+
+  // Handle PKCE flow (preferred - current Supabase default) [legacy fallback]
   if (token_hash && type) {
     console.log('Using PKCE flow with token_hash');
     // Try resolved region first, then fallback to the other region (US<->CA)
@@ -68,7 +79,7 @@ export async function GET(request: NextRequest) {
           // Persist the corrected region if we succeeded on fallback
           cookieStore.set('user_region', r, { path: '/', httpOnly: false });
         }
-        redirect(next);
+  redirect(next || '/auth/login');
       }
       console.warn(`PKCE verification failed in region ${r}:`, error?.message);
     }
@@ -85,7 +96,7 @@ export async function GET(request: NextRequest) {
       const { error } = await client.auth.exchangeCodeForSession(code);
       if (!error) {
         if (r !== region) cookieStore.set('user_region', r, { path: '/', httpOnly: false });
-        redirect(next);
+  redirect(next || '/auth/login');
       }
       console.warn(`Code exchange failed in region ${r}:`, error?.message);
     }

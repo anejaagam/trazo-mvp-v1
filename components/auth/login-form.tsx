@@ -69,6 +69,16 @@ export function LoginForm() {
           process.env.NODE_ENV === 'production' ? '; Secure' : ''
         }`;
 
+        // Update last_login_at for the current user (allowed by self-update policy)
+        try {
+          await supabase
+            .from('users')
+            .update({ last_login_at: new Date().toISOString() })
+            .eq('id', data.user.id)
+        } catch {
+          // Non-blocking
+        }
+
         // Redirect to dashboard
         router.push('/dashboard');
         router.refresh();

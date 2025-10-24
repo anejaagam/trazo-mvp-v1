@@ -74,7 +74,7 @@ describe('UserTable', () => {
 
   describe('Rendering', () => {
     it('should render the user table', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByPlaceholderText(/search users/i)).toBeInTheDocument();
       expect(screen.getByText('John Admin')).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('UserTable', () => {
     });
 
     it('should display all table headers', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByText('User')).toBeInTheDocument();
       expect(screen.getByText('Organization')).toBeInTheDocument();
@@ -94,13 +94,13 @@ describe('UserTable', () => {
     });
 
     it('should render with empty users array', () => {
-      render(<UserTable users={[]} />);
+      render(<UserTable users={[]} inviterRole="org_admin" />);
       
       expect(screen.getByText(/no users found/i)).toBeInTheDocument();
     });
 
     it('should show user count', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByText(/showing 3 of 3 users/i)).toBeInTheDocument();
     });
@@ -108,7 +108,7 @@ describe('UserTable', () => {
 
   describe('User Information Display', () => {
     it('should display user names and emails', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByText('John Admin')).toBeInTheDocument();
       expect(screen.getByText('john@example.com')).toBeInTheDocument();
@@ -117,14 +117,14 @@ describe('UserTable', () => {
     });
 
     it('should display organization names', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getAllByText('Acme Corp')).toHaveLength(2);
       expect(screen.getByText('Beta Inc')).toBeInTheDocument();
     });
 
     it('should display status badges', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByText('active')).toBeInTheDocument();
       expect(screen.getByText('invited')).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('UserTable', () => {
     });
 
     it('should display auth method badges', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByText('Email')).toBeInTheDocument(); // local -> Email
       expect(screen.getByText('Google')).toBeInTheDocument(); // oidc -> Google
@@ -140,7 +140,7 @@ describe('UserTable', () => {
     });
 
     it('should display role badges', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       expect(screen.getByText('Org Admin')).toBeInTheDocument();
       expect(screen.getByText('Site Manager')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('UserTable', () => {
     });
 
     it('should format last login dates', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       // Should show formatted dates for users who logged in
       const dates = screen.getAllByText(/\d+\/\d+\/\d+/);
@@ -156,7 +156,7 @@ describe('UserTable', () => {
     });
 
     it('should show dash for null last login', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       // Jane Manager has null last_login_at, should show em dash
       const tableCells = screen.getAllByRole('cell');
@@ -167,7 +167,7 @@ describe('UserTable', () => {
 
   describe('Search Functionality', () => {
     it('should filter users by name', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       const searchInput = screen.getByPlaceholderText(/search users/i);
       fireEvent.change(searchInput, { target: { value: 'John' } });
@@ -178,7 +178,7 @@ describe('UserTable', () => {
     });
 
     it('should filter users by email', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       const searchInput = screen.getByPlaceholderText(/search users/i);
       fireEvent.change(searchInput, { target: { value: 'jane@' } });
@@ -188,7 +188,7 @@ describe('UserTable', () => {
     });
 
     it('should be case insensitive', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       const searchInput = screen.getByPlaceholderText(/search users/i);
       fireEvent.change(searchInput, { target: { value: 'JOHN' } });
@@ -197,7 +197,7 @@ describe('UserTable', () => {
     });
 
     it('should update user count when filtering', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       const searchInput = screen.getByPlaceholderText(/search users/i);
       fireEvent.change(searchInput, { target: { value: 'John' } });
@@ -206,7 +206,7 @@ describe('UserTable', () => {
     });
 
     it('should show no users message when filter matches nothing', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       const searchInput = screen.getByPlaceholderText(/search users/i);
       fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
@@ -217,7 +217,7 @@ describe('UserTable', () => {
 
   describe('Dropdown Menu Actions', () => {
     it('should render dropdown menu buttons', () => {
-      render(<UserTable users={mockUsers} />);
+      render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       const dropdownButtons = screen.getAllByRole('button');
       // Should have dropdown buttons for each user
@@ -227,7 +227,7 @@ describe('UserTable', () => {
 
   describe('API Interactions (Basic)', () => {
     it('should call suspend user API', async () => {
-      const { container } = render(<UserTable users={mockUsers} onUserUpdated={mockOnUserUpdated} />);
+  const { container } = render(<UserTable users={mockUsers} inviterRole="org_admin" onUserUpdated={mockOnUserUpdated} />);
       
       // Note: Radix UI dropdowns require special handling to open in tests
       // This test verifies the function exists and is callable
@@ -236,7 +236,7 @@ describe('UserTable', () => {
     });
 
     it('should call reactivate user API', async () => {
-      render(<UserTable users={mockUsers} onUserUpdated={mockOnUserUpdated} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" onUserUpdated={mockOnUserUpdated} />);
       
       // Verify suspended user exists
       expect(screen.getByText('Bob Suspended')).toBeInTheDocument();
@@ -244,7 +244,7 @@ describe('UserTable', () => {
     });
 
     it('should call resend invite API', async () => {
-      render(<UserTable users={mockUsers} onUserUpdated={mockOnUserUpdated} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" onUserUpdated={mockOnUserUpdated} />);
       
       // Verify invited user exists
       expect(screen.getByText('Jane Manager')).toBeInTheDocument();
@@ -254,7 +254,7 @@ describe('UserTable', () => {
 
   describe('Loading States', () => {
     it('should not crash when actions are loading', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       // Component should render even when loading state is active
       expect(screen.getByText('John Admin')).toBeInTheDocument();
@@ -273,13 +273,13 @@ describe('UserTable', () => {
         },
       ];
       
-      render(<UserTable users={usersWithoutOrg} />);
+  render(<UserTable users={usersWithoutOrg} inviterRole="org_admin" />);
       
       expect(screen.getByText('John Admin')).toBeInTheDocument();
     });
 
     it('should handle missing callback', () => {
-      render(<UserTable users={mockUsers} />);
+  render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       // Should render without onUserUpdated callback
       expect(screen.getByText('John Admin')).toBeInTheDocument();
@@ -293,7 +293,7 @@ describe('UserTable', () => {
         },
       ];
       
-      render(<UserTable users={usersWithUnknownIdp as UserWithOrg[]} />);
+  render(<UserTable users={usersWithUnknownIdp as UserWithOrg[]} inviterRole="org_admin" />);
       
       expect(screen.getByText('unknown')).toBeInTheDocument();
     });
@@ -306,7 +306,7 @@ describe('UserTable', () => {
         },
       ];
       
-      render(<UserTable users={usersWithUnknownRole as UserWithOrg[]} />);
+  render(<UserTable users={usersWithUnknownRole as UserWithOrg[]} inviterRole="org_admin" />);
       
       expect(screen.getByText('unknown_role')).toBeInTheDocument();
     });
@@ -314,7 +314,7 @@ describe('UserTable', () => {
 
   describe('Icons', () => {
     it('should render search icon', () => {
-      const { container } = render(<UserTable users={mockUsers} />);
+  const { container } = render(<UserTable users={mockUsers} inviterRole="org_admin" />);
       
       // Search icon should be present (Lucide React renders as SVG)
       const searchIcon = container.querySelector('svg');

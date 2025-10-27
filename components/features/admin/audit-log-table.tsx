@@ -21,6 +21,7 @@ import { Download, Search, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AuditEventWithUser } from '@/types/admin';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 interface AuditLogTableProps {
   events: AuditEventWithUser[];
@@ -56,35 +57,75 @@ export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
     return matchesSearch && matchesFilter;
   });
 
-  const handleExport = () => {
-    if (onExport) {
-      onExport();
-      return;
-    }
+  // Removed CSV export per request
 
-    // Default CSV export
-    const csv = [
-      ['Timestamp (UTC)', 'User', 'Action', 'Entity Type', 'Entity ID'].join(','),
-      ...filteredEvents.map((e) =>
-        [
-          e.timestamp,
-          e.user?.full_name || e.user_id,
-          e.action,
-          e.entity_type,
-          e.entity_id,
-        ].join(',')
-      ),
-    ].join('\n');
+  const handleExportExcel = () => {
+    // Build the same expanded dataset used for CSV
+    const headers = [
+      'Timestamp (UTC)',
+      'User Name',
+      'User Email',
+      'User ID',
+      'Action',
+      'Entity Type',
+      'Entity ID',
+      'Changes',
+      'Metadata',
+      'User Agent',
+    ];
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const toJsonCell = (obj: unknown): string => {
+      if (!obj) return '';
+      try {
+        return JSON.stringify(obj);
+      } catch {
+        return String(obj);
+      }
+    };
+
+    const rows = filteredEvents.map((e) => [
+      e.timestamp,
+      e.user?.full_name || '',
+      e.user?.email || '',
+      e.user_id || '',
+      e.action,
+      e.entity_type,
+      e.entity_id,
+      toJsonCell(e.changes),
+      toJsonCell(e.metadata),
+      e.user_agent || '',
+    ]);
+
+    const data = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Auto-fit column widths based on max content length per column
+    const colWidths = headers.map((_, colIdx) => {
+      const maxLen = data.reduce((max, row) => {
+        const cell = row[colIdx] ?? '';
+        const len = String(cell).length;
+        return Math.max(max, len);
+      }, headers[colIdx].length);
+      // Pad a bit for readability
+      return { wch: Math.min(Math.max(maxLen + 2, 12), 120) };
+    });
+  (ws as any)['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Audit Log');
+
+    const wbout = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `audit-log-${new Date().toISOString()}.csv`;
+    a.download = `audit-log-${new Date().toISOString()}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
 
-    toast.success('Audit log exported');
+    toast.success('Audit log exported (Excel)');
   };
 
   const getActionBadge = (action: string) => {
@@ -127,7 +168,7 @@ export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
             ))}
           </SelectContent>
         </Select>
-        <Button onClick={handleExport} variant="outline">
+        <Button onClick={handleExportExcel} variant="outline">
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>

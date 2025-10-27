@@ -118,10 +118,10 @@ describe('AuditLogTable', () => {
       expect(screen.getByText(/showing 4 of 4 events/i)).toBeInTheDocument();
     });
 
-    it('should render export button', () => {
+    it('should render export excel button', () => {
       render(<AuditLogTable events={mockEvents} />);
       
-      expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /export excel/i })).toBeInTheDocument();
     });
 
     it('should render filter dropdown', () => {
@@ -269,19 +269,10 @@ describe('AuditLogTable', () => {
   });
 
   describe('Export Functionality', () => {
-    it('should call custom export handler if provided', () => {
-      render(<AuditLogTable events={mockEvents} onExport={mockOnExport} />);
-      
-      const exportButton = screen.getByRole('button', { name: /export/i });
-      fireEvent.click(exportButton);
-      
-      expect(mockOnExport).toHaveBeenCalledTimes(1);
-    });
-
-    it('should perform default CSV export if no handler provided', () => {
+    it('should perform default Excel export', () => {
       render(<AuditLogTable events={mockEvents} />);
       
-      const exportButton = screen.getByRole('button', { name: /export/i });
+      const exportButton = screen.getByRole('button', { name: /export excel/i });
       fireEvent.click(exportButton);
       
       // Should have created a blob URL

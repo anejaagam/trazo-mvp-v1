@@ -11,6 +11,7 @@ DECLARE
   entity_name_value TEXT;
   org_id_value UUID;
   entity_id_value UUID;
+  actor_user_id UUID;
   new_json JSONB;
   old_json JSONB;
 BEGIN
@@ -64,6 +65,25 @@ BEGIN
     (old_json->>'id')::uuid
   );
 
+  -- Determine actor (user performing the change)
+  actor_user_id := COALESCE(
+    auth.uid(),
+    (new_json->>'performed_by')::uuid,
+    (old_json->>'performed_by')::uuid,
+    (new_json->>'created_by')::uuid,
+    (old_json->>'created_by')::uuid,
+    (new_json->>'assigned_by')::uuid,
+    (old_json->>'assigned_by')::uuid,
+    (new_json->>'applied_by')::uuid,
+    (old_json->>'applied_by')::uuid,
+    (new_json->>'uploaded_by')::uuid,
+    (old_json->>'uploaded_by')::uuid,
+    (new_json->>'approved_by')::uuid,
+    (old_json->>'approved_by')::uuid,
+    (new_json->>'acknowledged_by')::uuid,
+    (old_json->>'acknowledged_by')::uuid
+  );
+
   INSERT INTO public.audit_log (
     organization_id,
     user_id,
@@ -75,7 +95,7 @@ BEGIN
     new_values
   ) VALUES (
     org_id_value,
-    auth.uid(),
+    actor_user_id,
     TG_OP,
     TG_TABLE_NAME,
     entity_id_value,

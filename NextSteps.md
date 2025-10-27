@@ -16,6 +16,25 @@
   - Invite: `/auth/confirm/invite` → redirects to Update Password, then Login
   - Recovery: `/auth/confirm/recovery` → redirects to Update Password, then Login
 
+## 🛠️ Audit log attribution fix (Immediate)
+
+Context: Creating inventory items via a service-role client caused `auth.uid()` to be NULL inside DB triggers, so audit entries showed “System.” We prepared a robust trigger function that falls back to attribution columns like `created_by` and `performed_by`, and resolves `organization_id` for `inventory_movements` by joining `inventory_items`.
+
+What to do (per region: US and Canada):
+- Open Supabase SQL Editor and run one of the prepared scripts:
+  - `lib/supabase/fix-audit-function.sql` (general fix)
+  - `lib/supabase/fix-movements-audit.sql` (same fix with explicit `inventory_movements` org handling)
+- Alternatively, re-apply the in-repo canonical function by running the entire `lib/supabase/schema.sql` (safe; contains the updated `log_audit_trail()` body with SECURITY DEFINER and fixed search_path).
+
+Verify after apply:
+- Create a new inventory item from the UI (ensure request includes `created_by` as implemented).
+- Check Admin → Audit Log: the CREATE audit row should show the acting user, not “System.”
+- Receive/consume actions should continue to show the acting user via `performed_by`.
+
+Notes:
+- Function is defined with `SECURITY DEFINER` and `SET search_path = ''` to avoid search_path issues flagged by advisors.
+- Apply in both regions to keep US ↔ CA parity.
+
 ## 🎯 CURRENT STATUS
 
 ### **Project Phase**

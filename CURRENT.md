@@ -9,6 +9,9 @@
 - ✅ **10/11 test suites fully passing**
 - ⚠️ **9 tests failing** - User query tests (MockQueryBuilder error handling - deferred, low priority)
 
+### 🔧 Pending DB Apply (US ↔ CA)
+- Audit log attribution fix prepared: updated `log_audit_trail()` now falls back to `created_by`/`performed_by` and resolves org_id for `inventory_movements`. Apply `lib/supabase/fix-audit-function.sql` or `fix-movements-audit.sql` in both regions, then create an item to verify the audit shows the user (not “System”).
+
 ### 🎉 **LATEST: PHASE 7 - SIGNUP DATABASE INTEGRATION COMPLETE** (2024)
 **Signup form now creates real users, organizations, and profiles in Supabase!**
 

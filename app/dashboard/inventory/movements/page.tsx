@@ -1,14 +1,9 @@
-/**
- * Inventory Movements Log Page
- * 
- * Displays comprehensive filterable history of all inventory movements
- */
-
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { MovementsLog } from '@/components/features/inventory/movements-log'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
+import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 
 export default async function InventoryMovementsPage() {
   let userRole: string
@@ -57,8 +52,14 @@ export default async function InventoryMovementsPage() {
     userRole = userData.role
     organizationId = userData.organization_id
     
-    // Get site_id from user_site_assignments or fall back to organization_id
-    siteId = siteAssignments?.[0]?.site_id || organizationId
+    // Get site_id from user_site_assignments or get/create default site
+    if (siteAssignments?.[0]?.site_id) {
+      siteId = siteAssignments[0].site_id
+    } else {
+      // No site assignment, get or create a default site for the organization
+      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+      siteId = defaultSiteId || organizationId
+    }
   }
 
   return (

@@ -43,6 +43,7 @@ import { useForm } from 'react-hook-form'
 import { createInventoryItemAction, updateInventoryItemAction } from '@/app/actions/inventory'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryItem } from '@/types/inventory'
+import { UNITS_OF_MEASURE } from '@/lib/constants/inventory'
 
 // Form data type
 interface ItemFormData {
@@ -260,6 +261,7 @@ export function ItemFormDialog({
               <div className="min-h-[450px]">
                 {/* Basic Info Tab */}
                 <TabsContent value="basic" className="space-y-4 mt-4">
+                {/* Name - Full Width */}
                 <FormField
                   control={form.control}
                   name="name"
@@ -274,6 +276,7 @@ export function ItemFormDialog({
                   )}
                 />
 
+                {/* SKU and Item Type - 2 Columns */}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -284,7 +287,6 @@ export function ItemFormDialog({
                         <FormControl>
                           <Input placeholder="e.g., CHEM-001" {...field} />
                         </FormControl>
-                        <FormDescription>Stock Keeping Unit</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -322,6 +324,7 @@ export function ItemFormDialog({
                   />
                 </div>
 
+                {/* Unit of Measure and Storage Location - 2 Columns */}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -329,10 +332,20 @@ export function ItemFormDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Unit of Measure *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., liters, kg, each" {...field} />
-                        </FormControl>
-                        <FormDescription>Base unit for tracking</FormDescription>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {UNITS_OF_MEASURE.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -353,6 +366,7 @@ export function ItemFormDialog({
                   />
                 </div>
 
+                {/* Notes - Full Width */}
                 <FormField
                   control={form.control}
                   name="notes"

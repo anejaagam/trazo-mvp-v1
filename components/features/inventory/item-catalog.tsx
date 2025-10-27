@@ -466,11 +466,9 @@ export function ItemCatalog({
                   return (
                     <TableRow
                       key={item.id}
-                      className={`group cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'bg-primary/10 hover:bg-primary/15 border-l-4 border-l-primary' 
-                          : 'hover:bg-accent/50 hover:shadow-sm'
-                      }`}
+                      className={
+                        'group cursor-pointer transition-all hover:bg-accent/50 hover:shadow-sm'
+                      }
                       onClick={() => onItemSelect?.(item)}
                     >
                       <TableCell className="font-medium">

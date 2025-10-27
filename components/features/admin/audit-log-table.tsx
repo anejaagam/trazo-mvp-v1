@@ -64,7 +64,7 @@ export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
 
     // Default CSV export
     const csv = [
-      ['Timestamp (UTC)', 'User', 'Action', 'Entity Type', 'Entity ID', 'IP Address'].join(','),
+      ['Timestamp (UTC)', 'User', 'Action', 'Entity Type', 'Entity ID'].join(','),
       ...filteredEvents.map((e) =>
         [
           e.timestamp,
@@ -72,7 +72,6 @@ export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
           e.action,
           e.entity_type,
           e.entity_id,
-          e.ip_address || '',
         ].join(',')
       ),
     ].join('\n');
@@ -144,13 +143,13 @@ export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
               <TableHead>Action</TableHead>
               <TableHead>Entity Type</TableHead>
               <TableHead>Entity ID</TableHead>
-              <TableHead>IP Address</TableHead>
+              {/** IP address column removed per request */}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEvents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                <TableCell colSpan={5} className="text-center text-slate-500 py-8">
                   No audit events found
                 </TableCell>
               </TableRow>
@@ -186,9 +185,7 @@ export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
                         {event.entity_id.substring(0, 8)}...
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm text-slate-500">
-                      {event.ip_address || '—'}
-                    </TableCell>
+                    {/** IP address cell removed per request */}
                   </TableRow>
                 );
               })

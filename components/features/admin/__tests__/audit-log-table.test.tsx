@@ -95,7 +95,7 @@ describe('AuditLogTable', () => {
       expect(screen.getByText('Jane Manager')).toBeInTheDocument();
     });
 
-    it('should display all table headers', () => {
+    it('should display all table headers (without IP Address)', () => {
       render(<AuditLogTable events={mockEvents} />);
       
       expect(screen.getByText('Timestamp')).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe('AuditLogTable', () => {
       expect(screen.getByText('Action')).toBeInTheDocument();
       expect(screen.getByText('Entity Type')).toBeInTheDocument();
       expect(screen.getByText('Entity ID')).toBeInTheDocument();
-      expect(screen.getByText('IP Address')).toBeInTheDocument();
+      expect(screen.queryByText('IP Address')).not.toBeInTheDocument();
     });
 
     it('should render with empty events array', () => {
@@ -172,20 +172,13 @@ describe('AuditLogTable', () => {
       expect(entityCells.length).toBeGreaterThan(0);
     });
 
-    it('should display IP addresses', () => {
+    it('should not render IP address column or values', () => {
       render(<AuditLogTable events={mockEvents} />);
-      
-      expect(screen.getByText('192.168.1.1')).toBeInTheDocument();
-      expect(screen.getByText('192.168.1.2')).toBeInTheDocument();
-    });
 
-    it('should show dash for null IP addresses', () => {
-      render(<AuditLogTable events={mockEvents} />);
-      
-      // System event has null IP address
-      const cells = screen.getAllByRole('cell');
-      const hasDash = cells.some(cell => cell.textContent === '—');
-      expect(hasDash).toBe(true);
+      expect(screen.queryByText('IP Address')).not.toBeInTheDocument();
+      expect(screen.queryByText('192.168.1.1')).not.toBeInTheDocument();
+      expect(screen.queryByText('192.168.1.2')).not.toBeInTheDocument();
+      expect(screen.queryByText('—')).not.toBeInTheDocument();
     });
 
     it('should format timestamps', () => {
@@ -407,16 +400,16 @@ describe('AuditLogTable', () => {
   });
 
   describe('Responsive Behavior', () => {
-    it('should render all columns on desktop', () => {
+    it('should render all columns on desktop (without IP Address)', () => {
       render(<AuditLogTable events={mockEvents} />);
       
-      // All 6 column headers should be visible
+      // All 5 column headers should be visible
       expect(screen.getByText('Timestamp')).toBeInTheDocument();
       expect(screen.getByText('User')).toBeInTheDocument();
       expect(screen.getByText('Action')).toBeInTheDocument();
       expect(screen.getByText('Entity Type')).toBeInTheDocument();
       expect(screen.getByText('Entity ID')).toBeInTheDocument();
-      expect(screen.getByText('IP Address')).toBeInTheDocument();
+      expect(screen.queryByText('IP Address')).not.toBeInTheDocument();
     });
   });
 });

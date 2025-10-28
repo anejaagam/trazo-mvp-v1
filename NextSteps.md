@@ -1,581 +1,766 @@
 # TRAZO MVP - Next Steps & Integration Roadmap
 
-**Last Updated:** January 2025 (Phase 8: Inventory Feature Complete)  
-**Document Version:** 3.0  
-**Purpose:** Deployment guide for inventory feature and roadmap for remaining features
+**Last Updated:** October 27, 2025 (**Inventory Feature COMPLETE - Ready for Deployment**)  
+**Document Version:** 4.0  
+**Current Phase:** Phase 9 - Deployment & Integration Testing  
+**Branch:** `test`
 
 ---
 
-## 🚀 IMMEDIATE ACTION ITEMS
+## 🚨 **IMMEDIATE ACTION: VERIFY & TEST INVENTORY FEATURE**
 
-### 1. 🔐 Deploy Inventory Feature to Production (TOP PRIORITY)
+### **Current Status**
+- ✅ **ALL CODE COMPLETE** (Phases 1-7 done)
+- ✅ **164/173 Tests Passing** (94.8% success rate)
+- ✅ **Production-Ready** Quality
+- ✅ **DATABASE SCHEMA DEPLOYED** (US & Canada regions)
+- ✅ **LIVE DATA EXISTS** (US: 6 items, 18 lots, 8 movements, 2 alerts)
+- ⏳ **Ready for:** Manual testing and production deployment
 
-**Current Status:** ✅ Code complete, ✅ All tests passing, ⏳ Awaiting database deployment
+---
 
-#### **Deployment Checklist:**
+## 📋 **DEPLOYMENT CHECKLIST**
 
-##### A. Database Setup (Both US & CA Supabase Projects)
+### **Step 1: Verify Database Schema** (ALREADY DEPLOYED ✅)
 
-1. **Apply Schema Updates** (via Supabase SQL Editor)
-   ```sql
-   -- Run the complete schema file which includes inventory tables
-   -- Copy/paste: lib/supabase/schema.sql
-   
-   -- Includes:
-   -- ✅ inventory_items table
-   -- ✅ inventory_lots table
-   -- ✅ inventory_movements table
-   -- ✅ waste_logs table
-   -- ✅ 3 materialized views (stock_balances, active_lots, movement_summary)
-   -- ✅ Triggers (update quantities, generate alerts)
-   -- ✅ Functions (update_inventory_quantity, check_inventory_alerts)
-   -- ✅ Indexes (10+ performance indexes)
-   -- ✅ RLS policies (all inventory tables)
-   ```
+**Status:** Schema is already applied to both US and Canada Supabase projects!
 
-2. **Verify Schema Applied**
-   ```sql
-   -- Check tables created
-   SELECT table_name 
-   FROM information_schema.tables 
-   WHERE table_schema = 'public' 
-   AND table_name LIKE 'inventory%';
-   
-   -- Expected: inventory_items, inventory_lots, inventory_movements
-   
-   -- Check views created
-   SELECT table_name 
-   FROM information_schema.views 
-   WHERE table_schema = 'public'
-   AND table_name LIKE 'inventory%';
-   
-   -- Expected: inventory_stock_balances, inventory_active_lots, inventory_movement_summary
-   
-   -- Check RLS policies active
-   SELECT schemaname, tablename, policyname 
-   FROM pg_policies 
-   WHERE tablename LIKE 'inventory%';
-   ```
+**Confirmed via MCP:**
+- ✅ US Project (srrrfkgbcrgtplpekwji): All tables exist with live data
+  - `inventory_items`: 6 rows
+  - `inventory_lots`: 18 rows
+  - `inventory_movements`: 8 rows
+  - `inventory_alerts`: 2 rows
+  - `inventory_categories`: Ready
+  - `waste_logs`: Ready
 
-##### B. Local Testing
+- ✅ Canada Project (eilgxbhyoufoforxuyek): All tables exist and ready
+
+**Optional: Verify Schema Yourself**
+```sql
+-- Run this in Supabase SQL Editor to double-check:
+
+-- Check tables exist
+SELECT table_name, 
+       (SELECT count(*) FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = t.table_name) as column_count
+FROM information_schema.tables t
+WHERE table_schema = 'public' 
+AND table_name LIKE 'inventory%'
+ORDER BY table_name;
+
+-- Expected Output:
+-- inventory_alerts (7 columns)
+-- inventory_categories (8 columns)
+-- inventory_items (25 columns)
+-- inventory_lots (24 columns)
+-- inventory_movements (17 columns)
+
+-- Check for live data (US project should show counts)
+SELECT 
+  'inventory_items' as table_name, count(*) as row_count 
+FROM inventory_items
+UNION ALL
+SELECT 'inventory_lots', count(*) FROM inventory_lots
+UNION ALL
+SELECT 'inventory_movements', count(*) FROM inventory_movements
+UNION ALL
+SELECT 'inventory_alerts', count(*) FROM inventory_alerts;
+```
+
+---
+
+### **Step 2: Local Environment Testing**
 
 ```bash
-# 1. Verify environment variables
-cat .env.local
-# Check: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (both US & CA)
+# 1. Ensure you're in project directory
+cd Z:\TrazoMVP\trazo-mvp-v1
 
-# 2. Seed test data
+# 2. Verify environment variables
+cat .env.local
+
+# Must have (example values):
+# NEXT_PUBLIC_SUPABASE_URL=https://[project].supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+# NEXT_PUBLIC_SUPABASE_URL_CA=https://[ca-project].supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY_CA=eyJ...
+# NEXT_PUBLIC_DEV_MODE=false  # IMPORTANT: Set to false for real testing
+
+# 3. Install dependencies (if needed)
+npm install
+
+# 4. Run type checking
+npx tsc --noEmit
+
+# Expected: No errors
+
+# 5. Run test suite
+npm test
+
+# Expected: 164/173 passing (94.8%)
+
+# 6. Build verification
+npm run build
+
+# Expected: Build completes successfully with no errors
+
+# 7. Seed test data
 npm run seed:dev
 
-# 3. Run tests
-npm test
-# Should show: 164/173 passing (94.8%)
+# This will create:
+# - 2 organizations (US and Canada)
+# - 12 sample users with various roles
+# - 2 sites
+# - Sample batches (optional for inventory testing)
 
-# 4. Build verification
-npm run build
-# Should complete without errors
-
-# 5. Start dev server
+# 8. Start development server
 npm run dev
-# Navigate to: http://localhost:3000/dashboard/inventory
-```
 
-##### C. Manual Testing Checklist
-
-- [ ] **Create Item**: Dashboard → Inventory → Items → Add Item
-  - Try: CO2 Tank, Nutrient, Filter
-  - Verify: Appears in item list, stock balance = 0
-  
-- [ ] **Receive Shipment**: Items → Actions → Receive
-  - Enter: Quantity, Lot Code, Expiry Date
-  - Verify: Lot created, stock balance updated, movement recorded
-  
-- [ ] **Issue Inventory**: Items → Actions → Issue
-  - Test FIFO allocation
-  - Verify: Quantity deducted from oldest lot first, movement recorded
-  
-- [ ] **Adjust Inventory**: Items → Actions → Adjust
-  - Manual quantity adjustment with reason
-  - Verify: Stock updated, movement shows "adjust" type
-  
-- [ ] **View Movements**: Dashboard → Inventory → Movements
-  - Verify: All transactions appear with correct timestamps
-  - Check: Filters work (type, date range, item)
-  
-- [ ] **Low Stock Alerts**: Dashboard → Inventory → Alerts
-  - Create item with quantity below minimum
-  - Verify: Alert appears automatically
-  
-- [ ] **Waste Disposal**: Dashboard → Inventory → Waste
-  - Document waste with reason
-  - Verify: Waste log entry created
-  
-- [ ] **Audit Trail**: Dashboard → Admin → Audit Log
-  - Verify: All inventory actions logged with correct user
-  - Check: Shows actual username (not "System")
-  
-- [ ] **RBAC Testing**:
-  - [ ] org_admin: Full access to all features
-  - [ ] head_grower: Can view, create, edit inventory
-  - [ ] operator: Can view inventory, limited actions
-  - [ ] compliance_qa: View-only access
-
-##### D. Production Deployment
-
-```bash
-# 1. Final commit
-git add .
-git commit -m "feat: Complete inventory feature integration (Phase 8)"
-git push origin main
-
-# 2. Deploy to production (Vercel/your hosting)
-# Follow standard Next.js deployment process
-
-# 3. Apply schema to production Supabase
-# Repeat steps A.1-A.2 for production database
-
-# 4. Verify production
-# Test all features in production environment
-
-# 5. Monitor
-# Check: Vercel logs, Supabase logs, error tracking
+# Should start at http://localhost:3000
 ```
 
 ---
 
-### 2. 🛡️ Security & Auth Hardening (HIGH PRIORITY)
+### **Step 3: Manual Integration Testing**
 
-Apply these settings in **both US & CA Supabase projects**:
+**Login as:** test@trazo.app (org_admin) - or your seeded user
 
-#### A. Enable Password Protection
+#### **Test 1: Create Inventory Item**
+```
+1. Navigate to: Dashboard → Inventory → Items
+2. Click "Add Item"
+3. Fill out form:
+   - Name: "CO2 Tank - 50lb"
+   - SKU: "CO2-50LB-001"
+   - Type: "CO2 Tank"
+   - Unit: "tank"
+   - Min Quantity: 2
+   - Max Quantity: 10
+   - Storage Location: "Main Storage"
+   - Cost per Unit: 45.00
+   - Supplier: "AirGas"
+4. Click "Create Item"
+5. ✅ Verify: Item appears in catalog
+6. ✅ Verify: Current stock shows 0
+```
 
-1. Navigate to: **Supabase Dashboard → Authentication → Password**
-2. Enable: **"Compromised password protection"**
-3. Click **Save**
+#### **Test 2: Receive Shipment (Create Lot)**
+```
+1. In item catalog, find "CO2 Tank - 50lb"
+2. Click Actions → "Receive"
+3. Fill out receive form:
+   - Quantity Received: 5
+   - Received Date: [today]
+   - Enable "Create Lot": ✓
+   - Lot Code: "LOT-2025-001"
+   - Expiry Date: [1 year from now]
+   - Manufacture Date: [1 month ago]
+   - Supplier Lot #: "AG-12345"
+   - Cost This Shipment: 225.00 (5 x $45)
+4. Click "Receive Inventory"
+5. ✅ Verify: Stock balance updated to 5
+6. ✅ Verify: Lot appears in item details
+7. ✅ Verify: Movement log shows "RECEIVE" transaction
+```
 
-#### B. Verify Email Templates
+#### **Test 3: Issue Inventory (FIFO)**
+```
+1. Click Actions → "Issue"
+2. Select item: "CO2 Tank - 50lb"
+3. Quantity to Issue: 2
+4. Strategy: FIFO
+5. Destination Type: "Batch" (select any batch)
+6. Notes: "Allocated to Batch XYZ"
+7. ✅ Verify: "Planned Consumption" shows LOT-2025-001: 2 tanks
+8. Click "Issue Inventory"
+9. ✅ Verify: Stock reduced to 3
+10. ✅ Verify: Lot quantity_remaining = 3
+11. ✅ Verify: Movement log shows "ISSUE" transaction
+```
 
-1. Go to: **Authentication → Email Templates**
-2. Confirm custom templates use correct redirect routes:
+#### **Test 4: Adjust Inventory**
+```
+1. Click Actions → "Adjust"
+2. Select item: "CO2 Tank - 50lb"
+3. Current Stock: Should show 3
+4. Adjustment Type: Decrease
+5. Quantity: 1
+6. Reason: "Damaged"
+7. Notes: "Tank valve damaged during handling"
+8. ✅ Verify: Preview shows 3 → 2
+9. Click "Adjust Inventory"
+10. ✅ Verify: Stock updated to 2
+11. ✅ Verify: Movement log shows "ADJUST" with reason
+```
 
-   | Template | Redirect Route | Destination |
-   |----------|---------------|-------------|
-   | Signup Confirmation | `/auth/confirm/signup` | Login page |
-   | Invite User | `/auth/confirm/invite` | Update Password → Login |
-   | Password Recovery | `/auth/confirm/recovery` | Update Password → Login |
+#### **Test 5: Low Stock Alert**
+```
+1. Current stock: 2 (below minimum of 2)
+2. Navigate to: Dashboard → Inventory → Alerts
+3. ✅ Verify: Alert appears for "CO2 Tank - 50lb"
+4. ✅ Verify: Alert type shows "Low Stock"
+5. ✅ Verify: Current vs Minimum displayed correctly
+6. Click "Acknowledge"
+7. ✅ Verify: Alert marked as acknowledged
+```
 
-3. Update if necessary
+#### **Test 6: Movements Log**
+```
+1. Navigate to: Dashboard → Inventory → Movements
+2. ✅ Verify all 3 transactions appear:
+   - RECEIVE: +5 tanks
+   - ISSUE: -2 tanks
+   - ADJUST: -1 tank
+3. Test filters:
+   - Filter by Type: "RECEIVE" → Shows only receive transaction
+   - Filter by Item: "CO2 Tank" → Shows all CO2 tank movements
+   - Clear filters → All movements shown
+4. Test sorting:
+   - Click "Date & Time" header → Sorts by newest/oldest
+5. Test export:
+   - Click "Export CSV"
+   - ✅ Verify: CSV downloads with all movement data
+```
 
-#### C. Domain Configuration
+#### **Test 7: RBAC Permissions**
+```
+1. Logout
+2. Login as: head_grower user (from seed data)
+3. ✅ Verify: Can view inventory
+4. ✅ Verify: Can create items
+5. ✅ Verify: Can receive/issue
+6. Logout
+7. Login as: operator user
+8. ✅ Verify: Can view inventory
+9. ✅ Verify: Can issue (consume)
+10. ⛔ Verify: Cannot create new items (permission denied)
+```
 
-1. Go to: **Authentication → URL Configuration**
-2. Set **Site URL**:
-   - Development: `http://localhost:3000`
-   - Production: Your production domain (e.g., `https://app.trazo.ag`)
-3. **Domain Lists**: Leave empty (permit any email domain)
-4. **Redirect URLs**: Add allowed redirect URLs for OAuth/SSO (future)
+#### **Test 8: Multi-Lot FIFO/LIFO**
+```
+1. Login as org_admin
+2. Receive 2nd shipment:
+   - Item: "CO2 Tank - 50lb"
+   - Quantity: 3
+   - Lot Code: "LOT-2025-002"
+   - Received Date: [today]
+3. Current lots:
+   - LOT-2025-001: 2 remaining (older)
+   - LOT-2025-002: 3 remaining (newer)
+4. Issue with FIFO:
+   - Quantity: 4
+   - Strategy: FIFO
+5. ✅ Verify planned consumption:
+   - LOT-2025-001: 2 (depleted)
+   - LOT-2025-002: 2 (remaining: 1)
+6. Click "Issue Inventory"
+7. ✅ Verify: LOT-2025-001 is_active = false
+8. ✅ Verify: LOT-2025-002 quantity_remaining = 1
+9. ✅ Verify: 2 movement records created
+```
+
+#### **Test 9: Audit Trail**
+```
+1. Navigate to: Dashboard → Admin → Audit Log
+2. Filter by entity_type: "inventory_items"
+3. ✅ Verify: CREATE action shows actual username (not "System")
+4. ✅ Verify: All inventory actions logged with correct user
+5. ✅ Verify: old_values and new_values populated correctly
+```
+
+#### **Test 10: Dev Mode Bypass**
+```
+1. Edit .env.local
+2. Set: NEXT_PUBLIC_DEV_MODE=true
+3. Restart server: npm run dev
+4. Navigate to: Dashboard → Inventory
+5. ✅ Verify: Dev mode banner visible
+6. ✅ Verify: Empty states shown (no database calls)
+7. ✅ Verify: No console errors
+8. Set NEXT_PUBLIC_DEV_MODE=false
+9. Restart server
+```
 
 ---
 
-### 3. 🔧 Audit Log Attribution Fix (MEDIUM PRIORITY)
+### **Step 4: Security Hardening**
 
-**Issue:** Inventory actions created via API show "System" instead of actual user in audit log.
+#### **A. Enable Password Protection** (Both US & CA)
+```
+1. Supabase Dashboard → Authentication → Password
+2. Enable: "Compromised password protection"
+3. Save changes
+```
 
-**Root Cause:** Service-role client calls trigger functions where `auth.uid()` is NULL.
+#### **B. Verify Email Templates**
+```
+1. Authentication → Email Templates
+2. Check these routes exist in templates:
+   - Signup: /auth/confirm/signup
+   - Invite: /auth/confirm/invite
+   - Recovery: /auth/confirm/recovery
+3. Update if needed
+```
 
-**Solution:**
-
+#### **C. Apply Audit Log Fix** (RECOMMENDED)
 ```sql
 -- Run in Supabase SQL Editor (both US & CA):
 
--- Option 1: Apply specific fix only
+-- This fixes "System" appearing instead of actual user in audit log
 \i lib/supabase/fix-audit-function.sql
 
--- Option 2: Re-run full schema (RECOMMENDED - includes all latest updates)
+-- Or re-run full schema (includes fix):
 \i lib/supabase/schema.sql
 ```
 
-**Verification Steps:**
-
-1. Create inventory item via UI
-2. Navigate to: **Dashboard → Admin → Audit Log**
-3. Find the CREATE action for `inventory_items`
-4. Verify **"Performed By"** column shows your username (not "System")
-5. Test receive/issue actions
-6. Verify movements also show correct user via `performed_by`
-
-**Technical Details:**
-- Updated function uses `SECURITY DEFINER` with fixed `search_path`
-- Falls back to `created_by`/`performed_by` columns when `auth.uid()` is NULL
-- Resolves `organization_id` by joining related tables
+**Verification:**
+```
+1. Create new inventory item
+2. Go to: Admin → Audit Log
+3. Find CREATE action for inventory_items
+4. ✅ Verify: "Performed By" shows your username (not "System")
+```
 
 ---
 
-## 🎯 PROJECT STATUS OVERVIEW
+### **Step 5: Production Deployment**
 
-### **Current Development Phase**
+#### **Option A: Vercel Deployment**
+```bash
+# 1. Commit all changes
+git add .
+git commit -m "feat: Inventory feature complete - Phase 8"
+git push origin test
 
-| Phase | Status | Completion Date |
-|-------|--------|----------------|
-| Phase 1: Foundation | ✅ Complete | October 2024 |
-| Phase 2: Core Integration | ✅ Complete | October 2024 |
-| Phase 7: Signup Integration | ✅ Complete | December 2024 |
-| **Phase 8: Inventory Feature** | ✅ **Complete** | **January 2025** ⭐ |
-| **Phase 9: Deployment** | 🚀 **Current** | **January 2025** |
-| Phase 10: Next Feature | 📋 Queued | TBD |
+# 2. Merge to main (if test branch)
+git checkout main
+git merge test
+git push origin main
 
-### **Code Quality Metrics**
+# 3. Vercel auto-deploys from main branch
 
-- **Test Coverage:** 164/173 tests passing (94.8%)
-- **Test Suites:** 10/11 fully passing
-- **TypeScript:** 100% type coverage
-- **Build Status:** ✅ Passing
-- **Linting:** ✅ Passing
-- **Known Issues:** 9 low-priority test failures (deferred)
+# 4. Verify environment variables in Vercel Dashboard:
+# - NEXT_PUBLIC_SUPABASE_URL
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY
+# - NEXT_PUBLIC_SUPABASE_URL_CA
+# - NEXT_PUBLIC_SUPABASE_ANON_KEY_CA
+# - NEXT_PUBLIC_DEV_MODE=false
+```
 
-### **Features Delivered**
+#### **Option B: Manual Deployment**
+```bash
+# 1. Build for production
+npm run build
 
-#### ✅ **Foundation Systems** (Phase 1-2)
-- RBAC System (8 roles, 50+ permissions)
-- Jurisdiction Engine (Oregon, Maryland, Canada, PrimusGFS)
-- Database Schema (25+ tables with RLS)
-- Dashboard Layout (responsive, role-based navigation)
-- Multi-region Supabase (US & Canada data residency)
-- Dev Mode (authentication bypass for development)
-- Seed Data System (automated test data generation)
+# 2. Test production build locally
+npm run start
 
-#### ✅ **Admin Management** (Phase 2)
-- User Management (CRUD operations)
-- Role Assignment (org-level & site-level)
-- Audit Logging (complete action trail)
-- Site Assignments (user-to-site mapping)
-- Permission Matrix (visual permission viewer)
-- User Invitations (email-based onboarding)
+# 3. Deploy build/ directory to your hosting
+# (depends on your hosting provider)
+```
 
-#### ✅ **Signup & Onboarding** (Phase 7)
-- 4-Step Signup Flow
-- Auto org_admin Assignment (first user)
-- Jurisdiction Selection (conditional on plant type)
-- Organization Auto-Creation
-- Emergency Contact Storage
-- Multi-Region Support
-
-#### ✅ **Inventory Tracking** (Phase 8) ⭐ **NEW**
-- **Item Catalog Management**
-  - CRUD operations for inventory items
-  - 10 item types (CO2 tanks, nutrients, filters, etc.)
-  - SKU tracking, supplier info, cost tracking
-  - Location management
-  
-- **Lot Tracking System**
-  - Receive shipments (creates lots)
-  - Expiry date tracking
-  - Batch/purchase order linking
-  - Compliance package UIDs (Metrc/CTLS/PrimusGFS)
-  
-- **Smart Allocation**
-  - FIFO (First In, First Out)
-  - LIFO (Last In, First Out)
-  - FEFO (First Expired, First Out)
-  - Manual lot selection
-  
-- **Movement History**
-  - Complete transaction log
-  - Receive, Issue, Adjust, Transfer, Dispose
-  - Attribution to batches
-  - Reason codes and notes
-  
-- **Alerts & Reporting**
-  - Automatic low stock alerts
-  - Expiry date warnings
-  - Stock balance views
-  - Movement summaries
-  
-- **Waste Management**
-  - Disposal documentation
-  - Photo upload support
-  - Witness signatures
-  - Jurisdiction-compliant reasons
-  
-- **API Routes**
-  - 6 RESTful endpoints
-  - Full CRUD operations
-  - Lot allocation logic
-  - Permission-guarded
+#### **Post-Deployment Verification**
+```
+1. Visit production URL
+2. Login with real account
+3. Repeat Tests 1-6 from manual testing
+4. Check production logs for errors
+5. Monitor Supabase dashboard for:
+   - API request count
+   - Error rates
+   - RLS policy blocks
+```
 
 ---
 
-## 📋 FEATURE INTEGRATION ROADMAP
+## 📊 **INVENTORY FEATURE SUMMARY**
 
-### **Phase 10: Monitoring & Telemetry** (Next Up)
+### **What Was Delivered (October 27, 2025)**
 
-**Priority:** 🔴 High (Essential for daily operations)  
-**Estimated Effort:** 2-3 weeks  
-**Dependencies:** 
-- TagoIO integration (external API)
-- Telemetry polling service
-- Chart library (already have recharts)
+#### **30 Files Created/Modified**
+- **5 Dashboard Pages** (22,324 bytes)
+- **11 UI Components** (195,504 bytes)
+- **4 API Routes** (20,681 bytes) with 6 endpoints
+- **8 Query Modules** (51,330 bytes) with 67 functions
+- **1 Type File** (15,785 bytes) with 50+ interfaces
+- **1 Actions File** (9,943 bytes) with 6 server actions
+
+#### **Database Schema**
+- **4 Tables:** inventory_items, inventory_lots, inventory_movements, waste_logs
+- **3 Views:** stock_balances, active_lots, movement_summary
+- **4 Functions:** update_inventory_quantity, check_inventory_alerts, log_audit_trail, update_updated_at
+- **10+ Indexes:** Performance optimized
+- **RLS Policies:** Multi-tenant security ready
+
+#### **Key Features**
+✅ Item catalog management (CRUD)  
+✅ Lot tracking with expiry dates  
+✅ Smart allocation (FIFO/LIFO/FEFO)  
+✅ Multi-lot consumption support  
+✅ Movement history tracking  
+✅ Low stock alerts (automatic)  
+✅ Expiry warnings  
+✅ Waste disposal documentation  
+✅ Multi-jurisdiction compliance (Metrc, CTLS, PrimusGFS)  
+✅ Complete audit trail  
+✅ RBAC permissions  
+✅ Dev mode compatibility  
+✅ CSV export  
+
+#### **Permissions Used**
+- `inventory:view` - View items/movements
+- `inventory:create` - Create items, receive shipments
+- `inventory:update` - Edit items, adjust stock
+- `inventory:delete` - Delete items
+- `inventory:consume` - Issue to batches
+- `inventory:dispose` - Waste disposal
+- `inventory:export` - Export data
+
+---
+
+## 🗺️ **FUTURE FEATURE ROADMAP**
+
+### **Phase 10: Monitoring & Telemetry** (NEXT UP - 2-3 weeks)
+
+**Goal:** Real-time environmental monitoring and historical data visualization
 
 **Deliverables:**
+1. Real-time pod status dashboard
+2. Environmental metrics (temp, humidity, CO2, VPD)
+3. Time-series charts (last 24h, 7d, 30d)
+4. Equipment status indicators
+5. TagoIO API integration
+6. Telemetry polling service (60s intervals)
+7. `telemetry_readings` table usage
+8. Alert integration (thresholds)
 
-1. **Real-Time Monitoring Dashboard**
-   - Pod status overview (all pods at a glance)
-   - Environmental metrics (temp, humidity, CO2, VPD)
-   - Equipment status indicators
-   - Alert indicators
+**Reference:** `/Prototypes/MonitoringAndTelemetryPrototype/`
 
-2. **Historical Data Visualization**
-   - Time-series charts
-   - Configurable date ranges
-   - Export to CSV/PDF
-   - Comparison views
+**Database:** `telemetry_readings` table already exists in schema
 
-3. **Pod Detail View**
-   - Individual pod metrics
-   - Equipment controls status
-   - Sensor health
-   - Recent alerts
-
-4. **TagoIO Integration**
-   - API client setup
-   - Polling service (60-second intervals)
-   - Data transformation
-   - Error handling
-
-5. **Database Integration**
-   - `telemetry_readings` table (already in schema)
-   - Batch insert optimization
-   - Data retention policies
-   - Query optimization
-
-**Reference Materials:**
-- Prototype: `/Prototypes/MonitoringAndTelemetryPrototype/`
-- Database: `telemetry_readings` table in schema.sql
-- Types: Define in `/types/telemetry.ts`
-
-**Integration Pattern:**
-- Follow inventory feature pattern
-- 7-phase approach (Database → Types → Queries → Components → Pages → API → Testing)
+**Integration Pattern:** Same 7-phase approach as Inventory
+- Phase 1: Database (already done)
+- Phase 2: Types
+- Phase 3: Queries
+- Phase 4: Components
+- Phase 5: Pages
+- Phase 6: API Routes
+- Phase 7: Testing
 
 ---
 
-### **Phase 11: Environmental Controls** (Queued)
+### **Phase 11: Environmental Controls** (2-3 weeks)
 
-**Priority:** 🟠 High  
-**Estimated Effort:** 2-3 weeks  
-**Dependencies:** Monitoring & Telemetry (must be complete first)
+**Dependencies:** Monitoring & Telemetry must be complete first
 
 **Deliverables:**
-1. Recipe Management (temperature, humidity, CO2, light setpoints)
-2. Schedule Builder (automated recipe application)
-3. Manual Overrides (emergency/maintenance controls)
-4. HVAC Automation Integration
-5. Recipe Templates Library
+1. Recipe management (temp/humidity/CO2 setpoints)
+2. Photoperiod scheduling
+3. Schedule builder (automated recipe application)
+4. Manual overrides (emergency/maintenance)
+5. HVAC automation interface
+6. Recipe templates library
+7. `recipes` and `recipe_applications` tables usage
 
 **Reference:** `/Prototypes/EnvironmentalControlsPrototype/`
 
 ---
 
-### **Phase 12: Task Management & SOPs** (Queued)
-
-**Priority:** 🟡 Medium  
-**Estimated Effort:** 2 weeks  
+### **Phase 12: Task Management & SOPs** (2 weeks)
 
 **Deliverables:**
-1. SOP Template Builder
-2. Task Assignment & Tracking
-3. Evidence Capture (photos, signatures, readings)
-4. Workflow Automation
-5. Task Completion Validation
+1. SOP template builder
+2. Task assignment and tracking
+3. Evidence capture (photos, signatures, readings)
+4. Workflow automation
+5. Task completion validation
+6. `tasks`, `task_steps`, `sop_templates` tables usage
 
 **Reference:** `/Prototypes/WorkflowAndTaskManagementPrototype/`
 
 ---
 
-### **Phase 13: Compliance Engine** (Queued)
+### **Phase 13: Batch Management** (3-4 weeks)
 
-**Priority:** 🟡 Medium  
-**Estimated Effort:** 3 weeks  
-**Dependencies:** Batch Management (for full compliance reporting)
+**Dependencies:** Inventory (for material consumption) ✅ DONE
 
 **Deliverables:**
-1. Regulatory Reporting (Metrc, CTLS, PrimusGFS)
-2. Evidence Vault (secure document storage)
-3. Jurisdiction Templates
-4. Audit Trail Export
-5. Compliance Dashboard
-
-**Reference:** `/Prototypes/ComplianceEnginePrototype/`
-
----
-
-### **Phase 14: Batch Management** (Queued)
-
-**Priority:** 🟡 Medium-High  
-**Estimated Effort:** 3-4 weeks  
-**Dependencies:** Inventory (for material allocation)
-
-**Deliverables:**
-1. Plant Lifecycle Tracking
-2. Batch Genealogy (parent-child relationships)
-3. Stage Transitions (germination → veg → flower → harvest)
-4. Harvest Workflow
-5. Plant Tagging System
-6. Waste Disposal Integration
+1. Plant lifecycle tracking
+2. Batch genealogy (parent-child)
+3. Stage transitions
+4. Harvest workflow
+5. Plant tagging system
+6. Waste disposal (shared with inventory)
+7. `batches`, `plant_tags`, `batch_events` tables usage
 
 **Reference:** `/Prototypes/BatchManagementPrototype/`
 
 ---
 
-### **Phase 15: Alarms & Notifications** (Queued)
+### **Phase 14: Compliance Engine** (3 weeks)
 
-**Priority:** 🟢 Medium-Low  
-**Estimated Effort:** 1-2 weeks  
-**Dependencies:** Monitoring & Telemetry (for alarm triggers)
+**Dependencies:** Batch Management
 
 **Deliverables:**
-1. Alarm Policy Configuration
-2. Notification Routing (in-app, email, SMS)
-3. Escalation Rules
-4. Alarm History
-5. Acknowledgment Workflow
+1. Metrc monthly reporting
+2. CTLS reporting
+3. PrimusGFS audit preparation
+4. Evidence vault (secure document storage)
+5. Audit trail export
+6. Compliance dashboard
+7. `compliance_reports`, `evidence_vault` tables usage
+
+**Reference:** `/Prototypes/ComplianceEnginePrototype/`
+
+---
+
+### **Phase 15: Alarms & Notifications** (1-2 weeks)
+
+**Dependencies:** Monitoring & Telemetry
+
+**Deliverables:**
+1. Alarm policy configuration
+2. Notification routing (in-app, email, SMS)
+3. Escalation rules
+4. Alarm history
+5. Acknowledgment workflow
+6. `alarms`, `alarm_policies`, `alarm_routes` tables usage
 
 **Reference:** `/Prototypes/AlarmsAndNotifSystemPrototype/`
 
 ---
 
-### **Phase 16: Settings & Integrations** (Queued)
-
-**Priority:** 🟢 Low  
-**Estimated Effort:** 1 week  
+### **Phase 16: Settings & Integrations** (1 week)
 
 **Deliverables:**
-1. User Preferences
-2. Organization Settings
-3. SSO Configuration (future)
-4. API Integration Management
-5. Theme Customization
+1. User preferences
+2. Organization settings
+3. SSO configuration (future)
+4. API integration management
+5. Theme customization
 
 ---
 
-## 🏗️ INTEGRATION BEST PRACTICES
+## 🏗️ **PROVEN INTEGRATION PATTERN**
 
-### **Proven 7-Phase Pattern** (From Inventory Feature)
+### **The 7-Phase Approach** (From Inventory Feature)
 
-#### Phase 1: Database Schema (1-2 days)
-- Add tables, views, triggers, functions to `schema.sql`
-- Define indexes for performance
-- Write RLS policies
-- Test locally with Supabase
+**Total Time: 2-3 weeks per major feature**
 
-#### Phase 2: Type Definitions (1 day)
-- Create `/types/[feature].ts`
-- Define interfaces for all entities
-- Include insert/update types
-- Export from `/types/index.ts`
-
-#### Phase 3: Database Queries (2-3 days)
-- Create `/lib/supabase/queries/[feature].ts`
-- Implement CRUD operations
-- Add filtering, sorting, pagination
-- Write query helper functions
-- Add client-side query modules if needed
-
-#### Phase 4: UI Components (3-4 days)
-- Create `/components/features/[feature]/`
-- Build data tables, dialogs, forms
-- Implement RBAC checks (`usePermissions`)
-- Add jurisdiction awareness (`useJurisdiction`)
-- Handle dev mode gracefully
-
-#### Phase 5: Dashboard Pages (2-3 days)
-- Create `/app/dashboard/[feature]/` routes
-- Use Server Component pattern
-- Add permission guards
-- Implement data fetching
-- Create client wrappers for interactivity
-
-#### Phase 6: API Routes (2-3 days)
-- Create `/app/api/[feature]/` endpoints
-- Implement authentication checks
-- Add RBAC permission guards
-- Validate inputs
-- Return proper error responses
-
-#### Phase 7: Testing & Bug Fixes (2-3 days)
-- Write unit tests for queries
-- Test components with React Testing Library
-- Manual testing with seed data
-- Fix Radix UI issues
-- Verify dev mode compatibility
-
-**Total Time per Feature:** 12-16 days (2-3 weeks)
-
----
-
-## 🛠️ DEVELOPMENT WORKFLOW
-
-### **Daily Development Process**
-
+#### **Phase 1: Database Schema** (1-2 days)
 ```bash
-# 1. Start development
-npm run dev
-
-# 2. Watch tests
-npm run test:watch
-
-# 3. Check types
-npx tsc --noEmit
-
-# 4. Lint code
-npm run lint
-
-# 5. Build verification (before committing)
-npm run build
+# Add to lib/supabase/schema.sql:
+# - Tables
+# - Views
+# - Triggers
+# - Functions
+# - Indexes
+# - RLS policies
 ```
 
-### **Feature Completion Checklist**
+#### **Phase 2: Type Definitions** (1 day)
+```bash
+# Create types/[feature].ts:
+# - Core entity interfaces
+# - Insert/Update types
+# - View types
+# - Filter types
+# - Form input types
+# Export from types/index.ts
+```
 
-Before marking a feature complete:
+#### **Phase 3: Database Queries** (2-3 days)
+```bash
+# Create lib/supabase/queries/[feature].ts:
+# - CRUD operations
+# - Filtering, sorting, pagination
+# - Helper functions
+# Create lib/supabase/queries/[feature]-client.ts (if needed)
+```
 
-- [ ] Database schema applied and tested
-- [ ] Type definitions complete and exported
-- [ ] Query functions tested (unit tests)
-- [ ] Components built and responsive
-- [ ] Pages created with RBAC guards
-- [ ] API routes implemented with auth
-- [ ] Dev mode compatibility verified
-- [ ] Tests written and passing
-- [ ] Seed data added
-- [ ] Documentation updated (`CURRENT.md`, `NextSteps.md`)
-- [ ] Manual testing completed
-- [ ] Code review ready
-- [ ] Build passing
-- [ ] No console errors
+#### **Phase 4: UI Components** (3-4 days)
+```bash
+# Create components/features/[feature]/:
+# - Dashboard component
+# - Data table
+# - Create/Edit dialogs
+# - Detail views
+# Add RBAC checks (usePermissions)
+# Add jurisdiction awareness (useJurisdiction)
+# Handle dev mode (isDevModeActive)
+```
+
+#### **Phase 5: Dashboard Pages** (2-3 days)
+```bash
+# Create app/dashboard/[feature]/:
+# - page.tsx (overview)
+# - [sub-routes]/page.tsx
+# Server Components with:
+# - Auth checks
+# - Permission guards
+# - Data fetching
+# - Client wrappers for interactivity
+```
+
+#### **Phase 6: API Routes** (2-3 days)
+```bash
+# Create app/api/[feature]/:
+# - route.ts for each endpoint
+# Add:
+# - Authentication checks
+# - RBAC permission guards
+# - Input validation
+# - Error handling
+# - Proper HTTP status codes
+```
+
+#### **Phase 7: Testing & Bug Fixes** (2-3 days)
+```bash
+# Write tests:
+# - Query function unit tests
+# - Component tests
+# - API route tests
+# Manual testing:
+# - Happy paths
+# - Edge cases
+# - RBAC scenarios
+# - Dev mode
+# Fix bugs, refine UX
+```
 
 ---
 
-## 📖 KEY DOCUMENTATION
+## ✅ **FEATURE COMPLETION CHECKLIST**
 
-### **Core Documents**
-- `README.md` - Project overview and quickstart
-- `CURRENT.md` - Complete project status (updated with each phase)
-- `NextSteps.md` - **This file** - Deployment and integration roadmap
-- `AGENT_INSTRUCTIONS.md` - AI copilot integration guide
+Use this for every new feature:
+
+### **Before Starting**
+- [ ] Review prototype in `/Prototypes/[Feature]Prototype/`
+- [ ] Check database schema in `schema.sql`
+- [ ] Verify dependencies are complete
+- [ ] Create feature branch: `git checkout -b feature/[name]`
+
+### **Phase by Phase**
+- [ ] Phase 1: Database schema updated
+- [ ] Phase 2: Types defined and exported
+- [ ] Phase 3: Query functions written and tested
+- [ ] Phase 4: Components built with RBAC
+- [ ] Phase 5: Pages created with auth
+- [ ] Phase 6: API routes implemented
+- [ ] Phase 7: Tests written and passing
+
+### **Quality Checks**
+- [ ] TypeScript compiles clean (`npx tsc --noEmit`)
+- [ ] Tests passing (>90% pass rate)
+- [ ] Build succeeds (`npm run build`)
+- [ ] Dev mode works (no crashes)
+- [ ] RBAC guards on all routes
+- [ ] No console errors in browser
+- [ ] Responsive design works
+- [ ] Accessibility (ARIA labels, keyboard nav)
+
+### **Documentation**
+- [ ] Update `CURRENT.md` with completed work
+- [ ] Update `NextSteps.md` (check off feature)
+- [ ] Create `[FEATURE]_COMPLETE.md` summary
+- [ ] Update integration tracker (if exists)
+- [ ] Add seed data examples
+- [ ] Document new permissions
+
+### **Deployment Prep**
+- [ ] Schema migration prepared
+- [ ] Seed data updated
+- [ ] Manual test checklist created
+- [ ] Breaking changes documented
+- [ ] Rollback plan defined
+
+---
+
+## 🛠️ **DEVELOPMENT WORKFLOW**
+
+### **Daily Development**
+```bash
+# 1. Pull latest
+git pull origin test
+
+# 2. Start dev server
+npm run dev
+
+# 3. Watch tests (in separate terminal)
+npm run test:watch
+
+# 4. Make changes
+# ...
+
+# 5. Check types
+npx tsc --noEmit
+
+# 6. Run tests
+npm test
+
+# 7. Build verification
+npm run build
+
+# 8. Commit (if all pass)
+git add .
+git commit -m "feat: [description]"
+git push origin test
+```
+
+### **Before Committing**
+```bash
+# Run all checks:
+npm run lint           # ESLint
+npx tsc --noEmit      # Type checking
+npm test               # Unit tests
+npm run build          # Build verification
+```
+
+### **Common Commands**
+```bash
+# Development
+npm run dev                    # Start server (http://localhost:3000)
+npm run dev -- --turbopack     # Use Turbopack (faster)
+
+# Testing
+npm test                       # Run all tests
+npm run test:watch            # Watch mode
+npm run test:coverage         # Coverage report
+npm run test:e2e              # E2E tests (Playwright)
+
+# Database
+npm run seed:dev              # Seed test data
+npm run seed:clean            # Clean and reseed
+
+# Build
+npm run build                 # Production build
+npm run start                 # Start production server
+```
+
+---
+
+## 📖 **KEY DOCUMENTATION**
+
+### **Core Docs** (Read First)
+- `README.md` - Project overview
+- `CURRENT.md` - **UPDATED** Complete status with inventory details
+- `NextSteps.md` - **THIS FILE** - Deployment and roadmap
+- `AGENT_INSTRUCTIONS.md` - AI assistant integration guide
 
 ### **Setup Guides**
 - `ENV_SETUP.md` - Environment configuration
-- `DATABASE_SETUP.md` - Database schema and setup
+- `DATABASE_SETUP.md` - Schema and RLS
 - `SEED_SETUP.md` - Test data generation
 - `DEV_MODE.md` - Development mode guide
 
-### **Testing Documentation**
+### **Testing**
 - `TESTING.md` - Test suite guide
-- `docs/AUTH_TESTING_GUIDE.md` - Authentication testing
+- `docs/AUTH_TESTING_GUIDE.md` - Auth testing
 - `e2e/README.md` - E2E test setup
 
 ### **Feature Documentation**
-- `InventoryIntegrationSteps.md` - Inventory feature tracker
+- `InventoryIntegrationSteps.md` - **Inventory phase tracker (635 lines)**
 - `INVENTORY_PHASE6_COMPLETE.md` - Dashboard pages
 - `INVENTORY_PHASE7_COMPLETE.md` - API routes
 - `docs/SIGNUP_DATABASE_INTEGRATION.md` - Signup flow
@@ -587,78 +772,112 @@ Before marking a feature complete:
 
 ---
 
-## 🔗 QUICK REFERENCE
+## 🔗 **QUICK REFERENCE**
 
-### **Common Commands**
-
-```bash
-# Development
-npm run dev              # Start dev server
-npm test                 # Run unit tests
-npm run test:watch      # Watch mode
-npm run build           # Production build
-
-# Database
-npm run seed:dev        # Seed test data
-npm run seed:clean      # Clean and reseed
-
-# Code Quality
-npm run lint            # Run ESLint
-npx tsc --noEmit       # Type checking
-```
-
-### **Important Paths**
-
+### **File Locations**
 | Component | Path |
 |-----------|------|
-| Dashboard Pages | `/app/dashboard/[feature]/` |
-| API Routes | `/app/api/[feature]/` |
+| Dashboard Pages | `/app/dashboard/[feature]/page.tsx` |
+| API Routes | `/app/api/[feature]/route.ts` |
 | Feature Components | `/components/features/[feature]/` |
-| UI Components | `/components/ui/` |
-| Database Queries | `/lib/supabase/queries/` |
-| Type Definitions | `/types/` |
-| RBAC System | `/lib/rbac/` |
-| Jurisdiction Rules | `/lib/jurisdiction/` |
+| UI Components | `/components/ui/` (47+ components) |
+| Server Queries | `/lib/supabase/queries/[feature].ts` |
+| Client Queries | `/lib/supabase/queries/[feature]-client.ts` |
+| Types | `/types/[feature].ts` |
+| Server Actions | `/app/actions/[feature].ts` |
+| Constants | `/lib/constants/[feature].ts` |
 
-### **Key Hooks**
-
+### **Hooks Usage**
 ```typescript
+// In components:
 import { usePermissions } from '@/hooks/use-permissions'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
 
-// In components:
 const { can } = usePermissions()
 const { jurisdiction } = useJurisdiction()
 
 if (!can('inventory:view')) return <div>Access Denied</div>
 ```
 
+### **Server Component Pattern**
+```typescript
+// app/dashboard/[feature]/page.tsx
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { canPerformAction } from '@/lib/rbac/guards'
+
+export default async function FeaturePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) redirect('/auth/login')
+  
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  
+  if (!canPerformAction(userData?.role || '', 'feature:view')) {
+    redirect('/dashboard')
+  }
+  
+  return <FeatureComponent />
+}
+```
+
 ---
 
-## 📞 SUPPORT & RESOURCES
+## 📞 **GETTING HELP**
 
-### **Getting Help**
-
+### **Issue Resolution Priority**
 1. Check `CURRENT.md` for latest status
 2. Review `TESTING.md` for test patterns
-3. See `Prototypes/README.md` for feature analysis
+3. See `InventoryIntegrationSteps.md` for inventory details
 4. Reference existing code in `/app/dashboard/inventory/`
-5. Review `AGENT_INSTRUCTIONS.md` for AI integration patterns
+5. Check `AGENT_INSTRUCTIONS.md` for AI patterns
 
 ### **Known Issues**
+1. **9 User Query Tests Failing** (Low Priority, Deferred)
+   - Issue: MockQueryBuilder returns error objects instead of rejected promises
+   - Impact: Success paths work, error paths untested
+   - Fix: Update mock in `lib/supabase/queries/__tests__/test-helpers.ts`
 
-1. **9 User Query Tests Failing** (Low Priority)
-   - Issue: MockQueryBuilder error handling needs refinement
-   - Impact: Success cases work, error paths untested
-   - Fix: Update mock to return rejected promises instead of error objects
-
-2. **Login Page Static HTML** (Low Priority)
-   - Issue: Login page doesn't use LoginForm component
+2. **Login Page Static** (Low Priority, Deferred)
+   - Issue: `/app/auth/login/page.tsx` doesn't use LoginForm component
    - Impact: None (dev mode bypasses auth)
-   - Fix: Integrate LoginForm component when implementing real auth
+   - Fix: Integrate LoginForm when implementing production auth
 
 ---
 
-**Last Updated:** January 2025  
-**Next Review:** After Monitoring & Telemetry feature completion  
+## 📈 **PROJECT METRICS**
+
+### **Code Stats**
+- **Total Files:** 30 inventory files
+- **Total Size:** ~315,567 bytes
+- **Components:** 11
+- **Query Functions:** 67
+- **API Endpoints:** 6
+- **Dashboard Pages:** 5
+- **Type Definitions:** 50+
+
+### **Test Coverage**
+- **Pass Rate:** 94.8% (164/173)
+- **Test Suites:** 10/11 passing
+- **Total Tests:** 173
+- **Known Failures:** 9 (low priority)
+
+### **Feature Completion**
+- **Phase 1-2:** ✅ Foundation (100%)
+- **Phase 3-6:** ✅ Admin (100%)
+- **Phase 7:** ✅ Signup (100%)
+- **Phase 8:** ✅ Inventory (100%) ⭐
+- **Phase 9:** ⏳ Deployment (In Progress)
+- **Phase 10+:** 📋 Queued
+
+---
+
+**Last Updated:** October 27, 2025  
+**Next Review:** After Monitoring & Telemetry completion  
+**Status:** ✅ Inventory Complete - Deploy ASAP  
 **Maintained By:** Development Team

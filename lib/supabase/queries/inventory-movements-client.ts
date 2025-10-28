@@ -110,32 +110,45 @@ export async function getMovementsByItem(itemId: string, limit?: number) {
  */
 export async function createMovement(movement: InsertInventoryMovement) {
   try {
-    // In dev mode, use dev API to bypass RLS
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
-      const response = await fetch('/api/dev/inventory/movements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(movement)
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create movement')
-      }
-      
-      const { data } = await response.json()
-      return { data, error: null }
-    }
-
-    // Production mode
     const supabase = createClient()
+    
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      throw new Error('You must be logged in to create inventory movements')
+    }
+    
+    console.log('Creating movement as user:', user.email, 'User ID:', user.id)
+    
+    // Check if user has profile
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role, organization_id')
+      .eq('id', user.id)
+      .single()
+    
+    console.log('User profile:', profile)
+    
+    if (!profile) {
+      throw new Error('Your user profile is not set up. Please contact an administrator.')
+    }
+    
     const { data, error } = await supabase
       .from('inventory_movements')
       .insert(movement)
-      .select()
+      .select('*')
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Movement insert error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        movement
+      })
+      throw error
+    }
     return { data, error: null }
   } catch (error) {
     console.error('Error in createMovement:', error)

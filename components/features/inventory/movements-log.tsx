@@ -404,7 +404,7 @@ export function MovementsLog({
               <TableHeader>
                 <TableRow>
                   <TableHead 
-                    className="cursor-pointer select-none"
+                    className="cursor-pointer select-none w-[140px]"
                     onClick={() => toggleSort('created_at')}
                   >
                     <div className="flex items-center gap-1">
@@ -413,7 +413,7 @@ export function MovementsLog({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer select-none"
+                    className="cursor-pointer select-none w-[120px]"
                     onClick={() => toggleSort('movement_type')}
                   >
                     <div className="flex items-center gap-1">
@@ -421,10 +421,10 @@ export function MovementsLog({
                       <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Lot</TableHead>
+                  <TableHead className="w-[180px]">Item</TableHead>
+                  <TableHead className="w-[120px]">Lot</TableHead>
                   <TableHead 
-                    className="cursor-pointer select-none text-right"
+                    className="cursor-pointer select-none text-right w-[120px] pr-8"
                     onClick={() => toggleSort('quantity')}
                   >
                     <div className="flex items-center justify-end gap-1">
@@ -432,15 +432,15 @@ export function MovementsLog({
                       <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
-                  <TableHead>From → To</TableHead>
-                  <TableHead>Batch/Task</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-[180px] pl-8">From → To</TableHead>
+                  <TableHead className="w-[140px]">Batch/Task</TableHead>
+                  <TableHead className="w-[200px]">Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMovements.map((movement) => (
                   <TableRow key={movement.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium w-[140px]">
                       <div className="space-y-1">
                         <div className="text-sm">
                           {new Date(movement.timestamp).toLocaleDateString()}
@@ -450,7 +450,7 @@ export function MovementsLog({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[120px]">
                       <Badge 
                         variant={getMovementTypeBadge(movement.movement_type)}
                         className="flex items-center gap-1 w-fit"
@@ -459,7 +459,7 @@ export function MovementsLog({
                         {getMovementTypeLabel(movement.movement_type)}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[180px]">
                       <div className="space-y-1">
                         <div className="font-medium">{movement.item?.name || 'Unknown'}</div>
                         {movement.item?.sku && (
@@ -469,14 +469,14 @@ export function MovementsLog({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[120px]">
                       {movement.lot?.lot_code ? (
                         <span className="text-sm font-mono">{movement.lot.lot_code}</span>
                       ) : (
                         <span className="text-sm text-muted-foreground">N/A</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right w-[120px] pr-8">
                       <span className={`font-medium ${
                         movement.movement_type === 'receive' || 
                         (movement.movement_type === 'adjust' && movement.quantity > 0)
@@ -489,7 +489,7 @@ export function MovementsLog({
                         {movement.item?.unit_of_measure || ''}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[180px] pl-8">
                       <div className="text-sm space-y-1">
                         {movement.from_location && (
                           <div className="flex items-center gap-1">
@@ -508,7 +508,7 @@ export function MovementsLog({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[140px]">
                       <div className="text-sm space-y-1">
                         {movement.batch_id && (
                           <div className="flex items-center gap-1">
@@ -527,7 +527,7 @@ export function MovementsLog({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[200px]">
                       {movement.notes ? (
                         <div className="text-sm max-w-xs truncate" title={movement.notes}>
                           {movement.notes}

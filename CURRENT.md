@@ -1,6 +1,7 @@
 # TRAZO MVP v1 - Current State Documentation
 
 *Last Updated: October 27, 2025 - Inventory Feature Integration COMPLETE*
+*Last Updated: October 27, 2025 — Inventory Phases 1–7 Complete*
 
 ## 🎯 CURRENT PROJECT STATUS
 
@@ -104,6 +105,104 @@
 
 #### **4. UI Components (Phase 5)**
 **Files:** 11 React components (195,504 bytes total)
+
+### 🔧 Audit Log Attribution Fix (US ↔ CA) — Applied
+- Applied in both regions; `public.log_audit_trail()` verified with SECURITY DEFINER, fixed `search_path`, `inventory_movements` org_id resolution via `inventory_items`, and actor fallback to `performed_by`/`created_by` when `auth.uid()` is null.
+- Optional verification: Create an inventory item and confirm Admin → Audit Log shows the acting user (not “System”).
+
+### 🎉 LATEST: INVENTORY PHASES 1–7 COMPLETE (October 21, 2025)
+
+Status summary:
+- ✅ Database, Types, Queries, Components, Pages, and API routes implemented for MVP scope
+- ✅ Production API endpoints (4):
+   - GET/POST `/api/inventory/items`
+   - PATCH/DELETE `/api/inventory/items/[id]`
+   - POST `/api/inventory/receive`
+   - POST `/api/inventory/issue`
+- ⏸️ Deferred endpoints:
+   - Movements: `/api/inventory/movements` (dev route exists at `app/api/dev/inventory/movements/route.ts`)
+   - Alerts: `/api/inventory/alerts`
+- ✅ Dashboard pages (5) and RBAC guards in place; full dev‑mode support
+- 🔗 Details: see `InventoryIntegrationSteps.md` and `INVENTORY_PHASE7_COMPLETE.md`
+
+### **RECENT: PHASE 7 - SIGNUP DATABASE INTEGRATION COMPLETE** (2024)
+**Signup form now creates real users, organizations, and profiles in Supabase!**
+
+**What's New:**
+1. ✅ **Fixed actions.ts** - Corrected field references after form restructuring
+   - `jurisdiction` and `plant_type` now read from step4Data (not step2Data)
+   - Removed duplicate `crop_type` field
+2. ✅ **Enhanced Database Trigger** - `handle_new_user()` now:
+   - Creates organization from signup metadata (company_name, jurisdiction, plant_type)
+   - Creates user profile with emergency contacts
+   - Links user to organization
+   - Sets first user as org_admin
+3. ✅ **Multi-Region Support** - Organizations created with correct data_region (US/Canada)
+4. ✅ **Complete Documentation** - `/docs/SIGNUP_DATABASE_INTEGRATION.md`
+
+**Files Modified:**
+- `/app/auth/sign-up/actions.ts` - Fixed metadata field references
+- Database: Enhanced `handle_new_user()` trigger function
+- `/docs/SIGNUP_DATABASE_INTEGRATION.md` - Complete integration guide
+
+### � Multi‑Region Supabase Parity (US ↔ CA) — Complete
+The US database has been synchronized to the Canada canonical model.
+
+What’s aligned now:
+- ✅ RLS policies: Full suite across inventory, tasks, alarms, batches, compliance, etc. (matches CA)
+- ✅ Functions: `log_audit_trail`, `update_inventory_quantity` updated to canonical; `handle_new_user` hardened with fixed search_path
+- ✅ Triggers: Inventory, batch, and updated_at triggers consistent across regions
+- ✅ Auth: `auth.users` AFTER INSERT trigger invokes `public.handle_new_user()` in both regions
+
+Security and health checks:
+- ✅ Typecheck + tests: Passed locally after sync (see Test Status above)
+- ⚠️ Advisors: One known item left intentionally deferred — `public.signup_trigger_errors` has RLS disabled (used only for internal error capture). Changing this requires revisiting the trigger’s execution context; tracked in NextSteps.md
+- 🔎 Advisory warnings for “unindexed foreign keys” and “multiple permissive policies” are informational and will be addressed when those areas are exercised at scale
+
+### �🏗️ **PREVIOUS: INVENTORY PHASE 5 COMPLETE** (October 21, 2025)
+**All 7 inventory UI components built, tested, and dev-mode ready!**
+
+**Runtime Errors Fixed:**
+1. ✅ **Select Component Empty Value Error** - Fixed Radix UI Select requirement
+   - Changed empty string values to semantic values (`"all"`, `"none"`)
+   - Affected: movements-log.tsx (2 filters), adjust-inventory-dialog.tsx (1 filter)
+2. ✅ **Supabase Query Errors in Dev Mode** - Added dev mode checks to 6 components
+   - All components now skip database calls when `NEXT_PUBLIC_DEV_MODE=true`
+   - Components show appropriate empty states in dev mode
+
+**Dev Mode Compatibility Achieved:**
+- ✅ All 5 inventory dashboard pages work without database
+- ✅ All 7 inventory components handle dev mode gracefully
+- ✅ No console errors when browsing inventory features
+- ✅ Empty states display correctly
+
+### 🔍 **RECENT CODE INSPECTION (October 20, 2025)**
+
+**Comprehensive inspection completed across all `/app`, `/lib`, `/hooks`, and `/components`:**
+
+**Errors Fixed:**
+
+### **Project Phase**1. ✅ Missing `idp` field in dev mock user (admin users page) - FIXED
+
+- ✅ **Phase 1: Foundation** - COMPLETE2. ✅ Duplicate flex class in `tabs.tsx` component - FIXED
+
+- ✅ **Phase 2: Core Integration** - COMPLETE  3. ✅ Deprecated moduleResolution in `scripts/tsconfig.json` - FIXED
+
+- 🚀 **Ready for: Feature Integration** (Inventory, Monitoring, Environmental Controls)4. ✅ Missing `UserStatus` import in `users.ts` query module - FIXED
+
+5. ✅ Routing inconsistency - all auth flows now redirect to `/dashboard` (not `/protected`) - FIXED
+
+---
+
+**Critical Issues Identified (Deferred - Low Priority):**
+
+## ✅ **COMPLETED PHASES**1. ✅ **Login page** (`/app/auth/login/page.tsx`) now uses the functional `LoginForm` component — FIXED
+
+   - *Impact*: Login functionality exists in component but page doesn't use it
+
+### **PHASE 1: FOUNDATION - COMPLETE**   - *Workaround*: Dev mode bypasses auth for development
+
+   - *Priority*: Low (fix when implementing real authentication)
 
 **Feature Components:**
 - ✅ **`inventory-dashboard.tsx`** (25,541 bytes)
@@ -546,61 +645,145 @@ Deploy inventory feature to production:
 
 ```
 trazo-mvp-v1/
-├── app/
-│   ├── dashboard/
-│   │   ├── inventory/          # ✅ 5 pages COMPLETE
-│   │   └── admin/              # ✅ COMPLETE
-│   ├── api/
-│   │   └── inventory/          # ✅ 4 routes COMPLETE
-│   └── actions/
-│       └── inventory.ts        # ✅ 6 actions COMPLETE
-├── components/
-│   ├── features/
-│   │   ├── inventory/          # ✅ 11 components COMPLETE
-│   │   └── admin/              # ✅ COMPLETE
-│   └── ui/                     # 47+ shadcn components
-├── lib/
-│   ├── supabase/
-│   │   ├── queries/
-│   │   │   ├── inventory*.ts   # ✅ 8 files, 67 functions COMPLETE
-│   │   │   └── users.ts        # ✅ COMPLETE
-│   │   └── schema.sql          # ✅ Inventory tables included
-│   ├── rbac/                   # ✅ COMPLETE
-│   ├── jurisdiction/           # ✅ COMPLETE
-│   └── constants/
-│       └── inventory.ts        # ✅ COMPLETE
-├── types/
-│   ├── inventory.ts            # ✅ 50+ types COMPLETE
-│   └── admin.ts                # ✅ COMPLETE
-└── hooks/
-    ├── use-permissions.ts      # ✅ COMPLETE
-    └── use-jurisdiction.ts     # ✅ COMPLETE
+├── app/                          # Next.js App Router
+│   ├── globals.css              # Global styles and CSS variables
+│   ├── layout.tsx               # Root layout component
+│   ├── page.tsx                 # Homepage with auth redirects
+│   ├── auth/                    # Authentication pages
+│   │   ├── login/page.tsx       # Sign in page
+│   │   ├── sign-up/             # Multi-step signup flow
+│   │   │   ├── page.tsx         # Step 1: Personal info
+│   │   │   ├── step-2/page.tsx  # Step 2: Company info
+│   │   │   ├── step-3/page.tsx  # Step 3: Emergency contact
+│   │   │   └── step-4/page.tsx  # Step 4: Farm details
+│   │   └── sign-up-success/     # Registration success
+│   ├── landing/page.tsx         # Landing page
+│   └── protected/               # Authenticated user area
+├── components/                   # Reusable components
+│   ├── header.tsx               # Navigation header
+│   ├── ui/                      # UI component library
+│   │   ├── button.tsx           # Button component with variants
+│   │   ├── field.tsx            # Input field component
+│   │   ├── checkbox.tsx         # Checkbox component
+│   │   ├── form-label.tsx       # Form label component
+│   │   └── progress-indicator.tsx # Step progress component
+│   └── providers/               # Context providers
+├── lib/                         # Utility libraries
+│   ├── utils.ts                 # Utility functions (cn, etc.)
+│   ├── supabase/                # Supabase configuration
+│   │   ├── client.ts            # Client-side Supabase
+│   │   ├── server.ts            # Server-side Supabase
+│   │   ├── middleware.ts        # Auth middleware
+│   │   └── region.ts            # Multi-regional config
+│   └── types/                   # TypeScript type definitions
+├── middleware.ts                # Next.js middleware
+├── tailwind.config.ts           # Tailwind configuration
+└── package.json                 # Dependencies and scripts
 ```
+
+## 🔌 Integrations
+
+### **Supabase Integration**
+- **Authentication**: User registration and login
+- **Database**: PostgreSQL for user data
+- **Multi-Regional**: Separate instances for US/Canada
+- **Row Level Security**: Data access controls
+
+### **Figma Integration**
+- **Design Token Extraction**: Automated color and typography extraction
+- **Component Matching**: UI components match Figma designs exactly
+- **Design System**: Consistent implementation of brand guidelines
+
+## 🎯 Current Development Status
+
+### ✅ **Completed Features (Phase 1 Foundation)**
+- [x] Complete design system implementation
+- [x] Landing page with hero section and CTAs
+- [x] **RBAC System** - 8 roles, 50+ permissions, React hooks
+- [x] **Jurisdiction Engine** - Multi-compliance framework support
+- [x] **Database Schema** - 20+ tables with RLS and audit trails  
+- [x] **Dashboard Layout** - Responsive UI with role-based navigation
+- [x] **Project Structure** - Organized directories for all features
+- [x] **Prototype Analysis** - Complete integration documentation
+
+### 🚧 **In Progress (Phase 2)**
+- [x] **Enhanced Signup Flow** - 5-step onboarding with role/jurisdiction selection
+- [x] **UI Component Consolidation** - Standardize components from prototypes
+
+### ⏳ **Next Phase (Phase 3 - Feature Integration)**  
+- [ ] **Batch Management System** - Plant lifecycle tracking and management
+- [x] **Inventory Management** - Stock tracking and procurement workflows
+- [ ] **Environmental Controls** - Pod climate control and automation
+- [ ] **Monitoring & Telemetry** - Real-time data visualization dashboard
+- [ ] **Task Management** - SOPs and workflow automation system
+- [ ] **Compliance Engine** - Regulatory reporting and evidence management
 
 ---
 
-## 📞 **SUPPORT & DOCUMENTATION**
+## 🔗 Quick Reference for Development
 
-### **Key Documentation Files**
-- `README.md` - Project overview
-- `CURRENT.md` - **This file** - Complete status
-- `NextSteps.md` - Deployment guide and roadmap
-- `InventoryIntegrationSteps.md` - Detailed phase tracker (635 lines)
-- `INVENTORY_PHASE6_COMPLETE.md` - Dashboard pages summary
-- `INVENTORY_PHASE7_COMPLETE.md` - API routes documentation
-- `TESTING.md` - Test suite guide
-- `ENV_SETUP.md` - Environment configuration
-- `DATABASE_SETUP.md` - Schema and setup
-- `SEED_SETUP.md` - Test data generation
-- `DEV_MODE.md` - Development workflow
+### **Key Documentation Files:**
+- `NextSteps.md` - Complete integration plan and current status
+- `Prototypes/README.md` - Detailed analysis of all 11 prototypes  
+- `lib/supabase/schema.sql` - Complete database schema ready for deployment
 
-### **Integration Patterns**
-1. Server Component → Auth check → Permission guard → Fetch data → Render
-2. Client Component → usePermissions() → Conditional rendering
-3. API Route → Auth → RBAC → Validate → Execute → Response
-4. Database Query → Try/catch → Supabase client → Error handling
+### **Foundation Systems (Ready to Use):**
+- **RBAC:** `/lib/rbac/` + `/hooks/use-permissions.ts`
+- **Jurisdictions:** `/lib/jurisdiction/` + `/hooks/use-jurisdiction.ts`  
+- **Dashboard:** `/app/(dashboard)/` route group with layout and components
+- **UI Components:** 38+ shadcn/ui components in `/components/ui/`
+- **Signup Flow:** Enhanced 4-step flow with role/jurisdiction selection
+- **Testing:** Comprehensive test suite with 19 passing tests
 
-### **Common Commands**
+### **Integration Patterns:**
+1. Check prototype analysis in `/Prototypes/README.md` 
+2. Use RBAC system for permission checks
+3. Apply jurisdiction rules for compliance
+4. Follow dashboard layout patterns for UI consistency
+5. Reference database schema for data requirements
+6. Use consolidated UI components from `/components/ui/`
+
+### **Completed in Phase 2:**
+- [x] Enhanced signup with automatic org_admin role assignment
+- [x] Jurisdiction selection (Oregon, Maryland, Canada, PrimusGFS)
+- [x] Plant type selection (Cannabis, Produce)
+- [x] Data region selection (US, Canada)
+- [x] 38 shadcn/ui components migrated from prototypes
+- [x] Comprehensive test suite for signup flow
+- [x] UI component audit documentation (`UI_COMPONENT_AUDIT.md`)
+
+### **Previously Completed (Phase 1):**
+- [x] Sign in page with form validation
+- [x] Multi-step sign up flow with progress tracking
+- [x] Header component with navigation
+- [x] Button component with 7 variants
+- [x] Form components (Field, Checkbox, Label)
+- [x] Authentication routing and middleware
+- [x] Multi-regional Supabase setup
+- [x] Responsive design implementation
+- [x] TypeScript type safety
+- [x] RBAC system with 8 roles
+- [x] Jurisdiction engine with 4 jurisdictions
+- [x] Complete database schema
+- [x] Dashboard layout infrastructure
+
+### ⏳ **Next Phase (Phase 3)**
+- [ ] Batch Management System integration
+- [ ] Inventory Tracking & Management integration
+- [ ] Environmental Controls integration
+- [ ] Monitoring & Telemetry integration
+- [ ] Backend API integration with Supabase
+- [ ] Form submission handling with database
+- [ ] User session management with RBAC
+
+## 🚀 Getting Started
+
+### **Prerequisites**
+- Node.js 18+ 
+- npm or yarn
+- Supabase account (for backend)
+
+### **Installation**
 ```bash
 npm run dev              # Start dev server
 npm test                 # Run unit tests

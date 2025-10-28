@@ -1,9 +1,41 @@
 # TRAZO MVP - Next Steps & Integration Roadmap
 
-**Last Updated:** October 27, 2025 (**Inventory Feature COMPLETE - Ready for Deployment**)  
-**Document Version:** 4.0  
-**Current Phase:** Phase 9 - Deployment & Integration Testing  
-**Branch:** `test`
+**Last Updated:** October 28, 2025 (**Inventory Feature COMPLETE - Ready for Production**)  
+**Document Version:** 4.1  
+**Current Phase:** Phase 8 - Inventory Feature Ready for Production
+
+---
+
+## 🧭 Agent Quickstart (Start here)
+
+Follow these steps to get productive in minutes:
+
+1) Environment
+- Ensure `.env.local` exists. For fast local iteration, set `NEXT_PUBLIC_DEV_MODE=true` (bypasses auth with mock user). See `ENV_SETUP.md` for full variables.
+- Multi-region is supported (US/CA); actual Supabase keys should be configured per region in env.
+
+2) Run & Verify
+- Start dev server (Next.js 15 App Router). Optional commands are provided in the Useful Commands section below.
+- In VS Code, run the task “Typecheck and run tests” to validate type safety and baseline tests.
+- If your DB is empty, run the dev seed to populate basic records.
+
+3) Read Before Editing
+- Read `CURRENT.md` (authoritative status), then skim `InventoryIntegrationSteps.md` for context on what’s complete.
+- Reference `.github/copilot-instructions.md` for architecture patterns (RBAC, jurisdiction, Supabase, shadcn/ui usage).
+
+4) Patterns (always use)
+- Use `usePermissions()` and `useJurisdiction()` hooks for client logic and guards.
+- Prefer components from `components/ui/` instead of creating new UI primitives.
+- For server pages under `/app/dashboard/...`, follow the RBAC redirect pattern shown in the docs.
+
+5) What’s in-scope vs deferred
+- Inventory is COMPLETE for MVP. Production endpoints are limited to Items (4 endpoints total). Movements & Alerts endpoints are deferred; dev-only movements route exists.
+- Waste disposal endpoints and shared waste workflow are deferred to a later pass.
+
+6) Next Focus Preview
+- Phase 9: Deployment & Integration Testing (see Preflight Checklist below). Monitoring and Environmental features follow after deployment stabilization.
+
+---
 
 ---
 
@@ -16,6 +48,306 @@
 - ✅ **DATABASE SCHEMA DEPLOYED** (US & Canada regions)
 - ✅ **LIVE DATA EXISTS** (US: 6 items, 18 lots, 8 movements, 2 alerts)
 - ⏳ **Ready for:** Manual testing and production deployment
+
+### ✅ Quality gates (how to run)
+- Typecheck + Unit tests: use the VS Code task “Typecheck and run tests”.
+- Expected baseline: 164/173 tests passing (94.8%). Some user query tests are intentionally deferred (MockQueryBuilder error handling).
+- Optional quick fix to raise pass rate later: Update `lib/supabase/queries/__tests__/test-helpers.ts` so MockQueryBuilder rejects when `mockError` is set (convert returned error objects to rejected Promises). This is optional and can wait until after deployment.
+
+---
+
+## Integration Checklist
+
+### Phase 1: Foundation Setup ✅ COMPLETE
+
+- [x] **Project Structure**
+  - [x] Create folder structure as defined in section 3.1
+  - [x] Set up `/components/ui/`, `/components/features/`, `/components/shared/`
+  - [x] Create `/lib/supabase/queries/` directory
+  - [x] Create `/lib/jurisdiction/` directory
+  - [x] Create `/lib/rbac/` directory
+  - [x] Create `/hooks/` directory
+  - [x] Create `/types/` directory with consolidated types
+  - [x] Create `/config/` directory
+
+- [x] **Database Setup** (Schema deployed to both regions)
+  - [x] Create complete schema.sql with all tables
+  - [x] Define RLS policies for all tables
+  - [x] Define RLS policies for org-scoped data access
+  - [x] Define triggers for updated_at and audit logging
+  - [x] Define indexes for performance
+   - [x] Deploy schema to US Supabase instance (deployed)
+   - [x] Deploy schema to Canada Supabase instance (deployed)
+
+- [x] **RBAC System**
+  - [x] Define roles in `/lib/rbac/roles.ts` (8 roles)
+  - [x] Define permissions in `/lib/rbac/permissions.ts` (50+ permissions)
+  - [x] Create permission guard functions in `/lib/rbac/guards.ts`
+  - [x] Create `usePermissions()` hook
+  - [x] Update signup flow to assign default role (org_admin)
+  - [x] Add automatic role assignment for first org user
+
+- [x] **Jurisdiction System**
+  - [x] Create jurisdiction configs (Oregon, Maryland, Canada, PrimusGFS)
+  - [x] Create `JurisdictionProvider` context
+  - [x] Create `useJurisdiction()` hook
+  - [x] Update signup flow to capture jurisdiction + plant type
+
+- [x] **Dashboard Layout**
+  - [x] Create `dashboard/` route (renamed from `(dashboard)`)
+  - [x] Create dashboard layout with navigation
+  - [x] Create dashboard sidebar component
+  - [x] Create dashboard header component
+  - [x] Implement navigation based on user role
+  - [x] Add breadcrumbs component
+  - [x] Add dev mode bypass for UI development
+
+### Phase 1.5: Signup Enhancement & UI Consolidation ✅ COMPLETE
+*(Completed work added to checklist - does not change original phase priorities)*
+
+#### Enhanced Signup Flow ✅
+- [x] Modify Step 1 to automatically assign `org_admin` role to first user
+- [x] Remove role dropdown from Step 1
+- [x] Add informational panel explaining org_admin privileges
+- [x] Add plant type selection to Step 2 (Cannabis/Produce)
+- [x] Add jurisdiction selection to Step 2 (Oregon, Maryland, Canada, PrimusGFS)
+- [x] Add data region selection to Step 2 (US/Canada)
+- [x] Implement conditional jurisdiction options based on plant type
+- [x] Update form validation for new fields
+- [x] Test signup flow with localStorage persistence
+
+#### UI Component Consolidation ✅
+- [x] **Audit all shadcn/ui components** across 11 prototypes
+- [x] **Create UI component inventory** (UI_COMPONENT_AUDIT.md)
+- [x] **Migrate 38 essential components** from BatchManagementPrototype
+- [x] **Update all imports** to reference consolidated components
+- [x] **Document component library** in CURRENT.md
+- [x] Verify no duplicate components
+- [x] Total available components: 47+ (11 original + 38 migrated - 2 duplicates)
+
+#### Testing & Documentation ✅
+- [x] Create comprehensive test suite for signup flow
+- [x] Write 19 tests covering validation, role assignment, jurisdiction logic
+- [x] Achieve 100% test pass rate
+- [x] Create PHASE_2_SUMMARY.md
+- [x] Update CURRENT.md
+- [x] Update NextSteps.md
+- [x] Create DEV_MODE.md for development workflow
+
+#### Development Tools ✅
+- [x] Add dev mode bypass for dashboard access without authentication
+- [x] Rename dashboard folder from `(dashboard)` to `dashboard` for proper routing
+- [x] Create mock user data for development
+- [x] Add visual dev mode indicator banner
+
+### Phase 2: Priority 1 Features ← START HERE (ORIGINAL CHECKLIST PRIORITIES)
+
+#### Identity & Roles ✅ COMPLETE
+- [x] Migrate admin components to `/components/features/admin/`
+- [x] Create `/app/dashboard/admin/` pages
+- [x] Implement user table with CRUD operations
+- [x] Implement role management interface
+- [x] Implement permission matrix view
+- [x] Create audit log viewer
+- [x] Add permission checks to all admin pages
+
+#### Inventory ✅ COMPLETE (See InventoryIntegrationSteps.md and CURRENT.md)
+- [x] Enhance database schema (add `inventory_lots` table, views, functions)
+- [x] Create type definitions in `/types/inventory.ts`
+- [x] Migrate inventory components to `/components/features/inventory/`
+- [x] Create `/app/dashboard/inventory/` pages (5 pages)
+- [x] Implement inventory queries in `/lib/supabase/queries/`
+- [x] Create inventory dashboard with summary cards
+- [x] Implement item creation/editing with par levels
+- [x] Implement lot tracking (FIFO/LIFO/FEFO)
+- [x] Implement movement tracking (receive, issue, adjust)
+- [ ] Implement waste disposal (dispose) — Deferred to shared waste feature
+- [ ] **Consolidate waste management** (create shared components for batch + inventory) — Deferred
+- [ ] Add jurisdiction-aware waste disposal form (uses `useJurisdiction()`) — Deferred
+- [x] Implement low stock alerts
+- [x] Implement expiry alerts
+- [x] Add inventory exports (CSV)
+- ℹ️ API endpoints available (4): GET/POST `/api/inventory/items`, PATCH/DELETE `/api/inventory/items/[id]`; Movements and Alerts endpoints deferred (dev movements route exists)
+- ℹ️ Live data present in US region as of Oct 27, 2025 (6 items, 18 lots, 8 movements, 2 alerts)
+
+#### Deployment Preflight (Phase 9 Preview)
+- [ ] Confirm typecheck/tests pass locally (use the VS Code task)
+- [ ] Verify US/CA environment variables are present and correct (no secrets in repo)
+- [ ] Validate the 4 production Inventory endpoints in a local run (items list/create/update/delete)
+- [ ] Confirm dev-only movements route isn’t exposed in production config
+- [ ] Sanity-check RLS for key tables (inventory_items, inventory_lots, inventory_movements)
+- [ ] Confirm login works in non-dev mode (multi-region sign-in via LoginForm)
+- [ ] Update CURRENT.md “Deployment” notes with any observed issues
+
+#### Monitoring & Telemetry
+- [ ] Migrate monitoring components to `/components/features/monitoring/`
+- [ ] Create `/app/dashboard/monitoring/` pages
+- [ ] Set up `useTelemetry()` hook with Supabase Realtime
+- [ ] Create pod status cards
+- [ ] Create environmental charts (temp, humidity, CO2, VPD)
+- [ ] Implement telemetry table with filtering
+- [ ] Add data export functionality
+- [ ] **For MVP:** Use mock telemetry data (TagoIO integration post-migration)
+- [ ] Create structure for TagoIO integration (`/lib/tagoio/`)
+
+#### Environmental Controls
+- [ ] Migrate control components to `/components/features/controls/`
+- [ ] Create `/app/dashboard/controls/` pages
+- [ ] Implement recipe queries in `/lib/supabase/queries/recipes.ts`
+- [ ] Create recipe editor with stage-based targets
+- [ ] Implement recipe library and versioning
+- [ ] Create schedule builder
+- [ ] Implement manual override panel with safety checks
+- [ ] Add safety interlock validation
+- [ ] Create conflict detection for simultaneous operations
+- [ ] Add recipe application to pods/batches
+
+### Phase 3: Priority 2 Features
+
+#### Workflow & Tasks
+- [ ] Migrate all 19 batch components to `/components/features/batch/`
+- [ ] **Consolidate type definitions** from 7 files into `/types/batch.ts`
+- [ ] Create `/app/dashboard/batches/` pages
+- [ ] Implement batch queries in `/lib/supabase/queries/batches.ts`
+- [ ] Create batch dashboard with filtering
+- [ ] Implement create batch wizard (jurisdiction-aware)
+- [ ] Create batch detail view with timeline
+- [ ] Implement cultivar management
+- [ ] Create batch genealogy tree view
+- [ ] Implement stage transition workflow
+- [ ] Add batch metrics panel
+- [ ] Create harvest workflow (SOP-002)
+- [ ] Implement plant tagging workflow (SOP-001) (for Metrc states)
+- [ ] Create plant count tracking
+- [ ] Implement post-harvest processing (dry, cure, packaging)
+- [ ] Add quarantine management
+- [ ] Create room capacity monitor
+- [ ] **Consolidate waste disposal** (link to inventory waste)
+- [ ] Add batch-to-pod assignments (Pods-as-a-Batch)
+- [ ] Implement bulk operations for Metrc compliance
+
+### Phase 3: Priority 2 Features
+
+#### Workflow & Tasks
+- [ ] Migrate task components to `/components/features/tasks/`
+- [ ] Create `/app/dashboard/tasks/` pages
+- [ ] Implement task queries in `/lib/supabase/queries/tasks.ts`
+- [ ] Create task board (kanban or list view)
+- [ ] Implement SOP template editor
+- [ ] Create task assignment interface
+- [ ] Implement task step completion with evidence capture
+- [ ] **Consolidate evidence capture** (merge with batch prototype)
+- [ ] Add photo upload to evidence vault
+- [ ] Create recurring task scheduler
+
+#### Compliance Engine
+- [ ] Migrate compliance components to `/components/features/compliance/`
+- [ ] Create `/app/dashboard/compliance/` pages
+- [ ] Implement compliance queries in `/lib/supabase/queries/compliance.ts`
+- [ ] Create compliance dashboard
+- [ ] Implement report builder with jurisdiction templates
+- [ ] Create evidence vault browser
+- [ ] Implement audit log viewer
+- [ ] Add report generation (PDF/CSV)
+- [ ] Implement record locking for audit protection
+- [ ] Create Metrc mapper (Oregon/Maryland)
+- [ ] Create CTLS report generator (Canada)
+- [ ] Create PrimusGFS report generator (Produce)
+
+#### Batch Management
+- [ ] Migrate all 19 batch components to `/components/features/batch/`
+- [ ] **Consolidate type definitions** from 7 files into `/types/batch.ts`
+- [ ] Create `/app/dashboard/batches/` pages
+- [ ] Implement batch queries in `/lib/supabase/queries/batches.ts`
+- [ ] Create batch dashboard with filtering
+- [ ] Implement create batch wizard (jurisdiction-aware)
+- [ ] Create batch detail view with timeline
+- [ ] Implement cultivar management
+- [ ] Create batch genealogy tree view
+- [ ] Implement stage transition workflow
+- [ ] Add batch metrics panel
+- [ ] Create harvest workflow (SOP-002)
+- [ ] Implement plant tagging workflow (SOP-001) (for Metrc states)
+- [ ] Create plant count tracking
+- [ ] Implement post-harvest processing (dry, cure, packaging)
+- [ ] Add quarantine management
+- [ ] Create room capacity monitor
+- [ ] **Consolidate waste disposal** (link to inventory waste)
+- [ ] Add batch-to-pod assignments (Pods-as-a-Batch)
+- [ ] Implement bulk operations for Metrc compliance
+
+#### Alarms & Notifications
+- [ ] Migrate alarm components to `/components/features/alarms/`
+- [ ] Create `/app/dashboard/alarms/` pages
+- [ ] Implement alarm queries in `/lib/supabase/queries/alarms.ts`
+- [ ] Create alarm dashboard
+- [ ] Implement alarm policy editor
+- [ ] Create alarm evaluation engine
+- [ ] Implement notification routing (email, SMS, push)
+- [ ] Add alarm acknowledgment workflow
+- [ ] Create alarm history charts
+- [ ] Implement escalation policies
+- [ ] Add alarm routing configuration
+
+### Phase 4: Settings & Future Structure
+
+#### Settings Pages
+- [ ] Create `/app/dashboard/settings/` pages
+- [ ] Implement profile settings
+- [ ] Create organization settings (org admin only)
+- [ ] Add notification preferences page
+- [ ] Create integrations page (SSO configuration)
+
+#### Future Features (Structure Only)
+- [ ] Create `/app/dashboard/layout-editor/` with placeholder
+- [ ] Add layout editor components to `/components/features/layout/` (empty)
+
+### Phase 5: Final Integration & Deployment
+
+#### Component Consolidation (ALREADY COMPLETE ✅)
+- [x] **Audit all shadcn/ui components** across prototypes
+- [x] **Merge unique components** into main repo's `/components/ui/`
+- [x] **Update all imports** to reference consolidated components
+- [x] **Remove duplicate components**
+
+#### Cleanup & Organization
+- [ ] Remove all mock data files (or move to `/lib/mock/` for testing)
+- [ ] Delete old prototype directories
+- [ ] Organize utility functions in `/lib/utils.ts`
+- [ ] Create shared hooks in `/hooks/`
+- [ ] Consolidate validation schemas in `/lib/validations/`
+- [ ] Define constants in `/lib/constants/`
+
+#### Type System
+- [ ] Consolidate all TypeScript types into `/types/`
+- [ ] Generate Supabase types from database schema
+- [ ] Ensure no type conflicts or duplicates
+- [ ] Export types from `/types/index.ts`
+
+#### Testing
+- [x] Test signup flow (19 tests passing ✅)
+- [ ] Test RBAC permissions across all features
+- [ ] Test jurisdiction-specific flows (waste, batch creation, etc.)
+- [ ] Test multi-regional database routing
+- [ ] Test all CRUD operations
+- [ ] Test form validations
+- [ ] Test error handling
+
+#### Database Deployment
+- [x] Deploy schema.sql to US Supabase instance
+- [x] Deploy schema.sql to Canada Supabase instance
+- [x] Verify RLS policies are active
+- [x] Test multi-regional data access
+- [x] Seed initial data (jurisdictions, default roles)
+
+#### Documentation
+- [x] Update README with new structure
+- [x] Document RBAC permission system (in NextSteps.md)
+- [x] Document jurisdiction configuration system (in NextSteps.md)
+- [x] Document database schema (in schema.sql comments)
+- [ ] Create component usage guide
+- [ ] Document API patterns and conventions
+- [ ] Create deployment guide
 
 ---
 
@@ -857,7 +1189,7 @@ export default async function FeaturePage() {
 - **Total Size:** ~315,567 bytes
 - **Components:** 11
 - **Query Functions:** 67
-- **API Endpoints:** 6
+ - **API Endpoints:** 4
 - **Dashboard Pages:** 5
 - **Type Definitions:** 50+
 
@@ -872,12 +1204,12 @@ export default async function FeaturePage() {
 - **Phase 3-6:** ✅ Admin (100%)
 - **Phase 7:** ✅ Signup (100%)
 - **Phase 8:** ✅ Inventory (100%) ⭐
-- **Phase 9:** ⏳ Deployment (In Progress)
+ - **Phase 9:** ⏳ Deployment (Next)
 - **Phase 10+:** 📋 Queued
 
 ---
 
-**Last Updated:** October 27, 2025  
+**Last Updated:** October 28, 2025  
 **Next Review:** After Monitoring & Telemetry completion  
 **Status:** ✅ Inventory Complete - Deploy ASAP  
 **Maintained By:** Development Team

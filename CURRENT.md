@@ -1,7 +1,6 @@
 # TRAZO MVP v1 - Current State Documentation
 
-*Last Updated: October 27, 2025 - Inventory Feature Integration COMPLETE*
-*Last Updated: October 27, 2025 — Inventory Phases 1–7 Complete*
+*Last Updated: October 28, 2025 - Inventory Feature Integration COMPLETE*
 
 ## 🎯 CURRENT PROJECT STATUS
 
@@ -11,9 +10,8 @@
 - ⚠️ **9 tests failing** - User query tests (MockQueryBuilder error handling - deferred, low priority)
 - ✅ **Production-ready code quality**
 
-### **Current Date:** October 27, 2025
-### **Active Branch:** `test`
-### **Development Phase:** Phase 9 - Inventory DEPLOYED & LIVE ✅
+### **Current Date:** October 28, 2025
+### **Development Phase:** Phase 8 - Inventory Feature Ready for Production ✅
 ### **Deployment Status:** 🚀 Database deployed, live data in production
 
 ---
@@ -106,19 +104,17 @@
 #### **4. UI Components (Phase 5)**
 **Files:** 11 React components (195,504 bytes total)
 
-### 🔧 Audit Log Attribution Fix (US ↔ CA) — Applied
-- Applied in both regions; `public.log_audit_trail()` verified with SECURITY DEFINER, fixed `search_path`, `inventory_movements` org_id resolution via `inventory_items`, and actor fallback to `performed_by`/`created_by` when `auth.uid()` is null.
-- Optional verification: Create an inventory item and confirm Admin → Audit Log shows the acting user (not “System”).
+<!-- Audit log fix section intentionally removed per latest directive. -->
 
 ### 🎉 LATEST: INVENTORY PHASES 1–7 COMPLETE (October 21, 2025)
 
 Status summary:
-- ✅ Database, Types, Queries, Components, Pages, and API routes implemented for MVP scope
+- ✅ Database, Types, Queries, Components, and Pages implemented for MVP scope
 - ✅ Production API endpoints (4):
-   - GET/POST `/api/inventory/items`
-   - PATCH/DELETE `/api/inventory/items/[id]`
-   - POST `/api/inventory/receive`
-   - POST `/api/inventory/issue`
+  - GET `/api/inventory/items`
+  - POST `/api/inventory/items`
+  - PATCH `/api/inventory/items/[id]`
+  - DELETE `/api/inventory/items/[id]`
 - ⏸️ Deferred endpoints:
    - Movements: `/api/inventory/movements` (dev route exists at `app/api/dev/inventory/movements/route.ts`)
    - Alerts: `/api/inventory/alerts`
@@ -156,8 +152,61 @@ What’s aligned now:
 
 Security and health checks:
 - ✅ Typecheck + tests: Passed locally after sync (see Test Status above)
-- ⚠️ Advisors: One known item left intentionally deferred — `public.signup_trigger_errors` has RLS disabled (used only for internal error capture). Changing this requires revisiting the trigger’s execution context; tracked in NextSteps.md
+- ⚠️ Advisors: One known item left intentionally deferred — `public.signup_trigger_errors` has RLS enabled but no explicit policies (used only for internal error capture). Changing this requires revisiting the trigger’s execution context; tracked in NextSteps.md
 - 🔎 Advisory warnings for “unindexed foreign keys” and “multiple permissive policies” are informational and will be addressed when those areas are exercised at scale
+
+## 🌐 Database State (US & CA) — Live Snapshot
+
+As of: October 28, 2025
+
+### United States (US)
+- Installed extensions (subset):
+  - plpgsql 1.0, uuid-ossp 1.1, pgcrypto 1.3, pg_graphql 1.5.11, pg_stat_statements 1.11, supabase_vault 0.3.1
+- Recent migrations (latest first):
+  - 20251023230014 reclean_auth_us
+  - 20251023225944 reclean_public_us
+  - 20251023224715 reset_auth_data_us_delete_based_v2
+  - 20251023224304 reset_public_data_us
+  - 20251023223946 add_inventory_views_us
+- Security advisories:
+  - RLS enabled, no explicit policies on public.signup_trigger_errors (intentional internal error sink)
+  - Leaked password protection disabled (recommend enabling HIBP checks)
+- Performance advisories (high level):
+  - Unindexed foreign keys across several tables (inventory_*, tasks, alarms, audit_log)
+  - RLS policies calling auth.* per row (wrap in SELECT to avoid per-row initplans)
+  - Some unused indexes flagged; evaluate after traffic
+  - Multiple permissive policies in a few tables (user_permissions, user_site_assignments, users)
+- Storage config:
+  - fileSizeLimit ≈ 50MB; s3Protocol: enabled; imageTransformation: disabled
+- Notable row counts:
+  - organizations: 8 • users: 4 • audit_log: 43
+  - inventory_items: 6 • inventory_lots: 18 • inventory_movements: 8 • inventory_alerts: 2
+
+### Canada (CA)
+- Installed extensions (subset):
+  - Same set as US (plpgsql, uuid-ossp, pgcrypto, pg_graphql, pg_stat_statements, supabase_vault)
+- Recent migrations (latest first):
+  - 20251023230038 reclean_auth_ca
+  - 20251023225959 reclean_public_ca
+  - 20251023224733 reset_auth_data_ca_delete_based
+  - 20251023224323 reset_public_data_ca
+  - 20251023224012 align_inventory_views_ca
+- Security advisories:
+  - RLS enabled, no explicit policies on public.signup_trigger_errors (intentional internal error sink)
+  - Leaked password protection disabled (recommend enabling HIBP checks)
+- Performance advisories (high level):
+  - Same categories as US (unindexed FKs, per-row auth.* in policies, unused indexes, permissive overlaps)
+- Storage config:
+  - Matches US (fileSizeLimit ≈ 50MB; s3Protocol enabled; imageTransformation disabled)
+- Notable row counts:
+  - organizations: 1 • users: 1 • audit_log: 1
+  - inventory_items: 0 • inventory_lots: 0 • inventory_movements: 0 • inventory_alerts: 0
+
+Remediation notes:
+- Index high-churn foreign keys in inventory and tasks when load increases.
+- Refactor RLS policies to use SELECT wrappers for auth.* calls.
+- Review permissive policy overlaps; collapse where feasible.
+- Enable leaked password protection in both regions when ready.
 
 ### �🏗️ **PREVIOUS: INVENTORY PHASE 5 COMPLETE** (October 21, 2025)
 **All 7 inventory UI components built, tested, and dev-mode ready!**
@@ -334,7 +383,7 @@ Security and health checks:
 - Proper redirect logic for unauthorized access
 
 #### **6. API Routes (Phase 7)**
-**Files:** 4 route files (20,681 bytes), 6 RESTful endpoints
+**Files:** 4 route files (20,681 bytes), 4 RESTful endpoints
 
 - ✅ **`POST /api/inventory/items`** - Create item (in items/route.ts)
   - Request body: `{ name, item_type, unit_of_measure, site_id, organization_id, ... }`
@@ -366,30 +415,7 @@ Security and health checks:
   - Response: 200 OK with deleted item
   - Auto-sets: updated_by, updated_at
 
-- ✅ **`POST /api/inventory/receive`** - Receive shipment (in receive/route.ts)
-  - Request body: `{ item_id, quantity_received, lot_code, received_date, expiry_date?, ... }`
-  - Auth: Required
-  - Permission: `inventory:update`
-  - Creates: Lot record (if lot data provided) + Movement record
-  - Validation: Required fields, quantity > 0
-  - Response: 201 Created with lot object
-  - Transaction-safe (rollback on error)
-
-- ✅ **`POST /api/inventory/issue`** - Issue/consume inventory (in issue/route.ts)
-  - Request body: `{ item_id, quantity, strategy ('FIFO'|'LIFO'|'FEFO'|'manual'), lot_id?, destination_type, ... }`
-  - Auth: Required
-  - Permission: `inventory:consume`
-  - **Smart Allocation Logic:**
-    - FIFO: Oldest lots first
-    - LIFO: Newest lots first
-    - FEFO: Soonest expiry first
-    - Manual: Specific lot_id required
-  - Multi-lot support: Automatically distributes quantity across lots
-  - Updates: Each lot's `quantity_remaining`
-  - Creates: Movement record per lot consumed
-  - Validation: Sufficient stock, valid strategy
-  - Response: 200 OK with allocation details `[{ lot_id, quantity_consumed }, ...]`
-  - Transaction-safe (all-or-nothing)
+<!-- Receive and Issue endpoints omitted here; two additional endpoints are deferred in the main API and tracked separately. -->
 
 **All API routes include:**
 - Supabase authentication checks
@@ -468,7 +494,7 @@ Used by components for form submissions with Next.js 15 server actions pattern.
 | **Client Queries** | 22 | - |
 | **UI Components** | 11 | 195,504 bytes |
 | **Dashboard Pages** | 5 | 22,324 bytes |
-| **API Routes** | 6 endpoints | 20,681 bytes |
+| **API Routes** | 4 endpoints | 20,681 bytes |
 | **Server Actions** | 6 | 9,943 bytes |
 | **Total Files** | 30 | ~315,567 bytes |
 
@@ -797,5 +823,5 @@ npx tsc --noEmit        # Type check
 **Project:** TRAZO MVP v1  
 **Version:** 1.0.0  
 **Status:** Phase 8 Complete - Inventory Feature Ready for Production  
-**Last Updated:** October 27, 2025  
+**Last Updated:** October 28, 2025  
 **Next Milestone:** Deploy inventory to production (Phase 9)

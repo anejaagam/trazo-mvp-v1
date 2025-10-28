@@ -289,7 +289,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         {item.icon}
         <span className="flex-1">{item.title}</span>
         {item.badge && (
-          <Badge variant="secondary" className="ml-auto h-5 w-5 p-0 text-xs">
+          <Badge variant="secondary" className="ml-auto h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full text-xs font-semibold">
             {item.badge}
           </Badge>
         )}
@@ -307,7 +307,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
               {item.icon}
               <span className="flex-1">{item.title}</span>
               {item.badge && (
-                <Badge variant="secondary" className="ml-auto h-5 w-5 p-0 text-xs">
+                <Badge variant="secondary" className="ml-auto h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full text-xs font-semibold">
                   {item.badge}
                 </Badge>
               )}

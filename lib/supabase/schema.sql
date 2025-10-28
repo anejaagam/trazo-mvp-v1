@@ -949,7 +949,7 @@ SELECT
   l.updated_at
 FROM inventory_lots l
 JOIN inventory_items i ON l.item_id = i.id
-WHERE l.is_active = TRUE AND l.quantity_remaining > 0;
+WHERE l.is_active = TRUE AND i.is_active = TRUE AND l.quantity_remaining > 0;
 
 -- View for movement summary by item
 CREATE OR REPLACE VIEW inventory_movement_summary AS

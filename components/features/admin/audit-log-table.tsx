@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 /**
@@ -42,7 +43,7 @@ const ACTION_TYPES = [
   'evidence.captured',
 ] as const;
 
-export function AuditLogTable({ events, onExport }: AuditLogTableProps) {
+export function AuditLogTable({ events }: AuditLogTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
 

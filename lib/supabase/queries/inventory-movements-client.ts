@@ -26,7 +26,8 @@ export async function getMovements(
       .from('inventory_movements')
       .select(`
         *,
-        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure)
+        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure),
+        lot:inventory_lots!lot_id(id, lot_code)
       `)
       .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })
@@ -65,7 +66,8 @@ export async function getRecentMovements(siteId: string, limit: number = 10) {
       .from('inventory_movements')
       .select(`
         *,
-        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure)
+        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure),
+        lot:inventory_lots!lot_id(id, lot_code)
       `)
       .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })

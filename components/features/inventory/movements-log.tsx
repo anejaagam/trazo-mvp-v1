@@ -225,7 +225,7 @@ export function MovementsLog({
   const getMovementTypeLabel = (type: MovementType): string => {
     const labels: Record<MovementType, string> = {
       receive: 'Receive',
-      consume: 'Consume',
+      consume: 'Issue',
       transfer: 'Transfer',
       adjust: 'Adjust',
       dispose: 'Dispose',
@@ -359,7 +359,7 @@ export function MovementsLog({
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
                 <SelectItem value="receive">Receive</SelectItem>
-                <SelectItem value="consume">Consume</SelectItem>
+                <SelectItem value="consume">Issue</SelectItem>
                 <SelectItem value="transfer">Transfer</SelectItem>
                 <SelectItem value="adjust">Adjust</SelectItem>
               </SelectContent>

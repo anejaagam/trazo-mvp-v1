@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   BottomSheetDialog as Dialog,
@@ -36,9 +36,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
 import {
   getLotsByItem,
-  getNextLotFIFO,
-  getNextLotLIFO,
-  getNextLotFEFO,
+  getAvailableLots,
   consumeFromLot,
 } from '@/lib/supabase/queries/inventory-lots-client'
 import { createMovement } from '@/lib/supabase/queries/inventory-movements-client'
@@ -108,6 +106,7 @@ export function IssueInventoryDialog({
   const [selectedItem, setSelectedItem] = useState<InventoryItemWithStock | null>(null)
   const [plannedConsumptions, setPlannedConsumptions] = useState<LotConsumption[]>([])
   const [error, setError] = useState<string | null>(null)
+  const submittingRef = useRef(false)
 
   const form = useForm<IssueFormData>({
     defaultValues: {
@@ -183,8 +182,13 @@ export function IssueInventoryDialog({
           throw new Error('Failed to fetch inventory items')
         }
         const { data } = await response.json()
+        // Compute available quantity consistently in dev for display
+        const withAvailable = (data || []).map((item: any) => ({
+          ...item,
+          available_quantity: item.available_quantity ?? Math.max(0, (item.current_quantity || 0) - (item.reserved_quantity || 0)),
+        })) as InventoryItemWithStock[]
         // Filter to items with available quantity > 0
-        const itemsWithStock = (data || []).filter((item: InventoryItemWithStock) => (item.current_quantity || 0) > 0)
+        const itemsWithStock = withAvailable.filter((item) => (item.available_quantity || 0) > 0)
         setItems(itemsWithStock)
         return
       }
@@ -196,9 +200,15 @@ export function IssueInventoryDialog({
       })
 
       if (fetchError) throw fetchError
-      
-      // Filter to items with available_quantity > 0
-      const itemsWithStock = (data || []).filter((item: InventoryItemWithStock) => (item.available_quantity || 0) > 0)
+
+      // Compute available quantity if not provided by query response
+      const withAvailable = (data || []).map((item: any) => ({
+        ...item,
+        available_quantity: item.available_quantity ?? Math.max(0, (item.current_quantity || 0) - (item.reserved_quantity || 0)),
+      })) as InventoryItemWithStock[]
+
+      // Filter to items with available > 0
+      const itemsWithStock = withAvailable.filter((item) => (item.available_quantity || 0) > 0)
       setItems(itemsWithStock)
     } catch (err) {
       console.error('Error loading inventory items:', err)
@@ -232,7 +242,7 @@ export function IssueInventoryDialog({
     quantity: number,
     strategy: LotSelectionStrategy
   ) => {
-    if (strategy === 'MANUAL' || quantity <= 0) {
+    if (quantity <= 0) {
       setPlannedConsumptions([])
       return
     }
@@ -242,16 +252,35 @@ export function IssueInventoryDialog({
       let remainingQuantity = quantity
 
       // Get lots based on strategy
-      let lots: InventoryLot[] = []
-      if (strategy === 'FIFO') {
-        const { data } = await getNextLotFIFO(itemId)
-        lots = data as InventoryLot[] || []
-      } else if (strategy === 'LIFO') {
-        const { data } = await getNextLotLIFO(itemId)
-        lots = data as InventoryLot[] || []
-      } else if (strategy === 'FEFO') {
-        const { data } = await getNextLotFEFO(itemId)
-        lots = data as InventoryLot[] || []
+  let lots: InventoryLot[] = []
+  const allocMethod: 'FIFO' | 'LIFO' | 'FEFO' = strategy as 'FIFO' | 'LIFO' | 'FEFO'
+  const { data: available, error } = await getAvailableLots(itemId, allocMethod)
+      if (error) throw error
+      if (Array.isArray(available)) {
+        // Filter to only necessary fields and types
+        lots = (available as any[]).map(l => ({
+          id: l.id ?? l.lot_id, // inventory_active_lots exposes lot_id
+          lot_code: l.lot_code,
+          quantity_remaining: l.quantity_remaining,
+          unit_of_measure: l.unit_of_measure,
+          expiry_date: l.expiry_date ?? null,
+          received_date: l.received_date ?? null,
+          storage_location: l.storage_location ?? null,
+          cost_per_unit: l.cost_per_unit ?? null,
+        })) as InventoryLot[]
+      } else if (available) {
+        // In case a single object is returned accidentally
+        const l: any = available
+        lots = [{
+          id: l.id ?? l.lot_id,
+          lot_code: l.lot_code,
+          quantity_remaining: l.quantity_remaining,
+          unit_of_measure: l.unit_of_measure,
+          expiry_date: l.expiry_date ?? null,
+          received_date: l.received_date ?? null,
+          storage_location: l.storage_location ?? null,
+          cost_per_unit: l.cost_per_unit ?? null,
+        }]
       }
 
       // Calculate consumption from each lot
@@ -283,6 +312,8 @@ export function IssueInventoryDialog({
   }
 
   const onSubmit = async (data: IssueFormData) => {
+    if (submittingRef.current) return
+    submittingRef.current = true
     setIsLoading(true)
     setError(null)
 
@@ -341,27 +372,37 @@ export function IssueInventoryDialog({
         }
       }
 
-      // Process each consumption
-      for (const consumption of consumptions) {
-        // Update lot quantity
-        const { error: lotError } = await consumeFromLot(consumption.lot_id, consumption.quantity)
-        if (lotError) throw lotError
+      // Use server API to perform atomic lot updates + movement creation
+      // Build payload
+      const allocation_method = data.lot_selection_strategy === 'MANUAL'
+        ? 'manual'
+        : data.lot_selection_strategy
+      const body: any = {
+        item_id: selectedItem.id,
+        quantity,
+        allocation_method,
+        to_location: data.destination_type === 'location' ? data.to_location : undefined,
+        batch_id: data.destination_type === 'batch' ? data.batch_id : undefined,
+        task_id: data.destination_type === 'task' ? data.task_id : undefined,
+        notes: data.notes || undefined,
+        organization_id: organizationId,
+        site_id: siteId,
+      }
 
-        // Create movement record
-        const { error: movementError } = await createMovement({
-          item_id: selectedItem.id,
-          lot_id: consumption.lot_id,
-          movement_type: 'consume',
-          quantity: consumption.quantity,
-          from_location: selectedItem.storage_location || undefined,
-          to_location: data.destination_type === 'location' ? data.to_location : undefined,
-          batch_id: data.destination_type === 'batch' ? data.batch_id : undefined,
-          task_id: data.destination_type === 'task' ? data.task_id : undefined,
-          notes: data.notes || undefined,
-          performed_by: userId,
-        })
+      if (allocation_method === 'manual') {
+        // Send single-lot allocation
+        body.lot_allocations = consumptions.map(c => ({ lot_id: c.lot_id, quantity: c.quantity }))
+      }
 
-        if (movementError) throw movementError
+      const res = await fetch('/api/inventory/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Failed to issue inventory')
       }
 
       // Success
@@ -376,12 +417,13 @@ export function IssueInventoryDialog({
       setError(err instanceof Error ? err.message : 'Failed to issue inventory')
     } finally {
       setIsLoading(false)
+      submittingRef.current = false
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent disableOutsideClose disableEscapeClose>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -702,6 +744,7 @@ export function IssueInventoryDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
+                {/* The button is also protected by submittingRef in onSubmit */}
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

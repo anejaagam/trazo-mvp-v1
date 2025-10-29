@@ -39,10 +39,12 @@ import {
   Clock,
 } from 'lucide-react'
 import type { InventoryItemWithStock } from '@/types/inventory'
+import type { InventoryLot } from '@/types/inventory'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { RoleKey } from '@/lib/rbac/types'
 import { createClient } from '@/lib/supabase/client'
 import { isDevModeActive } from '@/lib/dev-mode'
+import { getLotsByItem } from '@/lib/supabase/queries/inventory-lots-client'
 import {
   Card,
   CardContent,
@@ -82,10 +84,13 @@ export function ItemDetailSheet({
   const { can } = usePermissions(userRole as RoleKey)
   const [recentMovements, setRecentMovements] = useState<RecentMovement[]>([])
   const [isLoadingMovements, setIsLoadingMovements] = useState(false)
+  const [lots, setLots] = useState<InventoryLot[]>([])
+  const [isLoadingLots, setIsLoadingLots] = useState(false)
 
   useEffect(() => {
     if (item && open) {
       loadRecentMovements()
+      loadLots()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item, open])
@@ -117,6 +122,32 @@ export function ItemDetailSheet({
       console.error('Error loading movements:', error)
     } finally {
       setIsLoadingMovements(false)
+    }
+  }
+
+  const loadLots = async () => {
+    if (!item) return
+
+    try {
+      setIsLoadingLots(true)
+
+      // Lots are not supported in dev mode fetches
+      if (isDevModeActive()) {
+        setLots([])
+        return
+      }
+
+      const { data, error } = await getLotsByItem(item.id)
+      if (error) throw error as any
+
+      // Only show lots with remaining quantity > 0 and active
+      const activeLots = (data || []).filter((l: any) => l.is_active !== false && (l.quantity_remaining ?? 0) > 0)
+      setLots(activeLots as InventoryLot[])
+    } catch (error) {
+      console.error('Error loading lots:', error)
+      setLots([])
+    } finally {
+      setIsLoadingLots(false)
     }
   }
 
@@ -375,6 +406,59 @@ export function ItemDetailSheet({
               </CardContent>
             </Card>
           )}
+
+          {/* Lots for this Item */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Box className="h-5 w-5 text-primary" />
+                Lots
+              </CardTitle>
+              <CardDescription>Active lots with remaining quantity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isDevModeActive() ? (
+                <div className="text-sm text-muted-foreground">
+                  Lots are not displayed in Dev Mode. Set NEXT_PUBLIC_DEV_MODE=false to test lot creation.
+                </div>
+              ) : isLoadingLots ? (
+                <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">Loading lots…</div>
+              ) : lots.length === 0 ? (
+                <div className="flex items-center justify-center py-8 text-center">
+                  <Box className="h-10 w-10 text-muted-foreground mb-2 opacity-60" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">No active lots</p>
+                    <p className="text-xs text-muted-foreground">Create a lot when receiving inventory to see it here.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {lots.map((lot) => (
+                    <div key={lot.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">{lot.lot_code}</span>
+                          {lot.expiry_date && (
+                            <Badge variant="outline" className="text-xs">Expires {new Date(lot.expiry_date).toLocaleDateString()}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Received {new Date(lot.received_date).toLocaleDateString()}
+                          {lot.storage_location ? ` • ${lot.storage_location}` : ''}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-bold">{lot.quantity_remaining} {lot.unit_of_measure}</div>
+                        {lot.quantity_received !== undefined && (
+                          <div className="text-[11px] text-muted-foreground">of {lot.quantity_received}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Documents */}
           {(item.certificate_of_analysis_url || item.material_safety_data_sheet_url) && (

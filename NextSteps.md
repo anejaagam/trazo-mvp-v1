@@ -41,6 +41,10 @@ Follow these steps to get productive in minutes:
 
 ## 🚨 **IMMEDIATE ACTION: VERIFY & TEST INVENTORY FEATURE**
 
+### Recent UX Tweaks (Oct 28, 2025)
+- Prevent accidental dismissal of the Inventory Item dialog: clicking outside the form or pressing Escape no longer closes the dialog; users must click the Close (X) button or an explicit action button.
+   - Files: `components/features/inventory/bottom-sheet-dialog.tsx`, `components/features/inventory/item-form-dialog.tsx`
+
 ### **Current Status**
 - ✅ **ALL CODE COMPLETE** (Phases 1-7 done)
 - ✅ **164/173 Tests Passing** (94.8% success rate)
@@ -458,7 +462,7 @@ npm run dev
 
 **Login as:** test@trazo.app (org_admin) - or your seeded user
 
-#### **Test 1: Create Inventory Item**
+#### **Test 1: Create Inventory Item** DONE
 ```
 1. Navigate to: Dashboard → Inventory → Items
 2. Click "Add Item"

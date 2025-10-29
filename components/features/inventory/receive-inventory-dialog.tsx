@@ -278,7 +278,7 @@ export function ReceiveInventoryDialog({
   if (!hasPermission) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent disableOutsideClose disableEscapeClose>
           <DialogHeader>
             <DialogTitle>Receive Inventory</DialogTitle>
           </DialogHeader>
@@ -295,7 +295,7 @@ export function ReceiveInventoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent disableOutsideClose disableEscapeClose>
         <DialogHeader>
           <DialogTitle>
             <div className="flex items-center gap-2">

@@ -36,6 +36,7 @@ import { isDevModeActive } from '@/lib/dev-mode'
 import { ItemFormDialog } from './item-form-dialog'
 import { ReceiveInventoryDialog } from './receive-inventory-dialog'
 import { IssueInventoryDialog } from './issue-inventory-dialog'
+import { AdjustInventoryDialog } from './adjust-inventory-dialog'
 
 interface InventoryDashboardProps {
   siteId: string
@@ -102,6 +103,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false)
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false)
+  const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false)
 
   useEffect(() => {
     // Check permission before loading
@@ -660,6 +662,12 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
                 Issue to Batch
               </Button>
             )}
+            {can('inventory:update') && (
+              <Button variant="outline" onClick={() => setIsAdjustDialogOpen(true)}>
+                <Activity className="h-4 w-4 mr-2" />
+                Adjust Inventory
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -688,6 +696,16 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
       <IssueInventoryDialog
         open={isIssueDialogOpen}
         onOpenChange={setIsIssueDialogOpen}
+        organizationId={organizationId}
+        siteId={siteId}
+        userId={userId}
+        userRole={userRole}
+        onSuccess={handleDialogSuccess}
+      />
+
+      <AdjustInventoryDialog
+        open={isAdjustDialogOpen}
+        onOpenChange={setIsAdjustDialogOpen}
         organizationId={organizationId}
         siteId={siteId}
         userId={userId}

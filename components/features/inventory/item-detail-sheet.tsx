@@ -61,6 +61,7 @@ interface ItemDetailSheetProps {
   onEdit?: (item: InventoryItemWithStock) => void
   onReceive?: (item: InventoryItemWithStock) => void
   onIssue?: (item: InventoryItemWithStock) => void
+  onAdjust?: (item: InventoryItemWithStock) => void
 }
 
 interface RecentMovement {
@@ -80,6 +81,7 @@ export function ItemDetailSheet({
   onEdit,
   onReceive,
   onIssue,
+  onAdjust,
 }: ItemDetailSheetProps) {
   const { can } = usePermissions(userRole as RoleKey)
   const [recentMovements, setRecentMovements] = useState<RecentMovement[]>([])
@@ -252,6 +254,12 @@ export function ItemDetailSheet({
                 <Button onClick={() => onIssue(item)} variant="default" size="sm" className="bg-orange-600 hover:bg-orange-700">
                   <TrendingDown className="h-4 w-4 mr-2" />
                   Issue
+                </Button>
+              )}
+              {can('inventory:update') && onAdjust && (
+                <Button onClick={() => onAdjust(item)} variant="default" size="sm" className="bg-yellow-500 hover:bg-yellow-600">
+                  <Activity className="h-4 w-4 mr-2" />
+                  Adjust
                 </Button>
               )}
             </div>

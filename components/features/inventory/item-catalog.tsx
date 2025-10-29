@@ -52,6 +52,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
+  AlertTriangle,
   ArrowUpDown,
   Plus,
   Trash2,
@@ -70,6 +71,7 @@ interface ItemCatalogProps {
   onEditItem?: (item: InventoryItemWithStock) => void
   onReceiveInventory?: (item: InventoryItemWithStock) => void
   onIssueInventory?: (item: InventoryItemWithStock) => void
+  onAdjustInventory?: (item: InventoryItemWithStock) => void
   onDeleteItem?: (item: InventoryItemWithStock) => void
   onBatchDelete?: (items: InventoryItemWithStock[]) => void
 }
@@ -86,6 +88,7 @@ export function ItemCatalog({
   onEditItem,
   onReceiveInventory,
   onIssueInventory,
+  onAdjustInventory,
   onDeleteItem,
   onBatchDelete,
 }: ItemCatalogProps) {
@@ -648,6 +651,17 @@ export function ItemCatalog({
                               >
                                 <TrendingDown className="h-4 w-4 mr-2" />
                                 Issue
+                              </DropdownMenuItem>
+                            )}
+                            {can('inventory:update') && onAdjustInventory && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onAdjustInventory(item)
+                                }}
+                              >
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                Adjust
                               </DropdownMenuItem>
                             )}
                             {can('inventory:delete') && onDeleteItem && (

@@ -548,11 +548,19 @@ export function ItemCatalog({
                   return (
                     <TableRow
                       key={item.id}
-                      className={`group transition-all ${
+                      className={`group transition-all cursor-pointer ${
                         isSelected 
                           ? 'bg-primary/10 hover:bg-primary/15 border-l-4 border-l-primary' 
                           : 'hover:bg-accent/50 hover:shadow-sm'
                       }`}
+                      onClick={() => onItemSelect?.(item)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onItemSelect?.(item)
+                        }
+                      }}
                     >
                       <TableCell onClick={(e) => e.stopPropagation()} className="w-12 text-center">
                         <Checkbox
@@ -562,8 +570,7 @@ export function ItemCatalog({
                         />
                       </TableCell>
                       <TableCell 
-                        className="font-medium cursor-pointer w-[250px] text-left"
-                        onClick={() => onItemSelect?.(item)}
+                        className="font-medium w-[250px] text-left"
                       >
                         <div>
                           <div className="font-semibold group-hover:text-primary transition-colors">

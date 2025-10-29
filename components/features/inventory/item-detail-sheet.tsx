@@ -335,36 +335,63 @@ export function ItemDetailSheet({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {item.storage_location && (
-                  <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border">
-                    <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                        Storage Location
-                      </p>
-                      <p className="text-sm font-medium">{item.storage_location}</p>
-                    </div>
+              {/* Storage Locations Breakdown */}
+              {lots.length > 0 && (
+                <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Storage Locations
+                    </p>
                   </div>
-                )}
+                  <div className="space-y-2">
+                    {Object.entries(
+                      lots.reduce((acc, lot) => {
+                        const location = lot.storage_location || 'Unspecified'
+                        acc[location] = (acc[location] || 0) + (lot.quantity_remaining || 0)
+                        return acc
+                      }, {} as Record<string, number>)
+                    ).map(([location, quantity]) => (
+                      <div key={location} className="flex items-center justify-between p-2 rounded bg-background">
+                        <span className="text-sm font-medium">{location}</span>
+                        <span className="text-sm font-bold text-primary">
+                          {quantity} {item.unit_of_measure}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                {item.cost_per_unit && (
-                  <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border">
-                    <DollarSign className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                        Cost Per Unit
-                      </p>
-                      <p className="text-sm font-semibold">
-                        ${item.cost_per_unit.toFixed(2)} / {item.unit_of_measure}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Total: ${(item.current_quantity * item.cost_per_unit).toFixed(2)}
-                      </p>
-                    </div>
+              {/* Primary Storage Location (fallback when no lots) */}
+              {lots.length === 0 && item.storage_location && (
+                <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border">
+                  <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Primary Storage Location
+                    </p>
+                    <p className="text-sm font-medium">{item.storage_location}</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {item.cost_per_unit && (
+                <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border">
+                  <DollarSign className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Cost Per Unit
+                    </p>
+                    <p className="text-sm font-semibold">
+                      ${item.cost_per_unit.toFixed(2)} / {item.unit_of_measure}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Total: ${(item.current_quantity * item.cost_per_unit).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {item.notes && (
                 <div className="flex gap-3 p-4 rounded-lg bg-muted/30 border-l-4 border-primary">
@@ -420,9 +447,9 @@ export function ItemDetailSheet({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Box className="h-5 w-5 text-primary" />
-                Lots
+                Lots by Location
               </CardTitle>
-              <CardDescription>Active lots with remaining quantity</CardDescription>
+              <CardDescription>Active lots with storage locations and quantities</CardDescription>
             </CardHeader>
             <CardContent>
               {isDevModeActive() ? (
@@ -432,34 +459,48 @@ export function ItemDetailSheet({
               ) : isLoadingLots ? (
                 <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">Loading lots…</div>
               ) : lots.length === 0 ? (
-                <div className="flex items-center justify-center py-8 text-center">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
                   <Box className="h-10 w-10 text-muted-foreground mb-2 opacity-60" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">No active lots</p>
-                    <p className="text-xs text-muted-foreground">Create a lot when receiving inventory to see it here.</p>
-                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">No active lots</p>
+                  <p className="text-xs text-muted-foreground mt-1">Create a lot when receiving inventory to see it here.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {lots.map((lot) => (
-                    <div key={lot.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">{lot.lot_code}</span>
-                          {lot.expiry_date && (
-                            <Badge variant="outline" className="text-xs">Expires {new Date(lot.expiry_date).toLocaleDateString()}</Badge>
+                    <div key={lot.id} className="p-4 border rounded-lg bg-card hover:bg-accent/30 transition-colors">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <span className="text-sm font-bold">{lot.lot_code}</span>
+                            {lot.expiry_date && (
+                              <Badge variant="outline" className="text-xs">
+                                Expires {new Date(lot.expiry_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {/* Storage Location - Prominent Display */}
+                          <div className="flex items-center gap-2 mb-2 p-2 bg-primary/5 border border-primary/20 rounded">
+                            <MapPin className="h-4 w-4 text-primary shrink-0" />
+                            <span className="text-sm font-semibold text-primary">
+                              {lot.storage_location || 'No location specified'}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground">
+                            Received {new Date(lot.received_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        
+                        <div className="shrink-0 text-right">
+                          <div className="text-lg font-bold text-primary">{lot.quantity_remaining}</div>
+                          <div className="text-xs text-muted-foreground">{lot.unit_of_measure}</div>
+                          {lot.quantity_received !== undefined && (
+                            <div className="text-[10px] text-muted-foreground mt-1">
+                              of {lot.quantity_received} received
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Received {new Date(lot.received_date).toLocaleDateString()}
-                          {lot.storage_location ? ` • ${lot.storage_location}` : ''}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-bold">{lot.quantity_remaining} {lot.unit_of_measure}</div>
-                        {lot.quantity_received !== undefined && (
-                          <div className="text-[11px] text-muted-foreground">of {lot.quantity_received}</div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -550,6 +591,7 @@ export function ItemDetailSheet({
                   {recentMovements.map((movement) => {
                     const MovementIcon = getMovementIcon(movement.movement_type)
                     const isIncrease = ['receive', 'return'].includes(movement.movement_type)
+                    const displayQty = Math.abs(movement.quantity || 0)
                     
                     return (
                       <div
@@ -583,7 +625,7 @@ export function ItemDetailSheet({
                                 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
                                 : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                             }`}>
-                              {isIncrease ? '+' : '-'}{movement.quantity}
+                              {isIncrease ? '+' : '-'}{displayQty}
                             </div>
                           </div>
                           {movement.notes && (

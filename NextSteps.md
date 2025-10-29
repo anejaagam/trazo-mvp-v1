@@ -39,7 +39,48 @@ Follow these steps to get productive in minutes:
 
 ---
 
-## 🚨 **IMMEDIATE ACTION: VERIFY & TEST INVENTORY FEATURE**
+## 🚨 **IMMEDIATE ACTION: APPLY INVENTORY TRANSFER FIX**
+
+### **Critical Bug Fix (Oct 29, 2025) - Location Transfers**
+**Issue:** Transferring inventory between storage locations was incorrectly reducing stock quantities and removing items from active lots.
+
+**Impact:** Users transferring items (e.g., 2 units from "Storage A" to "Storage B") would see those items disappear from inventory entirely, showing reduced on-hand quantities.
+
+**Fix Applied:**
+1. ✅ Updated API route (`/app/api/inventory/issue/route.ts`) to:
+   - Detect location transfers vs consumption
+   - Use `movement_type: 'transfer'` for location transfers
+   - Update lot `storage_location` instead of reducing `quantity_remaining`
+   - Preserve stock quantities for transfers
+
+2. ✅ Updated database trigger (`lib/supabase/schema.sql`):
+   - Changed transfer quantity delta from `-NEW.quantity` to `0`
+   - Removed transfers from lot quantity reduction logic
+   - Transfers now preserve quantities, only updating location
+
+3. ✅ Updated UI (`issue-inventory-dialog.tsx`):
+   - Added clarity: "Batch/Task = consumption, Location = transfer"
+   - Added alert explaining transfers preserve stock
+   - Improved user guidance
+
+**Migration Required:**
+```bash
+# Apply database trigger fix via Supabase SQL Editor
+# Copy/paste contents of: lib/supabase/migrations/fix_transfer_movement_trigger.sql
+```
+
+**Expected Behavior After Fix:**
+- ✅ Location transfers preserve stock quantities
+- ✅ Lots remain in "Active Lots" list after transfer
+- ✅ Lot `storage_location` updates to new location
+- ✅ Movement log shows `transfer` type with from/to locations
+- ✅ Batch/task issues still correctly consume inventory
+
+**Documentation:** See `INVENTORY_TRANSFER_FIX.md` for complete details and testing checklist.
+
+---
+
+## 🚨 **VERIFY & TEST INVENTORY FEATURE**
 
 ### Recent UX Tweaks (Oct 28, 2025)
 - Prevent accidental dismissal of the Inventory Item dialog: clicking outside the form or pressing Escape no longer closes the dialog; users must click the Close (X) button or an explicit action button.
@@ -481,7 +522,7 @@ npm run dev
 6. ✅ Verify: Current stock shows 0
 ```
 
-#### **Test 2: Receive Shipment (Create Lot)**
+#### **Test 2: Receive Shipment (Create Lot)** DONE
 ```
 1. In item catalog, find "CO2 Tank - 50lb"
 2. Click Actions → "Receive"
@@ -500,7 +541,7 @@ npm run dev
 7. ✅ Verify: Movement log shows "RECEIVE" transaction
 ```
 
-#### **Test 3: Issue Inventory (FIFO)**
+#### **Test 3: Issue Inventory (FIFO)** DONE
 ```
 1. Click Actions → "Issue"
 2. Select item: "CO2 Tank - 50lb"
@@ -515,7 +556,7 @@ npm run dev
 11. ✅ Verify: Movement log shows "ISSUE" transaction
 ```
 
-#### **Test 4: Adjust Inventory**
+#### **Test 4: Adjust Inventory** DONE
 ```
 1. Click Actions → "Adjust"
 2. Select item: "CO2 Tank - 50lb"

@@ -3,6 +3,12 @@
 -- Comprehensive schema for all integrated features
 -- Version: 1.0
 -- Date: October 16, 2025
+-- 
+-- Change Log:
+-- - 2025-10-29: Inventory transfer trigger consolidated and corrected
+--   - Transfers are quantity-neutral (delta = 0)
+--   - Removed duplicate trigger/function definitions to avoid double updates
+--   - Kept a single AFTER INSERT trigger: trigger_update_inventory_quantity
 -- =====================================================
 
 -- =====================================================
@@ -990,14 +996,14 @@ BEGIN
     WHEN 'return' THEN NEW.quantity
     WHEN 'consume' THEN -NEW.quantity
     WHEN 'dispose' THEN -NEW.quantity
-    WHEN 'transfer' THEN -NEW.quantity
+    WHEN 'transfer' THEN 0  -- Transfers don't change total quantity, just location
     WHEN 'adjust' THEN NEW.quantity  -- Can be positive or negative
     WHEN 'reserve' THEN 0  -- Doesn't change total, only reserved
     WHEN 'unreserve' THEN 0
     ELSE 0
   END;
   
-  -- Update item quantity
+  -- Update item quantity (on-hand and reserved)
   UPDATE public.inventory_items
   SET 
     current_quantity = current_quantity + quantity_delta,
@@ -1009,8 +1015,9 @@ BEGIN
     updated_at = NOW()
   WHERE id = NEW.item_id;
   
-  -- If lot_id is provided, update lot quantity
-  IF NEW.lot_id IS NOT NULL AND NEW.movement_type IN ('consume', 'dispose', 'transfer') THEN
+  -- If lot_id is provided, update lot quantity for consume/dispose only
+  -- Transfers are quantity-neutral at DB level; location updates handled by API
+  IF NEW.lot_id IS NOT NULL AND NEW.movement_type IN ('consume', 'dispose') THEN
     UPDATE public.inventory_lots
     SET 
       quantity_remaining = quantity_remaining - NEW.quantity,
@@ -1023,7 +1030,8 @@ BEGIN
 END;
 $$;
 
--- Trigger to update inventory on movement
+-- Trigger to update inventory on movement (single source of truth)
+DROP TRIGGER IF EXISTS trigger_update_inventory_quantity ON public.inventory_movements;
 CREATE TRIGGER trigger_update_inventory_quantity
 AFTER INSERT ON inventory_movements
 FOR EACH ROW
@@ -1301,45 +1309,8 @@ CREATE TRIGGER batch_event_trigger
   FOR EACH ROW EXECUTE FUNCTION create_batch_event();
 
 -- Function to update inventory quantities after movements
-CREATE OR REPLACE FUNCTION update_inventory_quantity()
-RETURNS TRIGGER 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' THEN
-    UPDATE public.inventory_items 
-    SET current_quantity = current_quantity + 
-        CASE 
-          WHEN NEW.movement_type IN ('receive', 'return', 'adjust') THEN NEW.quantity
-          WHEN NEW.movement_type IN ('consume', 'dispose', 'transfer') THEN -NEW.quantity
-          ELSE 0
-        END
-    WHERE id = NEW.item_id;
-    
-    -- Check for low stock alerts
-    INSERT INTO public.inventory_alerts (item_id, alert_type, threshold_value)
-    SELECT NEW.item_id, 'low_stock', minimum_quantity
-    FROM public.inventory_items 
-    WHERE id = NEW.item_id 
-      AND current_quantity <= minimum_quantity 
-      AND minimum_quantity IS NOT NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM public.inventory_alerts 
-        WHERE item_id = NEW.item_id 
-        AND alert_type = 'low_stock' 
-        AND is_acknowledged = FALSE
-      );
-  END IF;
-  
-  RETURN COALESCE(NEW, OLD);
-END;
-$$;
-
-CREATE TRIGGER inventory_movement_trigger 
-  AFTER INSERT ON inventory_movements
-  FOR EACH ROW EXECUTE FUNCTION update_inventory_quantity();
+-- Removed duplicate and incorrect inventory update function/trigger definitions
+-- (Inventory movement trigger consolidated above; transfers remain quantity-neutral)
 
 -- =====================================================
 -- SEED DATA

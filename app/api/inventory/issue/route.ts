@@ -16,6 +16,7 @@ interface IssueInventoryRequest {
     lot_id: string
     quantity: number
   }>
+  from_location?: string
   to_location?: string
   batch_id?: string
   task_id?: string
@@ -108,10 +109,15 @@ export async function POST(request: NextRequest) {
       // Fetch available lots
       let lotsQuery = supabase
         .from('inventory_lots')
-        .select('id, quantity_remaining')
+        .select('id, quantity_remaining, storage_location')
         .eq('item_id', body.item_id)
         .eq('is_active', true)
         .gt('quantity_remaining', 0)
+
+      // If a source location is specified, restrict to that location
+      if (body.from_location && body.from_location.trim() !== '') {
+        lotsQuery = lotsQuery.eq('storage_location', body.from_location)
+      }
 
       // Apply FEFO filter
       if (body.allocation_method === 'FEFO') {
@@ -161,13 +167,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine movement type based on destination
+    const isLocationTransfer = !!body.to_location && !body.batch_id && !body.task_id
+    const movementType = isLocationTransfer ? 'transfer' : 'consume'
+
     // Process each lot allocation
     const updates = []
     for (const allocation of lotAllocations) {
       // Get current lot
       const { data: lot, error: lotError } = await supabase
         .from('inventory_lots')
-        .select('quantity_remaining')
+        .select('quantity_remaining, storage_location')
         .eq('id', allocation.lot_id)
         .single()
 
@@ -178,25 +188,87 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const newQuantity = lot.quantity_remaining - allocation.quantity
+      if (isLocationTransfer) {
+        // For location transfers, check if partial or full lot transfer
+        const isPartialTransfer = allocation.quantity < lot.quantity_remaining
+        
+        if (isPartialTransfer) {
+          // Partial transfer: Split the lot
+          // 1. Reduce quantity in original lot
+          const reduceOriginalPromise = supabase
+            .from('inventory_lots')
+            .update({
+              quantity_remaining: lot.quantity_remaining - allocation.quantity,
+            })
+            .eq('id', allocation.lot_id)
 
-      // Update lot quantity
-      const updatePromise = supabase
-        .from('inventory_lots')
-        .update({
-          quantity_remaining: newQuantity,
-          is_active: newQuantity > 0,
-        })
-        .eq('id', allocation.lot_id)
+          updates.push(reduceOriginalPromise)
 
-      updates.push(updatePromise)
+          // 2. Create new lot at destination with transferred quantity
+          // Get full lot details first
+          const { data: fullLot } = await supabase
+            .from('inventory_lots')
+            .select('*')
+            .eq('id', allocation.lot_id)
+            .single()
+
+          if (fullLot) {
+            const createNewLotPromise = supabase
+              .from('inventory_lots')
+              .insert({
+                item_id: fullLot.item_id,
+                lot_code: `${fullLot.lot_code}-SPLIT`,
+                quantity_received: allocation.quantity,
+                quantity_remaining: allocation.quantity,
+                unit_of_measure: fullLot.unit_of_measure,
+                storage_location: body.to_location,
+                received_date: fullLot.received_date,
+                expiry_date: fullLot.expiry_date,
+                manufacture_date: fullLot.manufacture_date,
+                supplier_lot_number: fullLot.supplier_lot_number,
+                supplier_id: fullLot.supplier_id,
+                cost_per_unit: fullLot.cost_per_unit,
+                compliance_package_uid: fullLot.compliance_package_uid,
+                is_active: true,
+                created_by: user.id,
+              })
+
+            updates.push(createNewLotPromise)
+          }
+        } else {
+          // Full lot transfer: Just update storage location
+          const updatePromise = supabase
+            .from('inventory_lots')
+            .update({
+              storage_location: body.to_location,
+            })
+            .eq('id', allocation.lot_id)
+
+          updates.push(updatePromise)
+        }
+      } else {
+        // For consume operations, reduce quantity
+        const newQuantity = lot.quantity_remaining - allocation.quantity
+
+        const updatePromise = supabase
+          .from('inventory_lots')
+          .update({
+            quantity_remaining: newQuantity,
+            is_active: newQuantity > 0,
+          })
+          .eq('id', allocation.lot_id)
+
+        updates.push(updatePromise)
+      }
 
       // Create movement record for this allocation
       const movementData: InsertInventoryMovement = {
         item_id: body.item_id,
         lot_id: allocation.lot_id,
-        movement_type: 'consume',
+        movement_type: movementType,
         quantity: allocation.quantity,
+        // Always record the source location (where the lot currently is)
+        from_location: lot.storage_location || undefined,
         to_location: body.to_location || undefined,
         batch_id: body.batch_id || undefined,
         task_id: body.task_id || undefined,

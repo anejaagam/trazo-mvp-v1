@@ -370,6 +370,9 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
   }
 
   const formatMovementType = (type: string) => {
+    // Normalize internal codes to user-facing labels
+    const normalized = (type || '').toLowerCase()
+    if (normalized === 'consume' || normalized === 'issue') return 'Issue'
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   }
 

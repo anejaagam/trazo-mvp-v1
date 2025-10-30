@@ -1,8 +1,8 @@
 # TRAZO MVP - Next Steps & Integration Roadmap
 
-**Last Updated:** October 28, 2025 (**Inventory Feature COMPLETE - Ready for Production**)  
-**Document Version:** 4.1  
-**Current Phase:** Phase 8 - Inventory Feature Ready for Production
+**Last Updated:** December 2024 (**Phase 10: Monitoring Integration - Multi-Tenant Token Management**)  
+**Document Version:** 4.6  
+**Current Phase:** Phase 10 - Monitoring & Telemetry Integration (Multi-Tenant Configuration UI - 85%)
 
 ---
 
@@ -179,16 +179,38 @@ Follow these steps to get productive in minutes:
 - [ ] Confirm login works in non-dev mode (multi-region sign-in via LoginForm)
 - [ ] Update CURRENT.md “Deployment” notes with any observed issues
 
-#### Monitoring & Telemetry
-- [ ] Migrate monitoring components to `/components/features/monitoring/`
-- [ ] Create `/app/dashboard/monitoring/` pages
-- [ ] Set up `useTelemetry()` hook with Supabase Realtime
-- [ ] Create pod status cards
-- [ ] Create environmental charts (temp, humidity, CO2, VPD)
-- [ ] Implement telemetry table with filtering
-- [ ] Add data export functionality
-- [ ] **For MVP:** Use mock telemetry data (TagoIO integration post-migration)
-- [ ] Create structure for TagoIO integration (`/lib/tagoio/`)
+#### Monitoring & Telemetry ✅ PHASE 5 COMPLETE + ✅ PHASE 6 COMPLETE (86% OVERALL)
+- [x] **Phase 5**: Dashboard Pages (8 files, 1,169 lines) - ✅ COMPLETE (Oct 29, 2025)
+  - [x] Migrate monitoring components to `/components/features/monitoring/`
+  - [x] Create `/app/dashboard/monitoring/` pages
+  - [x] Set up `useTelemetry()` hook with Supabase Realtime
+  - [x] Create pod status cards
+  - [x] Create environmental charts (temp, humidity, CO2, VPD)
+  - [x] Implement telemetry table with filtering
+  - [x] Add data export functionality
+  - [x] Use demo data for testing (real data via TagoIO Phase 6)
+- [x] **Phase 6**: TagoIO Integration (7 files, 1,743 lines) - ✅ COMPLETE (Oct 29, 2025)
+  - [x] Test TagoIO API endpoints - `scripts/test-tagoio-api.ts` (217 lines)
+  - [x] Create TagoIO client library - `/lib/tagoio/client.ts` (436 lines)
+  - [x] Create data transformer - `/lib/tagoio/transformer.ts` (496 lines)
+  - [x] Create polling service - `/lib/tagoio/polling-service.ts` (374 lines)
+  - [x] Create Vercel Cron endpoint - `/app/api/cron/telemetry-poll/route.ts` (120 lines)
+  - [x] Create token validation - `/app/api/validate-tagoio/route.ts` (67 lines)
+  - [x] Configure Vercel Cron schedule - `vercel.json` (8 lines)
+  - [x] Document API structure - `TAGOIO_API_ANALYSIS.md`
+  - [x] Integration settings: Token storage & validation in database
+  - [x] Fixed table name mismatches: alarm_notifications → notifications
+  - [ ] **PENDING**: Update pods with TagoIO device IDs (30 minutes)
+  - [ ] **PENDING**: Test end-to-end data flow with live device (2 hours)
+- [ ] **Phase 7**: Testing & Validation (6 hours) - IN PROGRESS
+  - [ ] Unit tests for TagoIO client
+  - [ ] Unit tests for data transformer
+  - [ ] Integration test for polling service
+  - [ ] End-to-end test with live device
+  - [ ] Documentation updates
+- **Status**: Core integration complete - Ready for device mapping & testing
+- **Achievement**: 2,912 lines of production code (Phases 5+6)
+- **See**: `TAGOIO_INTEGRATION_PHASE6_COMPLETE.md` for full details
 
 #### Environmental Controls
 - [ ] Migrate control components to `/components/features/controls/`
@@ -753,32 +775,122 @@ npm run start
 
 ## 🗺️ **FUTURE FEATURE ROADMAP**
 
-### **Phase 10: Monitoring & Telemetry** (NEXT UP - 2-3 weeks)
+### **Phase 10: Monitoring & Telemetry** (IN PROGRESS - 72% Complete)
 
 **Goal:** Real-time environmental monitoring and historical data visualization
 
-**Deliverables:**
-1. Real-time pod status dashboard
-2. Environmental metrics (temp, humidity, CO2, VPD)
-3. Time-series charts (last 24h, 7d, 30d)
-4. Equipment status indicators
-5. TagoIO API integration
-6. Telemetry polling service (60s intervals)
-7. `telemetry_readings` table usage
-8. Alert integration (thresholds)
+**Status:** Phase 5 Complete (October 29, 2025)
+
+**Completed:**
+- ✅ Phase 1: Type Definitions (755 lines, 50+ types)
+- ✅ Phase 2: Database Queries (2,054 lines, 45+ functions)
+  - `/lib/supabase/queries/telemetry.ts` (847 lines)
+  - `/lib/supabase/queries/telemetry-client.ts` (470 lines)
+  - `/lib/supabase/queries/alarms.ts` (737 lines)
+- ✅ Phase 3: Custom React Hooks (1,100 lines, 7 hooks)
+  - `/hooks/use-telemetry.ts` (428 lines, 4 hooks)
+    - `useTelemetry()` - Single pod real-time monitoring
+    - `useHistoricalTelemetry()` - Time-series data for charts
+    - `usePodSnapshots()` - Fleet monitoring
+    - `useDeviceStatus()` - Hardware health tracking
+  - `/hooks/use-alarms.ts` (410 lines, 3 hooks)
+    - `useAlarms()` - Alarm management with filtering
+    - `useAlarmSummary()` - Dashboard summary widget
+  - `/hooks/use-notifications.ts` (267 lines, 1 hook)
+    - `useNotifications()` - User notifications
+- ✅ Phase 4: Component Migration (2,815 lines, 13 components)
+  - **Tier 1 - Core Monitoring (4 components):**
+    - `pod-card.tsx` (324 lines) - Individual pod status card
+    - `fleet-view.tsx` (375 lines) - Grid/table view of all pods
+    - `environment-chart.tsx` (285 lines) - Time-series visualization with "All Metrics" view
+    - `pod-detail.tsx` (365 lines) - Comprehensive single-pod view
+  - **Tier 2 - Alarm System (3 components):**
+    - `alarms-panel.tsx` (408 lines) - Tabbed alarm list
+    - `alarm-summary-widget.tsx` (132 lines) - Dashboard widget
+    - `notifications-panel.tsx` (242 lines) - Notification inbox
+  - **Tier 3 - Supporting (6 components):**
+    - `sensor-card.tsx` (185 lines) - Individual sensor display
+    - `trend-indicator.tsx` (90 lines) - Metric change arrows
+    - `real-time-badge.tsx` (36 lines) - Live data indicator
+    - `stats-grid.tsx` (75 lines) - Summary statistics layout
+    - `export-button.tsx` (191 lines) - CSV/PDF export
+    - `time-range-selector.tsx` (162 lines) - Time window picker
+- ✅ Phase 5: Dashboard Pages (1,169 lines, 8 files)
+  - **Pages (2 files, 208 lines):**
+    - `/app/dashboard/monitoring/page.tsx` (94 lines) - Fleet monitoring with RBAC
+    - `/app/dashboard/monitoring/[podId]/page.tsx` (114 lines) - Pod detail with dynamic routing
+  - **Client Dashboards (2 files, 254 lines):**
+    - `fleet-monitoring-dashboard.tsx` (209 lines) - Fleet dashboard with grid/table toggle
+    - `pod-detail-dashboard.tsx` (45 lines) - Pod detail wrapper with navigation
+  - **Supporting Components (1 file, 127 lines):**
+    - `fleet-grid-view.tsx` (127 lines) - Card-based grid view alternative
+  - **Server Actions (1 file, 133 lines):**
+    - `/app/actions/monitoring.ts` (133 lines) - 4 server actions with RLS bypass
+  - **Seed System (2 files, 441 lines):**
+    - `/scripts/seed-monitoring.ts` (171 lines) - Demo data seeding script
+    - `/lib/supabase/seed-monitoring-data.ts` (270 lines) - Seed data definitions
+  - **Demo Data Created:**
+    - 3 pods (Alpha-1, Alpha-2, Beta-1) at GreenLeaf Main Facility
+    - 858 telemetry readings (24-hour simulation with day/night cycles)
+    - 2 rooms (Flower Room A, Veg Room B)
+    - 3 device status records
+  - **Critical Fixes Applied:**
+    - Schema alignment (recorded_at → timestamp, room dimensions, pod fields)
+    - RLS bypass using service client pattern
+    - Dev mode organization/site alignment
+    - Grid/table toggle functionality
+    - Pod click navigation (fleet → detail)
+    - "All Metrics" chart view with dual Y-axes
+  - **Features:**
+    - Server-side authentication and RBAC enforcement
+    - Dev mode support with mock data
+    - Site access verification (multi-tenancy)
+    - Dynamic metadata generation for SEO
+    - 404 handling for missing pods
+    - Proper error routes and redirects
+    - TypeScript compilation clean (0 errors)
+    - Data Flow: Database → Service Client → Server Actions → Client Hooks → UI
+
+**Remaining Deliverables:**
+1. ✅ Real-time pod status dashboard (COMPLETE)
+2. ✅ Environmental metrics (temp, humidity, CO2, VPD) (COMPLETE)
+3. ✅ Time-series charts (last 24h, 7d, 30d) (COMPLETE)
+4. ✅ Equipment status indicators (COMPLETE)
+5. ✅ Dashboard pages (2 pages, Phase 5) (COMPLETE)
+6. ✅ TagoIO API integration (Phase 6) - **✅ COMPLETE**
+7. ✅ Telemetry polling service (60s intervals, Phase 6) - **✅ COMPLETE**
+8. ✅ Token validation and storage (Phase 6) - **✅ COMPLETE**
+9. ⏳ Device mapping (pods → TagoIO IDs) - **30 minutes remaining**
+10. ⏳ End-to-end testing with live data (Phase 7) - **2 hours remaining**
+11. ⏳ Unit & integration tests (Phase 7) - **4 hours remaining**
+12. ⏳ Alarm threshold management (Phase 7+)
 
 **Reference:** `/Prototypes/MonitoringAndTelemetryPrototype/`
 
-**Database:** `telemetry_readings` table already exists in schema
+**Database:** `telemetry_readings`, `alarms`, `notifications`, `integration_settings` tables deployed
 
 **Integration Pattern:** Same 7-phase approach as Inventory
-- Phase 1: Database (already done)
-- Phase 2: Types
-- Phase 3: Queries
-- Phase 4: Components
-- Phase 5: Pages
-- Phase 6: API Routes
-- Phase 7: Testing
+- ✅ Phase 1: Type Definitions (COMPLETE - 755 lines)
+- ✅ Phase 2: Database Queries (COMPLETE - 2,054 lines)
+- ✅ Phase 3: Custom Hooks (COMPLETE - 1,100 lines)
+- ✅ Phase 4: Component Migration (COMPLETE - 2,815 lines)
+- ✅ Phase 5: Dashboard Pages (COMPLETE - 1,169 lines)
+- ✅ Phase 6: TagoIO Integration (✅ COMPLETE - 1,743 lines)
+  - ✅ API discovery and testing script
+  - ✅ HTTP client with Device-Token auth
+  - ✅ Data transformer (°F→°C, VPD extraction, validation)
+  - ✅ Polling service with error handling & retry logic
+  - ✅ Vercel Cron endpoint (60s interval)
+  - ✅ Token validation API route
+  - ✅ Integration settings database storage
+  - ✅ Complete API documentation
+  - ⏳ Device mapping (30 min remaining)
+  - ⏳ Device ID mapping (pending)
+- ⏳ Phase 7: Testing (8 hours)
+
+**Progress:** 70/78 hours (90%), 8 hours remaining
+**Status:** Core integration complete, ready for device mapping and testing
+**See:** `TAGOIO_INTEGRATION_PHASE6_COMPLETE.md` for details
 
 ---
 

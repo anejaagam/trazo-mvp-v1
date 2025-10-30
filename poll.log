@@ -1,0 +1,249 @@
+
+> poll:user:watch
+> ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-user-org.ts agam@trazo.ag
+
+[dotenv@17.2.3] injecting env (30) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+[1m[2025-10-30T08:40:01.872Z] 🎯 Organization-Scoped TagoIO Polling Service[0m
+[0m[2025-10-30T08:40:01.876Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:40:01.877Z] 🔍 Searching for user: agam@trazo.ag[0m
+[36m[2025-10-30T08:40:01.877Z]    Checking US region...[0m
+[32m[2025-10-30T08:40:02.097Z]    ✅ Found user in US region[0m
+[35m[2025-10-30T08:40:02.360Z] 👤 User: agam@trazo.ag[0m
+[35m[2025-10-30T08:40:02.360Z] 🏢 Organization: Infinity Greens and Produce Ltd[0m
+[35m[2025-10-30T08:40:02.360Z] 🌍 Region: US[0m
+[35m[2025-10-30T08:40:02.360Z] 🔑 Role: org_admin[0m
+[0m[2025-10-30T08:40:02.360Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:40:02.361Z] 📡 Poll interval: 60 seconds[0m
+[36m[2025-10-30T08:40:02.361Z] 🔄 Mode: Continuous[0m
+[0m[2025-10-30T08:40:02.361Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:40:02.361Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:40:02.361Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:40:02.361Z]    Region: US[0m
+[34m[2025-10-30T08:40:02.361Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:40:02.957Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 596ms[0m
+[36m[2025-10-30T08:40:02.957Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:41:02.960Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:41:02.965Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:41:02.965Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:41:02.965Z]    Region: US[0m
+[34m[2025-10-30T08:41:02.965Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:41:03.522Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 557ms[0m
+[36m[2025-10-30T08:41:03.522Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:42:02.962Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:42:02.963Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:42:02.963Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:42:02.963Z]    Region: US[0m
+[34m[2025-10-30T08:42:02.963Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:42:03.529Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 566ms[0m
+[36m[2025-10-30T08:42:03.529Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:43:02.964Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:43:02.968Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:43:02.968Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:43:02.968Z]    Region: US[0m
+[34m[2025-10-30T08:43:02.968Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:43:03.506Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 538ms[0m
+[36m[2025-10-30T08:43:03.506Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:44:02.967Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:44:02.968Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:44:02.968Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:44:02.968Z]    Region: US[0m
+[34m[2025-10-30T08:44:02.969Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (1 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 1 readings → 1 inserted
+[32m[2025-10-30T08:44:03.544Z] ✅ Poll complete: 1/1 pods, 1 readings inserted in 575ms[0m
+[36m[2025-10-30T08:44:03.544Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:45:02.970Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:45:02.972Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:45:02.972Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:45:02.972Z]    Region: US[0m
+[34m[2025-10-30T08:45:02.972Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (1 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 1 readings → 1 inserted
+[32m[2025-10-30T08:45:03.840Z] ✅ Poll complete: 1/1 pods, 1 readings inserted in 868ms[0m
+[36m[2025-10-30T08:45:03.840Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:46:02.972Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:46:02.973Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:46:02.973Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:46:02.973Z]    Region: US[0m
+[34m[2025-10-30T08:46:02.973Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (1 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 1 readings → 1 inserted
+[32m[2025-10-30T08:46:03.671Z] ✅ Poll complete: 1/1 pods, 1 readings inserted in 698ms[0m
+[36m[2025-10-30T08:46:03.672Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:47:02.978Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:47:03.000Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:47:03.000Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:47:03.000Z]    Region: US[0m
+[34m[2025-10-30T08:47:03.000Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (1 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 1 readings → 1 inserted
+[32m[2025-10-30T08:47:03.626Z] ✅ Poll complete: 1/1 pods, 1 readings inserted in 626ms[0m
+[36m[2025-10-30T08:47:03.626Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:48:02.981Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:48:02.985Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:48:02.985Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:48:02.985Z]    Region: US[0m
+[34m[2025-10-30T08:48:02.986Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (1 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 1 readings → 1 inserted
+[32m[2025-10-30T08:48:03.677Z] ✅ Poll complete: 1/1 pods, 1 readings inserted in 691ms[0m
+[36m[2025-10-30T08:48:03.677Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:49:02.985Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:49:02.986Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:49:02.987Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:49:02.987Z]    Region: US[0m
+[34m[2025-10-30T08:49:02.987Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:49:03.527Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 540ms[0m
+[36m[2025-10-30T08:49:03.528Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:50:02.986Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:50:02.988Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:50:02.988Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:50:02.988Z]    Region: US[0m
+[34m[2025-10-30T08:50:02.988Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:50:03.594Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 606ms[0m
+[36m[2025-10-30T08:50:03.594Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:51:02.989Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:51:02.990Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:51:02.990Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:51:02.990Z]    Region: US[0m
+[34m[2025-10-30T08:51:02.990Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:51:03.526Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 536ms[0m
+[36m[2025-10-30T08:51:03.526Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:52:02.992Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:52:02.994Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:52:02.994Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:52:02.994Z]    Region: US[0m
+[34m[2025-10-30T08:52:02.994Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:52:03.519Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 525ms[0m
+[36m[2025-10-30T08:52:03.520Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:53:02.995Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:53:02.996Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:53:02.996Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:53:02.996Z]    Region: US[0m
+[34m[2025-10-30T08:53:02.996Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:53:03.619Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 623ms[0m
+[36m[2025-10-30T08:53:03.619Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:54:02.997Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:54:02.999Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:54:03.000Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:54:03.000Z]    Region: US[0m
+[34m[2025-10-30T08:54:03.000Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T08:54:03.658Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 658ms[0m
+[36m[2025-10-30T08:54:03.658Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:55:03.000Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:55:03.001Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:55:03.001Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:55:03.001Z]    Region: US[0m
+[34m[2025-10-30T08:55:03.001Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (2 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 2 readings → 2 inserted
+[32m[2025-10-30T08:55:03.854Z] ✅ Poll complete: 1/1 pods, 2 readings inserted in 853ms[0m
+[36m[2025-10-30T08:55:03.854Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:56:03.003Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:56:03.004Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:56:03.004Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:56:03.004Z]    Region: US[0m
+[34m[2025-10-30T08:56:03.004Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (2 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 2 readings → 2 inserted
+[32m[2025-10-30T08:56:03.597Z] ✅ Poll complete: 1/1 pods, 2 readings inserted in 593ms[0m
+[36m[2025-10-30T08:56:03.597Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:57:03.005Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:57:03.013Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:57:03.013Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:57:03.013Z]    Region: US[0m
+[34m[2025-10-30T08:57:03.013Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (2 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 2 readings → 2 inserted
+[32m[2025-10-30T08:57:03.739Z] ✅ Poll complete: 1/1 pods, 2 readings inserted in 726ms[0m
+[36m[2025-10-30T08:57:03.739Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:58:03.010Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:58:03.016Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:58:03.016Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:58:03.016Z]    Region: US[0m
+[34m[2025-10-30T08:58:03.016Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (2 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 2 readings → 2 inserted
+[32m[2025-10-30T08:58:03.675Z] ✅ Poll complete: 1/1 pods, 2 readings inserted in 659ms[0m
+[36m[2025-10-30T08:58:03.675Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T08:59:03.012Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T08:59:03.013Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T08:59:03.013Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T08:59:03.013Z]    Region: US[0m
+[34m[2025-10-30T08:59:03.013Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+Inserting batch 1 (2 readings) for pod 2b58c2cf-a05e-44bd-948d-0d4a449a55d0...
+Successfully polled pod Test: 3 data points → 2 readings → 2 inserted
+[32m[2025-10-30T08:59:03.647Z] ✅ Poll complete: 1/1 pods, 2 readings inserted in 634ms[0m
+[36m[2025-10-30T08:59:03.647Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T09:00:03.018Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T09:00:03.022Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T09:00:03.022Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T09:00:03.022Z]    Region: US[0m
+[34m[2025-10-30T09:00:03.022Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T09:00:03.647Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 625ms[0m
+[36m[2025-10-30T09:00:03.647Z] ⏰ Next poll in 60 seconds...[0m
+[0m[2025-10-30T09:01:03.023Z] ────────────────────────────────────────────────────────────────────────────────[0m
+[36m[2025-10-30T09:01:03.034Z] 🚀 Starting TagoIO telemetry poll...[0m
+[34m[2025-10-30T09:01:03.034Z]    Organization: Infinity Greens and Produce Ltd[0m
+[34m[2025-10-30T09:01:03.034Z]    Region: US[0m
+[34m[2025-10-30T09:01:03.034Z]    Sites: 1[0m
+Polling 1 pods...
+Polling device 65c265fcaef5e1000f67898b for pod Test...
+No new data for pod Test
+[32m[2025-10-30T09:01:03.496Z] ✅ Poll complete: 1/1 pods, 0 readings inserted in 462ms[0m
+[36m[2025-10-30T09:01:03.496Z] ⏰ Next poll in 60 seconds...[0m
+[33m[2025-10-30T09:01:29.420Z] 
+🛑 Received SIGTERM. Shutting down...[0m

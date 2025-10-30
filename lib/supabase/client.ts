@@ -9,7 +9,14 @@ export function createClient(region?: Region) {
   const selectedRegion = region || getStoredRegion();
   const config = getRegionConfig(selectedRegion);
 
-  return createBrowserClient(config.url, config.anonKey);
+  return createBrowserClient(config.url, config.anonKey, {
+    global: {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    },
+  });
 }
 
 /**

@@ -55,6 +55,11 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // Allow API routes to handle their own authentication
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return supabaseResponse;
+  }
+
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/login') &&

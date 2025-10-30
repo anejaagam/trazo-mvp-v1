@@ -7,3 +7,6 @@ export * from './admin';
 
 // Inventory types
 export * from './inventory';
+
+// Telemetry & Monitoring types
+export * from './telemetry';

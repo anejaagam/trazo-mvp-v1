@@ -1,0 +1,767 @@
+/**
+ * Telemetry & Monitoring Types
+ * 
+ * Comprehensive type definitions for real-time environmental monitoring,
+ * alarm management, and TagoIO integration.
+ * 
+ * Aligned with database schema in lib/supabase/schema.sql
+ */
+
+// =====================================================
+// CORE TELEMETRY TYPES
+// =====================================================
+
+/**
+ * Telemetry reading from database (complete record)
+ */
+export interface TelemetryReading {
+  id: string;
+  pod_id: string;
+  timestamp: string; // ISO8601 timestamp
+  
+  // Environmental readings
+  temperature_c: number | null;
+  humidity_pct: number | null;
+  co2_ppm: number | null;
+  vpd_kpa: number | null;
+  light_intensity_pct: number | null;
+  
+  // Equipment states
+  cooling_active: boolean | null;
+  heating_active: boolean | null;
+  dehumidifier_active: boolean | null;
+  humidifier_active: boolean | null;
+  co2_injection_active: boolean | null;
+  exhaust_fan_active: boolean | null;
+  circulation_fan_active: boolean | null;
+  irrigation_active: boolean | null;
+  lighting_active: boolean | null;
+  fogger_active: boolean | null;
+  hepa_filter_active: boolean | null;
+  uv_sterilization_active: boolean | null;
+  lights_on: boolean | null; // Alias for lighting_active (backwards compatibility)
+  communication_fault: boolean | null; // General communication fault indicator
+  
+  // Sensor health indicators
+  temp_sensor_fault: boolean | null;
+  humidity_sensor_fault: boolean | null;
+  co2_sensor_fault: boolean | null;
+  pressure_sensor_fault: boolean | null;
+  
+  // Recipe tracking
+  active_recipe_id: string | null;
+  
+  // Data provenance
+  raw_data: Record<string, unknown> | null; // JSONB - stores original TagoIO response
+  data_source: 'tagoio' | 'manual' | 'calculated' | 'simulated';
+  
+  // Metadata
+  created_at?: string;
+}
+
+/**
+ * Telemetry reading with pod information (for UI display)
+ */
+export interface TelemetryReadingWithPod extends TelemetryReading {
+  pod: {
+    id: string;
+    name: string;
+    room_id: string;
+    tagoio_device_id: string | null;
+  };
+  room?: {
+    id: string;
+    name: string;
+    site_id: string;
+  };
+}
+
+/**
+ * Insert type for new telemetry readings
+ */
+export interface InsertTelemetryReading {
+  pod_id: string;
+  timestamp?: string;
+  temperature_c?: number | null;
+  humidity_pct?: number | null;
+  co2_ppm?: number | null;
+  vpd_kpa?: number | null;
+  light_intensity_pct?: number | null;
+  lights_on?: boolean | null; // TagoIO light_state on/off status
+  cooling_active?: boolean | null;
+  heating_active?: boolean | null;
+  dehumidifier_active?: boolean | null;
+  humidifier_active?: boolean | null;
+  co2_injection_active?: boolean | null;
+  exhaust_fan_active?: boolean | null;
+  circulation_fan_active?: boolean | null;
+  irrigation_active?: boolean | null;
+  lighting_active?: boolean | null;
+  fogger_active?: boolean | null;
+  hepa_filter_active?: boolean | null;
+  uv_sterilization_active?: boolean | null;
+  temp_sensor_fault?: boolean | null;
+  humidity_sensor_fault?: boolean | null;
+  co2_sensor_fault?: boolean | null;
+  pressure_sensor_fault?: boolean | null;
+  active_recipe_id?: string | null;
+  raw_data?: Record<string, unknown> | null;
+  data_source: 'tagoio' | 'manual' | 'calculated' | 'simulated';
+}
+
+/**
+ * Update type for telemetry readings (limited - readings are mostly immutable)
+ */
+export interface UpdateTelemetryReading {
+  active_recipe_id?: string | null;
+  data_source?: 'tagoio' | 'manual' | 'calculated' | 'simulated';
+}
+
+// =====================================================
+// DEVICE STATUS
+// =====================================================
+
+export type DeviceType = 'gcu' | 'sensor' | 'actuator';
+export type DeviceStatus = 'online' | 'offline' | 'error' | 'maintenance';
+
+export interface DeviceStatusRecord {
+  id: string;
+  pod_id: string;
+  device_type: DeviceType;
+  device_name: string;
+  status: DeviceStatus;
+  last_communication: string | null;
+  error_message: string | null;
+  firmware_version: string | null;
+  hardware_version: string | null;
+  updated_at: string;
+}
+
+export interface InsertDeviceStatus {
+  pod_id: string;
+  device_type: DeviceType;
+  device_name: string;
+  status: DeviceStatus;
+  last_communication?: string | null;
+  error_message?: string | null;
+  firmware_version?: string | null;
+  hardware_version?: string | null;
+}
+
+export interface UpdateDeviceStatus {
+  status?: DeviceStatus;
+  last_communication?: string | null;
+  error_message?: string | null;
+  firmware_version?: string | null;
+  hardware_version?: string | null;
+}
+
+// =====================================================
+// POD SNAPSHOT (Real-time Status)
+// =====================================================
+
+export type PodHealthStatus = 'healthy' | 'warning' | 'critical' | 'offline' | 'stale';
+
+/**
+ * Current snapshot of a pod's status
+ * Derived from latest telemetry reading + alarm counts
+ */
+export interface PodSnapshot {
+  pod: {
+    id: string;
+    name: string;
+    room_id: string;
+    tagoio_device_id: string | null;
+  };
+  room: {
+    id: string;
+    name: string;
+    site_id: string;
+  };
+  last_update: string | null; // ISO8601 timestamp of latest reading
+  health_status: PodHealthStatus;
+  
+  // Current readings
+  temperature_c: number | null;
+  humidity_pct: number | null;
+  co2_ppm: number | null;
+  vpd_kpa: number | null;
+  light_intensity_pct: number | null;
+  
+  // Equipment states
+  equipment: {
+    cooling: boolean;
+    heating: boolean;
+    dehumidifier: boolean;
+    humidifier: boolean;
+    co2_injection: boolean;
+    exhaust_fan: boolean;
+    circulation_fan: boolean;
+    irrigation: boolean;
+    lighting: boolean;
+  };
+  
+  // Sensor health
+  sensor_faults: {
+    temperature: boolean;
+    humidity: boolean;
+    co2: boolean;
+    pressure: boolean;
+  };
+  
+  // Active recipe info (if available)
+  active_recipe: {
+    id: string;
+    name: string;
+    setpoints: {
+      temp_day_c: number | null;
+      humidity_day_pct: number | null;
+      co2_day_ppm: number | null;
+    };
+  } | null;
+  
+  // Alarm summary
+  alarm_count_24h: number;
+  critical_alarm_count: number;
+  warning_alarm_count: number;
+  
+  // Drift from setpoints (if recipe active)
+  drift: {
+    temperature: number | null; // degrees C
+    humidity: number | null; // percentage points
+    co2: number | null; // ppm
+  } | null;
+}
+
+/**
+ * Extended Pod Snapshot with additional fields for backwards compatibility
+ * Used by existing query stubs
+ */
+export interface PodSnapshotExtended extends Omit<PodSnapshot, 'pod'> {
+  pod: {
+    id: string;
+    name: string;
+    room_id: string;
+    room_name: string; // Additional field for display
+    status: string; // Pod operational status
+    tagoio_device_id: string | null;
+  };
+  data_freshness: 'fresh' | 'stale' | 'offline';
+  health: 'healthy' | 'warning' | 'critical' | 'offline';
+  metrics?: {
+    temperature: MetricStatistics | null;
+    humidity: MetricStatistics | null;
+    co2: MetricStatistics | null;
+    vpd: MetricStatistics | null;
+    light: MetricStatistics | null;
+  };
+}
+
+// =====================================================
+// ALARMS
+// =====================================================
+
+export type AlarmType =
+  | 'temperature_high'
+  | 'temperature_low'
+  | 'humidity_high'
+  | 'humidity_low'
+  | 'co2_high'
+  | 'co2_low'
+  | 'vpd_out_of_range'
+  | 'device_offline'
+  | 'sensor_fault'
+  | 'power_failure'
+  | 'water_leak'
+  | 'security_breach'
+  | 'door_open';
+
+export type AlarmSeverity = 'critical' | 'warning' | 'info';
+
+export interface Alarm {
+  id: string;
+  pod_id: string;
+  policy_id: string | null;
+  alarm_type: AlarmType;
+  severity: AlarmSeverity;
+  message: string;
+  threshold_value: number | null;
+  actual_value: number | null;
+  duration_seconds: number | null;
+  
+  // Related entities
+  batch_id: string | null;
+  recipe_id: string | null;
+  telemetry_reading_id: string | null;
+  
+  // Lifecycle timestamps
+  triggered_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  escalated_at: string | null;
+  escalated_to_level: number;
+  
+  // Actions
+  auto_action_taken: string | null;
+  override_applied: boolean;
+  
+  // Notes
+  ack_note: string | null;
+  resolution_note: string | null;
+  root_cause: string | null;
+}
+
+/**
+ * Alarm with pod and user information
+ */
+export interface AlarmWithDetails extends Alarm {
+  pod: {
+    id: string;
+    name: string;
+    room_id: string;
+  };
+  room: {
+    id: string;
+    name: string;
+    site_id: string;
+  };
+  acknowledged_by_user?: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  };
+  resolved_by_user?: {
+    id: string;
+    email: string;
+    full_name: string | null;
+  };
+}
+
+export interface InsertAlarm {
+  pod_id: string;
+  policy_id?: string | null;
+  alarm_type: AlarmType;
+  severity: AlarmSeverity;
+  message: string;
+  threshold_value?: number | null;
+  actual_value?: number | null;
+  duration_seconds?: number | null;
+  batch_id?: string | null;
+  recipe_id?: string | null;
+  telemetry_reading_id?: string | null;
+  auto_action_taken?: string | null;
+  override_applied?: boolean;
+}
+
+export interface UpdateAlarm {
+  acknowledged_at?: string;
+  acknowledged_by?: string;
+  ack_note?: string;
+  resolved_at?: string;
+  resolved_by?: string;
+  resolution_note?: string;
+  root_cause?: string;
+  escalated_at?: string;
+  escalated_to_level?: number;
+}
+
+// =====================================================
+// ALARM POLICIES
+// =====================================================
+
+export type ThresholdOperator = '>' | '<' | '>=' | '<=' | '=' | '!=';
+
+export interface AlarmPolicy {
+  id: string;
+  organization_id: string;
+  name: string;
+  alarm_type: AlarmType;
+  severity: AlarmSeverity;
+  threshold_value: number | null;
+  threshold_operator: ThresholdOperator | null;
+  time_in_state_seconds: number; // Default 300 (5 minutes)
+  applies_to_stage: string[] | null; // Array of batch stages
+  applies_to_pod_types: string[] | null; // Array of pod types
+  suppression_duration_minutes: number;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsertAlarmPolicy {
+  organization_id: string;
+  name: string;
+  alarm_type: AlarmType;
+  severity: AlarmSeverity;
+  threshold_value?: number | null;
+  threshold_operator?: ThresholdOperator | null;
+  time_in_state_seconds?: number;
+  applies_to_stage?: string[] | null;
+  applies_to_pod_types?: string[] | null;
+  suppression_duration_minutes?: number;
+  is_active?: boolean;
+  created_by: string;
+}
+
+export interface UpdateAlarmPolicy {
+  name?: string;
+  threshold_value?: number | null;
+  threshold_operator?: ThresholdOperator | null;
+  time_in_state_seconds?: number;
+  applies_to_stage?: string[] | null;
+  applies_to_pod_types?: string[] | null;
+  suppression_duration_minutes?: number;
+  is_active?: boolean;
+}
+
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+
+export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'push';
+export type NotificationStatus = 'sent' | 'delivered' | 'failed' | 'read';
+
+export interface Notification {
+  id: string;
+  alarm_id: string | null;
+  user_id: string | null;
+  channel: NotificationChannel;
+  message: string;
+  sent_at: string;
+  delivered_at: string | null;
+  read_at: string | null;
+  status: NotificationStatus;
+}
+
+export interface InsertNotification {
+  alarm_id?: string | null;
+  user_id?: string | null;
+  channel: NotificationChannel;
+  message: string;
+  status?: NotificationStatus;
+}
+
+export interface UpdateNotification {
+  delivered_at?: string;
+  read_at?: string;
+  status?: NotificationStatus;
+}
+
+// =====================================================
+// ALARM ROUTES
+// =====================================================
+
+export interface AlarmRoute {
+  id: string;
+  organization_id: string;
+  policy_id: string | null;
+  severity: AlarmSeverity;
+  notify_role: string;
+  channel: NotificationChannel;
+  escalation_delay_minutes: number;
+  escalation_level: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface InsertAlarmRoute {
+  organization_id: string;
+  policy_id?: string | null;
+  severity: AlarmSeverity;
+  notify_role: string;
+  channel: NotificationChannel;
+  escalation_delay_minutes?: number;
+  escalation_level?: number;
+  is_active?: boolean;
+}
+
+// =====================================================
+// CHART & VISUALIZATION TYPES
+// =====================================================
+
+/**
+ * Data point for time-series charts
+ */
+export interface ChartDataPoint {
+  timestamp: string; // ISO8601
+  temperature_c?: number | null;
+  humidity_pct?: number | null;
+  co2_ppm?: number | null;
+  vpd_kpa?: number | null;
+  light_intensity_pct?: number | null;
+  
+  // Setpoints (if recipe active)
+  setpoint_temp?: number | null;
+  setpoint_humidity?: number | null;
+  setpoint_co2?: number | null;
+  
+  // Equipment states (for event markers)
+  cooling_active?: boolean;
+  heating_active?: boolean;
+  irrigation_active?: boolean;
+}
+
+/**
+ * Aggregated environmental statistics
+ */
+export interface EnvironmentalStats {
+  pod_id: string;
+  date_range: {
+    start: string;
+    end: string;
+  };
+  temperature: MetricStatistics;
+  humidity: MetricStatistics;
+  co2: MetricStatistics;
+  vpd: {
+    avg: number | null;
+    min: number | null;
+    max: number | null;
+  };
+  readings_count: number;
+  sensor_faults_count: number;
+  equipment_runtime: {
+    cooling_minutes: number;
+    heating_minutes: number;
+    dehumidifier_minutes: number;
+    humidifier_minutes: number;
+  };
+}
+
+/**
+ * Individual metric statistics
+ */
+export interface MetricStatistics {
+  avg: number | null;
+  min: number | null;
+  max: number | null;
+  std_dev?: number | null;
+  count?: number;
+}
+
+/**
+ * Time-series data for charts
+ */
+export interface TimeSeriesData {
+  pod_id: string;
+  pod_name: string;
+  data_points: ChartDataPoint[];
+  setpoints: {
+    temp_day_c: number | null;
+    temp_night_c: number | null;
+    humidity_day_pct: number | null;
+    humidity_night_pct: number | null;
+    co2_day_ppm: number | null;
+    co2_night_ppm: number | null;
+  } | null;
+  alarm_events: Array<{
+    timestamp: string;
+    alarm_type: AlarmType;
+    severity: AlarmSeverity;
+    message: string;
+  }>;
+}
+
+// =====================================================
+// TAGOIO INTEGRATION TYPES
+// =====================================================
+
+/**
+ * TagoIO device information
+ */
+export interface TagoIODevice {
+  id: string;
+  name: string;
+  active: boolean;
+  visible: boolean;
+  last_input?: string;
+  last_output?: string;
+  tags?: string[];
+  created_at?: string;
+}
+
+/**
+ * TagoIO variable structure
+ */
+export interface TagoIOVariable {
+  variable: string;
+  value: number | string | boolean;
+  unit?: string;
+  time?: string; // ISO8601
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * TagoIO reading response
+ */
+export interface TagoIOReading {
+  device: string;
+  time: string; // ISO8601
+  variables: TagoIOVariable[];
+}
+
+/**
+ * TagoIO API response wrapper
+ */
+export interface TagoIOResponse<T = unknown> {
+  result: T;
+  status: boolean;
+  message?: string;
+}
+
+/**
+ * Device mapping configuration (pod_id -> TagoIO device_id)
+ */
+export interface DeviceMapping {
+  podId: string;
+  deviceId: string;
+  deviceName?: string;
+  variableMappings?: {
+    temperature: string; // TagoIO variable name
+    humidity: string;
+    co2: string;
+    light: string;
+    cooling: string;
+    heating: string;
+    dehumidifier: string;
+    humidifier: string;
+    co2_injection: string;
+    exhaust_fan: string;
+    circulation_fan: string;
+    irrigation: string;
+    lighting: string;
+  };
+}
+
+// =====================================================
+// QUERY FILTERS & PAGINATION
+// =====================================================
+
+export interface TelemetryDateRange {
+  start: Date;
+  end: Date;
+}
+
+// Legacy alias for compatibility
+export type DateRange = TelemetryDateRange;
+
+export type AggregationPeriod = '1min' | '5min' | '15min' | '1hour' | '1day';
+
+export interface TelemetryFilters {
+  pod_id?: string;
+  pod_ids?: string[];
+  room_id?: string;
+  site_id?: string;
+  date_range?: TelemetryDateRange;
+  data_source?: 'tagoio' | 'manual' | 'calculated' | 'simulated';
+  has_sensor_faults?: boolean;
+  has_communication_faults?: boolean; // For backwards compatibility with existing query stubs
+  limit?: number;
+  offset?: number;
+}
+
+export interface AlarmFilters {
+  pod_id?: string;
+  pod_ids?: string[];
+  room_id?: string;
+  site_id?: string;
+  organization_id?: string;
+  severity?: AlarmSeverity | AlarmSeverity[];
+  alarm_type?: AlarmType | AlarmType[];
+  status?: 'active' | 'acknowledged' | 'resolved';
+  triggered_after?: string;
+  triggered_before?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface NotificationFilters {
+  user_id?: string;
+  alarm_id?: string;
+  channel?: NotificationChannel;
+  status?: NotificationStatus;
+  unread_only?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+// =====================================================
+// EXPORT TYPES
+// =====================================================
+
+export type ExportFormat = 'csv' | 'pdf' | 'json';
+
+export interface ExportRequest {
+  pod_ids: string[];
+  date_range: TelemetryDateRange;
+  format: ExportFormat;
+  include_alarms?: boolean;
+  include_equipment_states?: boolean;
+  include_setpoints?: boolean;
+  aggregation_period?: AggregationPeriod;
+}
+
+export interface ExportMetadata {
+  id: string;
+  generated_by: string;
+  generated_at: string;
+  pod_count: number;
+  readings_count: number;
+  date_range: TelemetryDateRange;
+  format: ExportFormat;
+  file_url: string;
+  checksum: string;
+}
+
+// =====================================================
+// UTILITY TYPES
+// =====================================================
+
+/**
+ * Helper type for database query results
+ */
+export type QueryResult<T> = {
+  data: T | null;
+  error: Error | null;
+};
+
+/**
+ * Helper type for paginated results
+ */
+export interface PaginatedResult<T> {
+  data: T[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
+/**
+ * Real-time subscription callback
+ */
+export type RealtimeCallback<T> = (payload: T) => void;
+
+/**
+ * Cleanup function for subscriptions
+ */
+export type UnsubscribeFn = () => void;
+
+/**
+ * Configuration for real-time telemetry subscriptions
+ * Used by client-side hooks to subscribe to database changes
+ */
+export interface RealtimeSubscriptionConfig {
+  /** UUID of the pod to monitor */
+  podId: string;
+  /** Callback when new reading is inserted */
+  onInsert?: (reading: TelemetryReading) => void;
+  /** Callback when existing reading is updated */
+  onUpdate?: (reading: TelemetryReading) => void;
+  /** Callback when reading is deleted */
+  onDelete?: (id: string) => void;
+  /** Optional error handler */
+  onError?: (error: Error) => void;
+}

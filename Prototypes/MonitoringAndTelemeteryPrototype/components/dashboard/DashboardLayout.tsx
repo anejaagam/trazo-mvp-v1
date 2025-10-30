@@ -140,6 +140,24 @@ export function DashboardLayout() {
     ).length,
   };
   
+  // Memoize pod grid/fleet view to prevent unnecessary re-renders
+  const podView = useMemo(() => viewMode === 'grid' ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {snapshots.map(snapshot => (
+        <PodCard
+          key={snapshot.pod.id}
+          snapshot={snapshot}
+          onClick={() => handlePodClick(snapshot)}
+        />
+      ))}
+    </div>
+  ) : (
+    <FleetView
+      snapshots={snapshots}
+      onPodClick={handlePodClick}
+    />
+  ), [snapshots, viewMode]);
+  
   // Detail view
   if (selectedPod) {
     return (
@@ -270,22 +288,7 @@ export function DashboardLayout() {
         <AlarmSummaryWidget alarms={alarms} />
         
         {/* Pod Monitoring */}
-        {useMemo(() => viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {snapshots.map(snapshot => (
-              <PodCard
-                key={snapshot.pod.id}
-                snapshot={snapshot}
-                onClick={() => handlePodClick(snapshot)}
-              />
-            ))}
-          </div>
-        ) : (
-          <FleetView
-            snapshots={snapshots}
-            onPodClick={handlePodClick}
-          />
-        ), [snapshots, viewMode])}
+        {podView}
         
         {/* Alarms Panel */}
         <AlarmsPanel

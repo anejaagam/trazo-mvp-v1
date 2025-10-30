@@ -123,17 +123,32 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       ]
     },
     {
-      title: 'Environmental Controls',
-      href: '/dashboard/environmental',
+      title: 'Monitoring',
+      href: '/dashboard/monitoring',
       icon: <Thermometer className="h-4 w-4" />,
-      permission: 'control:view',
+      permission: 'monitoring:view',
       children: [
         {
-          title: 'Live Monitoring',
-          href: '/dashboard/environmental/monitoring',
-          icon: <Thermometer className="h-4 w-4" />,
+          title: 'Fleet Overview',
+          href: '/dashboard/monitoring',
+          icon: <BarChart3 className="h-4 w-4" />,
           permission: 'monitoring:view'
         },
+        {
+          title: 'Alarms',
+          href: '/dashboard/monitoring/alarms',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          permission: 'alarm:view',
+          badge: '2' // TODO: Get actual count from useAlarmSummary
+        }
+      ]
+    },
+    {
+      title: 'Environmental Controls',
+      href: '/dashboard/environmental',
+      icon: <Settings className="h-4 w-4" />,
+      permission: 'control:view',
+      children: [
         {
           title: 'Recipes',
           href: '/dashboard/environmental/recipes',
@@ -141,11 +156,10 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           permission: 'control:view'
         },
         {
-          title: 'Alarms',
-          href: '/dashboard/environmental/alarms',
-          icon: <AlertTriangle className="h-4 w-4" />,
-          permission: 'alarm:view',
-          badge: '2' // TODO: Get actual count
+          title: 'Schedules',
+          href: '/dashboard/environmental/schedules',
+          icon: <ClipboardList className="h-4 w-4" />,
+          permission: 'control:view'
         }
       ]
     },
@@ -256,7 +270,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           permission: 'audit:view'
         },
         {
-          title: 'API Tokens',
+          title: 'Pod Device Tokens',
           href: '/dashboard/admin/api-tokens',
           icon: <Settings className="h-4 w-4" />,
           permission: 'api:manage'

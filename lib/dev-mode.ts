@@ -46,18 +46,18 @@ export const DEV_MOCK_USER = {
   phone: '+1234567890',
   role: 'org_admin',
   is_active: true,
-  organization_id: '00000000-0000-0000-0000-000000000010', // Valid UUID for dev org
+  organization_id: '11111111-1111-1111-1111-111111111111', // GreenLeaf Cultivation
   organization: {
-    id: '00000000-0000-0000-0000-000000000010',
-    name: 'Development Farm',
-    jurisdiction: 'maryland_cannabis',
+    id: '11111111-1111-1111-1111-111111111111',
+    name: 'GreenLeaf Cultivation',
+    jurisdiction: 'oregon_metrc',
     plant_type: 'cannabis',
     data_region: 'us'
   },
   site_assignments: [
     {
-      site_id: '00000000-0000-0000-0000-000000000020', // Valid UUID for dev site
-      site_name: 'Main Facility'
+      site_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // GreenLeaf Main Facility
+      site_name: 'GreenLeaf Main Facility'
     }
   ]
 } as const

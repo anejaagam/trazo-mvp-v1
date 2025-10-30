@@ -1096,6 +1096,40 @@ $$;
 CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Trigger to auto-create default site for new organizations
+CREATE OR REPLACE FUNCTION create_default_site_for_organization()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO sites (
+    id,
+    organization_id,
+    name,
+    address,
+    city,
+    state_province,
+    postal_code,
+    country,
+    is_active
+  ) VALUES (
+    gen_random_uuid(),
+    NEW.id,
+    'Main Site',
+    '',
+    '',
+    '',
+    '',
+    CASE WHEN NEW.data_region = 'us' THEN 'US' ELSE 'CA' END,
+    true
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_create_default_site
+  AFTER INSERT ON organizations
+  FOR EACH ROW
+  EXECUTE FUNCTION create_default_site_for_organization();
+
 CREATE TRIGGER update_sites_updated_at BEFORE UPDATE ON sites
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

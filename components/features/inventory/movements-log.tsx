@@ -31,6 +31,8 @@ import {
   ArrowRightLeft,
   AlertTriangle,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getMovements } from '@/lib/supabase/queries/inventory-movements-client'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
@@ -225,7 +227,7 @@ export function MovementsLog({
   const getMovementTypeLabel = (type: MovementType): string => {
     const labels: Record<MovementType, string> = {
       receive: 'Receive',
-      consume: 'Consume',
+      consume: 'Issue',
       transfer: 'Transfer',
       adjust: 'Adjust',
       dispose: 'Dispose',
@@ -241,38 +243,78 @@ export function MovementsLog({
     return `${sign}${quantity}`
   }
 
-  const exportToCSV = () => {
-    // Generate CSV content
-    const headers = ['Date', 'Type', 'Item', 'Lot', 'Quantity', 'From', 'To', 'Batch', 'Task', 'Notes', 'Performed By']
-    const rows = filteredMovements.map(m => [
-      new Date(m.timestamp).toLocaleString(),
+  const handleExportExcel = () => {
+    // Headers aligned with Audit Log export style (expanded dataset)
+    const headers = [
+      'Timestamp (UTC)',
+      'Type',
+      'Item Name',
+      'Item SKU',
+      'Lot Code',
+      'Quantity',
+      'Unit',
+      'From Location',
+      'To Location',
+      'Batch ID',
+      'Task ID',
+      'Reason',
+      'Notes',
+      'Performed By (Name/ID)',
+      'Performed By Email',
+      'Movement ID',
+    ]
+
+    const rows = filteredMovements.map((m) => [
+      // Use ISO string to ensure Excel parses consistently; show UTC like audit log
+      new Date(m.timestamp).toISOString(),
       getMovementTypeLabel(m.movement_type),
-      m.item?.name || 'Unknown',
-      m.lot?.lot_code || 'N/A',
+      m.item?.name || '',
+      m.item?.sku || '',
+      m.lot?.lot_code || '',
       formatQuantity(m.quantity, m.movement_type),
+      m.item?.unit_of_measure || '',
       m.from_location || '',
       m.to_location || '',
       m.batch_id || '',
       m.task_id || '',
+      m.reason || '',
       m.notes || '',
-      m.performed_by,
+      m.performed_by_user?.full_name
+        ? `${m.performed_by_user.full_name} (${m.performed_by})`
+        : (m.performed_by || ''),
+      m.performed_by_user?.email || '',
+      m.id,
     ])
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
+    const data = [headers, ...rows]
+    const ws = XLSX.utils.aoa_to_sheet(data)
 
-    // Download
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
+    // Auto-fit column widths similar to audit log export
+    const colWidths = headers.map((_, colIdx) => {
+      const maxLen = data.reduce((max, row) => {
+        const cell = row[colIdx] ?? ''
+        const len = String(cell).length
+        return Math.max(max, len)
+      }, headers[colIdx].length)
+      return { wch: Math.min(Math.max(maxLen + 2, 12), 120) }
+    })
+    ;(ws as any)['!cols'] = colWidths
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory Movements')
+
+    const wbout = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `inventory-movements-${new Date().toISOString().split('T')[0]}.csv`
-    document.body.appendChild(a)
+    a.download = `inventory-movements-${new Date().toISOString()}.xlsx`
     a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+    URL.revokeObjectURL(url)
+
+    toast.success('Inventory movements exported (Excel)')
   }
 
   const clearFilters = () => {
@@ -301,11 +343,11 @@ export function MovementsLog({
           <Button
             variant="outline"
             size="sm"
-            onClick={exportToCSV}
+            onClick={handleExportExcel}
             disabled={filteredMovements.length === 0}
           >
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            Export
           </Button>
         </div>
       </CardHeader>
@@ -359,7 +401,7 @@ export function MovementsLog({
               <SelectContent>
                 <SelectItem value="all">All types</SelectItem>
                 <SelectItem value="receive">Receive</SelectItem>
-                <SelectItem value="consume">Consume</SelectItem>
+                <SelectItem value="consume">Issue</SelectItem>
                 <SelectItem value="transfer">Transfer</SelectItem>
                 <SelectItem value="adjust">Adjust</SelectItem>
               </SelectContent>
@@ -404,7 +446,7 @@ export function MovementsLog({
               <TableHeader>
                 <TableRow>
                   <TableHead 
-                    className="cursor-pointer select-none"
+                    className="cursor-pointer select-none w-[180px]"
                     onClick={() => toggleSort('created_at')}
                   >
                     <div className="flex items-center gap-1">
@@ -413,7 +455,7 @@ export function MovementsLog({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer select-none"
+                    className="cursor-pointer select-none w-[140px]"
                     onClick={() => toggleSort('movement_type')}
                   >
                     <div className="flex items-center gap-1">
@@ -421,10 +463,10 @@ export function MovementsLog({
                       <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Lot</TableHead>
+                  <TableHead className="w-[220px]">Item</TableHead>
+                  <TableHead className="w-[140px]">Lot</TableHead>
                   <TableHead 
-                    className="cursor-pointer select-none text-right"
+                    className="cursor-pointer select-none text-right w-[140px] pr-8"
                     onClick={() => toggleSort('quantity')}
                   >
                     <div className="flex items-center justify-end gap-1">
@@ -432,15 +474,16 @@ export function MovementsLog({
                       <ArrowUpDown className="h-3 w-3" />
                     </div>
                   </TableHead>
-                  <TableHead>From → To</TableHead>
-                  <TableHead>Batch/Task</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="w-[220px] pl-8">From → To</TableHead>
+                  <TableHead className="w-[180px]">Batch/Task</TableHead>
+                  <TableHead className="w-[200px]">Performed By</TableHead>
+                  <TableHead className="w-[320px]">Notes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMovements.map((movement) => (
                   <TableRow key={movement.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium w-[180px]">
                       <div className="space-y-1">
                         <div className="text-sm">
                           {new Date(movement.timestamp).toLocaleDateString()}
@@ -450,7 +493,7 @@ export function MovementsLog({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[140px]">
                       <Badge 
                         variant={getMovementTypeBadge(movement.movement_type)}
                         className="flex items-center gap-1 w-fit"
@@ -459,7 +502,7 @@ export function MovementsLog({
                         {getMovementTypeLabel(movement.movement_type)}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[220px]">
                       <div className="space-y-1">
                         <div className="font-medium">{movement.item?.name || 'Unknown'}</div>
                         {movement.item?.sku && (
@@ -469,14 +512,14 @@ export function MovementsLog({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[140px]">
                       {movement.lot?.lot_code ? (
                         <span className="text-sm font-mono">{movement.lot.lot_code}</span>
                       ) : (
                         <span className="text-sm text-muted-foreground">N/A</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right w-[140px] pr-8">
                       <span className={`font-medium ${
                         movement.movement_type === 'receive' || 
                         (movement.movement_type === 'adjust' && movement.quantity > 0)
@@ -489,7 +532,7 @@ export function MovementsLog({
                         {movement.item?.unit_of_measure || ''}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[220px] pl-8">
                       <div className="text-sm space-y-1">
                         {movement.from_location && (
                           <div className="flex items-center gap-1">
@@ -508,7 +551,7 @@ export function MovementsLog({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[180px]">
                       <div className="text-sm space-y-1">
                         {movement.batch_id && (
                           <div className="flex items-center gap-1">
@@ -527,7 +570,15 @@ export function MovementsLog({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[200px]">
+                      <div className="text-sm space-y-0.5">
+                        <div>{movement.performed_by_user?.full_name || movement.performed_by || '-'}</div>
+                        {movement.performed_by_user?.email && (
+                          <div className="text-xs text-muted-foreground">{movement.performed_by_user.email}</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="w-[320px]">
                       {movement.notes ? (
                         <div className="text-sm max-w-xs truncate" title={movement.notes}>
                           {movement.notes}

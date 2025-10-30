@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
       .from('inventory_movements')
       .select(`
         *,
-        inventory_items!inner(site_id, name, sku)
+        inventory_items!inner(site_id, name, sku),
+        performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email)
       `)
 
     // Filter by item_id if provided

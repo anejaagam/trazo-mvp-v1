@@ -234,7 +234,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent disableOutsideClose disableEscapeClose>
         <DialogHeader>
           <DialogTitle>
             <div className="flex items-center gap-2">
@@ -510,14 +510,6 @@ export function ItemFormDialog({
 
             {/* Footer */}
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditMode ? 'Update Item' : 'Create Item'}

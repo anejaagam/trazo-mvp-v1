@@ -52,6 +52,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
+  AlertTriangle,
   ArrowUpDown,
   Plus,
   Trash2,
@@ -70,6 +71,7 @@ interface ItemCatalogProps {
   onEditItem?: (item: InventoryItemWithStock) => void
   onReceiveInventory?: (item: InventoryItemWithStock) => void
   onIssueInventory?: (item: InventoryItemWithStock) => void
+  onAdjustInventory?: (item: InventoryItemWithStock) => void
   onDeleteItem?: (item: InventoryItemWithStock) => void
   onBatchDelete?: (items: InventoryItemWithStock[]) => void
 }
@@ -86,6 +88,7 @@ export function ItemCatalog({
   onEditItem,
   onReceiveInventory,
   onIssueInventory,
+  onAdjustInventory,
   onDeleteItem,
   onBatchDelete,
 }: ItemCatalogProps) {
@@ -471,7 +474,7 @@ export function ItemCatalog({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 text-center">
                     <Checkbox
                       checked={isAllSelected}
                       onCheckedChange={handleSelectAll}
@@ -479,18 +482,18 @@ export function ItemCatalog({
                       className={isSomeSelected ? "data-[state=checked]:bg-primary/50" : ""}
                     />
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="w-[250px] text-left">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('name')}
-                      className="hover:bg-transparent"
+                      className="hover:bg-transparent -ml-4"
                     >
                       Name
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="w-[120px] text-center">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -501,7 +504,7 @@ export function ItemCatalog({
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="w-[150px] text-center">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -512,19 +515,19 @@ export function ItemCatalog({
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-right">
+                  <TableHead className="w-[140px] text-right">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleSort('current_quantity')}
-                      className="hover:bg-transparent"
+                      className="hover:bg-transparent -mr-4 ml-auto flex"
                     >
                       Quantity
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>
+                  <TableHead className="w-[120px] text-center">Status</TableHead>
+                  <TableHead className="w-[140px] text-center">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -535,7 +538,7 @@ export function ItemCatalog({
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-[80px] text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -545,13 +548,21 @@ export function ItemCatalog({
                   return (
                     <TableRow
                       key={item.id}
-                      className={`group transition-all ${
+                      className={`group transition-all cursor-pointer ${
                         isSelected 
                           ? 'bg-primary/10 hover:bg-primary/15 border-l-4 border-l-primary' 
                           : 'hover:bg-accent/50 hover:shadow-sm'
                       }`}
+                      onClick={() => onItemSelect?.(item)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onItemSelect?.(item)
+                        }
+                      }}
                     >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <TableCell onClick={(e) => e.stopPropagation()} className="w-12 text-center">
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
@@ -559,21 +570,20 @@ export function ItemCatalog({
                         />
                       </TableCell>
                       <TableCell 
-                        className="font-medium cursor-pointer"
-                        onClick={() => onItemSelect?.(item)}
+                        className="font-medium w-[250px] text-left"
                       >
                         <div>
                           <div className="font-semibold group-hover:text-primary transition-colors">
                             {item.name}
                           </div>
                           {item.notes && (
-                            <div className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">
+                            <div className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
                               {item.notes}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-[120px] text-center">
                         {item.sku ? (
                           <code className="text-xs bg-muted px-2 py-1 rounded">
                             {item.sku}
@@ -582,12 +592,12 @@ export function ItemCatalog({
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-[150px] text-center">
                         <Badge variant="outline">
                           {formatItemType(item.item_type)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="w-[140px] text-right">
                         <div className="font-medium">
                           {item.current_quantity} {item.unit_of_measure}
                         </div>
@@ -597,15 +607,15 @@ export function ItemCatalog({
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="w-[120px] text-center">
                         <Badge variant={stockStatus.variant}>
                           {stockStatus.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="w-[140px] text-center text-sm text-muted-foreground">
                         {formatDate(item.updated_at)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="w-[80px] text-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -648,6 +658,17 @@ export function ItemCatalog({
                               >
                                 <TrendingDown className="h-4 w-4 mr-2" />
                                 Issue
+                              </DropdownMenuItem>
+                            )}
+                            {can('inventory:update') && onAdjustInventory && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onAdjustInventory(item)
+                                }}
+                              >
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                Adjust
                               </DropdownMenuItem>
                             )}
                             {can('inventory:delete') && onDeleteItem && (

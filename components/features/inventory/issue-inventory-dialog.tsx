@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   BottomSheetDialog as Dialog,
@@ -36,9 +36,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
 import {
   getLotsByItem,
-  getNextLotFIFO,
-  getNextLotLIFO,
-  getNextLotFEFO,
+  getAvailableLots,
   consumeFromLot,
 } from '@/lib/supabase/queries/inventory-lots-client'
 import { createMovement } from '@/lib/supabase/queries/inventory-movements-client'
@@ -72,6 +70,7 @@ interface IssueInventoryDialogProps {
 
 interface IssueFormData {
   item_id: string
+  from_location?: string
   quantity: string
   destination_type: 'batch' | 'task' | 'location'
   batch_id?: string
@@ -105,13 +104,17 @@ export function IssueInventoryDialog({
   const [isLoadingLots, setIsLoadingLots] = useState(false)
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
   const [availableLots, setAvailableLots] = useState<InventoryLot[]>([])
+  const [filteredLots, setFilteredLots] = useState<InventoryLot[]>([])
+  const [availableLocations, setAvailableLocations] = useState<string[]>([])
   const [selectedItem, setSelectedItem] = useState<InventoryItemWithStock | null>(null)
   const [plannedConsumptions, setPlannedConsumptions] = useState<LotConsumption[]>([])
   const [error, setError] = useState<string | null>(null)
+  const submittingRef = useRef(false)
 
   const form = useForm<IssueFormData>({
     defaultValues: {
       item_id: preSelectedItem?.id || '',
+      from_location: '',
       quantity: '',
       destination_type: 'batch',
       batch_id: '',
@@ -149,6 +152,27 @@ export function IssueInventoryDialog({
         setSelectedItem(item || null)
         loadLotsForItem(value.item_id)
         setPlannedConsumptions([])
+        // Reset location filter
+        form.setValue('from_location', '')
+      }
+      if (name === 'from_location') {
+        // Filter lots by selected location
+        if (value.from_location && value.from_location !== '__ALL__') {
+          const filtered = availableLots.filter(lot => lot.storage_location === value.from_location)
+          setFilteredLots(filtered)
+        } else {
+          // No filter - show all lots
+          setFilteredLots(availableLots)
+        }
+        // Recalculate consumptions with filtered lots
+        if (value.item_id && value.quantity && value.lot_selection_strategy !== 'MANUAL') {
+          calculateLotConsumptions(
+            value.item_id,
+            parseFloat(value.quantity),
+            value.lot_selection_strategy as LotSelectionStrategy,
+            value.from_location && value.from_location !== '__ALL__' ? value.from_location : undefined
+          )
+        }
       }
       if (name === 'quantity' || name === 'lot_selection_strategy') {
         // Recalculate planned consumptions when quantity or strategy changes
@@ -156,7 +180,8 @@ export function IssueInventoryDialog({
           calculateLotConsumptions(
             value.item_id,
             parseFloat(value.quantity),
-            value.lot_selection_strategy as LotSelectionStrategy
+            value.lot_selection_strategy as LotSelectionStrategy,
+            value.from_location && value.from_location !== '__ALL__' ? value.from_location : undefined
           )
         } else {
           setPlannedConsumptions([])
@@ -183,8 +208,13 @@ export function IssueInventoryDialog({
           throw new Error('Failed to fetch inventory items')
         }
         const { data } = await response.json()
+        // Compute available quantity consistently in dev for display
+        const withAvailable = (data || []).map((item: any) => ({
+          ...item,
+          available_quantity: item.available_quantity ?? Math.max(0, (item.current_quantity || 0) - (item.reserved_quantity || 0)),
+        })) as InventoryItemWithStock[]
         // Filter to items with available quantity > 0
-        const itemsWithStock = (data || []).filter((item: InventoryItemWithStock) => (item.current_quantity || 0) > 0)
+        const itemsWithStock = withAvailable.filter((item) => (item.available_quantity || 0) > 0)
         setItems(itemsWithStock)
         return
       }
@@ -196,9 +226,15 @@ export function IssueInventoryDialog({
       })
 
       if (fetchError) throw fetchError
-      
-      // Filter to items with available_quantity > 0
-      const itemsWithStock = (data || []).filter((item: InventoryItemWithStock) => (item.available_quantity || 0) > 0)
+
+      // Compute available quantity if not provided by query response
+      const withAvailable = (data || []).map((item: any) => ({
+        ...item,
+        available_quantity: item.available_quantity ?? Math.max(0, (item.current_quantity || 0) - (item.reserved_quantity || 0)),
+      })) as InventoryItemWithStock[]
+
+      // Filter to items with available > 0
+      const itemsWithStock = withAvailable.filter((item) => (item.available_quantity || 0) > 0)
       setItems(itemsWithStock)
     } catch (err) {
       console.error('Error loading inventory items:', err)
@@ -219,6 +255,19 @@ export function IssueInventoryDialog({
       // Filter to lots with remaining quantity > 0
       const lotsWithStock = data?.filter(lot => lot.quantity_remaining > 0) || []
       setAvailableLots(lotsWithStock as InventoryLot[])
+      
+      // Extract unique storage locations
+      const locations = Array.from(
+        new Set(
+          lotsWithStock
+            .map(lot => lot.storage_location)
+            .filter(loc => loc && loc.trim() !== '')
+        )
+      ).sort() as string[]
+      setAvailableLocations(locations)
+      
+      // Initially show all lots (no filter)
+      setFilteredLots(lotsWithStock as InventoryLot[])
     } catch (err) {
       console.error('Error loading lots:', err)
       setError('Failed to load lot information')
@@ -230,9 +279,10 @@ export function IssueInventoryDialog({
   const calculateLotConsumptions = async (
     itemId: string,
     quantity: number,
-    strategy: LotSelectionStrategy
+    strategy: LotSelectionStrategy,
+    fromLocation?: string
   ) => {
-    if (strategy === 'MANUAL' || quantity <= 0) {
+    if (quantity <= 0) {
       setPlannedConsumptions([])
       return
     }
@@ -243,15 +293,39 @@ export function IssueInventoryDialog({
 
       // Get lots based on strategy
       let lots: InventoryLot[] = []
-      if (strategy === 'FIFO') {
-        const { data } = await getNextLotFIFO(itemId)
-        lots = data as InventoryLot[] || []
-      } else if (strategy === 'LIFO') {
-        const { data } = await getNextLotLIFO(itemId)
-        lots = data as InventoryLot[] || []
-      } else if (strategy === 'FEFO') {
-        const { data } = await getNextLotFEFO(itemId)
-        lots = data as InventoryLot[] || []
+      const allocMethod: 'FIFO' | 'LIFO' | 'FEFO' = strategy as 'FIFO' | 'LIFO' | 'FEFO'
+      const { data: available, error } = await getAvailableLots(itemId, allocMethod)
+      if (error) throw error
+      if (Array.isArray(available)) {
+        // Filter to only necessary fields and types
+        lots = (available as any[]).map(l => ({
+          id: l.id ?? l.lot_id, // inventory_active_lots exposes lot_id
+          lot_code: l.lot_code,
+          quantity_remaining: l.quantity_remaining,
+          unit_of_measure: l.unit_of_measure,
+          expiry_date: l.expiry_date ?? null,
+          received_date: l.received_date ?? null,
+          storage_location: l.storage_location ?? null,
+          cost_per_unit: l.cost_per_unit ?? null,
+        })) as InventoryLot[]
+      } else if (available) {
+        // In case a single object is returned accidentally
+        const l: any = available
+        lots = [{
+          id: l.id ?? l.lot_id,
+          lot_code: l.lot_code,
+          quantity_remaining: l.quantity_remaining,
+          unit_of_measure: l.unit_of_measure,
+          expiry_date: l.expiry_date ?? null,
+          received_date: l.received_date ?? null,
+          storage_location: l.storage_location ?? null,
+          cost_per_unit: l.cost_per_unit ?? null,
+        }]
+      }
+
+      // Filter by location if specified
+      if (fromLocation) {
+        lots = lots.filter(lot => lot.storage_location === fromLocation)
       }
 
       // Calculate consumption from each lot
@@ -270,7 +344,7 @@ export function IssueInventoryDialog({
 
       // Check if we have enough stock
       if (remainingQuantity > 0) {
-        setError(`Insufficient stock. Only ${quantity - remainingQuantity} units available.`)
+        setError(`Insufficient stock${fromLocation ? ` in ${fromLocation}` : ''}. Only ${quantity - remainingQuantity} units available.`)
       } else {
         setError(null)
       }
@@ -283,6 +357,8 @@ export function IssueInventoryDialog({
   }
 
   const onSubmit = async (data: IssueFormData) => {
+    if (submittingRef.current) return
+    submittingRef.current = true
     setIsLoading(true)
     setError(null)
 
@@ -315,7 +391,7 @@ export function IssueInventoryDialog({
         if (!data.manual_lot_id) {
           throw new Error('Please select a lot')
         }
-        const selectedLot = availableLots.find(lot => lot.id === data.manual_lot_id)
+        const selectedLot = filteredLots.find(lot => lot.id === data.manual_lot_id)
         if (!selectedLot) {
           throw new Error('Selected lot not found')
         }
@@ -341,27 +417,43 @@ export function IssueInventoryDialog({
         }
       }
 
-      // Process each consumption
-      for (const consumption of consumptions) {
-        // Update lot quantity
-        const { error: lotError } = await consumeFromLot(consumption.lot_id, consumption.quantity)
-        if (lotError) throw lotError
+      // Use server API to perform atomic lot updates + movement creation
+      // Build payload
+      const allocation_method = data.lot_selection_strategy === 'MANUAL'
+        ? 'manual'
+        : data.lot_selection_strategy
+      const selectedFromLocation = form.getValues('from_location')
+      const normalizedFromLocation = selectedFromLocation && selectedFromLocation !== '__ALL__'
+        ? selectedFromLocation
+        : undefined
 
-        // Create movement record
-        const { error: movementError } = await createMovement({
-          item_id: selectedItem.id,
-          lot_id: consumption.lot_id,
-          movement_type: 'consume',
-          quantity: consumption.quantity,
-          from_location: selectedItem.storage_location || undefined,
-          to_location: data.destination_type === 'location' ? data.to_location : undefined,
-          batch_id: data.destination_type === 'batch' ? data.batch_id : undefined,
-          task_id: data.destination_type === 'task' ? data.task_id : undefined,
-          notes: data.notes || undefined,
-          performed_by: userId,
-        })
+      const body: any = {
+        item_id: selectedItem.id,
+        quantity,
+        allocation_method,
+        from_location: normalizedFromLocation,
+        to_location: data.destination_type === 'location' ? data.to_location : undefined,
+        batch_id: data.destination_type === 'batch' ? data.batch_id : undefined,
+        task_id: data.destination_type === 'task' ? data.task_id : undefined,
+        notes: data.notes || undefined,
+        organization_id: organizationId,
+        site_id: siteId,
+      }
 
-        if (movementError) throw movementError
+      if (allocation_method === 'manual') {
+        // Send single-lot allocation
+        body.lot_allocations = consumptions.map(c => ({ lot_id: c.lot_id, quantity: c.quantity }))
+      }
+
+      const res = await fetch('/api/inventory/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.error || 'Failed to issue inventory')
       }
 
       // Success
@@ -376,19 +468,21 @@ export function IssueInventoryDialog({
       setError(err instanceof Error ? err.message : 'Failed to issue inventory')
     } finally {
       setIsLoading(false)
+      submittingRef.current = false
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent disableOutsideClose disableEscapeClose>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Issue Inventory
           </DialogTitle>
           <DialogDescription>
-            Issue inventory to a batch, task, or location. System will automatically select lots based on your chosen strategy.
+            Issue inventory to a batch or task (consumes stock), or transfer to another location (preserves stock). 
+            System will automatically select lots based on your chosen strategy.
           </DialogDescription>
         </DialogHeader>
 
@@ -433,6 +527,45 @@ export function IssueInventoryDialog({
                 </FormItem>
               )}
             />
+
+            {/* Storage Location Filter (only show if item has multiple locations) */}
+            {selectedItem && availableLocations.length > 1 && (
+              <FormField
+                control={form.control}
+                name="from_location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Issue From Location</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All locations" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__ALL__">All Locations</SelectItem>
+                        {availableLocations.map((location) => {
+                          const lotsInLocation = availableLots.filter(lot => lot.storage_location === location)
+                          const totalInLocation = lotsInLocation.reduce((sum, lot) => sum + lot.quantity_remaining, 0)
+                          return (
+                            <SelectItem key={location} value={location}>
+                              {location} ({totalInLocation} {selectedItem.unit_of_measure})
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose which storage location to issue from (optional - leave blank to use all locations)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Current Stock Display */}
             {selectedItem && (
@@ -528,7 +661,7 @@ export function IssueInventoryDialog({
                   <FormItem>
                     <FormLabel>Select Lot *</FormLabel>
                     <Select
-                      disabled={availableLots.length === 0}
+                      disabled={filteredLots.length === 0}
                       onValueChange={field.onChange}
                       value={field.value}
                     >
@@ -538,9 +671,10 @@ export function IssueInventoryDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {availableLots.map((lot) => (
+                        {filteredLots.map((lot) => (
                           <SelectItem key={lot.id} value={lot.id}>
                             {lot.lot_code} - {lot.quantity_remaining} {lot.unit_of_measure}
+                            {lot.storage_location && ` [${lot.storage_location}]`}
                             {lot.expiry_date && ` (Expires: ${new Date(lot.expiry_date).toLocaleDateString()})`}
                           </SelectItem>
                         ))}
@@ -548,6 +682,7 @@ export function IssueInventoryDialog({
                     </Select>
                     <FormDescription>
                       Manually choose which lot to consume from
+                      {form.watch('from_location') && form.watch('from_location') !== '__ALL__' && ` (filtered to ${form.watch('from_location')})`}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -607,7 +742,7 @@ export function IssueInventoryDialog({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Where is this inventory being issued to?
+                      Where is this inventory being issued to? (Batch/Task = consumption, Location = transfer)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -650,6 +785,16 @@ export function IssueInventoryDialog({
                     </FormItem>
                   )}
                 />
+              )}
+
+              {form.watch('destination_type') === 'location' && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Location Transfer:</strong> This will move inventory to a new storage location without reducing stock quantities. 
+                    The item will remain in your active lots.
+                  </AlertDescription>
+                </Alert>
               )}
 
               {form.watch('destination_type') === 'location' && (
@@ -702,6 +847,7 @@ export function IssueInventoryDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
+                {/* The button is also protected by submittingRef in onSubmit */}
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

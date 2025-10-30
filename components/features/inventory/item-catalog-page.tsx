@@ -5,6 +5,7 @@ import { ItemCatalog } from './item-catalog'
 import { ItemFormDialog } from './item-form-dialog'
 import { ReceiveInventoryDialog } from './receive-inventory-dialog'
 import { IssueInventoryDialog } from './issue-inventory-dialog'
+import { AdjustInventoryDialog } from './adjust-inventory-dialog'
 import { ItemDetailSheet } from './item-detail-sheet'
 import { DeleteItemsDialog } from './delete-items-dialog'
 import type { InventoryItemWithStock } from '@/types/inventory'
@@ -26,6 +27,7 @@ export function ItemCatalogPage({
   const [itemFormOpen, setItemFormOpen] = useState(false)
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
   const [issueDialogOpen, setIssueDialogOpen] = useState(false)
+  const [adjustDialogOpen, setAdjustDialogOpen] = useState(false)
   const [detailSheetOpen, setDetailSheetOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [itemsToDelete, setItemsToDelete] = useState<InventoryItemWithStock[]>([])
@@ -55,6 +57,11 @@ export function ItemCatalogPage({
     setIssueDialogOpen(true)
   }
 
+  const handleAdjustInventory = (item?: InventoryItemWithStock) => {
+    setSelectedItem(item || null)
+    setAdjustDialogOpen(true)
+  }
+
   const handleItemSelect = (item: InventoryItemWithStock) => {
     setSelectedItem(item)
     setDetailSheetOpen(true)
@@ -82,6 +89,7 @@ export function ItemCatalogPage({
         onEditItem={handleEditItem}
         onReceiveInventory={handleReceiveInventory}
         onIssueInventory={handleIssueInventory}
+        onAdjustInventory={handleAdjustInventory}
         onDeleteItem={handleDeleteItem}
         onBatchDelete={handleBatchDelete}
       />
@@ -131,6 +139,21 @@ export function ItemCatalogPage({
         }}
       />
 
+      {/* Adjust Inventory Dialog */}
+      <AdjustInventoryDialog
+        open={adjustDialogOpen}
+        onOpenChange={setAdjustDialogOpen}
+        organizationId={organizationId}
+        siteId={siteId}
+        userId={userId}
+        userRole={userRole}
+        preSelectedItem={selectedItem || undefined}
+        onSuccess={() => {
+          setAdjustDialogOpen(false)
+          handleRefresh()
+        }}
+      />
+
       {/* Item Detail Sheet */}
       <ItemDetailSheet
         item={selectedItem}
@@ -148,6 +171,10 @@ export function ItemCatalogPage({
         onIssue={(item) => {
           setDetailSheetOpen(false)
           handleIssueInventory(item)
+        }}
+        onAdjust={(item) => {
+          setDetailSheetOpen(false)
+          handleAdjustInventory(item)
         }}
       />
 

@@ -37,10 +37,15 @@ const BottomSheetDialogOverlay = React.forwardRef<
 ))
 BottomSheetDialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+type BottomSheetDialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+  disableOutsideClose?: boolean
+  disableEscapeClose?: boolean
+}
+
 const BottomSheetDialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  BottomSheetDialogContentProps
+>(({ className, children, disableOutsideClose, disableEscapeClose, onInteractOutside, onPointerDownOutside, onEscapeKeyDown, ...props }, ref) => (
   <BottomSheetDialogPortal>
     <BottomSheetDialogOverlay />
     <DialogPrimitive.Content
@@ -57,6 +62,18 @@ const BottomSheetDialogContent = React.forwardRef<
         'duration-300',
         className
       )}
+      onInteractOutside={(e) => {
+        if (disableOutsideClose) e.preventDefault()
+        onInteractOutside?.(e)
+      }}
+      onPointerDownOutside={(e) => {
+        if (disableOutsideClose) e.preventDefault()
+        onPointerDownOutside?.(e)
+      }}
+      onEscapeKeyDown={(e) => {
+        if (disableEscapeClose) e.preventDefault()
+        onEscapeKeyDown?.(e)
+      }}
       {...props}
     >
       {children}

@@ -122,7 +122,7 @@ export function GlobalSearch() {
 
       {isOpen && search && filteredPages.length === 0 && (
         <div className="absolute top-full mt-1 w-full bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50 p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-          No results found for "{search}"
+          No results found for &ldquo;{search}&rdquo;
         </div>
       )}
     </div>

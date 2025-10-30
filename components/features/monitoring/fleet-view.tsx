@@ -66,24 +66,13 @@ export function FleetView({
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  // Permission check
-  if (!can('monitoring:view')) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">No permission to view monitoring data</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Get unique rooms for filter
+  // Get unique rooms for filter - must be before conditional returns
   const rooms = useMemo(() => {
     const uniqueRooms = new Set(snapshots.map(s => s.room.name));
     return Array.from(uniqueRooms).sort();
   }, [snapshots]);
 
-  // Filter and sort data
+  // Filter and sort data - must be before conditional returns
   const filteredAndSorted = useMemo(() => {
     let filtered = snapshots;
 
@@ -163,6 +152,17 @@ export function FleetView({
       <ArrowUpDown className="w-3 h-3" />
     </Button>
   );
+
+  // Permission check - after all hooks
+  if (!can('monitoring:view')) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-sm text-muted-foreground">No permission to view monitoring data</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Loading state
   if (loading && snapshots.length === 0) {

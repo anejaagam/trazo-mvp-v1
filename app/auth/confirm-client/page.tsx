@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Region } from '@/lib/supabase/region'
@@ -17,7 +17,7 @@ function parseHash(hash: string) {
   return out
 }
 
-export default function ConfirmClientPage() {
+function ConfirmClientContent() {
   const router = useRouter()
   const sp = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -115,5 +115,20 @@ export default function ConfirmClientPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ConfirmClientPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="text-xl font-semibold mb-2">Loading…</h1>
+          <p className="text-sm text-muted-foreground">Please wait a moment.</p>
+        </div>
+      </div>
+    }>
+      <ConfirmClientContent />
+    </Suspense>
   )
 }

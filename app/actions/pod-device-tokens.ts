@@ -16,7 +16,6 @@ import {
   type PodWithSiteInfo 
 } from '@/lib/supabase/queries/pods'
 import { validateTagoIOCredentials } from '@/lib/supabase/queries/integration-settings'
-import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 import { getOrCreateDefaultRoom } from '@/lib/supabase/queries/default-room'
 
 // ============================================================================

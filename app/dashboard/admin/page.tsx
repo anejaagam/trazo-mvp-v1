@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Shield, FileText, UserPlus, AlertTriangle, TrendingUp, Activity, Clock, CheckCircle2, XCircle, Building2 } from 'lucide-react';
+import { Users, Shield, FileText, UserPlus, AlertTriangle, TrendingUp, Activity, Clock, CheckCircle2, Building2 } from 'lucide-react';
 import { checkAdminAuth } from '@/lib/admin-helpers';
 
 export const metadata: Metadata = {

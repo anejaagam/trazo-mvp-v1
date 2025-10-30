@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { EnvironmentChart } from './environment-chart'
-import { ArrowLeft, Clock, RefreshCw, Thermometer, Droplets, Wind, Sun } from 'lucide-react'
+import { Clock, RefreshCw, Thermometer, Droplets, Wind, Sun } from 'lucide-react'
 import { useTelemetry } from '@/hooks/use-telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
 
@@ -16,12 +16,11 @@ interface PodDetailProps {
   roomName: string
   deviceToken?: string | null
   stage?: string
-  onBack: () => void
+  onBack?: () => void
 }
 
-export function PodDetail({ podId, podName, roomName, deviceToken, stage, onBack }: PodDetailProps) {
+export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodDetailProps) {
   const [timeWindow, setTimeWindow] = useState<24 | 168 | 720>(24) // 24h, 7d, 30d
-  const [lastRefresh, setLastRefresh] = useState(new Date())
   
   // Permission check
   const { can } = usePermissions('org_admin')
@@ -42,15 +41,6 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, onBack
   } : null
   const deviceLoading = telemetryLoading
   
-  // Auto-refresh timestamp every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastRefresh(new Date())
-    }, 10000)
-    
-    return () => clearInterval(interval)
-  }, [])
-  
   // Calculate VPD (Vapor Pressure Deficit)
   const calculateVPD = (temp: number, rh: number): number => {
     const svp = 0.61078 * Math.exp((17.27 * temp) / (temp + 237.3))
@@ -69,8 +59,9 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, onBack
   }
   
   const handleRefresh = () => {
-    setLastRefresh(new Date())
-    // useTelemetry hook will auto-refetch if realtime is enabled
+    // Trigger a manual refresh by forcing component re-render
+    // The useTelemetry hook will fetch fresh data
+    window.location.reload()
   }
   
   // Check permission

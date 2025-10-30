@@ -7,12 +7,18 @@
  * Usage:
  *   npm run seed:monitoring
  *   npm run seed:monitoring -- --clean  (cleans existing data first)
+ * 
+ * NOTE: This script is archived and no longer functional
+ * The seed-monitoring-data module it depends on has been removed
  */
 
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 import { createClient } from '@supabase/supabase-js';
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error - Archived script with missing seed-monitoring-data module
 import {
   SEED_ROOMS,
   SEED_PODS,

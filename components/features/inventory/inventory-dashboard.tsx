@@ -31,7 +31,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
-import type { InventoryMovement } from '@/types/inventory'
+import type { InventoryMovement, InventoryItemWithStock } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
 import { ItemFormDialog } from './item-form-dialog'
 import { ReceiveInventoryDialog } from './receive-inventory-dialog'
@@ -131,14 +131,14 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           const { data: movements } = await movementsRes.json()
           
           // Calculate low stock items (items with current_quantity < minimum_quantity)
-          const lowStock = items?.filter((item: any) => 
+          const lowStock = items?.filter((item: InventoryItemWithStock) => 
             item.minimum_quantity && item.current_quantity < item.minimum_quantity
           ) || []
           
           // Calculate expiring items (items with expiry_date within 30 days)
           const now = new Date()
           const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          const expiring = items?.filter((item: any) => {
+          const expiring = items?.filter((item: InventoryItemWithStock) => {
             if (!item.expiry_date) return false
             const expiryDate = new Date(item.expiry_date)
             return expiryDate >= now && expiryDate <= thirtyDaysFromNow
@@ -250,14 +250,14 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           const { data: movements } = await movementsRes.json()
           
           // Calculate low stock items
-          const lowStock = items?.filter((item: any) => 
+          const lowStock = items?.filter((item: InventoryItemWithStock) => 
             item.minimum_quantity && item.current_quantity < item.minimum_quantity
           ) || []
           
           // Calculate expiring items
           const now = new Date()
           const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-          const expiring = items?.filter((item: any) => {
+          const expiring = items?.filter((item: InventoryItemWithStock) => {
             if (!item.expiry_date) return false
             const expiryDate = new Date(item.expiry_date)
             return expiryDate >= now && expiryDate <= thirtyDaysFromNow

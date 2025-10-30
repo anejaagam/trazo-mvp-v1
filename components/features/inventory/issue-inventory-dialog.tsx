@@ -37,9 +37,7 @@ import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
 import {
   getLotsByItem,
   getAvailableLots,
-  consumeFromLot,
 } from '@/lib/supabase/queries/inventory-lots-client'
-import { createMovement } from '@/lib/supabase/queries/inventory-movements-client'
 import type { InventoryItemWithStock } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
 import type { RoleKey } from '@/lib/rbac/types'
@@ -93,7 +91,6 @@ export function IssueInventoryDialog({
   onOpenChange,
   organizationId,
   siteId,
-  userId,
   userRole,
   preSelectedItem,
   onSuccess,
@@ -189,7 +186,6 @@ export function IssueInventoryDialog({
       }
     })
     return () => subscription.unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, items, availableLots])
 
   // Check permission
@@ -209,7 +205,7 @@ export function IssueInventoryDialog({
         }
         const { data } = await response.json()
         // Compute available quantity consistently in dev for display
-        const withAvailable = (data || []).map((item: any) => ({
+        const withAvailable = (data || []).map((item: InventoryItemWithStock) => ({
           ...item,
           available_quantity: item.available_quantity ?? Math.max(0, (item.current_quantity || 0) - (item.reserved_quantity || 0)),
         })) as InventoryItemWithStock[]
@@ -228,7 +224,7 @@ export function IssueInventoryDialog({
       if (fetchError) throw fetchError
 
       // Compute available quantity if not provided by query response
-      const withAvailable = (data || []).map((item: any) => ({
+      const withAvailable = (data || []).map((item: InventoryItemWithStock) => ({
         ...item,
         available_quantity: item.available_quantity ?? Math.max(0, (item.current_quantity || 0) - (item.reserved_quantity || 0)),
       })) as InventoryItemWithStock[]
@@ -298,21 +294,24 @@ export function IssueInventoryDialog({
       if (error) throw error
       if (Array.isArray(available)) {
         // Filter to only necessary fields and types
-        lots = (available as any[]).map(l => ({
-          id: l.id ?? l.lot_id, // inventory_active_lots exposes lot_id
-          lot_code: l.lot_code,
-          quantity_remaining: l.quantity_remaining,
-          unit_of_measure: l.unit_of_measure,
-          expiry_date: l.expiry_date ?? null,
-          received_date: l.received_date ?? null,
-          storage_location: l.storage_location ?? null,
-          cost_per_unit: l.cost_per_unit ?? null,
-        })) as InventoryLot[]
+        lots = (available as InventoryLot[]).map(l => {
+          const lotWithId = l as InventoryLot & { lot_id?: string }
+          return {
+            id: l.id ?? lotWithId.lot_id ?? '', // inventory_active_lots exposes lot_id
+            lot_code: l.lot_code,
+            quantity_remaining: l.quantity_remaining,
+            unit_of_measure: l.unit_of_measure,
+            expiry_date: l.expiry_date ?? null,
+            received_date: l.received_date ?? null,
+            storage_location: l.storage_location ?? null,
+            cost_per_unit: l.cost_per_unit ?? null,
+          }
+        }) as InventoryLot[]
       } else if (available) {
         // In case a single object is returned accidentally
-        const l: any = available
+        const l = available as InventoryLot & { lot_id?: string }
         lots = [{
-          id: l.id ?? l.lot_id,
+          id: l.id ?? l.lot_id ?? '',
           lot_code: l.lot_code,
           quantity_remaining: l.quantity_remaining,
           unit_of_measure: l.unit_of_measure,
@@ -427,7 +426,20 @@ export function IssueInventoryDialog({
         ? selectedFromLocation
         : undefined
 
-      const body: any = {
+      const body: {
+        item_id: string
+        quantity: number
+        allocation_method: string
+        from_location?: string
+        to_location?: string
+        batch_id?: string
+        task_id?: string
+        notes?: string
+        organization_id: string
+        site_id: string
+        manual_lot_id?: string
+        lot_allocations?: Array<{ lot_id: string; quantity: number }>
+      } = {
         item_id: selectedItem.id,
         quantity,
         allocation_method,

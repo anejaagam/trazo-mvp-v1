@@ -11,6 +11,7 @@ import type {
   InventoryItemFilters,
   InsertInventoryItem,
   UpdateInventoryItem,
+  InventoryItemWithStock,
 } from '@/types/inventory'
 
 /**
@@ -32,16 +33,16 @@ export async function getInventoryItems(
       const { data } = await response.json()
       
       // Apply client-side filters since API doesn't support them yet
-      let filteredData = data
+      let filteredData: InventoryItemWithStock[] = data
       if (filters?.item_type) {
-        filteredData = filteredData.filter((item: any) => item.item_type === filters.item_type)
+        filteredData = filteredData.filter((item: InventoryItemWithStock) => item.item_type === filters.item_type)
       }
       if (filters?.category_id) {
-        filteredData = filteredData.filter((item: any) => item.category_id === filters.category_id)
+        filteredData = filteredData.filter((item: InventoryItemWithStock) => item.category_id === filters.category_id)
       }
       if (filters?.search) {
         const searchLower = filters.search.toLowerCase()
-        filteredData = filteredData.filter((item: any) => 
+        filteredData = filteredData.filter((item: InventoryItemWithStock) => 
           item.name?.toLowerCase().includes(searchLower) || 
           item.sku?.toLowerCase().includes(searchLower)
         )

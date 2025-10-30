@@ -36,7 +36,7 @@ import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getMovements } from '@/lib/supabase/queries/inventory-movements-client'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
-import type { InventoryMovementWithDetails, MovementType } from '@/types/inventory'
+import type { InventoryMovementWithDetails, MovementType, InventoryItemWithStock } from '@/types/inventory'
 import type { RoleKey } from '@/lib/rbac/types'
 import { isDevModeActive } from '@/lib/dev-mode'
 
@@ -112,7 +112,7 @@ export function MovementsLog({
         const { data: itemsData } = await itemsRes.json()
         
         setMovements(movementsData || [])
-        const itemsList = itemsData?.map((item: any) => ({ id: item.id, name: item.name })) || []
+        const itemsList = itemsData?.map((item: InventoryItemWithStock) => ({ id: item.id, name: item.name })) || []
         setItems(itemsList)
         return
       }
@@ -298,7 +298,7 @@ export function MovementsLog({
       }, headers[colIdx].length)
       return { wch: Math.min(Math.max(maxLen + 2, 12), 120) }
     })
-    ;(ws as any)['!cols'] = colWidths
+    ;(ws as { '!cols'?: Array<{ wch: number }> })['!cols'] = colWidths
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Inventory Movements')

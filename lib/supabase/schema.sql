@@ -912,9 +912,9 @@ SELECT
   i.minimum_quantity AS par_level,
   i.reorder_point,
   CASE 
-    WHEN i.minimum_quantity IS NOT NULL AND i.current_quantity < i.minimum_quantity THEN 'below_par'
-    WHEN i.reorder_point IS NOT NULL AND i.current_quantity <= i.reorder_point THEN 'reorder'
     WHEN i.current_quantity = 0 THEN 'out_of_stock'
+    WHEN i.reorder_point IS NOT NULL AND i.current_quantity <= i.reorder_point THEN 'reorder'
+    WHEN i.minimum_quantity IS NOT NULL AND i.current_quantity < i.minimum_quantity THEN 'below_par'
     ELSE 'ok'
   END AS stock_status,
   i.storage_location,

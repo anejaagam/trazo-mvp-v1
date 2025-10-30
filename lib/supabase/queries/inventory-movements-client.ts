@@ -27,7 +27,9 @@ export async function getMovements(
       .select(`
         *,
         item:inventory_items!inner(id, site_id, name, sku, unit_of_measure),
-        lot:inventory_lots!lot_id(id, lot_code)
+        lot:inventory_lots!lot_id(id, lot_code),
+  performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email),
+  approved_by_user:users!inventory_movements_approved_by_fkey(id, full_name, email)
       `)
       .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })
@@ -46,7 +48,7 @@ export async function getMovements(
       query = query.lte('timestamp', filters.end_date)
     }
 
-    const { data, error } = await query
+  const { data, error } = await query
 
     if (error) throw error
     return { data, error: null }
@@ -67,7 +69,9 @@ export async function getRecentMovements(siteId: string, limit: number = 10) {
       .select(`
         *,
         item:inventory_items!inner(id, site_id, name, sku, unit_of_measure),
-        lot:inventory_lots!lot_id(id, lot_code)
+        lot:inventory_lots!lot_id(id, lot_code),
+  performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email),
+  approved_by_user:users!inventory_movements_approved_by_fkey(id, full_name, email)
       `)
       .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })

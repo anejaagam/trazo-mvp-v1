@@ -15,7 +15,11 @@
     "test:e2e:report": "playwright show-report",
     "test:user-flow": "ts-node --project scripts/tsconfig.json scripts/test-user-flow.ts",
     "seed:dev": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts",
-    "seed:clean": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts --clean"
+    "seed:clean": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts --clean",
+    "poll": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-tagoio.ts --once",
+    "poll:watch": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-tagoio.ts",
+    "poll:user": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-user-org.ts --once",
+    "poll:user:watch": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-user-org.ts"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -52,6 +56,7 @@
     "react-day-picker": "^9.11.1",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.65.0",
+    "recharts": "^3.3.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.0",
     "xlsx": "^0.18.5"

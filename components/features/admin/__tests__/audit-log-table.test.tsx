@@ -76,8 +76,6 @@ describe('AuditLogTable', () => {
     },
   ];
 
-  const mockOnExport = jest.fn();
-
   beforeEach(() => {
     jest.clearAllMocks();
     // Mock URL.createObjectURL and other DOM APIs

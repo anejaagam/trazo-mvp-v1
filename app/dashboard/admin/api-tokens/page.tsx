@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { canPerformAction } from '@/lib/rbac/guards';
+import { PodDeviceTokenManager } from '@/components/features/admin/pod-device-token-manager';
 
 export const metadata: Metadata = {
-  title: 'API Tokens - Trazo Admin',
-  description: 'Manage API tokens for programmatic access',
+  title: 'API Tokens & Integrations - Trazo Admin',
+  description: 'Configure third-party integration API tokens (TagoIO, Metrc, CTLS, DemeGrow)',
 };
 
 export default async function ApiTokensPage() {
@@ -17,10 +17,10 @@ export default async function ApiTokensPage() {
     redirect('/auth/login');
   }
 
-  // Check permissions
+  // Check permissions - only org_admin and site_manager
   const { data: userData } = await supabase
     .from('users')
-    .select('role')
+    .select('role, organization_id')
     .eq('id', user.id)
     .single();
 
@@ -28,9 +28,7 @@ export default async function ApiTokensPage() {
     redirect('/dashboard');
   }
 
-  const hasPermission = canPerformAction(userData.role, 'user:view');
-  
-  if (!hasPermission.allowed) {
+  if (!['org_admin', 'site_manager'].includes(userData.role)) {
     redirect('/dashboard');
   }
 
@@ -38,17 +36,14 @@ export default async function ApiTokensPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-display-4 font-semibold text-brand-dark-green-700">
-          API Tokens
+          Pod Device Tokens
         </h1>
         <p className="text-body-base text-slate-600 mt-2">
-          Create and manage API tokens for programmatic access
+          Configure TagoIO device tokens for each pod to enable automated telemetry collection
         </p>
       </div>
-
-      {/* API tokens table component will be added here */}
-      <div className="rounded-lg border bg-white p-6">
-        <p className="text-slate-600">API token management will be integrated here...</p>
-      </div>
+      
+      <PodDeviceTokenManager />
     </div>
   );
 }

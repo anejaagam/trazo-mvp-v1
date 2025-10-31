@@ -91,7 +91,7 @@ export default async function DashboardLayout({
       {/* Sidebar */}
       <DashboardSidebar 
         user={userDetails}
-        className="hidden md:flex w-64 border-r border-border" 
+        className="hidden md:flex w-64" 
       />
       
       {/* Main content area */}

@@ -1,9 +1,9 @@
 
-'use client'
+"use client"
 
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { RoleKey, PermissionKey } from '@/lib/rbac/types'
 import { 
@@ -48,7 +48,9 @@ interface NavItem {
 
 export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { can } = usePermissions(user.role as RoleKey, user.additional_permissions || [])
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const navItems: NavItem[] = [
     {
@@ -123,17 +125,32 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       ]
     },
     {
-      title: 'Environmental Controls',
-      href: '/dashboard/environmental',
+      title: 'Monitoring',
+      href: '/dashboard/monitoring',
       icon: <Thermometer className="h-4 w-4" />,
-      permission: 'control:view',
+      permission: 'monitoring:view',
       children: [
         {
-          title: 'Live Monitoring',
-          href: '/dashboard/environmental/monitoring',
-          icon: <Thermometer className="h-4 w-4" />,
+          title: 'Fleet Overview',
+          href: '/dashboard/monitoring',
+          icon: <BarChart3 className="h-4 w-4" />,
           permission: 'monitoring:view'
         },
+        {
+          title: 'Alarms',
+          href: '/dashboard/monitoring/alarms',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          permission: 'alarm:view',
+          badge: '2' // TODO: Get actual count from useAlarmSummary
+        }
+      ]
+    },
+    {
+      title: 'Environmental Controls',
+      href: '/dashboard/environmental',
+      icon: <Settings className="h-4 w-4" />,
+      permission: 'control:view',
+      children: [
         {
           title: 'Recipes',
           href: '/dashboard/environmental/recipes',
@@ -141,11 +158,10 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           permission: 'control:view'
         },
         {
-          title: 'Alarms',
-          href: '/dashboard/environmental/alarms',
-          icon: <AlertTriangle className="h-4 w-4" />,
-          permission: 'alarm:view',
-          badge: '2' // TODO: Get actual count
+          title: 'Schedules',
+          href: '/dashboard/environmental/schedules',
+          icon: <ClipboardList className="h-4 w-4" />,
+          permission: 'control:view'
         }
       ]
     },
@@ -223,6 +239,18 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     }
   ]
 
+  // Expand section containing current route by default
+  useEffect(() => {
+    const nextExpanded: Record<string, boolean> = {}
+    for (const item of navItems) {
+      if (!item.children) continue
+      const hasActiveChild = item.children.some(child => pathname.startsWith(child.href))
+      nextExpanded[item.href] = !!hasActiveChild
+    }
+    setExpanded(nextExpanded)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
+
   // Add admin-only navigation items
   if (can('user:view') || can('org:settings')) {
     navItems.push({
@@ -256,7 +284,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           permission: 'audit:view'
         },
         {
-          title: 'API Tokens',
+          title: 'Pod Device Tokens',
           href: '/dashboard/admin/api-tokens',
           icon: <Settings className="h-4 w-4" />,
           permission: 'api:manage'
@@ -274,6 +302,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const renderNavItem = (item: NavItem, depth = 0) => {
     const isActive = pathname === item.href || 
       (item.children && item.children.some(child => pathname.startsWith(child.href)))
+    const isExpanded = expanded[item.href] ?? false
     
     // Check permissions
     if (item.permission && !can(item.permission as PermissionKey)) {
@@ -300,10 +329,25 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       <div key={item.href}>
         {item.children ? (
           <div className="space-y-1">
-            <div className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium',
-              isActive && 'bg-accent text-accent-foreground'
-            )}>
+            <button
+              type="button"
+              aria-expanded={isExpanded}
+              className={cn(
+                'w-full text-left flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent transition-colors',
+                isActive && 'bg-accent text-accent-foreground'
+              )}
+              onClick={() => {
+                // Expand only this category and collapse others
+                const onlyThisExpanded: Record<string, boolean> = {}
+                for (const parent of navItems) {
+                  if (!parent.children) continue
+                  onlyThisExpanded[parent.href] = parent.href === item.href
+                }
+                setExpanded(onlyThisExpanded)
+                const firstChildHref = item.children?.[0]?.href
+                if (firstChildHref) router.push(firstChildHref)
+              }}
+            >
               {item.icon}
               <span className="flex-1">{item.title}</span>
               {item.badge && (
@@ -311,10 +355,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
                   {item.badge}
                 </Badge>
               )}
-            </div>
-            <div className="space-y-1">
-              {item.children.map(child => renderNavItem(child, depth + 1))}
-            </div>
+            </button>
+            {isExpanded && (
+              <div className="space-y-1">
+                {item.children.map(child => renderNavItem(child, depth + 1))}
+              </div>
+            )}
           </div>
         ) : (
           <Link href={item.href}>
@@ -345,7 +391,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       </div>
 
       {/* Organization info */}
-      <div className="border-b px-6 py-4">
+      <div className="border-b px-6 py-4 border-r border-border">
         <div className="text-sm font-medium">{user.organization?.name}</div>
         <div className="text-xs text-muted-foreground capitalize">
           {user.organization?.jurisdiction?.replace('_', ' ')} • {user.role?.replace('_', ' ')}
@@ -353,14 +399,14 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-auto p-4">
+      <nav className="flex-1 overflow-auto no-scrollbar p-4 border-r border-border" role="navigation" aria-label="Sidebar navigation">
         <div className="space-y-2">
           {navItems.map(item => renderNavItem(item))}
         </div>
       </nav>
 
       {/* Footer */}
-      <div className="border-t p-4">
+      <div className="border-t p-4 border-r border-border">
         <Button variant="ghost" size="sm" className="w-full justify-start" asChild>
           <Link href="/dashboard/settings">
             <Settings className="h-4 w-4 mr-2" />

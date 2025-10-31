@@ -11,14 +11,11 @@ import { useEffect, useState } from 'react'
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Package,
   TrendingUp,
@@ -140,10 +137,10 @@ export function ItemDetailSheet({
       }
 
       const { data, error } = await getLotsByItem(item.id)
-      if (error) throw error as any
+      if (error) throw error
 
       // Only show lots with remaining quantity > 0 and active
-      const activeLots = (data || []).filter((l: any) => l.is_active !== false && (l.quantity_remaining ?? 0) > 0)
+      const activeLots = (data || []).filter((l: InventoryLot) => l.is_active !== false && (l.quantity_remaining ?? 0) > 0)
       setLots(activeLots as InventoryLot[])
     } catch (error) {
       console.error('Error loading lots:', error)

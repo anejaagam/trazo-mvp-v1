@@ -191,4 +191,13 @@
     /* fallback for opacity variants (bg-white/5 etc) — use card color so elements are readable in dark mode */
     background-color: hsl(var(--card)) !important;
   }
+
+  /* Hide scrollbars but keep scroll functionality */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and old Edge */
+    scrollbar-width: none;    /* Firefox */
+  }
 }

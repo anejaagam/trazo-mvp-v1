@@ -1,8 +1,42 @@
 # TRAZO MVP - Next Steps & Integration Roadmap
 
-**Last Updated:** December 2024 (**Phase 10: Monitoring Integration - Multi-Tenant Token Management**)  
-**Document Version:** 4.6  
-**Current Phase:** Phase 10 - Monitoring & Telemetry Integration (Multi-Tenant Configuration UI - 85%)
+**Last Updated:** November 4, 2025 (**Phase 10: Monitoring Integration + Repository Cleanup**)  
+**Document Version:** 4.7  
+**Current Phase:** Phase 10 - Monitoring & Telemetry Integration (Multi-Tenant Configuration UI - 86%)  
+**Repository Status:** ✅ Documentation cleanup complete (Phase 1 of 4)
+
+---
+
+## 📋 **QUICK STATUS OVERVIEW**
+
+### **Development Progress**
+- ✅ **Foundation Complete** (Phase 1-2): RBAC, Jurisdiction, Dashboard, Signup
+- ✅ **Admin Complete** (Phase 3-6): User Management, Roles, Permissions, Audit Logs
+- ✅ **Inventory Complete** (Phase 8): Full CRUD, Lot Tracking, FIFO/LIFO, Alerts
+- 🔄 **Monitoring In Progress** (Phase 10): 86% complete (6 of 7 phases done)
+- ⏳ **Next:** Environmental Controls → Batch Management → Tasks → Compliance
+
+### **Code Quality Metrics**
+- **Tests:** 164/173 passing (94.8% success rate)
+- **TypeScript:** 0 errors (100% compilation)
+- **Build:** ✅ Production-ready
+- **Database:** ✅ Deployed to US & Canada regions
+
+### **Repository Health**
+- **Documentation Cleanup:** ✅ Phase 1 Complete (Nov 3, 2025)
+  - Removed 3 redundant backup files from root
+  - Archived 10+ documentation files to `/docs/archived_docs/`
+  - Canonical docs: README, CURRENT, NextSteps maintained
+- **Planned Cleanup:** 
+  - Phase 2: Archive 11 prototype applications
+  - Phase 3: Component deduplication analysis
+  - Phase 4: Code consolidation and refactoring
+
+### **Immediate Actions**
+1. Complete Monitoring Phase 7 (Testing & Validation) - 6 hours
+2. Deploy monitoring dashboard to production
+3. Map pods to TagoIO device IDs (30 minutes)
+4. Begin Environmental Controls integration (Phase 11)
 
 ---
 
@@ -1443,3 +1477,74 @@ export default async function FeaturePage() {
 **Next Review:** After Monitoring & Telemetry completion  
 **Status:** ✅ Inventory Complete - Deploy ASAP  
 **Maintained By:** Development Team
+
+---
+
+---
+
+## 🧹 **REPOSITORY CLEANUP & ORGANIZATION**
+
+### **Phase 1: Documentation Cleanup** ✅ COMPLETE (November 3, 2025)
+
+**Goal:** Remove duplicate backup documentation and improve file organization.
+
+**Actions Taken:**
+- ✅ Removed 3 redundant backup files from repository root:
+  - `NextSteps.md.backup` (duplicate)
+  - `NextSteps_OLD_BACKUP.md` (outdated backup)
+  - `CURRENT_OLD_BACKUP.md` (outdated backup)
+- ✅ Moved cleanup documentation to `/docs/archived_docs/`:
+  - `CLEANUP_REPORT.md` - Details of files removed and rationale
+  - `CLEANUP_TODO.md` - Prioritized cleanup plan for future work
+- ✅ **Impact:** Zero impact on runtime code, builds, or functionality
+- ✅ **Verification:** All source code, components, and configuration files untouched
+
+**Files Relocated to `/docs/archived_docs/`:**
+- Documentation files moved to centralize historical documentation
+- All cleanup-related reports archived for reference
+- Large files (like `figmaTokens.md` - 124k+ lines) properly archived
+
+**What Remains Canonical:**
+- `README.md` - Project overview and getting started
+- `CURRENT.md` - Current feature status and progress
+- `NextSteps.md` - Integration roadmap and next steps (this file)
+- `.github/copilot-instructions.md` - AI assistant development patterns
+
+---
+
+### **Phase 2: Planned Cleanup** ⏳ PENDING
+
+**Safe, Low-Risk Tasks:**
+- [ ] Move old prototypes to `/archive/Prototypes/` (11 prototype folders)
+- [ ] Consolidate mock/seed data to `/lib/mock/` or `/scripts/mock/`
+- [ ] Archive unused documentation from `/docs/` to `/docs/archived_docs/`
+- [ ] Remove unused environment variable templates
+
+**Code Organization Tasks:**
+- [ ] Run import analysis to identify unused components
+- [ ] Consolidate duplicate utility functions in `/lib/utils.ts`
+- [ ] Consolidate validation schemas to `/lib/validations/`
+- [ ] Move constants from scattered files to `/lib/constants/`
+
+**Component Cleanup (Requires Testing):**
+- [ ] Identify and archive never-imported components from `/components/ui/`
+- [ ] Remove duplicate components between prototypes and main repo
+- [ ] Document all 47+ shadcn/ui components with usage examples
+
+**High-Risk Refactors (Requires QA):**
+- [ ] Remove deprecated code paths (search for `// DEPRECATED`, `// TODO: remove`)
+- [ ] Generate Supabase types from schema, replace hand-written types
+- [ ] Consolidate batch/inventory waste disposal into shared components
+
+**Quality Assurance Process:**
+1. Create feature branch for each cleanup task
+2. Run `npm run -s typecheck && npm run -s test` (maintain 94.8%+ pass rate)
+3. Run E2E tests (Playwright) for UI changes
+4. Manual testing: signup, dashboard, inventory CRUD, monitoring pages
+5. PR review with focus on RBAC/jurisdiction logic
+
+**Documentation:**
+- Full cleanup plan: `/docs/archived_docs/CLEANUP_TODO.md`
+- Phase 1 report: `/docs/archived_docs/CLEANUP_REPORT.md`
+
+---

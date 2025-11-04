@@ -102,8 +102,8 @@ export async function getFeatureItems(siteId: string) {
 4. **Tasks** → **Compliance** → **Batch** (Phase 4)
 
 ## Documentation Rules
-- Update `NextSteps.md` for progress tracking
-- Update `CURRENT.md` for completed features
+- Update `/docs/ROADMAP.md` for progress tracking
+- Update `/docs/CURRENT.md` for completed features
 - Don't create session notes or temporary docs
 - Reference `AGENT_INSTRUCTIONS.md` for detailed integration patterns
 

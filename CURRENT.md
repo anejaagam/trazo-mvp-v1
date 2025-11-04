@@ -478,6 +478,10 @@ Used by components for form submissions with Next.js 15 server actions pattern.
   - movements-log.tsx: `""` → `"all"` for filter dropdowns (2 filters)
 - ✅ **Dev Mode Crashes:** Added `isDevModeActive()` checks in 6 components
 - ✅ **Permission Leaks:** All routes have proper RBAC guards
+- ✅ **Welcome Banner Flash:** Eliminated post-dismiss flash by deferring render until client storage check
+  - File: `components/features/onboarding/welcome-banner.tsx`
+  - Change: Added `mounted` state to gate render until `localStorage` is read; prevents SSR/CSR mismatch flash when `trazo-onboarded=1`
+  - Tests: Added `components/features/onboarding/__tests__/welcome-banner.test.tsx`
 
 ---
 

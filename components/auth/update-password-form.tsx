@@ -40,6 +40,18 @@ export function UpdatePasswordForm({
       }
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      
+      // Update user status to active if they were invited
+      // This completes the invitation flow
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from('users')
+          .update({ status: 'active' })
+          .eq('id', user.id)
+          .eq('status', 'invited'); // Only update if currently invited
+      }
+      
       // After successful password set, send them to login as requested
       router.push("/auth/login?reset=1");
     } catch (error: unknown) {

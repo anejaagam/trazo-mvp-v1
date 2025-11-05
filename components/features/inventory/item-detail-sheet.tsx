@@ -12,6 +12,7 @@ import { formatDateTime } from '@/lib/utils'
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -205,6 +206,9 @@ export function ItemDetailSheet({
                 <SheetTitle className="text-2xl font-bold tracking-tight mb-2">
                   {item.name}
                 </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Detailed information for {item.name} including stock levels, lot details, and recent movements
+                </SheetDescription>
                 <div className="flex items-center gap-2 flex-wrap">
                   {item.sku && (
                     <Badge variant="outline" className="font-mono text-xs">

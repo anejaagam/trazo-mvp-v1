@@ -187,16 +187,33 @@ This document tracks the comprehensive repository cleanup effort completed in No
 - All documentation current and organized
 - Modular, maintainable file structure
 
-### Phase 2.5: Utility Function Consolidation ⏳ PENDING
+### Phase 2.5: Utility Function Consolidation ✅ COMPLETE
 
-**Tasks:**
-- [ ] Search for duplicate utility functions across files
-- [ ] Consolidate duplicates into `/lib/utils.ts`
-- [ ] Ensure no breaking changes
-- [ ] Update imports across codebase
-- [ ] Verify tests passing after consolidation
+**Completed:** November 5, 2025
 
-**Estimated Time:** 1-2 days
+- [x] ✅ Search for duplicate utility functions across files
+- [x] ✅ Consolidate duplicates into `/lib/utils.ts`
+- [x] ✅ Ensure no breaking changes
+- [x] ✅ Update imports across codebase
+- [x] ✅ Verify tests passing after consolidation
+
+**Results:**
+- **Duplicates Found:** 5 functions across 4 files
+  - `formatDate` (3 instances in inventory components)
+  - `formatTimeAgo` (1 instance in monitoring)
+  - `formatTimestamp` (1 instance in monitoring)
+- **Functions Added to `/lib/utils.ts`:**
+  - `formatDate()` - Localized short format (e.g., "Jan 15, 2025")
+  - `formatDateTime()` - Date with time (e.g., "Jan 15, 02:30 PM")
+  - `formatTimeAgo()` - Relative time (e.g., "5 min ago", "2h ago")
+  - `formatTimestamp()` - Full localized date/time
+- **Files Updated:** 4 components
+  - `item-catalog.tsx` - Uses `formatDate`
+  - `item-detail-sheet.tsx` - Uses `formatDateTime`
+  - `inventory-dashboard.tsx` - Uses `formatDateTime`
+  - `alarms-panel.tsx` - Uses `formatTimeAgo` and `formatTimestamp`
+- **Zero Breaking Changes:** All tests passing, zero new TypeScript errors
+- **Code Reduction:** Eliminated 40+ lines of duplicate code
 
 ---
 
@@ -209,9 +226,9 @@ This document tracks the comprehensive repository cleanup effort completed in No
 | 2.2 | Component Analysis | ✅ Complete | Nov 4, 2025 |
 | 2.3 | Mock Data Consolidation | ✅ Complete | Nov 4, 2025 |
 | 2.4 | Documentation Archival | ✅ Complete | Nov 4, 2025 |
-| 2.5 | Utility Consolidation | ⏳ Pending | TBD |
+| 2.5 | Utility Consolidation | ✅ Complete | Nov 5, 2025 |
 
-**Overall Progress:** 90% complete (4.5 of 5 phases)
+**Overall Progress:** 100% complete (6 of 6 phases) 🎉
 
 ---
 

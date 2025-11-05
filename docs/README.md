@@ -10,8 +10,8 @@
 | Document | Description | Location |
 |----------|-------------|----------|
 | **README** | Project overview & getting started | `/README.md` |
-| **Current Status** | Complete feature status (52KB) | `/docs/CURRENT.md` |
-| **Roadmap** | Integration roadmap & deployment | `/docs/ROADMAP.md` |
+| **Current Status** | Complete feature status (split into 6 guides) | `/docs/current/index.md` |
+| **Roadmap** | Integration guides (9 focused files) | `/docs/roadmap/` |
 | **API Reference** | REST API documentation | `/docs/API.md` |
 | **Contributing** | Development guidelines | `/CONTRIBUTING.md` |
 | **Changelog** | Version history | `/CHANGELOG.md` |
@@ -21,13 +21,13 @@
 |-------|-------------|----------|
 | **Copilot Instructions** | AI assistant development patterns | `/.github/copilot-instructions.md` |
 | **Setup Guides** | Environment, database, testing setup | `/docs/archived_docs/1-setup-guides/` |
-| **Integration Patterns** | 7-phase feature integration approach | `/docs/ROADMAP.md` (Proven Pattern) |
+| **Integration Patterns** | 7-phase feature integration approach | `/docs/roadmap/integration-patterns.md` |
 | **Testing Guide** | Unit, integration, E2E testing | `/docs/archived_docs/1-setup-guides/TESTING.md` |
 
 ### **Reference Documentation**
 | Reference | Description | Location |
 |-----------|-------------|----------|
-| **RBAC Permissions** | 8 roles, 50+ permissions matrix | `/docs/ROADMAP.md` (RBAC section) |
+| **RBAC Permissions** | 8 roles, 50+ permissions matrix | `/docs/roadmap/quick-reference.md` |
 | **Jurisdictions** | Oregon, Maryland, Canada, PrimusGFS | `/.github/copilot-instructions.md` |
 | **Database Schema** | 20+ tables, RLS policies, triggers | `/lib/supabase/schema.sql` |
 | **UI Components** | 47+ shadcn/ui component inventory | `/docs/archived_docs/6-design-reference/UI_COMPONENT_AUDIT.md` |
@@ -41,15 +41,25 @@
 /docs/
 ├── README.md                    # This file - navigation hub
 ├── API.md                       # REST API reference
-├── archived_docs/               # Historical documentation (51 files)
+├── CURRENT.md                   # Current project status (with TOC)
+├── roadmap/                     # Integration roadmap (9 files)
+│   ├── index.md                # Roadmap navigation hub
+│   ├── agent-quickstart.md     # New developer onboarding
+│   ├── integration-checklist.md # Phase tracking
+│   ├── deployment-guide.md     # Deployment steps
+│   ├── feature-roadmap.md      # Feature timeline
+│   ├── integration-patterns.md # 7-phase approach
+│   ├── development-workflow.md # Daily dev guide
+│   ├── cleanup-tracking.md     # Repository cleanup
+│   └── quick-reference.md      # Code patterns
+├── archived_docs/               # Historical documentation (63 files)
 │   ├── README.md               # Archived docs navigation
 │   ├── 1-setup-guides/         # Setup, config, testing (19 files)
 │   ├── 2-feature-integration/  # Integration completion reports (12 files)
-│   ├── 3-troubleshooting/      # Bug fixes and patches (11 files)
+│   ├── 3-troubleshooting/      # Bug fixes and patches (13 files)
 │   ├── 4-cleanup-reports/      # Repository cleanup analysis (11 files)
 │   ├── 5-deployment/           # Deployment guides (6 files)
 │   └── 6-design-reference/     # Design tokens, UI audit (2 files)
-└── migrations/                  # Database migration fixes (2 files)
 ```
 
 ---
@@ -65,10 +75,10 @@
 
 ### **Contributing to Features**
 1. **Read:** `/CONTRIBUTING.md` - Development workflow
-2. **Review:** `/NextSteps.md` - See "7-Phase Approach"
-3. **Check:** `/CURRENT.md` - Verify feature status
+2. **Review:** `/docs/roadmap/integration-patterns.md` - 7-Phase Approach
+3. **Check:** `/docs/CURRENT.md` - Verify feature status
 4. **Test:** `/docs/archived_docs/1-setup-guides/TESTING.md` - Testing requirements
-5. **Document:** Update `CURRENT.md` and `NextSteps.md` when complete
+5. **Document:** Update `CURRENT.md` and roadmap when complete
 
 ### **API Integration**
 1. **Read:** `/docs/API.md` - API reference
@@ -270,4 +280,6 @@ See `/NextSteps.md` "Deployment Checklist" section for complete preflight checks
 **Documentation Version:** 1.0.0  
 **Project Version:** 0.8.0
 
-For the most up-to-date information, always check `/docs/CURRENT.md` and `/docs/ROADMAP.md`.
+For the most up-to-date information, always check:
+- `/docs/CURRENT.md` - Current project status with comprehensive TOC
+- `/docs/roadmap/` - Integration roadmap split into 9 focused guides

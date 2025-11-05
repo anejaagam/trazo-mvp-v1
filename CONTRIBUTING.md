@@ -269,7 +269,7 @@ const allocatedLots = sortByExpiryDate(lots)
 
 ### Documentation Updates
 When adding features, update:
-- `/docs/CURRENT.md` - Feature status
+- `/docs/current/index.md` - Feature status (split into 6 guides)
 - `/docs/ROADMAP.md` - Integration checklist
 - `README.md` - If changing setup/usage
 - Create `[FEATURE]_COMPLETE.md` summary
@@ -278,7 +278,7 @@ When adding features, update:
 
 - **Architecture questions:** See `.github/copilot-instructions.md`
 - **Integration patterns:** See `/docs/ROADMAP.md` (7-Phase Approach)
-- **Feature status:** See `/docs/CURRENT.md`
+- **Feature status:** See `/docs/current/index.md`
 - **API reference:** See `docs/API.md`
 - **Testing guides:** See `docs/archived_docs/1-setup-guides/TESTING.md`
 

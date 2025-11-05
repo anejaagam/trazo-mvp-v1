@@ -14,7 +14,7 @@ TRAZO is a Next.js 15 (App Router) cultivation facility management system with m
 **Quick Links:**
 - 📖 **[Documentation](/docs/README.md)** - Complete docs navigation hub
 - 🚀 **[API Reference](/docs/API.md)** - REST API documentation
-- 📋 **[Current Status](/docs/CURRENT.md)** - Detailed feature status
+- 📋 **[Current Status](/docs/current/index.md)** - Detailed feature status
 - 🗺️ **[Roadmap](/docs/ROADMAP.md)** - Integration roadmap & deployment guide
 - 🤝 **[Contributing](CONTRIBUTING.md)** - Development guidelines
 - 📝 **[Changelog](CHANGELOG.md)** - Version history
@@ -110,7 +110,7 @@ This project uses Jest for unit and integration tests and Playwright for end-to-
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
 
 ### Developer Guides
-- **[Current Status](/docs/CURRENT.md)** - Detailed feature implementation status (52KB)
+- **[Current Status](/docs/current/index.md)** - Detailed feature implementation status (split into 6 focused guides)
 - **[Integration Roadmap](/docs/ROADMAP.md)** - Step-by-step integration guide (57KB)
 - **[Copilot Instructions](.github/copilot-instructions.md)** - AI assistant development patterns
 

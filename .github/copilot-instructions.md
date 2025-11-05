@@ -102,8 +102,14 @@ export async function getFeatureItems(siteId: string) {
 4. **Tasks** → **Compliance** → **Batch** (Phase 4)
 
 ## Documentation Rules
-- Update `/docs/ROADMAP.md` for progress tracking
-- Update `/docs/CURRENT.md` for completed features
+- Update `/docs/roadmap/` for progress tracking (split into 9 focused guides)
+  - Main index: `/docs/roadmap/index.md`
+  - Integration checklist: `/docs/roadmap/integration-checklist.md`
+  - See full list in roadmap index
+- Update `/docs/current/` for completed features (split into 6 focused guides)
+  - Main index: `/docs/current/index.md`
+  - Feature details: `/docs/current/feature-inventory.md`, `feature-monitoring.md`
+  - See full list in current index
 - Don't create session notes or temporary docs
 - Reference `AGENT_INSTRUCTIONS.md` for detailed integration patterns
 

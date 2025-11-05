@@ -2,6 +2,52 @@
 
 *Last Updated: November 4, 2025 - Repository Cleanup Complete + Phase 10: Monitoring Integration*
 
+---
+
+## 📑 Table of Contents
+
+### Quick Navigation
+- [Current Project Status](#-current-project-status)
+- [Repository Cleanup & Organization](#-repository-cleanup--organization)
+- [Inventory Feature (Phase 8)](#-latest-inventory-tracking--management---deployed)
+- [Monitoring Feature (Phase 10)](#-monitoring--telemetry-integration-in-progress)
+- [Previous Completed Phases](#-previous-phases-complete)
+- [Project Architecture](#-project-architecture)
+- [Design System](#-design-system--component-library)
+- [Integrations](#-integrations-planned)
+- [Health Metrics](#-health-metrics)
+
+### Detailed Sections
+1. **Repository Cleanup**
+   - [Phase 1: Documentation Restructuring](#phase-1-documentation-restructuring--complete-november-4-2025)
+   - [Phase 2: Code & Component Cleanup](#phase-2-code--component-cleanup--in-progress-45-of-5-complete---90)
+
+2. **Inventory Feature**
+   - [What Was Delivered](#-what-was-delivered)
+   - [Database Schema](#1-database-schema-phase-1--deployed-to-production)
+   - [Type System](#2-typescript-type-system-phase-2)
+   - [Query Functions](#3-database-query-functions-phase-3)
+   - [UI Components](#4-ui-components-phase-4)
+   - [Dashboard Pages](#5-dashboard-pages-phase-6)
+   - [API Routes](#6-api-routes-phase-7)
+   - [Technical Achievements](#-technical-achievements)
+   - [RBAC Permissions](#-rbac-permissions-used)
+
+3. **Monitoring & Telemetry**
+   - [Progress Summary](#progress-summary)
+   - [Phase 1-6 Deliverables](#phase-1-type-definitions--complete)
+   - [TagoIO Integration](#phase-6-tagoio-integration--complete)
+   - [Deployment Architecture](#deployment-architecture)
+   - [Remaining Work](#remaining-deliverables)
+
+4. **Reference**
+   - [Project Structure](#project-structure)
+   - [Tech Stack](#tech-stack)
+   - [Getting Started](#getting-started-for-new-developers)
+   - [Known Issues](#known-issues)
+
+---
+
 ## 🎯 CURRENT PROJECT STATUS
 
 ### **Test Status**
@@ -105,7 +151,7 @@
 
 ---
 
-### **Phase 2: Code & Component Cleanup** 🔄 IN PROGRESS (4 of 5 complete - 80%)
+### **Phase 2: Code & Component Cleanup** 🔄 IN PROGRESS (4.5 of 5 complete - 90%)
 
 #### **Phase 2.1: Prototype Archival** ✅ COMPLETE (November 4, 2025)
 - ✅ Archived 3 completed prototypes to `/archive/Prototypes/`
@@ -131,9 +177,12 @@
 - **Result:** Zero files moved - existing organization follows best practices
 - **Documentation:** `/docs/archived_docs/4-cleanup-reports/PHASE2_3_MOCK_DATA_ANALYSIS.md`
 
-#### **Phase 2.4: Documentation File Archival** ⏳ PENDING
-- [ ] Review `/docs/` for outdated documentation
-- [ ] Move obsolete files to `/docs/archived_docs/` as needed
+#### **Phase 2.4: Documentation File Archival** ✅ COMPLETE (November 4, 2025)
+- [x] ✅ Review `/docs/` for outdated documentation
+- [x] ✅ Remove empty `/docs/migrations/` directory
+- [x] ✅ Verify all active documentation is current
+- **Result:** Clean `/docs/` structure with 4 essential files + archived_docs folder
+- **Finding:** All active docs (API.md, CURRENT.md, README.md, ROADMAP.md) are current and necessary
 
 #### **Phase 2.5: Utility Function Consolidation** ⏳ PENDING  
 - [ ] Search for duplicate utility functions

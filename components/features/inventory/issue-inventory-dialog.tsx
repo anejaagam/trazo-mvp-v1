@@ -498,13 +498,6 @@ export function IssueInventoryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Item Selection */}
@@ -848,6 +841,14 @@ export function IssueInventoryDialog({
                 </FormItem>
               )}
             />
+
+            {/* Error Alert - Right above submit button */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             <DialogFooter>
               <Button

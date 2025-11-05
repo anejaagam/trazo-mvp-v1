@@ -235,53 +235,43 @@ export function AdjustInventoryDialog({
       // Calculate the actual adjustment amount (positive or negative)
       const adjustmentAmount = data.adjustment_type === 'increase' ? quantity : -quantity
 
-      // If lots are available, require lot selection
-      if (availableLots.length > 0 && !data.lot_id) {
+      // For lot-tracked items, lots must exist
+      if (availableLots.length === 0) {
+        throw new Error('Cannot adjust inventory: No lots available. Please receive inventory first to create a lot.')
+      }
+
+      // Require lot selection
+      if (!data.lot_id) {
         throw new Error('Please select a specific lot to adjust')
       }
 
-      // If a specific lot is selected, adjust that lot
-      if (data.lot_id) {
-        const selectedLot = availableLots.find(lot => lot.id === data.lot_id)
-        if (!selectedLot) {
-          throw new Error('Selected lot not found')
-        }
-
-        // For decreases, validate sufficient quantity
-        if (data.adjustment_type === 'decrease' && selectedLot.quantity_remaining < quantity) {
-          throw new Error(`Insufficient quantity in lot. Only ${selectedLot.quantity_remaining} available.`)
-        }
-
-        // Create movement record with lot_id so trigger fires
-        const { error: movementError } = await createMovement({
-          item_id: selectedItem.id,
-          lot_id: data.lot_id,
-          movement_type: 'adjust',
-          quantity: adjustmentAmount,
-          from_location: selectedItem.storage_location || undefined,
-          notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
-          performed_by: userId,
-        })
-
-        if (movementError) throw movementError
-
-        // Note: The database trigger update_inventory_quantity() will automatically:
-        // 1. Update quantity_remaining
-        // 2. Set is_active = false when quantity reaches 0
-      } else {
-        // No lots exist - create a general adjustment movement
-        // Note: For items without lot tracking, this updates the legacy current_quantity field
-        const { error: movementError } = await createMovement({
-          item_id: selectedItem.id,
-          movement_type: 'adjust',
-          quantity: adjustmentAmount,
-          from_location: selectedItem.storage_location || undefined,
-          notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
-          performed_by: userId,
-        })
-
-        if (movementError) throw movementError
+      // Validate selected lot exists
+      const selectedLot = availableLots.find(lot => lot.id === data.lot_id)
+      if (!selectedLot) {
+        throw new Error('Selected lot not found')
       }
+
+      // For decreases, validate sufficient quantity
+      if (data.adjustment_type === 'decrease' && selectedLot.quantity_remaining < quantity) {
+        throw new Error(`Insufficient quantity in lot. Only ${selectedLot.quantity_remaining} available.`)
+      }
+
+      // Create movement record with lot_id so trigger fires
+      const { error: movementError } = await createMovement({
+        item_id: selectedItem.id,
+        lot_id: data.lot_id,
+        movement_type: 'adjust',
+        quantity: adjustmentAmount,
+        from_location: selectedItem.storage_location || undefined,
+        notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
+        performed_by: userId,
+      })
+
+      if (movementError) throw movementError
+
+      // Note: The database trigger update_inventory_quantity() will automatically:
+      // 1. Update quantity_remaining
+      // 2. Set is_active = false when quantity reaches 0
 
       // Success
       form.reset()
@@ -322,13 +312,6 @@ export function AdjustInventoryDialog({
             Make manual adjustments to inventory quantities. Use for cycle counts, damaged goods, or other corrections.
           </DialogDescription>
         </DialogHeader>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -587,6 +570,14 @@ export function AdjustInventoryDialog({
                 </FormItem>
               )}
             />
+
+            {/* Error Alert - Right above submit button */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             <DialogFooter>
               <Button

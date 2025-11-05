@@ -98,6 +98,7 @@ export function DeleteItemsDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
+        {/* Error/Success Messages - Right above buttons */}
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />

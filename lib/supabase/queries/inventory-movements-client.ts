@@ -151,13 +151,18 @@ export async function createMovement(movement: InsertInventoryMovement) {
         code: error.code,
         details: error.details,
         hint: error.hint,
-        movement
+        movement,
+        stringified: JSON.stringify(error, null, 2)
       })
-      throw error
+      throw new Error(`Failed to create movement: ${error.message || 'Unknown error'}`)
     }
     return { data, error: null }
   } catch (error) {
-    console.error('Error in createMovement:', error)
+    console.error('Error in createMovement:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return { data: null, error }
   }
 }

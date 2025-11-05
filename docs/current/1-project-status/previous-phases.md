@@ -1,6 +1,6 @@
 # Previous Phases History
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)
 
 ---
 
@@ -229,4 +229,4 @@ This document tracks all completed development phases from the foundation throug
 
 ---
 
-**Navigation:** [← Back to Current Status](./index.md) | [Next: Project Overview →](./project-overview.md)
+**Navigation:** [← Back to Current Status](../index.md) | [Next: Inventory Feature →](../2-features/feature-inventory.md)

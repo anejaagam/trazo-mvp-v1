@@ -1,6 +1,6 @@
 # Repository Cleanup & Organization
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)
 
 ---
 
@@ -232,4 +232,4 @@ This document tracks the comprehensive repository cleanup effort completed in No
 
 ---
 
-**Navigation:** [← Back to Current Status](./index.md) | [Next: Inventory Feature →](./feature-inventory.md)
+**Navigation:** [← Back to Current Status](../index.md) | [Next: Previous Phases →](./previous-phases.md)

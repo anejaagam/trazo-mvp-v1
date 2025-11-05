@@ -1,7 +1,7 @@
 # TRAZO MVP - Integration Roadmap
 
-**Last Updated:** November 4, 2025  
-**Document Version:** 5.0 (Restructured)  
+**Last Updated:** November 5, 2025  
+**Document Version:** 5.1 (Documentation Reorganized)  
 **Current Phase:** Phase 10 - Monitoring & Telemetry Integration (86%)  
 **Repository Status:** ✅ Documentation cleanup complete
 
@@ -28,7 +28,12 @@
   - Archived 3 completed prototypes
   - Analyzed UI components and mock data
   - Cleaned /docs/ structure (removed empty directories)
-- **Current Cleanup Phase:** 2.5 - Utility Function Consolidation (90% complete)
+- **Documentation Organization:** ✅ Complete (Nov 5, 2025)
+  - Reorganized roadmap into 4 focused categories
+  - Created getting-started/, integration-deployment/, planning-progress/, reference/ folders
+  - Added key-documentation.md as central link hub
+  - Updated all cross-references and navigation paths
+- **Current Cleanup Phase:** 2.6 - Utility Function Consolidation (pending)
 
 ### **Immediate Actions**
 1. Complete Monitoring Phase 7 (Testing & Validation) - 6 hours
@@ -43,21 +48,21 @@
 This roadmap is split into focused sections for better readability:
 
 ### **Getting Started**
-- **[Agent Quickstart](./agent-quickstart.md)** - New developer onboarding guide
-- **[Development Workflow](./development-workflow.md)** - Daily development patterns and commands
+- **[Agent Quickstart](./getting-started/agent-quickstart.md)** - New developer onboarding guide
+- **[Development Workflow](./getting-started/development-workflow.md)** - Daily development patterns and commands
 
 ### **Integration & Deployment**
-- **[Integration Checklist](./integration-checklist.md)** - Phase-by-phase feature integration tasks
-- **[Deployment Guide](./deployment-guide.md)** - Complete deployment steps and testing procedures
-- **[Integration Patterns](./integration-patterns.md)** - Proven 7-phase approach for new features
+- **[Integration Checklist](./integration-deployment/integration-checklist.md)** - Phase-by-phase feature integration tasks
+- **[Deployment Guide](./integration-deployment/deployment-guide.md)** - Complete deployment steps and testing procedures
+- **[Integration Patterns](./integration-deployment/integration-patterns.md)** - Proven 7-phase approach for new features
 
 ### **Planning & Progress**
-- **[Feature Roadmap](./feature-roadmap.md)** - Future features (Phases 10-16)
-- **[Cleanup Tracking](./cleanup-tracking.md)** - Repository cleanup phases (1-2)
+- **[Feature Roadmap](./planning-progress/feature-roadmap.md)** - Future features (Phases 10-16)
+- **[Cleanup Tracking](./planning-progress/cleanup-tracking.md)** - Repository cleanup phases (1-2)
 
 ### **Reference**
-- **[Quick Reference](./quick-reference.md)** - File locations, hooks, patterns, project metrics
-- **[Key Documentation](./key-documentation.md)** - Links to all essential docs
+- **[Quick Reference](./reference/quick-reference.md)** - File locations, hooks, patterns, project metrics
+- **[Key Documentation](./reference/key-documentation.md)** - Links to all essential docs
 
 ---
 

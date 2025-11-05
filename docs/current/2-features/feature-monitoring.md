@@ -1,6 +1,6 @@
 # Monitoring & Telemetry Feature
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)
 
 ---
 
@@ -368,4 +368,4 @@ Real-time environmental monitoring system with TagoIO integration, historical da
 
 ---
 
-**Navigation:** [← Back to Current Status](./index.md) | [Next: Previous Phases →](./previous-phases.md)
+**Navigation:** [← Back to Current Status](../index.md) | [Next: Project Overview →](../3-reference/project-overview.md)

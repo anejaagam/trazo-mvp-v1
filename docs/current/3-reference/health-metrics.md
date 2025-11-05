@@ -1,6 +1,6 @@
 # Repository Health & Metrics
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)
 
 ---
 
@@ -341,4 +341,4 @@
 **Last Updated:** November 4, 2025  
 **Next Review:** Phase 11 completion
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)

@@ -1,6 +1,6 @@
 # Inventory Management Feature
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)
 
 ---
 
@@ -372,4 +372,4 @@ All inventory features properly gated by these permissions:
 
 ---
 
-**Navigation:** [← Back to Current Status](./index.md) | [Next: Monitoring Feature →](./feature-monitoring.md)
+**Navigation:** [← Back to Current Status](../index.md) | [Next: Monitoring Feature →](./feature-monitoring.md)

@@ -1,6 +1,6 @@
 # TRAZO MVP - Current Status
 
-**Last Updated:** November 4, 2025
+**Last Updated:** November 5, 2025
 
 ---
 
@@ -8,66 +8,26 @@
 
 **Test Status:** ✅ 164/173 passing (94.8%)  
 **Development Phase:** Phase 10 - Monitoring & Telemetry (90% complete)  
-**Repository Cleanup:** Phase 2 - 90% complete (4.5/5 tasks done)  
+**Repository Cleanup:** Phase 2 - 100% complete (5/5 tasks done)  
 **Deployment:** 🚀 Inventory deployed, Monitoring dashboard ready
 
 ---
 
-## 📚 Current Status Sections
+## 📚 Current Status Documentation
 
-This directory contains detailed documentation of the current TRAZO MVP project status, split into focused sections:
+This directory contains detailed documentation of the current TRAZO MVP project status, organized into focused categories:
 
-### [Repository Cleanup](./cleanup-tracking.md)
-Complete repository cleanup progress tracking:
-- Phase 1: Documentation Restructuring ✅ COMPLETE
-- Phase 2: Code & Component Cleanup 🔄 90% COMPLETE
-  - 2.1: Prototype Archival ✅
-  - 2.2: Component Analysis ✅
-  - 2.3: Mock Data Consolidation ✅
-  - 2.4: Documentation Archival ✅
-  - 2.5: Utility Consolidation ⏳ PENDING
+### **Project Status**
+- **[Cleanup Tracking](./1-project-status/cleanup-tracking.md)** - Repository cleanup progress (Phase 1-2 complete)
+- **[Previous Phases](./1-project-status/previous-phases.md)** - Historical completion tracking (Phases 1-8)
 
-### [Inventory Feature](./feature-inventory.md)
-Complete Inventory Tracking & Management system (Phase 8 - DEPLOYED):
-- 30 files, 195KB+ code
-- Database schema deployed (US & Canada)
-- Live data: 6 items, 18 lots, 8 movements, 2 alerts
-- 4 production API endpoints
-- Smart lot allocation (FIFO/LIFO/FEFO)
-- Multi-jurisdiction compliance
+### **Features**
+- **[Inventory Feature](./2-features/feature-inventory.md)** - Complete inventory system (Phase 8 - DEPLOYED)
+- **[Monitoring Feature](./2-features/feature-monitoring.md)** - Telemetry & monitoring (Phase 10 - 90% complete)
 
-### [Monitoring Feature](./feature-monitoring.md)
-Monitoring & Telemetry Integration (Phase 10 - 90% COMPLETE):
-- 7,836 lines of production code
-- Real-time telemetry dashboard
-- TagoIO integration complete
-- Fleet monitoring with pod status cards
-- Environmental charts (temp, humidity, CO2, VPD)
-- Device mapping + testing pending
-
-### [Previous Phases](./previous-phases.md)
-Historical completion tracking (Phases 1-8):
-- Phase 1: Foundation Setup ✅
-- Phase 1.5: Signup Enhancement ✅
-- Phase 3-6: Admin & Identity ✅
-- Phase 7: Signup Flow ✅
-- Phase 8: Inventory ✅
-
-### [Project Overview](./project-overview.md)
-Architecture, tech stack, and project structure:
-- Next.js 15 App Router
-- Supabase (US & Canada regions)
-- Multi-tenancy & RBAC
-- 47+ shadcn/ui components
-- Jurisdiction-based compliance
-
-### [Health Metrics](./health-metrics.md)
-Test coverage, code stats, and known issues:
-- Test coverage: 94.8% (164/173 passing)
-- Code statistics by feature
-- Known issues tracking
-- Performance metrics
-- Quality gates
+### **Reference**
+- **[Project Overview](./3-reference/project-overview.md)** - Architecture, tech stack, and project structure
+- **[Health Metrics](./3-reference/health-metrics.md)** - Test coverage, code stats, and known issues
 
 ---
 
@@ -90,10 +50,10 @@ Test coverage, code stats, and known issues:
 **Active Work:** Phase 2.5 - Utility Function Consolidation ⏳
 
 **Next Priorities:**
-1. Complete Phase 2.5 (utility consolidation)
+1. Complete Phase 2.6 (utility consolidation)
 2. Complete Phase 10 Monitoring (device mapping + testing - 8 hours)
 3. Begin Phase 11 (Environmental Controls)
 
 ---
 
-**Quick Navigation:** [Cleanup](./cleanup-tracking.md) | [Inventory](./feature-inventory.md) | [Monitoring](./feature-monitoring.md) | [Previous Phases](./previous-phases.md) | [Overview](./project-overview.md) | [Metrics](./health-metrics.md)
+**Quick Navigation:** [Cleanup](./1-project-status/cleanup-tracking.md) | [Previous Phases](./1-project-status/previous-phases.md) | [Inventory](./2-features/feature-inventory.md) | [Monitoring](./2-features/feature-monitoring.md) | [Overview](./3-reference/project-overview.md) | [Metrics](./3-reference/health-metrics.md)

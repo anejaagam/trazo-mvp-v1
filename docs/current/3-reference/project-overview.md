@@ -1,6 +1,6 @@
 # Project Overview & Architecture
 
-**Navigation:** [← Back to Current Status](./index.md)
+**Navigation:** [← Back to Current Status](../index.md)
 
 ---
 
@@ -319,4 +319,4 @@ CRON_SECRET=...
 
 ---
 
-**Navigation:** [← Back to Current Status](./index.md) | [Next: Health Metrics →](./health-metrics.md)
+**Navigation:** [← Back to Current Status](../index.md) | [Next: Health Metrics →](./health-metrics.md)

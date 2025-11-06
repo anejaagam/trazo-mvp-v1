@@ -36,41 +36,49 @@ export function WelcomeBanner({ role, jurisdictionId }: Props) {
   if (dismissed) return null
 
   return (
-    <Alert className="bg-primary/5 border-primary/20">
-      <Info className="h-4 w-4" />
-      <AlertTitle>
-        {isAdmin ? 'Welcome to Trazo 👋' : 'You’re all set'}
+    <Alert className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/30 shadow-sm">
+      <Info className="h-5 w-5 text-primary" />
+      <AlertTitle className="text-lg font-semibold">
+        {isAdmin ? 'Welcome to Trazo 👋' : '🎉 You\'re all set!'}
       </AlertTitle>
       <AlertDescription>
         {isAdmin ? (
-          <div className="space-y-2">
-            <p className="text-sm">
-              You’re the organization admin. Start by inviting your team from Admin → Users. Your jurisdiction is
+          <div className="space-y-3 mt-2">
+            <p className="text-sm leading-relaxed">
+              You're the organization admin. Start by inviting your team from Admin → Users. Your jurisdiction is
               {jurisdiction ? ` ${jurisdiction.name}` : ' set during onboarding'}, which tailors compliance and workflows.
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Tips: Configure sites, set inventory thresholds, and connect sensors when ready.
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            <p className="text-sm">
-              You’ve been invited to this organization. Based on your role ({role ?? 'member'}), you can access:
+          <div className="space-y-3 mt-2">
+            <p className="text-sm leading-relaxed text-foreground/90">
+              You've been invited to this organization. Based on your role <span className="font-semibold text-primary">({role ?? 'member'})</span>, you can access:
             </p>
-            <ul className="text-xs list-disc pl-5">
-              {permissions.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
+            <div className="bg-background/50 rounded-lg p-4 border border-border/50">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {permissions.map((p) => (
+                  <div 
+                    key={p}
+                    className="flex items-center gap-2 text-xs font-medium bg-primary/10 text-primary px-3 py-1.5 rounded-md border border-primary/20"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
+                    <span className="capitalize">{p}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
         <button
-          className="mt-3 text-xs underline text-primary"
+          className="mt-4 text-xs font-medium underline-offset-4 hover:underline text-primary/70 hover:text-primary transition-colors"
           onClick={() => { localStorage.setItem('trazo-onboarded', '1'); setDismissed(true) }}
         >
-          Dismiss
+          Dismiss this message
         </button>
-    </AlertDescription>
+      </AlertDescription>
     </Alert>
   )
 }

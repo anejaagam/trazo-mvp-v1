@@ -165,6 +165,9 @@ export default {
         'body': ['Lato', 'system-ui', 'sans-serif'], // For body text
         'sans': ['Lato', 'system-ui', 'sans-serif'], // Default sans
         'playfair': ['"Playfair Display"', 'serif'], // Brand display font for Trazo wordmark
+        // Added Helvetica family alias with webfont variable fallback
+        // If system Helvetica isn't available, we use the webfont bound to --font-helvetica (see app/layout.tsx)
+        'helvetica': ['var(--font-helvetica)', '"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
       },
       fontSize: {
         // Figma heading sizes

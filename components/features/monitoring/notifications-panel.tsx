@@ -6,7 +6,7 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
@@ -130,6 +130,9 @@ export function NotificationsPanel({ userId }: NotificationsPanelProps) {
               </Button>
             )}
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            View and manage your alarm notifications and system alerts
+          </SheetDescription>
           {unreadCount > 0 && (
             <p className="text-sm text-muted-foreground">
               You have {unreadCount} unread {unreadCount === 1 ? 'notification' : 'notifications'}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { formatTimeAgo, formatTimestamp } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -93,19 +94,6 @@ export function AlarmsPanel({ siteId, onNavigateToPod, realtime = true }: Alarms
       return <Clock className={iconClass} />
     }
     return <AlertCircle className={iconClass} />
-  }
-  
-  const formatTimeAgo = (timestamp: string): string => {
-    const minutesAgo = Math.floor((Date.now() - new Date(timestamp).getTime()) / 60000)
-    if (minutesAgo < 60) return `${minutesAgo} min ago`
-    const hoursAgo = Math.floor(minutesAgo / 60)
-    if (hoursAgo < 24) return `${hoursAgo}h ago`
-    const daysAgo = Math.floor(hoursAgo / 24)
-    return `${daysAgo}d ago`
-  }
-  
-  const formatTimestamp = (timestamp: string): string => {
-    return new Date(timestamp).toLocaleString()
   }
   
   const handleAction = async () => {

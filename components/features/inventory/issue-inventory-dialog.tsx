@@ -406,13 +406,22 @@ export function IssueInventoryDialog({
       } else {
         // Use planned consumptions from strategy
         consumptions = plannedConsumptions
+        
+        // If no lots available, check if item has legacy inventory
         if (consumptions.length === 0) {
-          throw new Error('No lots available for consumption')
-        }
-        // Verify total quantity matches
-        const totalPlanned = consumptions.reduce((sum, c) => sum + c.quantity, 0)
-        if (totalPlanned < quantity) {
-          throw new Error(`Insufficient stock. Only ${totalPlanned} units available.`)
+          // For items without lot tracking, allow issue if current_quantity is sufficient
+          if (selectedItem.current_quantity >= quantity) {
+            // We'll pass empty lot_allocations to API to signal legacy mode
+            consumptions = []
+          } else {
+            throw new Error(`Insufficient stock. Only ${selectedItem.current_quantity} units available.`)
+          }
+        } else {
+          // Verify total quantity matches for lot-tracked items
+          const totalPlanned = consumptions.reduce((sum, c) => sum + c.quantity, 0)
+          if (totalPlanned < quantity) {
+            throw new Error(`Insufficient stock. Only ${totalPlanned} units available.`)
+          }
         }
       }
 
@@ -497,13 +506,6 @@ export function IssueInventoryDialog({
             System will automatically select lots based on your chosen strategy.
           </DialogDescription>
         </DialogHeader>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -848,6 +850,14 @@ export function IssueInventoryDialog({
                 </FormItem>
               )}
             />
+
+            {/* Error Alert - Right above submit button */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             <DialogFooter>
               <Button

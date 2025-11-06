@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePermissions } from '@/hooks/use-permissions'
+import { formatDate } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -265,14 +266,6 @@ export function ItemCatalog({
 
   const formatItemType = (type: string) => {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
   }
 
   // Selection handlers

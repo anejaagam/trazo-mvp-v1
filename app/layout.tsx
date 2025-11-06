@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Lato } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
@@ -27,6 +28,19 @@ const lato = Lato({
   weight: ["300", "400", "700", "900"],
 });
 
+// Self-hosted Helvetica: binds to --font-helvetica for Tailwind's font-helvetica utility
+const helveticaLocal = localFont({
+  variable: "--font-helvetica",
+  display: "swap",
+  src: [
+    { path: "./fonts/helvetica/helvetica-light-587ebe5a59211.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/helvetica/Helvetica.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/helvetica/Helvetica-Oblique.ttf", weight: "400", style: "italic" },
+    { path: "./fonts/helvetica/Helvetica-Bold.ttf", weight: "700", style: "normal" },
+    { path: "./fonts/helvetica/Helvetica-BoldOblique.ttf", weight: "700", style: "italic" },
+  ],
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${playfairDisplay.variable} ${lato.variable} font-body antialiased`}>
+  <body className={`${playfairDisplay.variable} ${lato.variable} ${helveticaLocal.variable} font-body antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

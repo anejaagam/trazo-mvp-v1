@@ -43,6 +43,7 @@ import { useForm } from 'react-hook-form'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
 import { createLot } from '@/lib/supabase/queries/inventory-lots-client'
 import { createMovement } from '@/lib/supabase/queries/inventory-movements-client'
+import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryItem } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
@@ -247,6 +248,17 @@ export function ReceiveInventoryDialog({
 
         if (lotError) throw lotError
         lotId = newLot?.id
+      } else {
+        // Receiving without lot - update item's storage_location if provided
+        if (data.storage_location.trim()) {
+          const supabase = createClient()
+          const { error: updateError } = await supabase
+            .from('inventory_items')
+            .update({ storage_location: data.storage_location.trim() })
+            .eq('id', data.item_id)
+          
+          if (updateError) throw updateError
+        }
       }
 
       // Create movement record

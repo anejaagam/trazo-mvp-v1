@@ -87,14 +87,44 @@ export function ItemDetailSheet({
   const [isLoadingMovements, setIsLoadingMovements] = useState(false)
   const [lots, setLots] = useState<InventoryLot[]>([])
   const [isLoadingLots, setIsLoadingLots] = useState(false)
+  const [currentItem, setCurrentItem] = useState<InventoryItemWithStock | null>(null)
 
   useEffect(() => {
     if (item && open) {
+      loadItemData()
       loadRecentMovements()
       loadLots()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item, open])
+
+  const loadItemData = async () => {
+    if (!item) return
+
+    try {
+      if (isDevModeActive()) {
+        // In dev mode, use the prop item as-is
+        setCurrentItem(item)
+        return
+      }
+
+      // Fetch fresh item data to get updated storage_location
+      console.log(`[ItemDetailSheet] Loading fresh data for item ${item.id}`)
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .eq('id', item.id)
+        .single()
+
+      if (error) throw error
+      console.log(`[ItemDetailSheet] Loaded item data - storage_location:`, data?.storage_location)
+      setCurrentItem(data as InventoryItemWithStock || item)
+    } catch (error) {
+      console.error('Error loading item data:', error)
+      setCurrentItem(item)
+    }
+  }
 
   const loadRecentMovements = async () => {
     if (!item) return
@@ -194,7 +224,8 @@ export function ItemDetailSheet({
 
   const stockStatus = getStockStatus()
   const StatusIcon = stockStatus.icon
-  const availableQuantity = item.current_quantity - item.reserved_quantity
+  const displayItem = currentItem || item
+  const availableQuantity = displayItem.current_quantity - displayItem.reserved_quantity
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -347,7 +378,7 @@ export function ItemDetailSheet({
                       <div key={location} className="flex items-center justify-between p-2 rounded bg-background">
                         <span className="text-sm font-medium">{location}</span>
                         <span className="text-sm font-bold text-primary">
-                          {quantity} {item.unit_of_measure}
+                          {quantity} {displayItem.unit_of_measure}
                         </span>
                       </div>
                     ))}
@@ -356,19 +387,21 @@ export function ItemDetailSheet({
               )}
 
               {/* Primary Storage Location (fallback when no lots) */}
-              {lots.length === 0 && item.storage_location && (
+              {lots.length === 0 && (
                 <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border">
                   <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                      Primary Storage Location
+                      Storage Location
                     </p>
-                    <p className="text-sm font-medium">{item.storage_location}</p>
+                    <p className="text-sm font-medium">
+                      {displayItem.storage_location || <span className="text-muted-foreground italic">Not specified</span>}
+                    </p>
                   </div>
                 </div>
               )}
 
-              {item.cost_per_unit && (
+              {displayItem.cost_per_unit && (
                 <div className="flex gap-3 p-3 rounded-lg bg-muted/50 border">
                   <DollarSign className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0">
@@ -376,23 +409,23 @@ export function ItemDetailSheet({
                       Cost Per Unit
                     </p>
                     <p className="text-sm font-semibold">
-                      ${item.cost_per_unit.toFixed(2)} / {item.unit_of_measure}
+                      ${displayItem.cost_per_unit.toFixed(2)} / {displayItem.unit_of_measure}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Total: ${(item.current_quantity * item.cost_per_unit).toFixed(2)}
+                      Total: ${(displayItem.current_quantity * displayItem.cost_per_unit).toFixed(2)}
                     </p>
                   </div>
                 </div>
               )}
 
-              {item.notes && (
+              {displayItem.notes && (
                 <div className="flex gap-3 p-4 rounded-lg bg-muted/30 border-l-4 border-primary">
                   <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                       Notes
                     </p>
-                    <p className="text-sm leading-relaxed">{item.notes}</p>
+                    <p className="text-sm leading-relaxed">{displayItem.notes}</p>
                   </div>
                 </div>
               )}

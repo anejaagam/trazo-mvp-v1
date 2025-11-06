@@ -235,39 +235,53 @@ export function AdjustInventoryDialog({
       // Calculate the actual adjustment amount (positive or negative)
       const adjustmentAmount = data.adjustment_type === 'increase' ? quantity : -quantity
 
-      // For lot-tracked items, lots must exist
-      if (availableLots.length === 0) {
-        throw new Error('Cannot adjust inventory: No lots available. Please receive inventory first to create a lot.')
+      // If lots exist, require lot selection (lot-tracked items)
+      if (availableLots.length > 0) {
+        if (!data.lot_id) {
+          throw new Error('Please select a specific lot to adjust')
+        }
+
+        // Validate selected lot exists
+        const selectedLot = availableLots.find(lot => lot.id === data.lot_id)
+        if (!selectedLot) {
+          throw new Error('Selected lot not found')
+        }
+
+        // For decreases, validate sufficient quantity
+        if (data.adjustment_type === 'decrease' && selectedLot.quantity_remaining < quantity) {
+          throw new Error(`Insufficient quantity in lot. Only ${selectedLot.quantity_remaining} available.`)
+        }
+
+        // Create movement record with lot_id so trigger fires
+        const { error: movementError } = await createMovement({
+          item_id: selectedItem.id,
+          lot_id: data.lot_id,
+          movement_type: 'adjust',
+          quantity: adjustmentAmount,
+          from_location: selectedItem.storage_location || undefined,
+          notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
+          performed_by: userId,
+        })
+
+        if (movementError) throw movementError
+      } else {
+        // No lots exist - allow general adjustment (legacy/non-lot-tracked items)
+        // For decreases, validate sufficient quantity in item
+        if (data.adjustment_type === 'decrease' && selectedItem.current_quantity < quantity) {
+          throw new Error(`Insufficient quantity. Only ${selectedItem.current_quantity} available.`)
+        }
+
+        const { error: movementError } = await createMovement({
+          item_id: selectedItem.id,
+          movement_type: 'adjust',
+          quantity: adjustmentAmount,
+          from_location: selectedItem.storage_location || undefined,
+          notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
+          performed_by: userId,
+        })
+
+        if (movementError) throw movementError
       }
-
-      // Require lot selection
-      if (!data.lot_id) {
-        throw new Error('Please select a specific lot to adjust')
-      }
-
-      // Validate selected lot exists
-      const selectedLot = availableLots.find(lot => lot.id === data.lot_id)
-      if (!selectedLot) {
-        throw new Error('Selected lot not found')
-      }
-
-      // For decreases, validate sufficient quantity
-      if (data.adjustment_type === 'decrease' && selectedLot.quantity_remaining < quantity) {
-        throw new Error(`Insufficient quantity in lot. Only ${selectedLot.quantity_remaining} available.`)
-      }
-
-      // Create movement record with lot_id so trigger fires
-      const { error: movementError } = await createMovement({
-        item_id: selectedItem.id,
-        lot_id: data.lot_id,
-        movement_type: 'adjust',
-        quantity: adjustmentAmount,
-        from_location: selectedItem.storage_location || undefined,
-        notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
-        performed_by: userId,
-      })
-
-      if (movementError) throw movementError
 
       // Note: The database trigger update_inventory_quantity() will automatically:
       // 1. Update quantity_remaining

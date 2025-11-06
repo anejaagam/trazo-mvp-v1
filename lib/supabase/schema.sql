@@ -980,50 +980,111 @@ GROUP BY i.id, i.name, i.organization_id, i.site_id;
 -- HELPER FUNCTIONS FOR INVENTORY
 -- =====================================================
 
+-- Function to calculate total quantity from active lots
+CREATE OR REPLACE FUNCTION calculate_item_quantity_from_lots(p_item_id UUID)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+DECLARE
+  v_total NUMERIC;
+BEGIN
+  SELECT COALESCE(SUM(quantity_remaining), 0)
+  INTO v_total
+  FROM inventory_lots
+  WHERE item_id = p_item_id AND is_active = TRUE;
+  
+  RETURN v_total;
+END;
+$$;
+
+-- Function to sync item quantity when lots change
+CREATE OR REPLACE FUNCTION sync_item_quantity_on_lot_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+BEGIN
+  -- Sync the item's current_quantity from all its lots
+  UPDATE inventory_items
+  SET 
+    current_quantity = calculate_item_quantity_from_lots(COALESCE(NEW.item_id, OLD.item_id)),
+    updated_at = NOW()
+  WHERE id = COALESCE(NEW.item_id, OLD.item_id);
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+-- Trigger for lot changes (INSERT/UPDATE/DELETE)
+DROP TRIGGER IF EXISTS trigger_sync_item_quantity_on_lot_change ON public.inventory_lots;
+CREATE TRIGGER trigger_sync_item_quantity_on_lot_change
+AFTER INSERT OR UPDATE OR DELETE ON public.inventory_lots
+FOR EACH ROW
+EXECUTE FUNCTION sync_item_quantity_on_lot_change();
+
 -- Function to update item quantity after movement
 CREATE OR REPLACE FUNCTION update_inventory_quantity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = 'public'
 AS $$
 DECLARE
-  quantity_delta DECIMAL(10,2);
+  v_item_id UUID;
+  v_quantity_delta NUMERIC;
 BEGIN
-  -- Calculate how much to add or subtract from current_quantity
-  quantity_delta := CASE NEW.movement_type
-    WHEN 'receive' THEN NEW.quantity
-    WHEN 'return' THEN NEW.quantity
-    WHEN 'consume' THEN -NEW.quantity
-    WHEN 'dispose' THEN -NEW.quantity
-    WHEN 'transfer' THEN 0  -- Transfers don't change total quantity, just location
-    WHEN 'adjust' THEN NEW.quantity  -- Can be positive or negative
-    WHEN 'reserve' THEN 0  -- Doesn't change total, only reserved
-    WHEN 'unreserve' THEN 0
-    ELSE 0
-  END;
-  
-  -- Update item quantity (on-hand and reserved)
-  UPDATE public.inventory_items
-  SET 
-    current_quantity = current_quantity + quantity_delta,
-    reserved_quantity = CASE NEW.movement_type
-      WHEN 'reserve' THEN reserved_quantity + NEW.quantity
-      WHEN 'unreserve' THEN reserved_quantity - NEW.quantity
-      ELSE reserved_quantity
-    END,
-    updated_at = NOW()
-  WHERE id = NEW.item_id;
-  
-  -- If lot_id is provided, update lot quantity for consume/dispose only
-  -- Transfers are quantity-neutral at DB level; location updates handled by API
-  IF NEW.lot_id IS NOT NULL AND NEW.movement_type IN ('consume', 'dispose') THEN
-    UPDATE public.inventory_lots
+  -- If lot_id is provided, update lot quantity for consume/dispose/adjust
+  -- The lot trigger will then sync the total back to inventory_items.current_quantity
+  IF NEW.lot_id IS NOT NULL AND NEW.movement_type IN ('consume', 'dispose', 'adjust') THEN
+    -- For adjust: quantity can be positive (increase) or negative (decrease)
+    -- For consume/dispose: quantity is always positive, we subtract it
+    v_quantity_delta := CASE NEW.movement_type
+      WHEN 'adjust' THEN NEW.quantity  -- Use as-is (already signed)
+      ELSE -NEW.quantity  -- Subtract for consume/dispose
+    END;
+    
+    UPDATE inventory_lots
     SET 
-      quantity_remaining = quantity_remaining - NEW.quantity,
-      is_active = CASE WHEN (quantity_remaining - NEW.quantity) <= 0 THEN FALSE ELSE TRUE END,
+      quantity_remaining = quantity_remaining + v_quantity_delta,
+      is_active = CASE WHEN (quantity_remaining + v_quantity_delta) <= 0 THEN FALSE ELSE TRUE END,
       updated_at = NOW()
     WHERE id = NEW.lot_id;
+  END IF;
+  
+  -- For movements without lot_id (legacy or items without lot tracking)
+  -- Update current_quantity directly
+  IF NEW.lot_id IS NULL THEN
+    DECLARE
+      quantity_delta DECIMAL(10,2);
+    BEGIN
+      -- Calculate how much to add or subtract from current_quantity
+      quantity_delta := CASE NEW.movement_type
+        WHEN 'receive' THEN NEW.quantity
+        WHEN 'return' THEN NEW.quantity
+        WHEN 'consume' THEN -NEW.quantity
+        WHEN 'dispose' THEN -NEW.quantity
+        WHEN 'transfer' THEN 0  -- Transfers don't change total quantity, just location
+        WHEN 'adjust' THEN NEW.quantity  -- Can be positive or negative
+        WHEN 'reserve' THEN 0  -- Doesn't change total, only reserved
+        WHEN 'unreserve' THEN 0
+        ELSE 0
+      END;
+      
+      -- Update item quantity
+      UPDATE inventory_items
+      SET 
+        current_quantity = current_quantity + quantity_delta,
+        reserved_quantity = CASE NEW.movement_type
+          WHEN 'reserve' THEN reserved_quantity + NEW.quantity
+          WHEN 'unreserve' THEN reserved_quantity - NEW.quantity
+          ELSE reserved_quantity
+        END,
+        updated_at = NOW()
+      WHERE id = NEW.item_id;
+    END;
   END IF;
   
   RETURN NEW;

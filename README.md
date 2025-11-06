@@ -1,105 +1,135 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# TRAZO MVP
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+TRAZO is a Next.js 15 (App Router) cultivation facility management system with multi-tenancy, jurisdiction-based compliance, and role-based access control. The app uses Supabase for auth/database with separate US/Canada regions.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+## Project Status
 
-## Features
+- ✅ **Foundation Complete**: RBAC (8 roles, 50+ permissions), Jurisdiction Engine (4 jurisdictions), Multi-region Auth
+- ✅ **Admin System Complete**: User Management, Role Matrix, Audit Logs, Invitations
+- ✅ **Inventory System Complete**: Item CRUD, Lot Tracking, FIFO/LIFO/FEFO, Low Stock Alerts
+- 🔄 **Monitoring & Telemetry**: 86% complete (6 of 7 phases), TagoIO integration ready
+- 📊 **Test Coverage**: 164/173 tests passing (94.8%)
+- 🧹 **Repository**: Production-ready documentation structure (Nov 2025)
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+**Quick Links:**
+- 📖 **[Documentation](/docs/README.md)** - Complete docs navigation hub
+- 🚀 **[API Reference](/docs/API.md)** - REST API documentation
+- 📋 **[Current Status](/docs/current/index.md)** - Detailed feature status
+- 🗺️ **[Roadmap](/docs/ROADMAP.md)** - Integration roadmap & deployment guide
+- 🤝 **[Contributing](CONTRIBUTING.md)** - Development guidelines
+- 📝 **[Changelog](CHANGELOG.md)** - Version history
 
-## Demo
+## Tech Stack
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- **Framework**: Next.js 15 (App Router)
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Styling**: Tailwind CSS
+- **UI**: shadcn/ui
 
-## Deploy to Vercel
+## Getting Started
 
-Vercel deployment will guide you through creating a Supabase account and project.
+### Prerequisites
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+- Node.js v18+
+- npm
+- Docker
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+### Installation
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
-
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
-
-## Clone and run locally
-
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
-
-2. Create a Next.js app using the Supabase Starter template npx command
-
+1. **Clone the repository:**
    ```bash
-   npx create-next-app --example with-supabase with-supabase-app
+   git clone <repository-url>
+   cd trazo-mvp-v1
    ```
 
+2. **Install dependencies:**
    ```bash
-   yarn create next-app --example with-supabase with-supabase-app
+   npm install
    ```
 
+3. **Set up environment variables:**
+   Create a `.env.local` file by copying the example file:
    ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
+   cp .env.example .env.local
    ```
+   Populate `.env.local` with your Supabase project credentials for both US and Canada regions.
 
-3. Use `cd` to change into the app's directory
+   Set `NEXT_PUBLIC_DEV_MODE=true` to bypass auth and use a mock user (`test@trazo.app`).
 
-   ```bash
-   cd with-supabase-app
-   ```
-
-4. Rename `.env.example` to `.env.local` and update the following:
-
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
-   ```
-
-   Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
-
-5. You can now run the Next.js local development server:
-
+4. **Run the development server:**
    ```bash
    npm run dev
    ```
+   The application will be available at `http://localhost:3000`.
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+## Testing
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+This project uses Jest for unit and integration tests and Playwright for end-to-end tests.
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+- **Run all tests:**
+  ```bash
+  npm test
+  ```
 
-## Feedback and issues
+- **Run Playwright E2E tests:**
+  ```bash
+  npm run test:e2e
+  ```
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+- **Seed the database for testing:**
+  ```bash
+  npm run seed:dev
+  ```
 
-## More Supabase examples
+## Project Structure
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+```
+/app/                   # Next.js App Router (protected routes in /dashboard)
+/components/
+  /ui/                  # 47+ shadcn/ui components
+  /features/            # Feature-specific components (admin, inventory, monitoring)
+/lib/
+  /rbac/                # Role-Based Access Control (8 roles, 50+ permissions)
+  /jurisdiction/        # Jurisdiction-specific compliance logic
+  /supabase/            # Supabase queries and schema
+/hooks/                 # Custom React hooks (usePermissions, useJurisdiction)
+/types/                 # TypeScript interfaces
+/docs/                  # 📚 Complete documentation
+  /API.md               # REST API reference
+  /archived_docs/       # Historical documentation
+/e2e/                   # Playwright end-to-end tests
+```
+
+## Documentation
+
+### Essential Documentation
+- **[Getting Started](/docs/README.md)** - Complete documentation hub
+- **[API Reference](/docs/API.md)** - REST API endpoints and examples
+- **[Contributing](CONTRIBUTING.md)** - Development workflow and code standards
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+
+### Developer Guides
+- **[Current Status](/docs/current/index.md)** - Detailed feature implementation status (split into 6 focused guides)
+- **[Integration Roadmap](/docs/ROADMAP.md)** - Step-by-step integration guide (57KB)
+- **[Copilot Instructions](.github/copilot-instructions.md)** - AI assistant development patterns
+
+### Archived Documentation
+- **[Setup Guides](/docs/archived_docs/1-setup-guides/)** - Environment, database, testing (19 files)
+- **[Feature Integration](/docs/archived_docs/2-feature-integration/)** - Complete integration reports (12 files)
+- **[Troubleshooting](/docs/archived_docs/3-troubleshooting/)** - Bug fixes and patches (13 files)
+
+See **[/docs/README.md](/docs/README.md)** for complete navigation.
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for:
+- Development workflow
+- Code style standards
+- Testing requirements
+- Pull request process
+- 7-phase feature integration pattern
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

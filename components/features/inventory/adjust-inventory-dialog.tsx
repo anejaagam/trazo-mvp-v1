@@ -100,7 +100,7 @@ export function AdjustInventoryDialog({
   const form = useForm<AdjustFormData>({
     defaultValues: {
       item_id: preSelectedItem?.id || '',
-      lot_id: 'none',
+      lot_id: '',
       adjustment_type: 'increase',
       quantity: '',
       reason: 'count_correction',
@@ -235,63 +235,43 @@ export function AdjustInventoryDialog({
       // Calculate the actual adjustment amount (positive or negative)
       const adjustmentAmount = data.adjustment_type === 'increase' ? quantity : -quantity
 
-      // If a specific lot is selected, adjust that lot
-      if (data.lot_id && data.lot_id !== 'none') {
-        const selectedLot = availableLots.find(lot => lot.id === data.lot_id)
-        if (!selectedLot) {
-          throw new Error('Selected lot not found')
-        }
-
-        // For decreases, validate sufficient quantity
-        if (data.adjustment_type === 'decrease' && selectedLot.quantity_remaining < quantity) {
-          throw new Error(`Insufficient quantity in lot. Only ${selectedLot.quantity_remaining} available.`)
-        }
-
-        // Calculate new quantity
-        const newQuantity = selectedLot.quantity_remaining + adjustmentAmount
-        if (newQuantity < 0) {
-          throw new Error('Cannot adjust to negative quantity')
-        }
-
-        // Update lot quantity directly (quantity_remaining not in UpdateInventoryLot type)
-        const supabase = await createClient()
-        const { error: updateError } = await supabase
-          .from('inventory_lots')
-          .update({
-            quantity_remaining: newQuantity,
-            is_active: newQuantity > 0,
-          })
-          .eq('id', data.lot_id)
-
-        if (updateError) throw updateError
-
-        // Create movement record
-        const { error: movementError } = await createMovement({
-          item_id: selectedItem.id,
-          lot_id: data.lot_id,
-          movement_type: 'adjust',
-          quantity: adjustmentAmount,
-          from_location: selectedItem.storage_location || undefined,
-          notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
-          performed_by: userId,
-        })
-
-        if (movementError) throw movementError
-      } else {
-        // No specific lot - create a general adjustment movement
-        // Note: This should ideally update the item's current_quantity in the inventory_items table
-        // For now, we'll create a movement record without a lot_id
-        const { error: movementError } = await createMovement({
-          item_id: selectedItem.id,
-          movement_type: 'adjust',
-          quantity: adjustmentAmount,
-          from_location: selectedItem.storage_location || undefined,
-          notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
-          performed_by: userId,
-        })
-
-        if (movementError) throw movementError
+      // For lot-tracked items, lots must exist
+      if (availableLots.length === 0) {
+        throw new Error('Cannot adjust inventory: No lots available. Please receive inventory first to create a lot.')
       }
+
+      // Require lot selection
+      if (!data.lot_id) {
+        throw new Error('Please select a specific lot to adjust')
+      }
+
+      // Validate selected lot exists
+      const selectedLot = availableLots.find(lot => lot.id === data.lot_id)
+      if (!selectedLot) {
+        throw new Error('Selected lot not found')
+      }
+
+      // For decreases, validate sufficient quantity
+      if (data.adjustment_type === 'decrease' && selectedLot.quantity_remaining < quantity) {
+        throw new Error(`Insufficient quantity in lot. Only ${selectedLot.quantity_remaining} available.`)
+      }
+
+      // Create movement record with lot_id so trigger fires
+      const { error: movementError } = await createMovement({
+        item_id: selectedItem.id,
+        lot_id: data.lot_id,
+        movement_type: 'adjust',
+        quantity: adjustmentAmount,
+        from_location: selectedItem.storage_location || undefined,
+        notes: `${getReasonLabel(data.reason)}${data.notes ? `: ${data.notes}` : ''}`,
+        performed_by: userId,
+      })
+
+      if (movementError) throw movementError
+
+      // Note: The database trigger update_inventory_quantity() will automatically:
+      // 1. Update quantity_remaining
+      // 2. Set is_active = false when quantity reaches 0
 
       // Success
       form.reset()
@@ -300,7 +280,11 @@ export function AdjustInventoryDialog({
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
-      console.error('Error adjusting inventory:', err)
+      console.error('Error adjusting inventory:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      })
       setError(err instanceof Error ? err.message : 'Failed to adjust inventory')
     } finally {
       setIsLoading(false)
@@ -328,13 +312,6 @@ export function AdjustInventoryDialog({
             Make manual adjustments to inventory quantities. Use for cycle counts, damaged goods, or other corrections.
           </DialogDescription>
         </DialogHeader>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -403,25 +380,24 @@ export function AdjustInventoryDialog({
               </div>
             )}
 
-            {/* Lot Selection (Optional) */}
+            {/* Lot Selection (Required when lots exist) */}
             {availableLots.length > 0 && (
               <FormField
                 control={form.control}
                 name="lot_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Specific Lot (Optional)</FormLabel>
+                    <FormLabel>Specific Lot *</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="All lots (general adjustment)" />
+                          <SelectValue placeholder="Select a lot to adjust..." />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">All lots (general adjustment)</SelectItem>
                         {availableLots.map((lot) => (
                           <SelectItem key={lot.id} value={lot.id}>
                             {lot.lot_code} - {lot.quantity_remaining} {lot.unit_of_measure}
@@ -431,7 +407,7 @@ export function AdjustInventoryDialog({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Leave blank for a general adjustment, or select a specific lot
+                      Select which lot to adjust. Required for items with lot tracking.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -594,6 +570,14 @@ export function AdjustInventoryDialog({
                 </FormItem>
               )}
             />
+
+            {/* Error Alert - Right above submit button */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             <DialogFooter>
               <Button

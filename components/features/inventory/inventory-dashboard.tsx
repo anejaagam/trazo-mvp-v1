@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePermissions } from '@/hooks/use-permissions'
+import { formatDateTime } from '@/lib/utils'
 import {
   Card,
   CardContent,
@@ -376,15 +377,6 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -633,7 +625,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
                         </div>
                       </div>
                       <div className="text-right text-sm text-muted-foreground">
-                        {formatDate(movement.timestamp)}
+                        {formatDateTime(movement.timestamp)}
                       </div>
                     </div>
                   ))}

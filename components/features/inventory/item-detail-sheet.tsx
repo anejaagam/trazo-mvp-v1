@@ -8,9 +8,11 @@
  */
 
 import { useEffect, useState } from 'react'
+import { formatDateTime } from '@/lib/utils'
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -170,16 +172,6 @@ export function ItemDetailSheet({
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   const formatMovementType = (type: string) => {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   }
@@ -214,6 +206,9 @@ export function ItemDetailSheet({
                 <SheetTitle className="text-2xl font-bold tracking-tight mb-2">
                   {item.name}
                 </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Detailed information for {item.name} including stock levels, lot details, and recent movements
+                </SheetDescription>
                 <div className="flex items-center gap-2 flex-wrap">
                   {item.sku && (
                     <Badge variant="outline" className="font-mono text-xs">
@@ -614,7 +609,7 @@ export function ItemDetailSheet({
                               </p>
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3" />
-                                {formatDate(movement.timestamp)}
+                                {formatDateTime(movement.timestamp, true)}
                               </div>
                             </div>
                             <div className={`shrink-0 px-3 py-1 rounded-full text-sm font-bold ${
@@ -647,14 +642,14 @@ export function ItemDetailSheet({
                   <Calendar className="h-3.5 w-3.5" />
                   <div>
                     <p className="font-medium">Created</p>
-                    <p className="text-[10px]">{formatDate(item.created_at)}</p>
+                    <p className="text-[10px]">{formatDateTime(item.created_at)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
                   <div>
                     <p className="font-medium">Updated</p>
-                    <p className="text-[10px]">{formatDate(item.updated_at)}</p>
+                    <p className="text-[10px]">{formatDateTime(item.updated_at)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">

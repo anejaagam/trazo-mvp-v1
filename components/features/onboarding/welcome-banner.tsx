@@ -14,9 +14,19 @@ type Props = {
 
 export function WelcomeBanner({ role, jurisdictionId }: Props) {
   const [dismissed, setDismissed] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Read client-only storage after mount to avoid SSR/CSR flashes
   useEffect(() => {
-    const seen = localStorage.getItem('trazo-onboarded')
-    setDismissed(seen === '1')
+    try {
+      const seen = localStorage.getItem('trazo-onboarded')
+      setDismissed(seen === '1')
+    } catch {
+      // no-op: safest default is to show banner on first load
+      setDismissed(false)
+    } finally {
+      setMounted(true)
+    }
   }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,7 +43,8 @@ export function WelcomeBanner({ role, jurisdictionId }: Props) {
     return Array.from(cats)
   }, [role])
 
-  if (dismissed) return null
+  // Avoid flash on hydration by rendering nothing until we've checked storage
+  if (!mounted || dismissed) return null
 
   return (
     <Alert className="bg-primary/5 border-primary/20">

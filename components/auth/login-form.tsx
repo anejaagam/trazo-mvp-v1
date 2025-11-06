@@ -69,12 +69,25 @@ export function LoginForm() {
           process.env.NODE_ENV === 'production' ? '; Secure' : ''
         }`;
 
-        // Update last_login_at for the current user (allowed by self-update policy)
+        // Update last_sign_in and activate invited users
+        // This handles the case where invited users are logging in for the first time
         try {
+          // First check current status
+          const { data: userData } = await supabase
+            .from('users')
+            .select('status')
+            .eq('id', data.user.id)
+            .single();
+          
+          // Update user with new login time and activate if invited
           await supabase
             .from('users')
-            .update({ last_login_at: new Date().toISOString() })
-            .eq('id', data.user.id)
+            .update({ 
+              last_sign_in: new Date().toISOString(),
+              // Activate the user if they were invited
+              ...(userData?.status === 'invited' ? { status: 'active' as const } : {})
+            })
+            .eq('id', data.user.id);
         } catch {
           // Non-blocking
         }

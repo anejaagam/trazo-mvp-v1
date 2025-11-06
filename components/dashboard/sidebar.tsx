@@ -3,6 +3,7 @@
 
 import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { RoleKey, PermissionKey } from '@/lib/rbac/types'
@@ -373,20 +374,23 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
 
   return (
     <aside className={cn('flex flex-col bg-background', className)}>
-      {/* Logo/Branding */}
       <div className="flex h-16 items-center border-b px-6 bg-green-900">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-xl">
-          <img
+          <Image
             src="/images/colorLogo.png"
             alt="Trazo Logo"
-            className="h-10 w-10 object-contain dark:hidden"
+            width={40}
+            height={40}
+            className="object-contain dark:hidden"
           />
-          <img
+          <Image
             src="/images/colorLogo.png"
             alt="Trazo Logo"
-            className="h-10 w-10 object-contain hidden dark:block"
+            width={40}
+            height={40}
+            className="object-contain hidden dark:block"
           />
-            <span className="font-playfair text-[#E5F4EA] tracking-[0.09em] text-2xl md:text-3xl">TRAZO</span>
+            <span className="font-helvetica text-[#E5F4EA] tracking-[0.09em] text-xl md:text-2xl">TRAZO</span>
         </Link>
       </div>
 

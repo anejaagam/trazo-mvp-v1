@@ -10,7 +10,7 @@ import { Progress } from './ui/progress';
 import { mockOverrides } from '../lib/mockData';
 import { Override, SetpointType } from '../types';
 import { Plus, Clock, AlertTriangle, XCircle, CheckCircle2, Shield } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function OverrideControl() {
   const [overrides, setOverrides] = useState<Override[]>(mockOverrides);

@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Recipe } from '../types';
 import { mockRecipeVersions, createMockStages } from '../lib/mockData';
 import { ArrowLeft, Calendar, User, Edit, Copy } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface RecipeViewerProps {
   recipe: Recipe;

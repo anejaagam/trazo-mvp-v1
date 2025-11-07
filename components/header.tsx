@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
@@ -16,14 +17,18 @@ export function Header({ variant = "landing", showNavigation = true }: HeaderPro
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3">
           <div className="w-9 h-10 relative">
-            <img
+            <Image
               src="/images/colorLogo.png"
               alt="TRAZO Logo"
+              width={36}
+              height={40}
               className="w-full h-full object-contain dark:hidden"
             />
-            <img
+            <Image
               src="/images/Monogram_White.svg"
               alt="TRAZO Logo"
+              width={36}
+              height={40}
               className="w-full h-full object-contain hidden dark:block"
             />
           </div>

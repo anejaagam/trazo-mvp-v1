@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Download, Search, Filter, FileText, Shield } from 'lucide-react';
 import { AuditEvent } from '../lib/supabase';
 import { mockAuditEvents } from '../lib/mock-data';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function AuditLog() {
   const [events] = useState<AuditEvent[]>(mockAuditEvents);

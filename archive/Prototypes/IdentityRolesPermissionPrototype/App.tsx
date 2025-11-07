@@ -12,7 +12,7 @@ import { RolesPermissions } from './components/RolesPermissions';
 import { ApiTokenManagement } from './components/ApiTokenManagement';
 import { AuditLog } from './components/AuditLog';
 import { OrgSettings } from './components/OrgSettings';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 type View = 'dashboard' | 'users' | 'roles' | 'tokens' | 'audit' | 'settings';
 

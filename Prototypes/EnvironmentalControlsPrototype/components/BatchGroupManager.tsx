@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import { mockBatchGroups, mockRecipes } from '../lib/mockData';
 import { BatchGroup } from '../types';
 import { Plus, Calendar, Activity, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function BatchGroupManager() {
   const [batchGroups] = useState<BatchGroup[]>(mockBatchGroups);

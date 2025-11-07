@@ -3,11 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   
-  // Exclude Prototypes folder from build
+  // Exclude Prototypes and archive folders from build
   webpack: (config) => {
     config.watchOptions = {
       ...config.watchOptions,
-      ignored: ['**/node_modules', '**/Prototypes/**'],
+      ignored: ['**/node_modules', '**/Prototypes/**', '**/archive/**'],
     };
     return config;
   },

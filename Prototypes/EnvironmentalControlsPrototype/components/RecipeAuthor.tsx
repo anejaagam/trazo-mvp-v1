@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Stage, SetpointTarget, StageType, SetpointType, ValidationError } from '../types';
 import { ArrowLeft, Plus, Trash2, AlertTriangle, CheckCircle2, Save } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface RecipeAuthorProps {
   onCancel: () => void;

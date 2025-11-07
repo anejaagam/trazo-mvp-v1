@@ -10,7 +10,7 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Plus, Trash2, Wrench, AlertTriangle, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface MaintenanceWindowProps {
   windows: MaintenanceWindow[];

@@ -4,6 +4,76 @@
 
 ---
 
+## 🌱 **What is TRAZO?**
+
+**TRAZO** is a comprehensive **cultivation facility management system** designed for cannabis and controlled environment agriculture (CEA). Built on Next.js 15 with Supabase, TRAZO provides a complete platform for managing grow operations with built-in compliance, real-time monitoring, and multi-tenant architecture.
+
+### **Key Features**
+
+#### **🏢 Multi-Tenant Architecture**
+- Organization and site-based hierarchy
+- 8 role-based access control (RBAC) levels (Super Admin to Read Only)
+- 50+ granular permissions across all features
+- Separate US and Canada database regions for data sovereignty
+
+#### **📦 Inventory Management**
+- Complete seed-to-sale tracking
+- Batch and lot management
+- Stock level monitoring and alerts
+- Location-based organization (rooms, zones, shelves)
+- Integration with compliance systems (Metrc, CTLS)
+
+#### **🌡️ Environmental Monitoring**
+- Real-time telemetry from TagoIO-connected sensors
+- Temperature, humidity, CO2, VPD tracking
+- Automated alerts and notifications
+- Historical data visualization
+- HVAC system integration
+
+#### **✅ Compliance Engine**
+- Jurisdiction-based rule enforcement (Oregon Metrc, Maryland Metrc, Canada CTLS)
+- Food safety certification support (PrimusGFS)
+- Automated compliance reporting
+- Audit trail for all operations
+- Regulatory update tracking
+
+#### **👥 Identity & Access Management**
+- Supabase authentication with multi-region support
+- Role-based access control (RBAC)
+- Onboarding workflow with approval system
+- User status management (pending, active, suspended)
+- SSO integration ready
+
+#### **📊 Dashboard & Analytics**
+- Real-time operational metrics
+- Custom reporting and visualization
+- Performance tracking across facilities
+- Batch yield analysis
+- Resource utilization monitoring
+
+#### **🔔 Alarms & Notifications**
+- Configurable alert thresholds
+- Multi-channel notifications (in-app, email)
+- Priority-based alarm routing
+- Alarm acknowledgment and resolution tracking
+- Historical alarm logs
+
+#### **🔧 Task & Workflow Management**
+- Scheduled and recurring task creation
+- Assignment and priority management
+- Progress tracking and completion verification
+- SOP (Standard Operating Procedure) integration
+- Task templates for common operations
+
+#### **🌐 Integrations**
+- **TagoIO** - IoT sensor data collection (✅ Complete)
+- **Metrc** - State traceability systems (Oregon, Maryland)
+- **CTLS** - Canadian tracking system
+- **PrimusGFS** - Food safety certification
+- **Vercel** - Automated deployment with cron jobs
+
+---
+
 ## 📋 **Quick Navigation**
 
 ### **Essential Documentation (Start Here)**

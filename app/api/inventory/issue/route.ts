@@ -140,30 +140,50 @@ export async function POST(request: NextRequest) {
       }
 
       if (!lots || lots.length === 0) {
-        return NextResponse.json(
-          { error: 'No available lots found for this item' },
-          { status: 400 }
-        )
-      }
+        // No lots found - check if item has legacy inventory (non-lot-tracked)
+        const { data: item, error: itemError } = await supabase
+          .from('inventory_items')
+          .select('current_quantity')
+          .eq('id', body.item_id)
+          .single()
 
-      // Allocate quantity across lots
-      let remainingQuantity = body.quantity
-      for (const lot of lots) {
-        if (remainingQuantity <= 0) break
+        if (itemError || !item) {
+          return NextResponse.json(
+            { error: 'Item not found' },
+            { status: 404 }
+          )
+        }
 
-        const allocatedQty = Math.min(remainingQuantity, lot.quantity_remaining)
-        lotAllocations.push({
-          lot_id: lot.id,
-          quantity: allocatedQty
-        })
-        remainingQuantity -= allocatedQty
-      }
+        if (item.current_quantity < body.quantity) {
+          return NextResponse.json(
+            { error: `Insufficient stock. Only ${item.current_quantity} units available.` },
+            { status: 400 }
+          )
+        }
 
-      if (remainingQuantity > 0) {
-        return NextResponse.json(
-          { error: `Insufficient quantity available. Short by ${remainingQuantity}` },
-          { status: 400 }
-        )
+        // For legacy items, we'll create a movement without lot_id
+        // The trigger will handle updating current_quantity
+        // Skip lot allocation and go directly to movement creation
+      } else {
+        // Allocate quantity across lots
+        let remainingQuantity = body.quantity
+        for (const lot of lots) {
+          if (remainingQuantity <= 0) break
+
+          const allocatedQty = Math.min(remainingQuantity, lot.quantity_remaining)
+          lotAllocations.push({
+            lot_id: lot.id,
+            quantity: allocatedQty
+          })
+          remainingQuantity -= allocatedQty
+        }
+
+        if (remainingQuantity > 0) {
+          return NextResponse.json(
+            { error: `Insufficient quantity available. Short by ${remainingQuantity}` },
+            { status: 400 }
+          )
+        }
       }
     }
 
@@ -171,9 +191,12 @@ export async function POST(request: NextRequest) {
     const isLocationTransfer = !!body.to_location && !body.batch_id && !body.task_id
     const movementType = isLocationTransfer ? 'transfer' : 'consume'
 
-    // Process each lot allocation
+    // Process each lot allocation (or handle legacy items without lots)
     const updates = []
-    for (const allocation of lotAllocations) {
+    
+    if (lotAllocations.length > 0) {
+      // Process lot-tracked items
+      for (const allocation of lotAllocations) {
       // Get current lot
       const { data: lot, error: lotError } = await supabase
         .from('inventory_lots')
@@ -283,6 +306,43 @@ export async function POST(request: NextRequest) {
 
       updates.push(movementPromise)
     }
+    } else {
+      // Handle legacy items without lot tracking
+      
+      // If this is a transfer, update the item's storage_location
+      if (isLocationTransfer && body.to_location) {
+        console.log(`[Legacy Transfer] Updating storage_location for item ${body.item_id} to ${body.to_location}`)
+        const updateItemLocationPromise = supabase
+          .from('inventory_items')
+          .update({
+            storage_location: body.to_location,
+          })
+          .eq('id', body.item_id)
+        
+        updates.push(updateItemLocationPromise)
+      }
+      
+      console.log(`[Legacy Item] Creating movement: type=${movementType}, qty=${body.quantity}, to=${body.to_location}`)
+      const movementData: InsertInventoryMovement = {
+        item_id: body.item_id,
+        lot_id: undefined, // No lot for legacy items
+        movement_type: movementType,
+        quantity: body.quantity,
+        from_location: body.from_location || undefined,
+        to_location: body.to_location || undefined,
+        batch_id: body.batch_id || undefined,
+        task_id: body.task_id || undefined,
+        reason: body.reason || undefined,
+        notes: body.notes || undefined,
+        performed_by: user.id,
+      }
+
+      const movementPromise = supabase
+        .from('inventory_movements')
+        .insert(movementData)
+
+      updates.push(movementPromise)
+    }
 
     // Execute all updates
     const results = await Promise.all(updates)
@@ -290,13 +350,16 @@ export async function POST(request: NextRequest) {
     // Check for errors
     const errors = results.filter(r => r.error)
     if (errors.length > 0) {
-      console.error('Errors during lot updates:', errors)
+      console.error('Errors during updates:', errors)
+      console.error('Full results:', JSON.stringify(results, null, 2))
       return NextResponse.json(
-        { error: 'Failed to update some lots', details: errors },
+        { error: 'Failed to update inventory', details: errors.map(e => e.error?.message) },
         { status: 500 }
       )
     }
 
+    console.log(`[Issue API] Successfully processed ${results.length} updates for item ${body.item_id}`)
+    
     return NextResponse.json(
       { 
         data: { 

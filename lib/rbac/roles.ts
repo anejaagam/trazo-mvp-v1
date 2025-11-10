@@ -76,6 +76,11 @@ export const ROLES: Record<RoleKey, Role> = {
       // Monitoring
       'monitoring:view',
       'monitoring:export',
+      
+      // Equipment Control (AUTO Mode) - Full access
+      'equipment:control:manual',
+      'equipment:control:auto',
+      'equipment:override',
     ],
   },
 
@@ -121,6 +126,11 @@ export const ROLES: Record<RoleKey, Role> = {
       'monitoring:view',
       'monitoring:export',
       
+      // Equipment Control (AUTO Mode) - Full access
+      'equipment:control:manual',
+      'equipment:control:auto',
+      'equipment:override',
+      
       // Evidence collection
       'evidence:upload',
     ],
@@ -156,6 +166,10 @@ export const ROLES: Record<RoleKey, Role> = {
       
       // Monitoring
       'monitoring:view',
+      
+      // Equipment Control - Manual only (no AUTO mode for operators)
+      'equipment:control:manual',
+      'equipment:override', // Emergency overrides
       
       // Evidence capture
       'evidence:upload',

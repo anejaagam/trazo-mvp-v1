@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { mockSchedules } from '../lib/mockData';
 import { Schedule, BlackoutWindow } from '../types';
 import { Plus, Clock, Moon, Sun, AlertTriangle, Trash2, Edit } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function ScheduleManager() {
   const [schedules, setSchedules] = useState<Schedule[]>(mockSchedules);

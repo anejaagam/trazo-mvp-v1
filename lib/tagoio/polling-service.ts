@@ -14,7 +14,7 @@ import {
   sortReadingsByTimestamp,
   calculateTransformStats,
 } from './transformer'
-import { batchInsertReadings } from '@/lib/supabase/queries/telemetry'
+import { batchUpsertReadings } from '@/lib/supabase/queries/telemetry'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type { InsertTelemetryReading } from '@/types/telemetry'
@@ -356,6 +356,7 @@ export class TagoIOPollingService {
 
   /**
    * Insert readings to database in batches
+   * Uses UPSERT to handle potential partial data conflicts from TagoIO
    */
   private async insertReadings(
     readings: InsertTelemetryReading[],
@@ -371,30 +372,51 @@ export class TagoIOPollingService {
         const batch = readings.slice(i, i + BATCH_SIZE)
 
         console.log(
-          `Inserting batch ${Math.floor(i / BATCH_SIZE) + 1} ` +
+          `Upserting batch ${Math.floor(i / BATCH_SIZE) + 1} ` +
           `(${batch.length} readings) for pod ${podId}...`
         )
 
         // Use custom Supabase client if provided (for scripts), otherwise use Next.js server client
         if (this.supabaseClient) {
-          const { error } = await this.supabaseClient
+          // For standalone scripts, try insert first, fall back to merge upsert on conflict
+          const { error: insertError } = await this.supabaseClient
             .from('telemetry_readings')
             .insert(batch)
 
-          if (error) {
-            console.error(`Batch insert error:`, error)
-            throw error
+          if (insertError) {
+            // If duplicate key error, use merge upsert instead
+            if (insertError.code === '23505') { // PostgreSQL unique violation
+              console.log(`Duplicate detected, using merge upsert for batch...`)
+              
+              // Call merge function for each reading in batch
+              for (const reading of batch) {
+                const { error: upsertError } = await this.supabaseClient.rpc(
+                  'merge_upsert_telemetry_reading',
+                  { reading: reading as unknown as Record<string, unknown> }
+                )
+                
+                if (!upsertError) {
+                  totalInserted++
+                }
+              }
+            } else {
+              console.error(`Batch insert error:`, insertError)
+              throw insertError
+            }
+          } else {
+            totalInserted += batch.length
           }
         } else {
-          const { error } = await batchInsertReadings(batch)
+          // For Next.js server, use batchUpsertReadings which handles merging
+          const { data, error } = await batchUpsertReadings(batch)
 
           if (error) {
-            console.error(`Batch insert error:`, error)
+            console.error(`Batch upsert error:`, error)
             throw error
           }
+          
+          totalInserted += data?.count || 0
         }
-
-        totalInserted += batch.length
       }
 
       return totalInserted

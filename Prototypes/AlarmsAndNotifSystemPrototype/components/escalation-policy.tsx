@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Switch } from './ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Plus, Trash2, MoveUp, Mail, Smartphone } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface EscalationPolicyProps {
   policies: EscalationPolicy[];

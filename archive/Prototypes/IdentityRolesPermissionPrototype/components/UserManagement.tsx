@@ -9,7 +9,7 @@ import { UserPlus, Search, MoreVertical, UserCheck, UserX, Mail, Shield } from '
 import { User, UserStatus } from '../lib/supabase';
 import { mockUsers, mockRoleBindings, mockRoles } from '../lib/mock-data';
 import { UserInviteDialog } from './UserInviteDialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>(mockUsers);

@@ -293,24 +293,87 @@ export const PodCard = memo(function PodCard({
         
         {/* Equipment Status */}
         <div className="pt-2 border-t">
-          <div className="text-xs text-muted-foreground mb-2">Equipment Status</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-muted-foreground">Equipment Status</div>
+            {(() => {
+              // Parse equipment_states for AUTO mode count
+              const equipmentStates = reading.equipment_states as Record<string, {
+                mode: 'MANUAL' | 'AUTOMATIC'
+                state: number
+              }> | null
+
+              let autoCount = 0
+              
+              if (equipmentStates) {
+                Object.values(equipmentStates).forEach(equip => {
+                  if (equip.mode === 'AUTOMATIC') {
+                    autoCount++
+                  }
+                })
+              }
+
+              return autoCount > 0 ? (
+                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+                  {autoCount} AUTO
+                </Badge>
+              ) : null
+            })()}
+          </div>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant={reading.circulation_fan_active ? 'default' : 'outline'} className="text-xs">
-              <Fan className="w-3 h-3 mr-1" />
-              Fan
-            </Badge>
-            <Badge variant={reading.cooling_active ? 'default' : 'outline'} className="text-xs">
-              <Snowflake className="w-3 h-3 mr-1" />
-              Cooling
-            </Badge>
-            <Badge variant={reading.dehumidifier_active ? 'default' : 'outline'} className="text-xs">
-              <WindIcon className="w-3 h-3 mr-1" />
-              Dehum
-            </Badge>
-            <Badge variant={reading.co2_injection_active ? 'default' : 'outline'} className="text-xs">
-              <Wind className="w-3 h-3 mr-1" />
-              CO₂
-            </Badge>
+            {(() => {
+              // Parse equipment_states for AUTO mode indicators
+              const equipmentStates = reading.equipment_states as Record<string, {
+                mode: 'MANUAL' | 'AUTOMATIC'
+                state: number
+              }> | null
+
+              const getEquipmentVariant = (key: string, fallbackActive: boolean | null): 'default' | 'outline' | 'secondary' => {
+                if (equipmentStates?.[key]?.mode === 'AUTOMATIC') {
+                  return 'secondary'
+                }
+                return fallbackActive ? 'default' : 'outline'
+              }
+
+              const getEquipmentClass = (key: string) => {
+                if (equipmentStates?.[key]?.mode === 'AUTOMATIC') {
+                  return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100'
+                }
+                return ''
+              }
+
+              return (
+                <>
+                  <Badge 
+                    variant={getEquipmentVariant('circulation_fan', reading.circulation_fan_active)} 
+                    className={`text-xs ${getEquipmentClass('circulation_fan')}`}
+                  >
+                    <Fan className="w-3 h-3 mr-1" />
+                    Fan{equipmentStates?.circulation_fan?.mode === 'AUTOMATIC' ? ' (A)' : ''}
+                  </Badge>
+                  <Badge 
+                    variant={getEquipmentVariant('cooling', reading.cooling_active)} 
+                    className={`text-xs ${getEquipmentClass('cooling')}`}
+                  >
+                    <Snowflake className="w-3 h-3 mr-1" />
+                    Cooling{equipmentStates?.cooling?.mode === 'AUTOMATIC' ? ' (A)' : ''}
+                  </Badge>
+                  <Badge 
+                    variant={getEquipmentVariant('dehumidifier', reading.dehumidifier_active)} 
+                    className={`text-xs ${getEquipmentClass('dehumidifier')}`}
+                  >
+                    <WindIcon className="w-3 h-3 mr-1" />
+                    Dehum{equipmentStates?.dehumidifier?.mode === 'AUTOMATIC' ? ' (A)' : ''}
+                  </Badge>
+                  <Badge 
+                    variant={getEquipmentVariant('co2_injection', reading.co2_injection_active)} 
+                    className={`text-xs ${getEquipmentClass('co2_injection')}`}
+                  >
+                    <Wind className="w-3 h-3 mr-1" />
+                    CO₂{equipmentStates?.co2_injection?.mode === 'AUTOMATIC' ? ' (A)' : ''}
+                  </Badge>
+                </>
+              )
+            })()}
           </div>
         </div>
       </CardContent>

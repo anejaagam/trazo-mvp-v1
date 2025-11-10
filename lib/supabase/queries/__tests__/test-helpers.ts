@@ -31,6 +31,10 @@ export class MockQueryBuilder {
     return this;
   }
 
+  upsert() {
+    return this;
+  }
+
   update() {
     return this;
   }

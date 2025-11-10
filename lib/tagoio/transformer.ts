@@ -9,6 +9,16 @@
 
 import type { TagoIODataPoint } from './client'
 import type { InsertTelemetryReading } from '@/types/telemetry'
+import type {
+  EquipmentControl,
+  EquipmentControlMap,
+  AutoConfiguration,
+} from '@/types/equipment'
+import {
+  EquipmentType,
+  EquipmentState,
+  ControlMode,
+} from '@/types/equipment'
 
 // ============================================================================
 // Types
@@ -223,21 +233,225 @@ function extractDehumidifier(dehumPoint: TagoIODataPoint | undefined): boolean |
 }
 
 // ============================================================================
+// Enhanced Equipment Control Extraction (AUTO Mode Support)
+// ============================================================================
+
+/**
+ * TagoIO equipment metadata structure
+ * 
+ * Expected metadata fields from TagoIO devices:
+ * - mode: 0 (MANUAL) or 1 (AUTOMATIC)
+ * - schedule: 0 (disabled) or 1 (enabled)
+ * - ov: 0 (no override) or 1 (override active)
+ * - level: 0-100 (power/intensity percentage)
+ * - Additional fields for AUTO configuration (thresholds, schedules, etc.)
+ */
+interface TagoIOEquipmentMetadata {
+  mode?: number
+  schedule?: number
+  ov?: number
+  level?: number
+  temp_min?: number
+  temp_max?: number
+  hum_min?: number
+  hum_max?: number
+  co2_min?: number
+  co2_max?: number
+  on_time?: string
+  off_time?: string
+  [key: string]: unknown
+}
+
+/**
+ * Map TagoIO variable names to EquipmentType
+ */
+const TAGOIO_VARIABLE_TO_EQUIPMENT_TYPE: Record<string, EquipmentType> = {
+  cooling_valve: EquipmentType.COOLING,
+  heating_valve: EquipmentType.HEATING,
+  dehum: EquipmentType.DEHUMIDIFIER,
+  humid: EquipmentType.HUMIDIFIER,
+  co2_valve: EquipmentType.CO2_INJECTION,
+  ex_fan: EquipmentType.EXHAUST_FAN,
+  circ_fan: EquipmentType.CIRCULATION_FAN,
+  irrigation: EquipmentType.IRRIGATION,
+  light_state: EquipmentType.LIGHTING,
+  fogger: EquipmentType.FOGGER,
+  hepa: EquipmentType.HEPA_FILTER,
+  uv: EquipmentType.UV_STERILIZATION,
+}
+
+/**
+ * Extract enhanced equipment control from TagoIO data point
+ * 
+ * Extracts state (OFF/ON/AUTO), mode (MANUAL/AUTOMATIC), override flag,
+ * schedule flag, and power level from TagoIO metadata.
+ * 
+ * @param point - Equipment data point from TagoIO
+ * @returns EquipmentControl object with full metadata or null if invalid
+ */
+function extractEquipmentControl(
+  point: TagoIODataPoint | undefined
+): EquipmentControl | null {
+  if (!point) {
+    return null
+  }
+
+  const metadata = (point.metadata || {}) as TagoIOEquipmentMetadata
+  const value = point.value
+
+  // Determine equipment state and mode from TagoIO metadata
+  // TagoIO uses:
+  // - value: 0=OFF, 1=ON
+  // - ov (override): 0=manual OFF, 1=manual ON, 2=AUTO mode
+  // - mode: 0=AUTO, 1=MANUAL (inverted from our schema!)
+  
+  let state: EquipmentState
+  let mode: ControlMode
+  let override = false
+
+  // Check ov (override) field to determine control mode
+  if (metadata.ov === 2) {
+    // ov=2 means AUTO mode is active
+    state = EquipmentState.AUTO
+    mode = ControlMode.AUTOMATIC
+    override = false
+  } else if (metadata.ov === 1) {
+    // ov=1 means manual override ON
+    state = EquipmentState.ON
+    mode = ControlMode.MANUAL
+    override = true
+  } else {
+    // ov=0 means manual override OFF
+    state = value === 1 ? EquipmentState.ON : EquipmentState.OFF
+    mode = ControlMode.MANUAL
+    override = false
+  }
+
+  // Extract schedule enabled flag
+  const scheduleEnabled = metadata.schedule === 1
+
+  // Extract power level (default to 100 if not specified)
+  const level = typeof metadata.level === 'number'
+    ? Math.max(0, Math.min(100, metadata.level))
+    : 100
+
+  // Build AUTO configuration from metadata
+  let autoConfig: AutoConfiguration | undefined
+
+  if (mode === ControlMode.AUTOMATIC) {
+    autoConfig = {}
+    
+    // Temperature thresholds
+    if (metadata.temp_min !== undefined || metadata.temp_max !== undefined) {
+      autoConfig.temp_threshold = {
+        min: metadata.temp_min ?? 20,
+        max: metadata.temp_max ?? 26,
+      }
+    }
+    
+    // Humidity thresholds
+    if (metadata.hum_min !== undefined || metadata.hum_max !== undefined) {
+      autoConfig.humidity_threshold = {
+        min: metadata.hum_min ?? 40,
+        max: metadata.hum_max ?? 70,
+      }
+    }
+    
+    // CO2 thresholds
+    if (metadata.co2_min !== undefined || metadata.co2_max !== undefined) {
+      autoConfig.co2_threshold = {
+        min: metadata.co2_min ?? 800,
+        max: metadata.co2_max ?? 1200,
+      }
+    }
+    
+    // Schedule
+    if (scheduleEnabled && metadata.on_time && metadata.off_time) {
+      autoConfig.schedule = {
+        on_time: metadata.on_time,
+        off_time: metadata.off_time,
+      }
+    }
+  }
+
+  return {
+    state,
+    mode,
+    override,
+    schedule_enabled: scheduleEnabled,
+    level,
+    last_updated: new Date(point.time),
+    auto_config: autoConfig,
+  }
+}
+
+/**
+ * Extract all equipment controls from grouped TagoIO data
+ * 
+ * @param variables - Grouped variables from TagoIO
+ * @returns Map of equipment types to their control states
+ */
+function extractEquipmentControls(
+  variables: Record<string, TagoIODataPoint>
+): EquipmentControlMap {
+  const controls: EquipmentControlMap = {}
+
+  // Map TagoIO variables to equipment controls
+  for (const [varName, point] of Object.entries(variables)) {
+    const equipmentType = TAGOIO_VARIABLE_TO_EQUIPMENT_TYPE[varName]
+    if (equipmentType) {
+      const control = extractEquipmentControl(point)
+      if (control) {
+        controls[equipmentType] = control
+      }
+    }
+  }
+
+  return controls
+}
+
+/**
+ * Convert EquipmentControlMap to boolean equipment states (backward compatibility)
+ * 
+ * Only returns boolean fields that exist in the telemetry_readings table schema.
+ * Additional equipment states are stored in equipment_states JSONB field.
+ * 
+ * @param controls - Equipment control map
+ * @returns Object with boolean equipment states (only columns that exist in DB)
+ */
+function equipmentControlsToBoolean(controls: EquipmentControlMap) {
+  return {
+    // Core equipment (columns exist in telemetry_readings)
+    cooling_active: controls.cooling?.state === 1 || controls.cooling?.state === 2,
+    heating_active: controls.heating?.state === 1 || controls.heating?.state === 2,
+    dehumidifier_active: controls.dehumidifier?.state === 1 || controls.dehumidifier?.state === 2,
+    humidifier_active: controls.humidifier?.state === 1 || controls.humidifier?.state === 2,
+    co2_injection_active: controls.co2_injection?.state === 1 || controls.co2_injection?.state === 2,
+    exhaust_fan_active: controls.exhaust_fan?.state === 1 || controls.exhaust_fan?.state === 2,
+    circulation_fan_active: controls.circulation_fan?.state === 1 || controls.circulation_fan?.state === 2,
+    lights_on: controls.lighting?.state === 1 || controls.lighting?.state === 2,
+    // Note: irrigation, fogger, hepa_filter, uv_sterilization are stored in equipment_states JSONB only
+  }
+}
+
+// ============================================================================
 // Data Grouping Functions
 // ============================================================================
 
 /**
- * Group TagoIO data points by timestamp (rounded to second)
+ * Groups TagoIO data points by timestamp (rounded to 30-second intervals)
  * 
- * TagoIO returns each variable as a separate record with millisecond differences.
- * This function groups them by second and merges all variables into one reading.
+ * TagoIO returns each variable as a separate record with different timestamps.
+ * Equipment variables arrive ~10 seconds before sensor variables.
+ * This function groups them by 30-second intervals to capture both in one reading.
  * 
  * @param dataPoints - Array of TagoIO data points
- * @returns Array of grouped data by timestamp (second precision)
+ * @returns Array of grouped data by timestamp (30-second interval precision)
  * 
  * @example
  * const grouped = groupDataByTimestamp(dataPoints)
  * // grouped[0].variables = { temp: {...}, hum: {...}, co2: {...}, light_state: {...} }
+ * // Variables at 01:05:22 and 01:05:32 → both grouped into 01:05:30 bucket
  */
 export function groupDataByTimestamp(
   dataPoints: TagoIODataPoint[]
@@ -245,10 +459,19 @@ export function groupDataByTimestamp(
   const grouped = new Map<string, GroupedTagoIOData>()
 
   for (const point of dataPoints) {
-    // Round timestamp to the nearest second to group sensor + equipment data
+    // Round timestamp to the nearest 30-second interval to group sensor + equipment data
+    // Equipment variables arrive ~10 seconds before sensor variables, so we need a wider window
     const timestamp = new Date(point.time)
-    const roundedTimestamp = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate(), 
-                                      timestamp.getHours(), timestamp.getMinutes(), timestamp.getSeconds())
+    const seconds = timestamp.getSeconds()
+    const roundedSeconds = seconds < 30 ? 0 : 30
+    const roundedTimestamp = new Date(
+      timestamp.getFullYear(), 
+      timestamp.getMonth(), 
+      timestamp.getDate(), 
+      timestamp.getHours(), 
+      timestamp.getMinutes(), 
+      roundedSeconds
+    )
     const key = roundedTimestamp.toISOString()
 
     if (!grouped.has(key)) {
@@ -270,7 +493,7 @@ export function groupDataByTimestamp(
 /**
  * Filter out groups that don't have any meaningful data
  * 
- * Since we're grouping by second, most groups should have combined sensor + equipment data.
+ * Since we're grouping by 30-second intervals, groups should have combined sensor + equipment data.
  * Only filter out completely empty groups.
  * 
  * @param groups - Array of grouped data
@@ -311,12 +534,18 @@ function transformGroupToReading(
   // Extract light level (percentage)
   const light_intensity_pct = extractLightLevel(variables.light_state)
 
-  // Extract equipment/actuator status
+  // Extract equipment/actuator status (legacy boolean fields - maintain backward compatibility)
   const lights_on = extractLightsOn(variables.light_state)
   const co2_injection_active = extractCO2Injection(variables.co2_valve)
   const cooling_active = extractCooling(variables.cooling_valve)
   const exhaust_fan_active = extractExhaustFan(variables.ex_fan)
   const dehumidifier_active = extractDehumidifier(variables.dehum)
+
+  // Extract enhanced equipment controls (AUTO mode support)
+  const equipment_controls = extractEquipmentControls(variables)
+  
+  // Convert equipment controls to boolean states for backward compatibility
+  const equipmentBooleans = equipmentControlsToBoolean(equipment_controls)
 
   // Build raw_data object for debugging/auditing
   const raw_data = {
@@ -337,6 +566,11 @@ function transformGroupToReading(
     ),
   }
 
+  // Serialize equipment_controls for JSONB storage
+  const equipment_states = Object.keys(equipment_controls).length > 0 
+    ? equipment_controls 
+    : undefined
+
   return {
     pod_id: podId,
     timestamp,
@@ -345,13 +579,20 @@ function transformGroupToReading(
     co2_ppm,
     vpd_kpa,
     light_intensity_pct,
-    lights_on,
-    co2_injection_active,
-    cooling_active,
-    exhaust_fan_active,
-    dehumidifier_active,
+    // Legacy boolean fields (use enhanced values if available, fallback to legacy extraction)
+    // Only include columns that exist in telemetry_readings schema
+    lights_on: equipmentBooleans.lights_on ?? lights_on,
+    co2_injection_active: equipmentBooleans.co2_injection_active ?? co2_injection_active,
+    cooling_active: equipmentBooleans.cooling_active ?? cooling_active,
+    exhaust_fan_active: equipmentBooleans.exhaust_fan_active ?? exhaust_fan_active,
+    dehumidifier_active: equipmentBooleans.dehumidifier_active ?? dehumidifier_active,
+    humidifier_active: equipmentBooleans.humidifier_active,
+    circulation_fan_active: equipmentBooleans.circulation_fan_active,
+    heating_active: equipmentBooleans.heating_active,
+    // Equipment states JSONB field stores all equipment data including irrigation, fogger, hepa, uv
     data_source: 'tagoio',
     raw_data,
+    equipment_states: equipment_states as Record<string, unknown> | undefined,
   }
 }
 

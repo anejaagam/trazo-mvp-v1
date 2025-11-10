@@ -5,7 +5,22 @@
  * alarm management, and TagoIO integration.
  * 
  * Aligned with database schema in lib/supabase/schema.sql
+ * 
+ * Note: Equipment states are transitioning from boolean to EquipmentControl.
+ * Both formats are supported for backward compatibility.
  */
+
+import type { 
+  EquipmentControl, 
+  EquipmentControlMap,
+} from './equipment';
+
+import {
+  EquipmentState,
+  ControlMode,
+  booleanToEquipmentControl,
+  equipmentControlToBoolean,
+} from './equipment';
 
 // =====================================================
 // CORE TELEMETRY TYPES
@@ -13,6 +28,9 @@
 
 /**
  * Telemetry reading from database (complete record)
+ * 
+ * Note: Equipment boolean columns match database schema exactly.
+ * Additional equipment (irrigation, fogger, HEPA, UV) stored in equipment_states JSONB.
  */
 export interface TelemetryReading {
   id: string;
@@ -26,7 +44,7 @@ export interface TelemetryReading {
   vpd_kpa: number | null;
   light_intensity_pct: number | null;
   
-  // Equipment states
+  // Equipment states (8 boolean columns that exist in DB schema)
   cooling_active: boolean | null;
   heating_active: boolean | null;
   dehumidifier_active: boolean | null;
@@ -34,12 +52,11 @@ export interface TelemetryReading {
   co2_injection_active: boolean | null;
   exhaust_fan_active: boolean | null;
   circulation_fan_active: boolean | null;
-  irrigation_active: boolean | null;
-  lighting_active: boolean | null;
-  fogger_active: boolean | null;
-  hepa_filter_active: boolean | null;
-  uv_sterilization_active: boolean | null;
-  lights_on: boolean | null; // Alias for lighting_active (backwards compatibility)
+  lights_on: boolean | null; // TagoIO light_state on/off status
+  
+  // Extended equipment states (JSONB field for additional equipment)
+  equipment_states?: Record<string, unknown> | null;
+  
   communication_fault: boolean | null; // General communication fault indicator
   
   // Sensor health indicators
@@ -78,6 +95,10 @@ export interface TelemetryReadingWithPod extends TelemetryReading {
 
 /**
  * Insert type for new telemetry readings
+ * 
+ * Note: irrigation_active, lighting_active, fogger_active, hepa_filter_active, 
+ * and uv_sterilization_active columns do NOT exist in telemetry_readings table.
+ * These equipment states are stored in the equipment_states JSONB field instead.
  */
 export interface InsertTelemetryReading {
   pod_id: string;
@@ -87,6 +108,7 @@ export interface InsertTelemetryReading {
   co2_ppm?: number | null;
   vpd_kpa?: number | null;
   light_intensity_pct?: number | null;
+  // Equipment boolean columns (only columns that exist in DB schema)
   lights_on?: boolean | null; // TagoIO light_state on/off status
   cooling_active?: boolean | null;
   heating_active?: boolean | null;
@@ -95,18 +117,16 @@ export interface InsertTelemetryReading {
   co2_injection_active?: boolean | null;
   exhaust_fan_active?: boolean | null;
   circulation_fan_active?: boolean | null;
-  irrigation_active?: boolean | null;
-  lighting_active?: boolean | null;
-  fogger_active?: boolean | null;
-  hepa_filter_active?: boolean | null;
-  uv_sterilization_active?: boolean | null;
+  // Sensor faults
   temp_sensor_fault?: boolean | null;
   humidity_sensor_fault?: boolean | null;
   co2_sensor_fault?: boolean | null;
   pressure_sensor_fault?: boolean | null;
+  // Recipe tracking
   active_recipe_id?: string | null;
   raw_data?: Record<string, unknown> | null;
   data_source: 'tagoio' | 'manual' | 'calculated' | 'simulated';
+  equipment_states?: Record<string, unknown> | null; // JSONB - Enhanced equipment controls with AUTO mode support
 }
 
 /**
@@ -115,6 +135,44 @@ export interface InsertTelemetryReading {
 export interface UpdateTelemetryReading {
   active_recipe_id?: string | null;
   data_source?: 'tagoio' | 'manual' | 'calculated' | 'simulated';
+}
+
+// =====================================================
+// ENHANCED TELEMETRY WITH EQUIPMENT CONTROLS (NEW)
+// =====================================================
+
+/**
+ * Enhanced telemetry reading with full equipment control metadata
+ * 
+ * This extends the basic TelemetryReading with AUTO mode support.
+ * Equipment states include mode, override, schedule, and power level.
+ * 
+ * @see EquipmentControl for detailed equipment state structure
+ */
+export interface EnhancedTelemetryReading extends Omit<TelemetryReading, 
+  'cooling_active' | 'heating_active' | 'dehumidifier_active' | 
+  'humidifier_active' | 'co2_injection_active' | 'exhaust_fan_active' | 
+  'circulation_fan_active' | 'irrigation_active' | 'lighting_active' | 
+  'fogger_active' | 'hepa_filter_active' | 'uv_sterilization_active' | 'lights_on'
+> {
+  // Equipment controls with full metadata (replaces boolean fields)
+  equipment_controls: EquipmentControlMap;
+  
+  // Keep raw_data for backward compatibility with boolean equipment states
+  // raw_data will contain both old boolean format and new control format
+}
+
+/**
+ * Insert type for enhanced telemetry readings with equipment controls
+ */
+export interface InsertEnhancedTelemetryReading extends Omit<InsertTelemetryReading,
+  'cooling_active' | 'heating_active' | 'dehumidifier_active' | 
+  'humidifier_active' | 'co2_injection_active' | 'exhaust_fan_active' | 
+  'circulation_fan_active' | 'irrigation_active' | 'lighting_active' | 
+  'fogger_active' | 'hepa_filter_active' | 'uv_sterilization_active' | 'lights_on'
+> {
+  // Equipment controls with full metadata
+  equipment_controls?: EquipmentControlMap;
 }
 
 // =====================================================
@@ -231,6 +289,17 @@ export interface PodSnapshot {
     humidity: number | null; // percentage points
     co2: number | null; // ppm
   } | null;
+}
+
+/**
+ * Enhanced Pod Snapshot with full equipment control metadata
+ * 
+ * Replaces boolean equipment states with EquipmentControl for AUTO mode support.
+ * Use this for new features that require equipment mode information.
+ */
+export interface EnhancedPodSnapshot extends Omit<PodSnapshot, 'equipment'> {
+  // Equipment controls with full metadata (replaces simple boolean equipment object)
+  equipment_controls: EquipmentControlMap;
 }
 
 /**
@@ -764,4 +833,115 @@ export interface RealtimeSubscriptionConfig {
   onDelete?: (id: string) => void;
   /** Optional error handler */
   onError?: (error: Error) => void;
+}
+
+// =====================================================
+// MIGRATION HELPERS (Backward Compatibility)
+// =====================================================
+
+/**
+ * Convert legacy TelemetryReading to EnhancedTelemetryReading
+ * 
+ * Converts boolean equipment states to EquipmentControl objects.
+ * Used during transition period to support both formats.
+ * 
+ * @param reading - Legacy telemetry reading with boolean equipment states
+ * @returns Enhanced reading with equipment control metadata
+ */
+/**
+ * Convert legacy TelemetryReading to EnhancedTelemetryReading
+ * 
+ * Converts boolean equipment states to EquipmentControl objects.
+ * Used during transition period to support both formats.
+ * 
+ * Note: Additional equipment (irrigation, fogger, HEPA, UV) read from equipment_states JSONB
+ * if available, otherwise defaults to OFF state.
+ * 
+ * @param reading - Legacy telemetry reading with boolean equipment states
+ * @returns Enhanced reading with equipment control metadata
+ */
+export function convertToEnhancedReading(reading: TelemetryReading): EnhancedTelemetryReading {
+  const { 
+    cooling_active, heating_active, dehumidifier_active, humidifier_active,
+    co2_injection_active, exhaust_fan_active, circulation_fan_active, lights_on,
+    ...rest 
+  } = reading;
+  
+  // Additional equipment states from JSONB (if available)
+  const equipment_states = reading.equipment_states as Record<string, EquipmentControl> || {};
+  
+  return {
+    ...rest,
+    equipment_controls: {
+      cooling: booleanToEquipmentControl(cooling_active),
+      heating: booleanToEquipmentControl(heating_active),
+      dehumidifier: booleanToEquipmentControl(dehumidifier_active),
+      humidifier: booleanToEquipmentControl(humidifier_active),
+      co2_injection: booleanToEquipmentControl(co2_injection_active),
+      exhaust_fan: booleanToEquipmentControl(exhaust_fan_active),
+      circulation_fan: booleanToEquipmentControl(circulation_fan_active),
+      lighting: booleanToEquipmentControl(lights_on),
+      // Equipment stored in JSONB field (fallback to OFF state if not present)
+      irrigation: equipment_states.irrigation || { 
+        state: EquipmentState.OFF, 
+        mode: ControlMode.MANUAL, 
+        override: false,
+        schedule_enabled: false,
+        level: 0,
+        last_updated: new Date(reading.timestamp)
+      },
+      fogger: equipment_states.fogger || { 
+        state: EquipmentState.OFF, 
+        mode: ControlMode.MANUAL, 
+        override: false,
+        schedule_enabled: false,
+        level: 0,
+        last_updated: new Date(reading.timestamp)
+      },
+      hepa_filter: equipment_states.hepa_filter || { 
+        state: EquipmentState.OFF, 
+        mode: ControlMode.MANUAL, 
+        override: false,
+        schedule_enabled: false,
+        level: 0,
+        last_updated: new Date(reading.timestamp)
+      },
+      uv_sterilization: equipment_states.uv_sterilization || { 
+        state: EquipmentState.OFF, 
+        mode: ControlMode.MANUAL, 
+        override: false,
+        schedule_enabled: false,
+        level: 0,
+        last_updated: new Date(reading.timestamp)
+      },
+    }
+  };
+}
+
+/**
+ * Convert EnhancedPodSnapshot to legacy PodSnapshot
+ * 
+ * Converts EquipmentControl objects back to simple booleans.
+ * Used when old components need legacy format.
+ * 
+ * @param enhanced - Enhanced pod snapshot with equipment controls
+ * @returns Legacy pod snapshot with boolean equipment states
+ */
+export function convertToLegacySnapshot(enhanced: EnhancedPodSnapshot): PodSnapshot {
+  const { equipment_controls, ...rest } = enhanced;
+  
+  return {
+    ...rest,
+    equipment: {
+      cooling: equipmentControlToBoolean(equipment_controls.cooling),
+      heating: equipmentControlToBoolean(equipment_controls.heating),
+      dehumidifier: equipmentControlToBoolean(equipment_controls.dehumidifier),
+      humidifier: equipmentControlToBoolean(equipment_controls.humidifier),
+      co2_injection: equipmentControlToBoolean(equipment_controls.co2_injection),
+      exhaust_fan: equipmentControlToBoolean(equipment_controls.exhaust_fan),
+      circulation_fan: equipmentControlToBoolean(equipment_controls.circulation_fan),
+      irrigation: equipmentControlToBoolean(equipment_controls.irrigation),
+      lighting: equipmentControlToBoolean(equipment_controls.lighting),
+    }
+  };
 }

@@ -9,7 +9,7 @@ import { ApiToken } from '../lib/supabase';
 import { mockApiTokens } from '../lib/mock-data';
 import { CreateTokenDialog } from './CreateTokenDialog';
 import { StepUpMFADialog } from './StepUpMFADialog';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function ApiTokenManagement() {
   const [tokens, setTokens] = useState<ApiToken[]>(mockApiTokens);

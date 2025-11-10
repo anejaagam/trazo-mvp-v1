@@ -404,6 +404,29 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     action: 'export'
   },
 
+  // Equipment Control permissions (AUTO Mode support)
+  'equipment:control:manual': {
+    key: 'equipment:control:manual',
+    name: 'Manual Equipment Control',
+    description: 'Manually control equipment (ON/OFF states and power levels)',
+    resource: 'equipment',
+    action: 'control:manual'
+  },
+  'equipment:control:auto': {
+    key: 'equipment:control:auto',
+    name: 'AUTO Mode Control',
+    description: 'Switch equipment to AUTO mode and configure automation',
+    resource: 'equipment',
+    action: 'control:auto'
+  },
+  'equipment:override': {
+    key: 'equipment:override',
+    name: 'Equipment Override',
+    description: 'Enable manual overrides for automated equipment',
+    resource: 'equipment',
+    action: 'override'
+  },
+
   // Organization permissions
   'org:settings': {
     key: 'org:settings',

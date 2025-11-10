@@ -45,7 +45,7 @@ export function DashboardLayout() {
       
       // Only show toast if this isn't the initial load
       if (previousAlarms.length > 0 && newCriticalAlarms.length > 0) {
-        import('sonner@2.0.3').then(({ toast }) => {
+        import('sonner').then(({ toast }) => {
           toast.error(`New Critical Alarm: ${newCriticalAlarms[0].title}`, {
             description: newCriticalAlarms[0].message,
           });

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert';
 import { Copy, Check, AlertTriangle } from 'lucide-react';
 import { mockSites } from '../lib/mock-data';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface CreateTokenDialogProps {
   open: boolean;

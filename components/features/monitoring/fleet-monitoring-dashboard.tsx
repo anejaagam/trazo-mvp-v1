@@ -80,6 +80,10 @@ export function FleetMonitoringDashboard({
     },
   ]
 
+  // TODO: Count equipment in AUTO mode across all pods
+  // PodSnapshot doesn't expose equipment_states, so we need to enhance the query
+  // to include equipment_states JSONB for accurate AUTO/override counts
+
   // Count pods with issues
   const podsWithIssues = snapshots?.filter(
     (s) => s.health_status === 'warning' || s.health_status === 'critical'

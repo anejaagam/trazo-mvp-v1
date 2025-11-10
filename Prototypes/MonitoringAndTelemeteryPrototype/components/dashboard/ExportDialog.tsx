@@ -10,7 +10,7 @@ import { generateCSV, generateExportFilename } from '../../lib/telemetry';
 import type { ChartDataPoint, UserRole } from '../../types/telemetry';
 import { Download, Calendar as CalendarIcon, FileText, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ExportDialogProps {
   podName: string;

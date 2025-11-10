@@ -11,7 +11,7 @@ import { Label } from '../ui/label';
 import type { Alarm, AlarmSeverity, AlarmStatus } from '../../types/telemetry';
 import { AlertCircle, CheckCircle, Clock, User, MessageSquare } from 'lucide-react';
 import { formatTimestamp } from '../../lib/telemetry';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface AlarmsPanelProps {
   alarms: Alarm[];

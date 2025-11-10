@@ -121,7 +121,7 @@ npm run dev
 
 ## Step 3: Manual Integration Testing
 
-**Login as:** test@trazo.app (org_admin) - or your seeded user
+**Login as:** agam@trazo.ag (org_admin) - or your seeded user
 
 ### Test 1: Create Inventory Item ✅ DONE
 

@@ -7,7 +7,7 @@ import { Textarea } from "../ui/textarea";
 import { Switch } from "../ui/switch";
 import { Badge } from "../ui/badge";
 import { Mail, CheckCircle2, AlertCircle, Send } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 interface EmailConfigProps {

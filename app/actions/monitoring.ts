@@ -110,6 +110,7 @@ export async function getLatestReading(
       co2_ppm: readings.find(r => r.co2_ppm !== null)?.co2_ppm ?? null,
       vpd_kpa: readings.find(r => r.vpd_kpa !== null)?.vpd_kpa ?? null,
       light_intensity_pct: readings.find(r => r.light_intensity_pct !== null)?.light_intensity_pct ?? null,
+      // Equipment boolean columns (only 8 that exist in DB schema)
       cooling_active: readings.find(r => r.cooling_active !== null)?.cooling_active ?? null,
       heating_active: readings.find(r => r.heating_active !== null)?.heating_active ?? null,
       dehumidifier_active: readings.find(r => r.dehumidifier_active !== null)?.dehumidifier_active ?? null,
@@ -117,12 +118,9 @@ export async function getLatestReading(
       co2_injection_active: readings.find(r => r.co2_injection_active !== null)?.co2_injection_active ?? null,
       exhaust_fan_active: readings.find(r => r.exhaust_fan_active !== null)?.exhaust_fan_active ?? null,
       circulation_fan_active: readings.find(r => r.circulation_fan_active !== null)?.circulation_fan_active ?? null,
-      irrigation_active: readings.find(r => r.irrigation_active !== null)?.irrigation_active ?? null,
-      lighting_active: readings.find(r => r.lighting_active !== null)?.lighting_active ?? null,
-      fogger_active: readings.find(r => r.fogger_active !== null)?.fogger_active ?? null,
-      hepa_filter_active: readings.find(r => r.hepa_filter_active !== null)?.hepa_filter_active ?? null,
-      uv_sterilization_active: readings.find(r => r.uv_sterilization_active !== null)?.uv_sterilization_active ?? null,
       lights_on: readings.find(r => r.lights_on !== null)?.lights_on ?? null,
+      // Note: irrigation, fogger, hepa_filter, uv_sterilization stored in equipment_states JSONB
+      // Sensor faults
       temp_sensor_fault: readings.find(r => r.temp_sensor_fault !== null)?.temp_sensor_fault ?? null,
       humidity_sensor_fault: readings.find(r => r.humidity_sensor_fault !== null)?.humidity_sensor_fault ?? null,
       co2_sensor_fault: readings.find(r => r.co2_sensor_fault !== null)?.co2_sensor_fault ?? null,

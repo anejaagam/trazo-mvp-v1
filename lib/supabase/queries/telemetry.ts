@@ -554,6 +554,64 @@ export async function batchInsertReadings(
   }
 }
 
+/**
+ * Batch upsert multiple telemetry readings (INSERT or UPDATE on conflict)
+ * Prevents duplicates by using unique constraint on (pod_id, timestamp)
+ * Used for historical data imports where data may already exist
+ * 
+ * IMPORTANT: This function merges variables instead of overwriting.
+ * When TagoIO returns partial data (only some variables), this ensures
+ * we don't lose existing data by keeping non-null values from both old and new data.
+ * 
+ * Uses PostgreSQL function `merge_upsert_telemetry_reading` which handles COALESCE logic.
+ * 
+ * @param readings - Array of telemetry readings to upsert
+ * @returns Query result with number of rows affected
+ */
+export async function batchUpsertReadings(
+  readings: InsertTelemetryReading[]
+): Promise<QueryResult<{ count: number }>> {
+  try {
+    if (readings.length === 0) {
+      return { data: { count: 0 }, error: null };
+    }
+
+    const supabase = await createClient();
+    
+    // Call PostgreSQL function for each reading
+    // The function handles COALESCE merge logic to preserve existing values
+    let successCount = 0;
+    const errors: Error[] = [];
+    
+    for (const reading of readings) {
+      const { error } = await supabase.rpc('merge_upsert_telemetry_reading', {
+        reading: reading as unknown as Record<string, unknown>
+      });
+      
+      if (error) {
+        console.error('Error upserting reading:', error);
+        errors.push(error as Error);
+      } else {
+        successCount++;
+      }
+    }
+    
+    if (errors.length > 0 && errors.length === readings.length) {
+      // All failed - throw the first error
+      throw errors[0];
+    }
+    
+    if (errors.length > 0) {
+      console.warn(`Partial success: ${successCount}/${readings.length} readings upserted`);
+    }
+
+    return { data: { count: successCount }, error: null };
+  } catch (error) {
+    console.error('Error in batchUpsertReadings:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
 // =====================================================
 // DEVICE STATUS OPERATIONS
 // =====================================================

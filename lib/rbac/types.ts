@@ -113,6 +113,11 @@ export type PermissionKey =
   | 'monitoring:view'
   | 'monitoring:export'
   
+  // Equipment Control permissions (AUTO Mode)
+  | 'equipment:control:manual'
+  | 'equipment:control:auto'
+  | 'equipment:override'
+  
   // Organization permissions
   | 'org:settings'
   | 'org:billing'

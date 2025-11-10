@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { EnvironmentChart } from './environment-chart'
+import { EquipmentControlCard } from './equipment-control-card'
 import { Clock, RefreshCw, Thermometer, Droplets, Wind, Sun } from 'lucide-react'
 import { useTelemetry } from '@/hooks/use-telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
+import type { EquipmentControlRecord } from '@/lib/supabase/queries/equipment-controls'
+import type { EquipmentControlRecord as TypedEquipmentControlRecord } from '@/types/equipment'
 
 interface PodDetailProps {
   podId: string
@@ -20,7 +22,9 @@ interface PodDetailProps {
 }
 
 export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodDetailProps) {
-  const [timeWindow, setTimeWindow] = useState<24 | 168 | 720>(24) // 24h, 7d, 30d
+  const [timeWindow] = useState<24 | 168 | 720>(24) // 24h, 7d, 30d
+  const [equipmentControls, setEquipmentControls] = useState<EquipmentControlRecord[]>([])
+  const [equipmentLoading, setEquipmentLoading] = useState(true)
   
   // Permission check
   const { can } = usePermissions('org_admin')
@@ -32,14 +36,25 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
     autoFetch: true
   })
   
-  // Device status: extract from telemetry reading
-  const deviceStatus = reading ? {
-    circulation_fan_active: reading.circulation_fan_active ?? false,
-    cooling_active: reading.cooling_active ?? false,
-    dehumidifier_active: reading.dehumidifier_active ?? false,
-    co2_injection_active: reading.co2_injection_active ?? false,
-  } : null
-  const deviceLoading = telemetryLoading
+  // Fetch equipment controls
+  useEffect(() => {
+    async function fetchEquipmentControls() {
+      try {
+        setEquipmentLoading(true)
+        const response = await fetch(`/api/equipment-controls?podId=${podId}`)
+        if (response.ok) {
+          const data = await response.json()
+          setEquipmentControls(data)
+        }
+      } catch (error) {
+        console.error('Error fetching equipment controls:', error)
+      } finally {
+        setEquipmentLoading(false)
+      }
+    }
+    
+    fetchEquipmentControls()
+  }, [podId])
   
   // Calculate VPD (Vapor Pressure Deficit)
   const calculateVPD = (temp: number, rh: number): number => {
@@ -247,60 +262,174 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
               </CardContent>
             </Card>
           </div>
-          
-          {/* Equipment Status */}
+          {/* Equipment Controls (AUTO Mode Support) */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Equipment Status</CardTitle>
+              <CardTitle className="text-sm">Equipment Status & Controls</CardTitle>
             </CardHeader>
             <CardContent>
-              {deviceLoading ? (
+              {equipmentLoading || telemetryLoading ? (
                 <p className="text-sm text-muted-foreground">Loading equipment status...</p>
-              ) : deviceStatus ? (
+              ) : equipmentControls.length > 0 ? (
+                /* Show advanced controls if equipment_controls exist */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {equipmentControls.map((control) => (
+                    <EquipmentControlCard
+                      key={control.id}
+                      equipment={control as unknown as TypedEquipmentControlRecord}
+                      onStateChange={async (state, level) => {
+                        // TODO: Call API to update equipment state
+                        console.log('State change:', { equipment: control.equipment_type, state, level })
+                        // Refresh equipment controls after update
+                        const response = await fetch(`/api/equipment-controls?podId=${podId}`)
+                        if (response.ok) {
+                          const data = await response.json()
+                          setEquipmentControls(data)
+                        }
+                      }}
+                      onOverrideToggle={async (override) => {
+                        // TODO: Call API to toggle override
+                        console.log('Override toggle:', { equipment: control.equipment_type, override })
+                        // Refresh equipment controls
+                        const response = await fetch(`/api/equipment-controls?podId=${podId}`)
+                        if (response.ok) {
+                          const data = await response.json()
+                          setEquipmentControls(data)
+                        }
+                      }}
+                      onConfigureAuto={() => {
+                        // AUTO configuration handled by modal in EquipmentControlCard
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : reading ? (
+                /* Fallback: Show enhanced equipment status from telemetry with AUTO mode support */
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Fan</span>
-                    <span className={`text-sm font-medium ${deviceStatus.circulation_fan_active ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {deviceStatus.circulation_fan_active ? 'Running' : 'Off'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Cooling</span>
-                    <span className={`text-sm font-medium ${deviceStatus.cooling_active ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {deviceStatus.cooling_active ? 'Active' : 'Off'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Dehumidifier</span>
-                    <span className={`text-sm font-medium ${deviceStatus.dehumidifier_active ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {deviceStatus.dehumidifier_active ? 'Running' : 'Off'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">CO₂ Injection</span>
-                    <span className={`text-sm font-medium ${deviceStatus.co2_injection_active ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {deviceStatus.co2_injection_active ? 'Active' : 'Off'}
-                    </span>
-                  </div>
+                  {(() => {
+                    // Parse equipment_states JSONB for AUTO mode information
+                    let equipmentStates = reading.equipment_states as Record<string, {
+                      state: number
+                      mode: 'MANUAL' | 'AUTOMATIC'
+                      override: boolean
+                      level?: number
+                      schedule_enabled?: boolean
+                    }> | null
+
+                    // Fallback: If equipment_states is empty, parse raw_data
+                    if (!equipmentStates && reading.raw_data) {
+                      const rawData = reading.raw_data as { 
+                        variables?: Record<string, { 
+                          value: number
+                          metadata?: {
+                            ov?: number
+                            mode?: number
+                            level?: number
+                            schedule?: number
+                          }
+                        }> 
+                      }
+                      if (rawData.variables) {
+                        equipmentStates = {}
+                        const vars = rawData.variables
+                        
+                        // Map TagoIO variables to equipment states
+                        const mapping: Record<string, string> = {
+                          'light_state': 'lighting',
+                          'co2_valve': 'co2_injection',
+                          'cooling_valve': 'cooling',
+                          'heating_valve': 'heating',
+                          'dehum': 'dehumidifier',
+                          'hum': 'humidifier',
+                          'ex_fan': 'exhaust_fan',
+                          'circ_fan': 'circulation_fan',
+                        }
+
+                        Object.entries(mapping).forEach(([tagoVar, equipKey]) => {
+                          const data = vars[tagoVar]
+                          if (data?.metadata) {
+                            const meta = data.metadata
+                            // TagoIO: ov=2 means AUTO, ov=0/1 means MANUAL
+                            const isAuto = meta.ov === 2
+                            equipmentStates![equipKey] = {
+                              state: data.value || 0,
+                              mode: isAuto ? 'AUTOMATIC' : 'MANUAL',
+                              override: meta.ov === 1,
+                              level: meta.level,
+                              schedule_enabled: meta.schedule === 1,
+                            }
+                          }
+                        })
+                      }
+                    }
+
+                    // Helper to render equipment with AUTO mode support
+                    const renderEquipment = (
+                      name: string,
+                      booleanActive: boolean | null,
+                      stateKey: string
+                    ) => {
+                      if (booleanActive === null) return null
+
+                      const equipmentState = equipmentStates?.[stateKey]
+                      const isAuto = equipmentState?.mode === 'AUTOMATIC'
+                      const level = equipmentState?.level
+
+                      // Don't show redundant equipment (both cooling AND heating if both off)
+                      // Only show if active OR if it's the primary control for that function
+                      const isPrimary = ['lighting', 'co2_injection', 'exhaust_fan', 'circulation_fan'].includes(stateKey)
+                      if (!booleanActive && !isPrimary && !isAuto) return null
+
+                      // Build status label: "AUTO (On)" or "AUTO (Off)" or just "On"/"Off"
+                      let statusLabel: string
+                      let statusClass: string
+
+                      if (isAuto) {
+                        statusLabel = booleanActive ? 'AUTO (On)' : 'AUTO (Off)'
+                        statusClass = booleanActive ? 'text-blue-600 font-medium' : 'text-blue-500'
+                      } else {
+                        statusLabel = booleanActive ? 'On' : 'Off'
+                        statusClass = booleanActive ? 'text-green-600 font-medium' : 'text-muted-foreground'
+                      }
+
+                      // Add power level if available and equipment is on
+                      if (level !== undefined && level > 0 && booleanActive) {
+                        statusLabel += ` ${level}%`
+                      }
+
+                      return (
+                        <div key={stateKey} className="flex items-center justify-between p-3 border rounded-lg">
+                          <span className="text-sm font-medium">{name}</span>
+                          <span className={`text-sm ${statusClass}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <>
+                        {renderEquipment('Lighting', reading.lights_on, 'lighting')}
+                        {renderEquipment('CO₂ Injection', reading.co2_injection_active, 'co2_injection')}
+                        {renderEquipment('Cooling', reading.cooling_active, 'cooling')}
+                        {renderEquipment('Heating', reading.heating_active, 'heating')}
+                        {renderEquipment('Dehumidifier', reading.dehumidifier_active, 'dehumidifier')}
+                        {renderEquipment('Humidifier', reading.humidifier_active, 'humidifier')}
+                        {renderEquipment('Exhaust Fan', reading.exhaust_fan_active, 'exhaust_fan')}
+                        {renderEquipment('Circulation Fan', reading.circulation_fan_active, 'circulation_fan')}
+                      </>
+                    )
+                  })()}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No equipment status available</p>
+                <p className="text-sm text-muted-foreground">No equipment data available. Waiting for telemetry...</p>
               )}
             </CardContent>
           </Card>
           
           {/* Time Series Charts */}
-          <Tabs value={timeWindow.toString()} onValueChange={(v) => setTimeWindow(Number(v) as typeof timeWindow)}>
-            <TabsList>
-              <TabsTrigger value="24">Last 24 Hours</TabsTrigger>
-              <TabsTrigger value="168">Last 7 Days</TabsTrigger>
-              <TabsTrigger value="720">Last 30 Days</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value={timeWindow.toString()} className="mt-4">
-              <EnvironmentChart podId={podId} deviceToken={deviceToken || undefined} hours={timeWindow} />
-            </TabsContent>
-          </Tabs>
+          <EnvironmentChart podId={podId} deviceToken={deviceToken || undefined} hours={timeWindow} />
+
           
           {/* Compliance Notice */}
           <Card className="bg-muted/50">

@@ -1,8 +1,10 @@
 /**
  * TagoIO Telemetry Polling Cron Endpoint
  * 
- * Vercel Cron job that polls TagoIO devices every 60 seconds
+ * Vercel Cron job that polls TagoIO devices every minute
  * to fetch environmental sensor data and store in database.
+ * 
+ * Uses service role client to bypass RLS and access all pods.
  * 
  * Configuration in vercel.json:
  * {
@@ -13,12 +15,14 @@
  * }
  * 
  * Environment variables required:
- * - TAGOIO_DEVICE_TOKEN: TagoIO device authentication token
+ * - NEXT_PUBLIC_SUPABASE_URL: Supabase project URL
+ * - SUPABASE_SERVICE_ROLE_KEY: Service role key for database access
  * - CRON_SECRET: Secret key to authenticate cron requests
  */
 
 import { NextResponse } from 'next/server'
-import { pollDevices } from '@/lib/tagoio/polling-service'
+import { TagoIOPollingService } from '@/lib/tagoio/polling-service'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -47,7 +51,24 @@ export async function GET(request: Request) {
 
     // Poll all devices (tokens fetched from database)
     console.log('Starting TagoIO telemetry poll...')
-    const result = await pollDevices()
+    
+    // Create service role client for database access
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials')
+    }
+    
+    const supabase = createServiceClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+    
+    const service = new TagoIOPollingService(supabase)
+    const result = await service.pollAllDevices()
 
     // Log summary
     const duration = Date.now() - startTime

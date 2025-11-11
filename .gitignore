@@ -13,6 +13,12 @@
 # testing
 /coverage
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # next.js
 /.next/
 /out/
@@ -29,6 +35,17 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+
+# backup files
+*.backup
+*.bak
+*_OLD_BACKUP*
+*_BACKUP*
+
+# project-specific temp files
+NextStep.xml
+poll.log
 
 # env files (can opt-in for committing if needed)
 .env*.local

@@ -25,29 +25,27 @@ const ThemeSwitcher = () => {
     return null;
   }
 
-  const ICON_SIZE = 16;
+  const MAIN_ICON_SIZE = 28; // Larger size for the main button
+  const DROPDOWN_ICON_SIZE = 16; // Smaller size for dropdown items
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size={"sm"}>
+        <Button variant="ghost" size={"sm"} className="text-brand-lighter-green-600 hover:text-brand-lighter-green-700 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]">
           {theme === "light" ? (
             <Sun
               key="light"
-              size={ICON_SIZE}
-              className={"text-muted-foreground"}
+              size={MAIN_ICON_SIZE}
             />
           ) : theme === "dark" ? (
             <Moon
               key="dark"
-              size={ICON_SIZE}
-              className={"text-muted-foreground"}
+              size={MAIN_ICON_SIZE}
             />
           ) : (
             <Laptop
               key="system"
-              size={ICON_SIZE}
-              className={"text-muted-foreground"}
+              size={MAIN_ICON_SIZE}
             />
           )}
         </Button>
@@ -58,15 +56,15 @@ const ThemeSwitcher = () => {
           onValueChange={(e) => setTheme(e)}
         >
           <DropdownMenuRadioItem className="flex gap-2" value="light">
-            <Sun size={ICON_SIZE} className="text-muted-foreground" />{" "}
+            <Sun size={DROPDOWN_ICON_SIZE} className="text-muted-foreground" />{" "}
             <span>Light</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="flex gap-2" value="dark">
-            <Moon size={ICON_SIZE} className="text-muted-foreground" />{" "}
+            <Moon size={DROPDOWN_ICON_SIZE} className="text-muted-foreground" />{" "}
             <span>Dark</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="flex gap-2" value="system">
-            <Laptop size={ICON_SIZE} className="text-muted-foreground" />{" "}
+            <Laptop size={DROPDOWN_ICON_SIZE} className="text-muted-foreground" />{" "}
             <span>System</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

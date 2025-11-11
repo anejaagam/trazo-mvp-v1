@@ -12,7 +12,7 @@
  *   npx tsx scripts/test-aggregation.ts
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import { TelemetryAggregationService } from '@/lib/monitoring/aggregation-service'
 
 type Database = any
@@ -100,8 +100,9 @@ async function generateTestData(
   
   for (const reading of testData) {
     try {
+      // @ts-expect-error - RPC function not typed in scripts
       const { error } = await supabase.rpc('merge_upsert_telemetry_reading', {
-        reading: reading as any,
+        reading: reading as unknown as Record<string, unknown>,
       })
       
       if (error) {

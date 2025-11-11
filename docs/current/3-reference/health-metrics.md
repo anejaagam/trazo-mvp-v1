@@ -259,7 +259,7 @@
 - **Archived:** 3 (moved to /archive/)
 - **Pending:** 8 awaiting integration
   - Batch Management
-  - Environmental Controls
+  - Recipe Management (formerly Environmental Controls)
   - Alarms & Notifications
   - Compliance Engine
   - Task Management
@@ -326,7 +326,7 @@
 
 ### Medium-term (Phases 12-15)
 - Batch Management integration
-- Environmental Controls integration
+- Recipe Management integration
 - Task Management integration
 - Compliance Engine integration
 

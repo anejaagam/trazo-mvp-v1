@@ -97,8 +97,8 @@ export async function getFeatureItems(siteId: string) {
 
 ## Integration Priority (Phase 3)
 1. **Inventory** (/Prototypes/InventoryTrackingPrototype/) - START HERE
-2. **Monitoring** (/Prototypes/EnvironmentalSensorsPrototype/)
-3. **Environmental** (/Prototypes/HVACPrototype/)
+2. **Monitoring** (/Prototypes/MonitoringAndTelemeteryPrototype/)
+3. **Recipe Management** (/Prototypes/RecipePrototype/)
 4. **Tasks** → **Compliance** → **Batch** (Phase 4)
 
 ## Documentation Rules

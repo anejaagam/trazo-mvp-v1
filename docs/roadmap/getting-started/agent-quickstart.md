@@ -100,7 +100,7 @@ export default async function FeaturePage() {
 ### 6) Next Focus Preview
 - **Current Phase:** Phase 10 - Monitoring & Telemetry (86% complete)
 - **Next Up:** Phase 9 - Deployment & Integration Testing
-- **Then:** Environmental Controls (Phase 11) → Batch Management → Tasks → Compliance
+- **Then:** Recipe Management (Phase 11) → Batch Management → Tasks → Compliance
 
 ---
 

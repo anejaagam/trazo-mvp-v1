@@ -14,7 +14,7 @@
 - ✅ **Admin Complete** (Phase 3-6): User Management, Roles, Permissions, Audit Logs
 - ✅ **Inventory Complete** (Phase 8): Full CRUD, Lot Tracking, FIFO/LIFO, Alerts
 - 🔄 **Monitoring In Progress** (Phase 10): 86% complete (6 of 7 phases done)
-- ⏳ **Next:** Environmental Controls → Batch Management → Tasks → Compliance
+- ⏳ **Next:** Recipe Management → Batch Management → Tasks → Compliance
 
 ### **Code Quality Metrics**
 - **Tests:** 164/173 passing (94.8% success rate)
@@ -39,7 +39,7 @@
 1. Complete Monitoring Phase 7 (Testing & Validation) - 6 hours
 2. Deploy monitoring dashboard to production
 3. Map pods to TagoIO device IDs (30 minutes)
-4. Begin Environmental Controls integration (Phase 11)
+4. Begin Recipe Management integration (Phase 11)
 
 ---
 

@@ -17,7 +17,7 @@ This document catalogs all 11 prototype applications that need to be integrated 
 1. **[IdentityRolesPermissionPrototype](#1-identity-roles--permissions-management)** - User management, RBAC system
 2. **[InventoryTrackingPrototype](#2-inventory-tracking)** - Inventory management, waste disposal
 3. **[MonitoringAndTelemeteryPrototype](#3-monitoring--telemetry)** - Real-time environmental monitoring
-4. **[EnvironmentalControlsPrototype](#4-environmental-controls)** - Recipe management, manual overrides
+4. **[RecipePrototype](#4-recipe-management)** (formerly EnvironmentalControlsPrototype) - Recipe management, manual overrides
 
 ### Priority 2: Advanced Operations
 5. **[WorkflowAndTaskManagementPrototype](#5-workflow--task-management)** - Task management, SOPs
@@ -36,7 +36,7 @@ This document catalogs all 11 prototype applications that need to be integrated 
 
 ### 1. Identity, Roles & Permissions Management
 
-**Location:** `archive/IdentityRolesPermissionPrototype/`
+**Location:** `Prototypes/IdentityRolesPermissionPrototype/` (archived)
 
 **Components:**
 ```
@@ -76,7 +76,7 @@ components/
 
 ### 2. Inventory Tracking
 
-**Location:** `archive/InventoryTrackingPrototype/`
+**Location:** `Prototypes/InventoryTrackingPrototype/` (archived)
 
 **Components:**
 ```
@@ -116,7 +116,7 @@ components/
 
 ### 3. Monitoring & Telemetry
 
-**Location:** `archive/MonitoringAndTelemeteryPrototype/`
+**Location:** `Prototypes/MonitoringAndTelemeteryPrototype/` (archived)
 
 **Components:**
 ```
@@ -154,9 +154,9 @@ components/dashboard/
 
 ---
 
-### 4. Environmental Controls
+### 4. Recipe Management
 
-**Location:** `archive/EnvironmentalControlsPrototype/`
+**Location:** `Prototypes/RecipePrototype/` (formerly EnvironmentalControlsPrototype)
 
 **Components:**
 ```
@@ -191,7 +191,7 @@ components/
 
 ### 5. Workflow & Task Management
 
-**Location:** `archive/WorkflowAndTaskManagementPrototype/`
+**Location:** `Prototypes/WorkflowAndTaskManagementPrototype/`
 
 **Key Features:**
 - SOP (Standard Operating Procedure) templates
@@ -213,7 +213,7 @@ components/
 
 ### 6. Compliance Engine
 
-**Location:** `archive/ComplianceEnginePrototype/`
+**Location:** `Prototypes/ComplianceEnginePrototype/`
 
 **Key Features:**
 - Compliance report generation
@@ -235,7 +235,7 @@ components/
 
 ### 7. Batch Management
 
-**Location:** `archive/BatchManagementPrototype/`
+**Location:** `Prototypes/BatchManagementPrototype/`
 
 **Components (19 files):**
 ```
@@ -283,7 +283,7 @@ components/
 
 ### 8. Alarms & Notifications
 
-**Location:** `archive/AlarmsAndNotifSystemPrototype/`
+**Location:** `Prototypes/AlarmsAndNotifSystemPrototype/`
 
 **Key Features:**
 - Real-time alarm monitoring
@@ -305,7 +305,7 @@ components/
 
 ### 9. Signup Flow Enhancement
 
-**Location:** `archive/SignUpPrototype/`
+**Location:** `Prototypes/SignUpPrototype/` (archived)
 
 **Components:**
 ```
@@ -336,7 +336,7 @@ components/
 
 ### 10. Farm Layout Editor
 
-**Location:** `archive/FarmBuilderPrototype/`
+**Location:** `Prototypes/FarmBuilderPrototype/`
 
 **Key Features:**
 - Drag & drop farm layout designer
@@ -355,7 +355,7 @@ components/
 
 ### 11. Integrations & SSO
 
-**Location:** `archive/ItegrationsAndSSOPrototype/`
+**Location:** `Prototypes/ItegrationsAndSSOPrototype/` (archived)
 
 **Key Features:**
 - SSO configuration
@@ -445,7 +445,7 @@ components/shared/
 - Identity & Roles (admin pages)
 - Inventory Tracking (full feature)
 - Monitoring & Telemetry (dashboard)
-- Environmental Controls (recipe system)
+- Recipe Management (recipe system)
 
 ### Phase 3: Priority 2 Features  
 - Workflow & Tasks

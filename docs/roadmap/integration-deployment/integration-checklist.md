@@ -188,7 +188,7 @@ See [CURRENT.md - Inventory Feature](../CURRENT.md#inventory-feature) for full d
 **Achievement:** 2,912 lines of production code (Phases 5+6)
 **See:** `TAGOIO_INTEGRATION_PHASE6_COMPLETE.md` for full details
 
-### Environmental Controls ⏳ NOT STARTED
+### Recipe Management ⏳ NOT STARTED
 - [ ] Migrate control components to `/components/features/controls/`
 - [ ] Create `/app/dashboard/controls/` pages
 - [ ] Implement recipe queries in `/lib/supabase/queries/recipes.ts`

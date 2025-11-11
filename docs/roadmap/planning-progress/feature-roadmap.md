@@ -14,7 +14,7 @@ This roadmap outlines all planned features for TRAZO MVP, organized by developme
 
 - ✅ **Phase 1-8:** Foundation + Identity + Inventory - COMPLETE
 - 🔄 **Phase 10:** Monitoring & Telemetry - 90% complete (device mapping + testing remaining)
-- ⏳ **Phase 11-16:** Environmental Controls, Tasks, Batch, Compliance, Alarms, Settings
+- ⏳ **Phase 11-16:** Recipe Management, Tasks, Batch, Compliance, Alarms, Settings
 
 ---
 
@@ -158,7 +158,7 @@ Dashboard Auto-Refresh (30s)
 
 ---
 
-## Phase 11: Environmental Controls ⏳ NOT STARTED (2-3 weeks)
+## Phase 11: Recipe Management ⏳ NOT STARTED (2-3 weeks)
 
 **Dependencies:** Monitoring & Telemetry must be complete first
 
@@ -189,7 +189,7 @@ Dashboard Auto-Refresh (30s)
 6. **Database Tables**
    - `recipes` and `recipe_applications` tables usage
 
-**Reference:** `/Prototypes/EnvironmentalControlsPrototype/`
+**Reference:** `/Prototypes/RecipePrototype/` (formerly EnvironmentalControlsPrototype)
 
 ---
 
@@ -362,7 +362,7 @@ Dashboard Auto-Refresh (30s)
 |-------|---------|----------|--------|
 | 1-8 | Foundation + Identity + Inventory | 6 weeks | ✅ Complete |
 | 10 | Monitoring & Telemetry | 3 weeks | 🔄 90% Complete |
-| 11 | Environmental Controls | 2-3 weeks | ⏳ Not Started |
+| 11 | Recipe Management | 2-3 weeks | ⏳ Not Started |
 | 12 | Task Management & SOPs | 2 weeks | ⏳ Not Started |
 | 13 | Batch Management | 3-4 weeks | ⏳ Not Started |
 | 14 | Compliance Engine | 3 weeks | ⏳ Not Started |

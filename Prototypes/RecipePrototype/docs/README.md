@@ -190,13 +190,15 @@ The demo includes comprehensive mock data:
 
 ## Documentation Index
 
-- **[README.md](README.md)** (this file): Overview and quick start
-- **[INDEX.md](INDEX.md)**: Complete documentation navigation guide
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: System design and technical details
-- **[COMPONENTS-MAIN.md](COMPONENTS-MAIN.md)**: Main application components
-- **[COMPONENTS-UI.md](COMPONENTS-UI.md)**: UI patterns and styling
-- **[DATA-TYPES.md](DATA-TYPES.md)**: TypeScript type definitions
-- **[DATA-ENTITIES.md](DATA-ENTITIES.md)**: Core data interfaces
+- **README.md** (this file): Overview and quick start
+- **ARCHITECTURE.md**: System design and technical details
+- **COMPONENTS-MAIN.md**: Main application components
+- **COMPONENTS-UI.md**: UI patterns and styling
+- **DATA-TYPES.md**: TypeScript type definitions
+- **DATA-ENTITIES.md**: Core data interfaces
+- **WORKFLOWS-RECIPES.md**: Recipe management workflows
+- **WORKFLOWS-OPERATIONS.md**: Schedules, batches, overrides
+- **WORKFLOWS-AUDIT.md**: Audit trail and troubleshooting
 
 ## Support
 

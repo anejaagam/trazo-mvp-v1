@@ -56,7 +56,7 @@ export function WelcomeBanner({ role, jurisdictionId }: Props) {
         {isAdmin ? (
           <div className="space-y-3 mt-2">
             <p className="text-sm leading-relaxed">
-              You're the organization admin. Start by inviting your team from Admin → Users. Your jurisdiction is
+              You&apos;re the organization admin. Start by inviting your team from Admin → Users. Your jurisdiction is
               {jurisdiction ? ` ${jurisdiction.name}` : ' set during onboarding'}, which tailors compliance and workflows.
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
@@ -66,7 +66,7 @@ export function WelcomeBanner({ role, jurisdictionId }: Props) {
         ) : (
           <div className="space-y-3 mt-2">
             <p className="text-sm leading-relaxed text-foreground/90">
-              You've been invited to this organization. Based on your role <span className="font-semibold text-primary">({role ?? 'member'})</span>, you can access:
+              You&apos;ve been invited to this organization. Based on your role <span className="font-semibold text-primary">({role ?? 'member'})</span>, you can access:
             </p>
             <div className="bg-background/50 rounded-lg p-4 border border-border/50">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">

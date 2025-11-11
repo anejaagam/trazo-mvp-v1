@@ -279,7 +279,7 @@ export class TelemetryAggregationService {
 
       const { data, error } = await supabase
         .rpc('cleanup_old_telemetry_raw', {
-          retention_hours: retentionHours,
+          p_retention_hours: retentionHours,
         })
 
       if (error) {

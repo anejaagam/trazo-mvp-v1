@@ -142,7 +142,108 @@ export async function getLatestReading(
 }
 
 /**
+ * Hourly aggregate reading from telemetry_readings_hourly table
+ */
+interface HourlyAggregateReading {
+  pod_id: string;
+  hour_start: string;
+  temperature_c_avg: number | null;
+  humidity_pct_avg: number | null;
+  co2_ppm_avg: number | null;
+  vpd_kpa_avg: number | null;
+}
+
+/**
+ * Daily aggregate reading from telemetry_readings_daily table
+ */
+interface DailyAggregateReading {
+  pod_id: string;
+  day_start: string;
+  temperature_c_avg: number | null;
+  humidity_pct_avg: number | null;
+  co2_ppm_avg: number | null;
+  vpd_kpa_avg: number | null;
+}
+
+/**
+ * Helper function to transform hourly aggregate to TelemetryReading format
+ */
+function transformHourlyToReading(
+  aggregate: HourlyAggregateReading
+): TelemetryReading {
+  return {
+    id: `hourly-${aggregate.hour_start}-${aggregate.pod_id}`,
+    pod_id: aggregate.pod_id,
+    timestamp: aggregate.hour_start,
+    temperature_c: aggregate.temperature_c_avg,
+    humidity_pct: aggregate.humidity_pct_avg,
+    co2_ppm: aggregate.co2_ppm_avg,
+    vpd_kpa: aggregate.vpd_kpa_avg,
+    light_intensity_pct: null,
+    cooling_active: null,
+    heating_active: null,
+    dehumidifier_active: null,
+    humidifier_active: null,
+    co2_injection_active: null,
+    exhaust_fan_active: null,
+    circulation_fan_active: null,
+    lights_on: null,
+    equipment_states: null,
+    communication_fault: null,
+    temp_sensor_fault: null,
+    humidity_sensor_fault: null,
+    co2_sensor_fault: null,
+    pressure_sensor_fault: null,
+    active_recipe_id: null,
+    raw_data: null,
+    data_source: 'calculated',
+  };
+}
+
+/**
+ * Helper function to transform daily aggregate to TelemetryReading format
+ */
+function transformDailyToReading(
+  aggregate: DailyAggregateReading
+): TelemetryReading {
+  return {
+    id: `daily-${aggregate.day_start}-${aggregate.pod_id}`,
+    pod_id: aggregate.pod_id,
+    timestamp: aggregate.day_start,
+    temperature_c: aggregate.temperature_c_avg,
+    humidity_pct: aggregate.humidity_pct_avg,
+    co2_ppm: aggregate.co2_ppm_avg,
+    vpd_kpa: aggregate.vpd_kpa_avg,
+    light_intensity_pct: null,
+    cooling_active: null,
+    heating_active: null,
+    dehumidifier_active: null,
+    humidifier_active: null,
+    co2_injection_active: null,
+    exhaust_fan_active: null,
+    circulation_fan_active: null,
+    lights_on: null,
+    equipment_states: null,
+    communication_fault: null,
+    temp_sensor_fault: null,
+    humidity_sensor_fault: null,
+    co2_sensor_fault: null,
+    pressure_sensor_fault: null,
+    active_recipe_id: null,
+    raw_data: null,
+    data_source: 'calculated',
+  };
+}
+
+/**
  * Server action to get historical telemetry readings for charts
+ * 
+ * Uses smart table routing based on time range:
+ * - <24h: Raw data from telemetry_readings (most recent, real-time)
+ * - 24h-7d (168h): Hourly aggregates from telemetry_readings_hourly
+ * - >7d: Daily aggregates from telemetry_readings_daily
+ * 
+ * This ensures data availability beyond the 48h raw retention period.
  */
 export async function getHistoricalReadings(
   podId: string,
@@ -160,20 +261,48 @@ export async function getHistoricalReadings(
     const cutoffTime = new Date()
     cutoffTime.setHours(cutoffTime.getHours() - hours)
     
-    const { data, error } = await supabase
-      .from('telemetry_readings')
-      .select('*')
-      .eq('pod_id', podId)
-      .gte('timestamp', cutoffTime.toISOString())
-      .order('timestamp', { ascending: true })
-      .limit(limit)
+    // Smart table routing based on time range
+    let data: TelemetryReading[] = [];
     
-    if (error) {
-      console.error('Error fetching historical readings:', error)
-      return { data: null, error: error.message || 'Failed to fetch historical readings' }
+    if (hours <= 24) {
+      // Use raw data for recent readings (<24h) - most accurate and includes equipment states
+      const { data: rawData, error } = await supabase
+        .from('telemetry_readings')
+        .select('*')
+        .eq('pod_id', podId)
+        .gte('timestamp', cutoffTime.toISOString())
+        .order('timestamp', { ascending: true })
+        .limit(limit);
+      
+      if (error) throw error;
+      data = (rawData as TelemetryReading[]) || [];
+    } else if (hours <= 168) { // 7 days
+      // Use hourly aggregates for 24h-7d range - data retained for 30 days
+      const { data: hourlyData, error } = await supabase
+        .from('telemetry_readings_hourly')
+        .select('pod_id, hour_start, temperature_c_avg, humidity_pct_avg, co2_ppm_avg, vpd_kpa_avg')
+        .eq('pod_id', podId)
+        .gte('hour_start', cutoffTime.toISOString())
+        .order('hour_start', { ascending: true })
+        .limit(limit);
+      
+      if (error) throw error;
+      data = (hourlyData as HourlyAggregateReading[] || []).map(transformHourlyToReading);
+    } else {
+      // Use daily aggregates for >7d range - data retained for 1 year
+      const { data: dailyData, error } = await supabase
+        .from('telemetry_readings_daily')
+        .select('pod_id, day_start, temperature_c_avg, humidity_pct_avg, co2_ppm_avg, vpd_kpa_avg')
+        .eq('pod_id', podId)
+        .gte('day_start', cutoffTime.toISOString())
+        .order('day_start', { ascending: true })
+        .limit(limit);
+      
+      if (error) throw error;
+      data = (dailyData as DailyAggregateReading[] || []).map(transformDailyToReading);
     }
     
-    return { data: data || [], error: null }
+    return { data, error: null }
   } catch (err) {
     console.error('Unexpected error in getHistoricalReadings:', err)
     return { 

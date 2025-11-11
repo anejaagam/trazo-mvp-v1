@@ -3,6 +3,18 @@
     {
       "path": "/api/cron/telemetry-poll",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/aggregate-hourly",
+      "schedule": "5 * * * *"
+    },
+    {
+      "path": "/api/cron/aggregate-daily",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/aggregate-full",
+      "schedule": "0 3 * * 0"
     }
   ]
 }

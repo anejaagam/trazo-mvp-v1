@@ -40,6 +40,6 @@
     "node_modules",
     "Prototypes",
     "archive",
-    "scripts/archived"
+    "scripts"
   ]
 }

@@ -25,15 +25,16 @@ interface PodDetailProps {
   roomName: string
   deviceToken?: string | null
   stage?: string
+  activeRecipe?: ActiveRecipeDetails | null
   onBack?: () => void
 }
 
-export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodDetailProps) {
+export function PodDetail({ podId, podName, roomName, deviceToken, stage, activeRecipe: initialActiveRecipe }: PodDetailProps) {
   const [timeWindow] = useState<24 | 168 | 720>(24) // 24h, 7d, 30d
   const [equipmentControls, setEquipmentControls] = useState<EquipmentControlRecord[]>([])
   const [equipmentLoading, setEquipmentLoading] = useState(true)
-  const [activeRecipe, setActiveRecipe] = useState<ActiveRecipeDetails | null>(null)
-  const [recipeLoading, setRecipeLoading] = useState(true)
+  const [activeRecipe, setActiveRecipe] = useState<ActiveRecipeDetails | null>(initialActiveRecipe || null)
+  const [recipeLoading, setRecipeLoading] = useState(!initialActiveRecipe)
   const [userRole, setUserRole] = useState<RoleKey | null>(null)
   const [overrideMode, setOverrideMode] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<Map<string, { state: EquipmentState; level?: number }>>(new Map())
@@ -67,8 +68,15 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
     autoFetch: true
   })
   
-  // Fetch active recipe for this pod
+  // Fetch active recipe for this pod (only if not provided as prop)
   useEffect(() => {
+    if (initialActiveRecipe) {
+      // Recipe already provided as prop, skip fetching
+      setActiveRecipe(initialActiveRecipe)
+      setRecipeLoading(false)
+      return
+    }
+    
     async function fetchActiveRecipe() {
       setRecipeLoading(true)
       const { data, error } = await getActiveRecipe('pod', podId)
@@ -80,7 +88,7 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
       setRecipeLoading(false)
     }
     fetchActiveRecipe()
-  }, [podId])
+  }, [podId, initialActiveRecipe])
   
   // Fetch equipment controls
   useEffect(() => {

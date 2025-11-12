@@ -455,8 +455,10 @@ export async function activateRecipe(
   versionId: string,
   scopeType: RecipeScopeType,
   scopeId: string,
+  scopeName: string,
   userId: string,
-  scheduledStart?: string
+  scheduledStart?: string,
+  scheduledEnd?: string
 ) {
   try {
     const supabase = await createClient()
@@ -464,11 +466,13 @@ export async function activateRecipe(
     // Use database function for activation
     const { data, error } = await supabase.rpc('activate_recipe', {
       p_recipe_id: recipeId,
-      p_version_id: versionId,
+      p_recipe_version_id: versionId,
       p_scope_type: scopeType,
       p_scope_id: scopeId,
-      p_user_id: userId,
+      p_scope_name: scopeName,
+      p_activated_by: userId,
       p_scheduled_start: scheduledStart,
+      p_scheduled_end: scheduledEnd,
     })
 
     if (error) throw error
@@ -525,6 +529,8 @@ export async function getActiveRecipeForScope(
   try {
     const supabase = await createClient()
     
+    console.log('🔎 getActiveRecipeForScope called:', { scopeType, scopeId })
+    
     // Get active activation with recipe and version details
     const { data: activation, error: activationError } = await supabase
       .from('recipe_activations')
@@ -540,9 +546,16 @@ export async function getActiveRecipeForScope(
       .limit(1)
       .single()
 
+    console.log('📊 Recipe activation query result:', { 
+      hasData: !!activation, 
+      error: activationError?.code,
+      errorMessage: activationError?.message 
+    })
+
     if (activationError) {
       if (activationError.code === 'PGRST116') {
         // No active recipe found
+        console.log('ℹ️ No active recipe found (PGRST116)')
         return { data: null, error: null }
       }
       throw activationError
@@ -964,8 +977,9 @@ export async function assignRecipeToScope(
       versionId,
       scopeType,
       scopeId,
+      scopeName,
       userId,
-      scheduledStart
+      scheduledStart || new Date().toISOString()
     )
     
     if (error) throw error

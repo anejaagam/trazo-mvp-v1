@@ -46,7 +46,7 @@ export function UserManagementClient({ initialUsers, organizationId, inviterRole
           </div>
         </CardHeader>
         <CardContent>
-          <UserTable users={initialUsers} inviterRole={inviterRole} onUserUpdated={handleUserUpdated} />
+          <UserTable users={initialUsers} inviterRole={inviterRole} organizationId={organizationId} onUserUpdated={handleUserUpdated} />
         </CardContent>
       </Card>
 

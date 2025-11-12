@@ -43,15 +43,34 @@ import {
 } from 'lucide-react'
 import { 
   getOrganizationPods, 
+  getOrganizationRooms,
   updatePodDeviceId, 
   removePodDeviceId,
   validateDeviceToken,
   createPodWithToken
 } from '@/app/actions/pod-device-tokens'
 import type { PodWithSiteInfo } from '@/lib/supabase/queries/pods'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+interface RoomOption {
+  id: string
+  name: string
+  site_id: string
+  site_name: string
+  room_type: string
+  capacity_pods?: number
+  pod_count?: number
+}
 
 export function PodDeviceTokenManager() {
   const [pods, setPods] = useState<PodWithSiteInfo[]>([])
+  const [rooms, setRooms] = useState<RoomOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [validating, setValidating] = useState(false)
@@ -63,6 +82,7 @@ export function PodDeviceTokenManager() {
   const [selectedPod, setSelectedPod] = useState<PodWithSiteInfo | null>(null)
   const [podName, setPodName] = useState('')
   const [deviceToken, setDeviceToken] = useState('')
+  const [selectedRoomId, setSelectedRoomId] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [validatedDeviceInfo, setValidatedDeviceInfo] = useState<{
     deviceId: string
@@ -72,6 +92,7 @@ export function PodDeviceTokenManager() {
   // Load pods on mount
   useEffect(() => {
     loadPods()
+    loadRooms()
   }, [])
 
   async function loadPods() {
@@ -98,11 +119,25 @@ export function PodDeviceTokenManager() {
     }
   }
 
+  async function loadRooms() {
+    try {
+      const result = await getOrganizationRooms()
+      if (result.success && result.data) {
+        setRooms(result.data)
+      } else {
+        console.error('Failed to load rooms:', result.error)
+      }
+    } catch (error) {
+      console.error('Failed to load rooms:', error)
+    }
+  }
+
   function openCreateDialog() {
     setDialogMode('create')
     setSelectedPod(null)
     setPodName('')
     setDeviceToken('')
+    setSelectedRoomId('')
     setShowToken(false)
     setValidatedDeviceInfo(null)
     setMessage(null)
@@ -126,6 +161,7 @@ export function PodDeviceTokenManager() {
     setSelectedPod(null)
     setPodName('')
     setDeviceToken('')
+    setSelectedRoomId('')
     setShowToken(false)
     setValidatedDeviceInfo(null)
     setMessage(null)
@@ -177,16 +213,21 @@ export function PodDeviceTokenManager() {
         return
       }
 
+      if (!selectedRoomId) {
+        setMessage({ type: 'error', text: 'Please select a room for this pod' })
+        return
+      }
+
       setSaving(true)
       setMessage(null)
 
       try {
-        const result = await createPodWithToken(podName, deviceToken)
+        const result = await createPodWithToken(podName, deviceToken, selectedRoomId)
 
         if (result.success && result.data) {
           setMessage({
             type: 'success',
-            text: `Pod "${result.data.podName}" created successfully!`,
+            text: `Pod "${result.data.podName}" created successfully with equipment controls!`,
           })
           
           // Reload pods list
@@ -315,6 +356,23 @@ export function PodDeviceTokenManager() {
     <>
       <Card>
         <CardHeader>
+          {rooms.length === 0 && (
+              <Alert className="flex-1 mr-4 mb-4">
+                <AlertTriangle className="h-4 w-1 text-amber-600" />
+                <AlertDescription className="flex items-start gap-2">
+                  <span>No rooms available. Create a room in the{' '}
+                  <a 
+                  href="/dashboard/admin/organization" 
+                  className="font-medium underline hover:no-underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >
+                  Organization page
+                  </a>
+                  {' '}before adding pods.</span>
+                </AlertDescription>
+              </Alert>
+            )}
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Pod Device Tokens</CardTitle>
@@ -328,8 +386,10 @@ export function PodDeviceTokenManager() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-end mb-4">
-            <Button onClick={openCreateDialog}>
+           
+          <div className="flex justify-end items-center mb-4">
+           
+            <Button onClick={openCreateDialog} disabled={rooms.length === 0}>
               <Plus className="h-4 w-4 mr-2" />
               Create New Pod
             </Button>
@@ -457,16 +517,67 @@ export function PodDeviceTokenManager() {
             )}
 
             {dialogMode === 'create' && (
-              <div className="space-y-2">
-                <Label htmlFor="pod-name">Pod Name</Label>
-                <Input
-                  id="pod-name"
-                  type="text"
-                  value={podName}
-                  onChange={(e) => setPodName(e.target.value)}
-                  placeholder="e.g., Pod A, Cultivation Unit 1"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="pod-name">Pod Name</Label>
+                  <Input
+                    id="pod-name"
+                    type="text"
+                    value={podName}
+                    onChange={(e) => setPodName(e.target.value)}
+                    placeholder="e.g., Pod A, Cultivation Unit 1"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="room-select">Room Assignment</Label>
+                  {rooms.length === 0 ? (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription>
+                        No rooms available. Please create a room first in the{' '}
+                        <a 
+                          href="/dashboard/admin/organization" 
+                          className="font-medium underline hover:no-underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Organization page
+                        </a>
+                        .
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <>
+                      <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                        <SelectTrigger id="room-select">
+                          <SelectValue placeholder="Select a room for this pod" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rooms.map((room) => (
+                            <SelectItem 
+                              key={room.id} 
+                              value={room.id}
+                              disabled={room.capacity_pods !== undefined && room.capacity_pods !== null && room.pod_count !== undefined && room.pod_count >= room.capacity_pods}
+                            >
+                              <div className="flex flex-col">
+                                <span>{room.site_name} - {room.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {room.room_type} • {room.pod_count || 0}/{room.capacity_pods || '∞'} pods
+                                  {room.capacity_pods && room.pod_count !== undefined && room.pod_count >= room.capacity_pods && ' (Full)'}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Choose which room this pod will be assigned to
+                      </p>
+                    </>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="space-y-2">

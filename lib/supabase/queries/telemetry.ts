@@ -400,6 +400,238 @@ export async function getPodSnapshots(
 }
 
 /**
+ * Get current snapshots for all pods across all sites in an organization
+ * Used for org_admin users to see fleet-wide status
+ * 
+ * @param organizationId - UUID of the organization
+ * @returns Query result with pod snapshots array across all sites
+ */
+export async function getPodSnapshotsByOrganization(
+  organizationId: string
+): Promise<QueryResult<PodSnapshot[]>> {
+  try {
+    // Use service client to bypass RLS for server-side queries
+    const { createServiceClient } = await import('@/lib/supabase/admin');
+    const supabase = await createServiceClient('US');
+    
+    // Get all sites for the organization
+    const { data: sites, error: sitesError } = await supabase
+      .from('sites')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true);
+
+    if (sitesError) throw sitesError;
+    if (!sites || sites.length === 0) {
+      console.log('[getPodSnapshotsByOrganization] No sites found for organization:', organizationId);
+      return { data: [], error: null };
+    }
+
+    const siteIds = sites.map(site => site.id);
+    
+    // Get all pods for all sites in the organization
+    const { data: pods, error: podsError } = await supabase
+      .from('pods')
+      .select(`
+        id,
+        name,
+        room_id,
+        tagoio_device_id,
+        room:rooms!inner (
+          id,
+          name,
+          site_id
+        )
+      `)
+      .in('room.site_id', siteIds);
+
+    console.log('[getPodSnapshotsByOrganization] Query result:', { 
+      organizationId, 
+      siteCount: sites.length,
+      podCount: pods?.length, 
+      error: podsError?.message 
+    });
+    
+    if (podsError) throw podsError;
+    if (!pods || pods.length === 0) {
+      console.log('[getPodSnapshotsByOrganization] No pods found for organization:', organizationId);
+      return { data: [], error: null };
+    }
+
+    // Use the same snapshot aggregation logic as getPodSnapshots
+    type PodWithRoom = {
+      id: string;
+      name: string;
+      room_id: string;
+      tagoio_device_id: string | null;
+      room: { id: string; name: string; site_id: string };
+    };
+    
+    // Get latest readings - fetch last 50 and aggregate to handle split sensor/equipment data
+    const snapshotsPromises = (pods as unknown as PodWithRoom[]).map(async (pod) => {
+      // Get last 50 readings to find latest non-null values (same logic as getLatestReading)
+      const { data: readings } = await supabase
+        .from('telemetry_readings')
+        .select('*')
+        .eq('pod_id', pod.id)
+        .order('timestamp', { ascending: false })
+        .limit(50);
+
+      // Combine latest non-null values
+      const reading = readings && readings.length > 0 ? {
+        timestamp: readings[0].timestamp,
+        temperature_c: readings.find(r => r.temperature_c !== null)?.temperature_c ?? null,
+        humidity_pct: readings.find(r => r.humidity_pct !== null)?.humidity_pct ?? null,
+        co2_ppm: readings.find(r => r.co2_ppm !== null)?.co2_ppm ?? null,
+        vpd_kpa: readings.find(r => r.vpd_kpa !== null)?.vpd_kpa ?? null,
+        light_intensity_pct: readings.find(r => r.light_intensity_pct !== null)?.light_intensity_pct ?? null,
+        cooling_active: readings.find(r => r.cooling_active !== null)?.cooling_active ?? null,
+        heating_active: readings.find(r => r.heating_active !== null)?.heating_active ?? null,
+        dehumidifier_active: readings.find(r => r.dehumidifier_active !== null)?.dehumidifier_active ?? null,
+        humidifier_active: readings.find(r => r.humidifier_active !== null)?.humidifier_active ?? null,
+        co2_injection_active: readings.find(r => r.co2_injection_active !== null)?.co2_injection_active ?? null,
+        exhaust_fan_active: readings.find(r => r.exhaust_fan_active !== null)?.exhaust_fan_active ?? null,
+        circulation_fan_active: readings.find(r => r.circulation_fan_active !== null)?.circulation_fan_active ?? null,
+        lights_on: readings.find(r => r.lights_on !== null)?.lights_on ?? null,
+        temp_sensor_fault: readings.find(r => r.temp_sensor_fault !== null)?.temp_sensor_fault ?? null,
+        humidity_sensor_fault: readings.find(r => r.humidity_sensor_fault !== null)?.humidity_sensor_fault ?? null,
+        co2_sensor_fault: readings.find(r => r.co2_sensor_fault !== null)?.co2_sensor_fault ?? null,
+        pressure_sensor_fault: readings.find(r => r.pressure_sensor_fault !== null)?.pressure_sensor_fault ?? null,
+        active_recipe_id: readings.find(r => r.active_recipe_id !== null)?.active_recipe_id ?? null,
+      } : null;
+
+      // Get alarm count for last 24 hours
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const { count: alarmCount } = await supabase
+        .from('alarms')
+        .select('*', { count: 'exact', head: true })
+        .eq('pod_id', pod.id)
+        .gte('triggered_at', twentyFourHoursAgo.toISOString())
+        .is('resolved_at', null);
+
+      const { count: criticalCount } = await supabase
+        .from('alarms')
+        .select('*', { count: 'exact', head: true })
+        .eq('pod_id', pod.id)
+        .eq('severity', 'critical')
+        .is('resolved_at', null);
+
+      const { count: warningCount } = await supabase
+        .from('alarms')
+        .select('*', { count: 'exact', head: true })
+        .eq('pod_id', pod.id)
+        .eq('severity', 'warning')
+        .is('resolved_at', null);
+
+      // Determine health status
+      let health_status: PodSnapshot['health_status'] = 'healthy';
+      const now = Date.now();
+      const lastUpdate = reading?.timestamp ? new Date(reading.timestamp).getTime() : 0;
+      const minutesSinceUpdate = (now - lastUpdate) / (1000 * 60);
+
+      if (minutesSinceUpdate > 10 || !reading) {
+        health_status = 'offline';
+      } else if (criticalCount && criticalCount > 0) {
+        health_status = 'critical';
+      } else if (warningCount && warningCount > 0) {
+        health_status = 'warning';
+      } else if (minutesSinceUpdate > 5) {
+        health_status = 'stale';
+      }
+
+      // Get active recipe if available
+      let active_recipe = null;
+      if (reading?.active_recipe_id) {
+        const { data: recipe } = await supabase
+          .from('recipes')
+          .select('id, name, temp_day_c, humidity_day_pct, co2_day_ppm')
+          .eq('id', reading.active_recipe_id)
+          .single();
+        
+        if (recipe) {
+          active_recipe = {
+            id: recipe.id,
+            name: recipe.name,
+            setpoints: {
+              temp_day_c: recipe.temp_day_c,
+              humidity_day_pct: recipe.humidity_day_pct,
+              co2_day_ppm: recipe.co2_day_ppm,
+            },
+          };
+        }
+      }
+
+      // Calculate drift if recipe active
+      let drift = null;
+      if (active_recipe && reading) {
+        drift = {
+          temperature: reading.temperature_c && active_recipe.setpoints.temp_day_c
+            ? reading.temperature_c - active_recipe.setpoints.temp_day_c
+            : null,
+          humidity: reading.humidity_pct && active_recipe.setpoints.humidity_day_pct
+            ? reading.humidity_pct - active_recipe.setpoints.humidity_day_pct
+            : null,
+          co2: reading.co2_ppm && active_recipe.setpoints.co2_day_ppm
+            ? reading.co2_ppm - active_recipe.setpoints.co2_day_ppm
+            : null,
+        };
+      }
+
+      const snapshot: PodSnapshot = {
+        pod: {
+          id: pod.id,
+          name: pod.name,
+          room_id: pod.room_id,
+          tagoio_device_id: pod.tagoio_device_id,
+        },
+        room: {
+          id: pod.room.id,
+          name: pod.room.name,
+          site_id: pod.room.site_id,
+        },
+        last_update: reading?.timestamp || null,
+        health_status,
+        temperature_c: reading?.temperature_c || null,
+        humidity_pct: reading?.humidity_pct || null,
+        co2_ppm: reading?.co2_ppm || null,
+        vpd_kpa: reading?.vpd_kpa || null,
+        light_intensity_pct: reading?.light_intensity_pct || null,
+        equipment: {
+          cooling: reading?.cooling_active || false,
+          heating: reading?.heating_active || false,
+          dehumidifier: reading?.dehumidifier_active || false,
+          humidifier: reading?.humidifier_active || false,
+          co2_injection: reading?.co2_injection_active || false,
+          exhaust_fan: reading?.exhaust_fan_active || false,
+          circulation_fan: reading?.circulation_fan_active || false,
+          irrigation: false,
+          lighting: reading?.lights_on || false,
+        },
+        sensor_faults: {
+          temperature: reading?.temp_sensor_fault || false,
+          humidity: reading?.humidity_sensor_fault || false,
+          co2: reading?.co2_sensor_fault || false,
+          pressure: reading?.pressure_sensor_fault || false,
+        },
+        active_recipe,
+        alarm_count_24h: alarmCount || 0,
+        critical_alarm_count: criticalCount || 0,
+        warning_alarm_count: warningCount || 0,
+        drift,
+      };
+
+      return snapshot;
+    });
+
+    const snapshots = await Promise.all(snapshotsPromises);
+    return { data: snapshots, error: null };
+  } catch (error) {
+    console.error('Error in getPodSnapshotsByOrganization:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+/**
  * Get environmental statistics for a pod over a date range
  * Calculates averages, min, max, and standard deviations
  * 

@@ -1,6 +1,6 @@
 'use server'
 
-import { getPodSnapshots, getTelemetryReadings } from '@/lib/supabase/queries/telemetry'
+import { getPodSnapshots, getPodSnapshotsByOrganization, getTelemetryReadings } from '@/lib/supabase/queries/telemetry'
 import type { PodSnapshot, TelemetryReading } from '@/types/telemetry'
 
 /**
@@ -21,6 +21,32 @@ export async function getPodsSnapshot(siteId: string): Promise<{
     return { data, error: null }
   } catch (err) {
     console.error('Unexpected error in getPodsSnapshot:', err)
+    return { 
+      data: null, 
+      error: err instanceof Error ? err.message : 'An unexpected error occurred' 
+    }
+  }
+}
+
+/**
+ * Server action to get pod snapshots across all sites in an organization
+ * Used for org_admin users to see complete fleet status
+ */
+export async function getPodsSnapshotByOrganization(organizationId: string): Promise<{
+  data: PodSnapshot[] | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await getPodSnapshotsByOrganization(organizationId)
+    
+    if (error) {
+      console.error('Error fetching organization pod snapshots:', error)
+      return { data: null, error: error.message || 'Failed to fetch organization pod snapshots' }
+    }
+    
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in getPodsSnapshotByOrganization:', err)
     return { 
       data: null, 
       error: err instanceof Error ? err.message : 'An unexpected error occurred' 

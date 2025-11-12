@@ -225,8 +225,10 @@ export function useHistoricalTelemetry(
 // =====================================================
 
 interface UsePodSnapshotsOptions {
-  /** UUID of the site */
-  siteId: string;
+  /** UUID of the site (optional if organizationId provided) */
+  siteId?: string;
+  /** UUID of the organization (for org_admin users to see all sites) */
+  organizationId?: string;
   /** Enable real-time subscriptions (default: true) */
   realtime?: boolean;
   /** Auto-refresh interval in seconds (0 = disabled) */
@@ -249,7 +251,7 @@ interface UsePodSnapshotsReturn {
 export function usePodSnapshots(
   options: UsePodSnapshotsOptions
 ): UsePodSnapshotsReturn {
-  const { siteId, realtime = true, refreshInterval = 0 } = options;
+  const { siteId, organizationId, realtime = true, refreshInterval = 0 } = options;
   
   const [snapshots, setSnapshots] = useState<PodSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,8 +264,15 @@ export function usePodSnapshots(
     
     try {
       // Dynamically import server action to avoid bundling issues
-      const { getPodsSnapshot } = await import('@/app/actions/monitoring');
-      const result = await getPodsSnapshot(siteId);
+      const { getPodsSnapshot, getPodsSnapshotByOrganization } = await import('@/app/actions/monitoring');
+      
+      // Use organization-level query if organizationId provided (for org_admin)
+      // Otherwise use site-level query
+      const result = organizationId 
+        ? await getPodsSnapshotByOrganization(organizationId)
+        : siteId 
+          ? await getPodsSnapshot(siteId)
+          : { data: null, error: 'Either siteId or organizationId must be provided' };
       
       if (result.error) {
         throw new Error(result.error);
@@ -276,7 +285,7 @@ export function usePodSnapshots(
       setSnapshots([]);
       setLoading(false);
     }
-  }, [siteId]);
+  }, [siteId, organizationId]);
 
   // Initial fetch
   useEffect(() => {
@@ -292,8 +301,10 @@ export function usePodSnapshots(
   }, [refresh, refreshInterval]);
 
   // Real-time subscription (subscribe to all pods in site)
+  // Note: For organization-level queries, we rely on auto-refresh instead of real-time subscriptions
+  // as Supabase doesn't support filtering subscriptions across multiple sites efficiently
   useEffect(() => {
-    if (!realtime) return;
+    if (!realtime || !siteId) return; // Skip subscription for org-level queries
 
     setIsSubscribed(true);
     

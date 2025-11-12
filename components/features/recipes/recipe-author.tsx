@@ -141,7 +141,7 @@ export function RecipeAuthor({
       setTimeout(() => {
         setpointRefs.current[lastAddedSetpoint]?.scrollIntoView({
           behavior: 'smooth',
-          block: 'center'
+          block: 'nearest'
         })
         setLastAddedSetpoint(null)
       }, 100)

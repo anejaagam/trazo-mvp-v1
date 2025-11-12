@@ -544,12 +544,14 @@ CREATE TABLE telemetry_readings (
   
   -- Raw data storage
   raw_data JSONB, -- Raw TagoIO or device data for debugging
+  equipment_states JSONB, -- Enhanced equipment control states with AUTO mode support
   data_source TEXT DEFAULT 'tagoio' CHECK (data_source IN ('tagoio', 'manual', 'calculated', 'simulated'))
 );
 
 -- Indexes for telemetry performance
 CREATE INDEX idx_telemetry_pod_time ON telemetry_readings(pod_id, timestamp DESC);
 CREATE INDEX idx_telemetry_timestamp ON telemetry_readings(timestamp DESC);
+CREATE INDEX idx_telemetry_equipment_states ON telemetry_readings USING GIN (equipment_states);
 
 -- Device status tracking
 CREATE TABLE device_status (

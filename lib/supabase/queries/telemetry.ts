@@ -260,8 +260,7 @@ export async function getPodSnapshots(
         co2_injection_active: readings.find(r => r.co2_injection_active !== null)?.co2_injection_active ?? null,
         exhaust_fan_active: readings.find(r => r.exhaust_fan_active !== null)?.exhaust_fan_active ?? null,
         circulation_fan_active: readings.find(r => r.circulation_fan_active !== null)?.circulation_fan_active ?? null,
-        irrigation_active: readings.find(r => r.irrigation_active !== null)?.irrigation_active ?? null,
-        lighting_active: readings.find(r => r.lighting_active !== null)?.lighting_active ?? null,
+        lights_on: readings.find(r => r.lights_on !== null)?.lights_on ?? null,
         temp_sensor_fault: readings.find(r => r.temp_sensor_fault !== null)?.temp_sensor_fault ?? null,
         humidity_sensor_fault: readings.find(r => r.humidity_sensor_fault !== null)?.humidity_sensor_fault ?? null,
         co2_sensor_fault: readings.find(r => r.co2_sensor_fault !== null)?.co2_sensor_fault ?? null,
@@ -373,8 +372,8 @@ export async function getPodSnapshots(
           co2_injection: reading?.co2_injection_active || false,
           exhaust_fan: reading?.exhaust_fan_active || false,
           circulation_fan: reading?.circulation_fan_active || false,
-          irrigation: reading?.irrigation_active || false,
-          lighting: reading?.lighting_active || false,
+          irrigation: false, // Not stored in telemetry_readings (use equipment_states JSONB)
+          lighting: reading?.lights_on || false,
         },
         sensor_faults: {
           temperature: reading?.temp_sensor_fault || false,

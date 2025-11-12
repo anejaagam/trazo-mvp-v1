@@ -8,5 +8,8 @@ export * from './admin';
 // Inventory types
 export * from './inventory';
 
+// Recipe types
+export * from './recipe';
+
 // Telemetry & Monitoring types
 export * from './telemetry';

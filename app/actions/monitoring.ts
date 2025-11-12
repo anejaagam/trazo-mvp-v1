@@ -128,6 +128,7 @@ export async function getLatestReading(
       communication_fault: readings.find(r => r.communication_fault !== null)?.communication_fault ?? null,
       active_recipe_id: readings.find(r => r.active_recipe_id !== null)?.active_recipe_id ?? null,
       raw_data: readings[0].raw_data,
+      equipment_states: readings.find(r => r.equipment_states !== null)?.equipment_states ?? null,
       data_source: readings[0].data_source,
     }
     
@@ -391,6 +392,38 @@ export async function getCustomRangeReadings(
     return { data: readings, error: null }
   } catch (err) {
     console.error('Unexpected error in getCustomRangeReadings:', err)
+    return { 
+      data: null, 
+      error: err instanceof Error ? err.message : 'An unexpected error occurred' 
+    }
+  }
+}
+
+/**
+ * Server action to get active recipe for a scope (pod, room, batch, or batch_group)
+ */
+export async function getActiveRecipe(
+  scopeType: 'pod' | 'room' | 'batch' | 'batch_group',
+  scopeId: string
+): Promise<{
+  data: import('@/types/recipe').ActiveRecipeDetails | null
+  error: string | null
+}> {
+  try {
+    const { getActiveRecipeForScope } = await import('@/lib/supabase/queries/recipes')
+    const { data, error } = await getActiveRecipeForScope(scopeType, scopeId)
+    
+    if (error) {
+      console.error('Error fetching active recipe:', error)
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Failed to fetch active recipe' 
+      }
+    }
+    
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in getActiveRecipe:', err)
     return { 
       data: null, 
       error: err instanceof Error ? err.message : 'An unexpected error occurred' 

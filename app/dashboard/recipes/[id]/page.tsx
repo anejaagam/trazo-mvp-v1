@@ -3,11 +3,23 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { getRecipeById, getRecipeVersion } from '@/lib/supabase/queries/recipes'
 import { RecipeViewer } from '@/components/features/recipes/recipe-viewer'
+import type { Metadata } from 'next'
 
 interface RecipeDetailPageProps {
   params: Promise<{
     id: string
   }>
+}
+
+export async function generateMetadata({ params }: RecipeDetailPageProps): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  
+  const { data: recipe } = await getRecipeById(id)
+  
+  return {
+    title: recipe?.name || 'Recipe Details',
+  }
 }
 
 export default async function RecipeDetailPage({ params }: RecipeDetailPageProps) {
@@ -64,9 +76,6 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
         canEdit={canEdit}
         canClone={canClone}
         canApply={canApply}
-        onClose={() => {
-          // Client-side navigation handled by RecipeViewer
-        }}
       />
     </div>
   )

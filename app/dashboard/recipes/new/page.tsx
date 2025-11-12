@@ -3,7 +3,34 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { createRecipe, createRecipeVersion } from '@/lib/supabase/queries/recipes'
 import { RecipeAuthor } from '@/components/features/recipes/recipe-author'
-import type { PlantType, RecipeVersionData } from '@/types/recipe'
+import type { 
+  PlantType, 
+  RecipeVersionData,
+  StageType,
+  SetpointParameterType
+} from '@/types/recipe'
+
+interface SetpointFormData {
+  id: string
+  parameterType: SetpointParameterType
+  value?: number
+  dayValue?: number
+  nightValue?: number
+  unit: string
+  deadband?: number
+  minValue?: number
+  maxValue?: number
+}
+
+interface StageFormData {
+  id: string
+  name: string
+  stageType: StageType
+  duration: number
+  description: string
+  order: number
+  setpoints: SetpointFormData[]
+}
 
 interface RecipeFormData {
   name: string
@@ -11,7 +38,7 @@ interface RecipeFormData {
   notes: string
   plantTypes: PlantType[]
   tags: string[]
-  stages: unknown[]
+  stages: StageFormData[]
 }
 
 export default async function NewRecipePage() {
@@ -86,12 +113,49 @@ export default async function NewRecipePage() {
       .limit(1)
       .single()
 
-    // Create version data
+    // Create version data - transform form data to match database schema
     const versionData: RecipeVersionData = {
       name: formData.name,
       description: formData.description || undefined,
-      stages: formData.stages as RecipeVersionData['stages']
+      stages: formData.stages.map((stage, index) => ({
+        name: stage.name,
+        stage_type: stage.stageType,
+        order_index: index,
+        duration_days: stage.duration,
+        description: stage.description || undefined,
+        setpoints: stage.setpoints.map(sp => ({
+          parameter_type: sp.parameterType,
+          value: sp.value,
+          day_value: sp.dayValue,
+          night_value: sp.nightValue,
+          unit: sp.unit,
+          deadband: sp.deadband,
+          min_value: sp.minValue,
+          max_value: sp.maxValue,
+          ramp_enabled: false,
+          priority: 50,
+          enabled: true,
+        })),
+      })),
     }
+
+    console.log('Creating recipe with data:', {
+      recipeData: {
+        organization_id: userData.organization_id,
+        name: formData.name,
+        plantTypes: formData.plantTypes,
+      },
+      versionData: {
+        name: versionData.name,
+        stagesCount: versionData.stages.length,
+        stages: versionData.stages.map(s => ({
+          name: s.name,
+          type: s.stage_type,
+          duration: s.duration_days,
+          setpointsCount: s.setpoints.length,
+        })),
+      },
+    })
 
     // Create recipe
     const { data: recipe, error: recipeError } = await createRecipe({
@@ -106,8 +170,12 @@ export default async function NewRecipePage() {
     })
 
     if (recipeError || !recipe) {
-      console.error('Recipe creation error:', recipeError)
-      throw new Error('Failed to create recipe')
+      console.error('Recipe creation error details:', {
+        error: recipeError,
+        errorMessage: recipeError instanceof Error ? recipeError.message : 'Unknown error',
+        errorDetails: JSON.stringify(recipeError, null, 2)
+      })
+      throw new Error(`Failed to create recipe: ${recipeError instanceof Error ? recipeError.message : JSON.stringify(recipeError)}`)
     }
 
     // Create initial version
@@ -120,7 +188,8 @@ export default async function NewRecipePage() {
 
     if (versionError) {
       console.error('Version creation error:', versionError)
-      throw new Error('Failed to create recipe version')
+      console.error('Version data that caused error:', JSON.stringify(versionData, null, 2))
+      throw new Error(`Failed to create recipe version: ${versionError instanceof Error ? versionError.message : JSON.stringify(versionError)}`)
     }
 
     return recipe.id

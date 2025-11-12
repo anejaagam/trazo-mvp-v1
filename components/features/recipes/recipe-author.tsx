@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,14 +57,21 @@ interface StageFormData {
 
 interface SetpointFormData {
   id: string
-  parameterType: SetpointParameterType
-  value?: number
-  dayValue?: number
-  nightValue?: number
-  unit: string
-  deadband?: number
-  minValue?: number
-  maxValue?: number
+  // Temperature in °F
+  tempMin?: number
+  tempMax?: number
+  // Relative Humidity %
+  humidityMin?: number
+  humidityMax?: number
+  // VPD kPa
+  vpdMin?: number
+  vpdMax?: number
+  // Light Level %
+  lightMin?: number
+  lightMax?: number
+  // Light Schedule (24-hour format HH:MM)
+  lightOn?: string
+  lightOff?: string
 }
 
 interface ValidationError {
@@ -83,52 +90,10 @@ const STAGE_TYPES: StageType[] = [
   'curing'
 ]
 
-const SETPOINT_TYPES: SetpointParameterType[] = [
-  'temperature',
-  'humidity',
-  'vpd',
-  'co2',
-  'light_intensity',
-  'photoperiod',
-  'air_flow',
-  'air_pressure'
-]
-
 const PLANT_TYPES: PlantType[] = ['cannabis', 'produce']
 
-function getSetpointUnit(type: SetpointParameterType): string {
-  switch (type) {
-    case 'temperature': return '°C'
-    case 'humidity': return '%'
-    case 'vpd': return 'kPa'
-    case 'co2': return 'ppm'
-    case 'light_intensity': return '%'
-    case 'photoperiod': return 'hrs'
-    case 'air_flow': return 'CFM'
-    case 'air_pressure': return 'Pa'
-    case 'irrigation_frequency': return 'times/day'
-    case 'irrigation_duration': return 'min'
-  }
-}
-
-function getSetpointDefaults(type: SetpointParameterType): Partial<SetpointFormData> {
-  switch (type) {
-    case 'temperature':
-      return { dayValue: 24, nightValue: 20, deadband: 1, minValue: 18, maxValue: 32 }
-    case 'humidity':
-      return { dayValue: 60, nightValue: 65, deadband: 5, minValue: 40, maxValue: 80 }
-    case 'vpd':
-      return { dayValue: 1.0, nightValue: 0.8, deadband: 0.1, minValue: 0.4, maxValue: 1.6 }
-    case 'co2':
-      return { value: 1200, deadband: 100, minValue: 400, maxValue: 1500 }
-    case 'light_intensity':
-      return { dayValue: 80, nightValue: 0, deadband: 5, minValue: 0, maxValue: 100 }
-    case 'photoperiod':
-      return { value: 18, deadband: 0, minValue: 0, maxValue: 24 }
-    default:
-      return { value: 0 }
-  }
-}
+// Light level percentages for dropdown
+const LIGHT_LEVELS = Array.from({ length: 21 }, (_, i) => i * 5) // 0%, 5%, 10%, ..., 100%
 
 export function RecipeAuthor({ 
   initialData,
@@ -162,9 +127,26 @@ export function RecipeAuthor({
     initialData?.stages?.[0]?.id || null
   )
   
+  // Track last added setpoint for scrolling
+  const [lastAddedSetpoint, setLastAddedSetpoint] = useState<string | null>(null)
+  const setpointRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  
   // Validation state
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
   const [isSaving, setIsSaving] = useState(false)
+
+  // Scroll to newly added setpoint
+  useEffect(() => {
+    if (lastAddedSetpoint && setpointRefs.current[lastAddedSetpoint]) {
+      setTimeout(() => {
+        setpointRefs.current[lastAddedSetpoint]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+        setLastAddedSetpoint(null)
+      }, 100)
+    }
+  }, [lastAddedSetpoint])
 
   const addStage = () => {
     const newStage: StageFormData = {
@@ -201,14 +183,24 @@ export function RecipeAuthor({
 
     const newSetpoint: SetpointFormData = {
       id: `sp-${Date.now()}`,
-      parameterType: 'temperature',
-      unit: getSetpointUnit('temperature'),
-      ...getSetpointDefaults('temperature')
+      tempMin: 68,
+      tempMax: 78,
+      humidityMin: 50,
+      humidityMax: 70,
+      vpdMin: 0.8,
+      vpdMax: 1.2,
+      lightMin: 0,
+      lightMax: 100,
+      lightOn: '06:00',
+      lightOff: '22:00'
     }
 
     updateStage(stageId, {
       setpoints: [...stage.setpoints, newSetpoint]
     })
+    
+    // Trigger scroll to new setpoint
+    setLastAddedSetpoint(newSetpoint.id)
   }
 
   const updateSetpoint = (
@@ -232,19 +224,6 @@ export function RecipeAuthor({
 
     updateStage(stageId, {
       setpoints: stage.setpoints.filter(sp => sp.id !== setpointId)
-    })
-  }
-
-  const handleSetpointTypeChange = (
-    stageId: string,
-    setpointId: string,
-    newType: SetpointParameterType
-  ) => {
-    const defaults = getSetpointDefaults(newType)
-    updateSetpoint(stageId, setpointId, {
-      parameterType: newType,
-      unit: getSetpointUnit(newType),
-      ...defaults
     })
   }
 
@@ -542,13 +521,17 @@ export function RecipeAuthor({
             </div>
           ) : (
             <Tabs value={activeStageId || stages[0]?.id} onValueChange={setActiveStageId}>
-              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(stages.length, 4)}, 1fr)` }}>
-                {stages.slice(0, 4).map(stage => (
-                  <TabsTrigger key={stage.id} value={stage.id}>
-                    <span className="truncate">{stage.name}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+              <div className="relative">
+                <div className="overflow-x-auto pb-2">
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    {stages.map(stage => (
+                      <TabsTrigger key={stage.id} value={stage.id} className="flex-shrink-0 min-w-[120px]">
+                        <span className="truncate">{stage.name}</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+              </div>
 
               {stages.map(stage => (
                 <TabsContent key={stage.id} value={stage.id} className="space-y-4 mt-6">
@@ -618,134 +601,192 @@ export function RecipeAuthor({
 
                   {/* Setpoints */}
                   <div className="border-t pt-4 dark:border-slate-700">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4">
                       <h4 className="font-semibold text-slate-900 dark:text-slate-100">
                         Environmental Setpoints
                       </h4>
-                      <Button 
-                        onClick={() => addSetpoint(stage.id)} 
-                        size="sm" 
-                        variant="outline"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Setpoint
-                      </Button>
                     </div>
 
                     <div className="space-y-4">
                       {stage.setpoints.map(setpoint => (
-                        <Card key={setpoint.id}>
+                        <Card 
+                          key={setpoint.id}
+                          ref={(el) => {
+                            setpointRefs.current[setpoint.id] = el
+                          }}
+                        >
                           <CardContent className="pt-6">
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div>
-                                  <Label>Parameter</Label>
-                                  <Select
-                                    value={setpoint.parameterType}
-                                    onValueChange={(value) => 
-                                      handleSetpointTypeChange(stage.id, setpoint.id, value as SetpointParameterType)
-                                    }
-                                  >
-                                    <SelectTrigger className="mt-1.5">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {SETPOINT_TYPES.map(type => (
-                                        <SelectItem key={type} value={type}>
-                                          {type}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                <div>
-                                  <Label className="flex items-center gap-1">
-                                    <Sun className="w-3 h-3" /> Day Value
-                                  </Label>
-                                  <div className="flex gap-2 mt-1.5">
+                            <div className="space-y-6">
+                              {/* Temperature */}
+                              <div>
+                                <Label className="text-base font-semibold mb-3 block">Temperature (°F):</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm">Min:</Label>
                                     <Input
                                       type="number"
-                                      step="0.1"
-                                      value={setpoint.dayValue ?? setpoint.value ?? 0}
+                                      step="1"
+                                      value={setpoint.tempMin ?? ''}
                                       onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
-                                        dayValue: parseFloat(e.target.value) || 0 
+                                        tempMin: e.target.value ? parseFloat(e.target.value) : undefined 
                                       })}
+                                      className="mt-1.5"
                                     />
-                                    <span className="text-sm text-slate-600 dark:text-slate-400 self-center min-w-[3rem]">
-                                      {setpoint.unit}
-                                    </span>
                                   </div>
-                                </div>
-
-                                <div>
-                                  <Label className="flex items-center gap-1">
-                                    <Moon className="w-3 h-3" /> Night Value
-                                  </Label>
-                                  <div className="flex gap-2 mt-1.5">
+                                  <div>
+                                    <Label className="text-sm">Max:</Label>
                                     <Input
                                       type="number"
-                                      step="0.1"
-                                      value={setpoint.nightValue ?? setpoint.value ?? 0}
+                                      step="1"
+                                      value={setpoint.tempMax ?? ''}
                                       onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
-                                        nightValue: parseFloat(e.target.value) || 0 
+                                        tempMax: e.target.value ? parseFloat(e.target.value) : undefined 
                                       })}
+                                      className="mt-1.5"
                                     />
-                                    <span className="text-sm text-slate-600 dark:text-slate-400 self-center min-w-[3rem]">
-                                      {setpoint.unit}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <Label>Deadband</Label>
-                                  <div className="flex gap-2 mt-1.5">
-                                    <Input
-                                      type="number"
-                                      step="0.1"
-                                      value={setpoint.deadband ?? 0}
-                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
-                                        deadband: parseFloat(e.target.value) || 0 
-                                      })}
-                                    />
-                                    <span className="text-sm text-slate-600 dark:text-slate-400 self-center min-w-[3rem]">
-                                      {setpoint.unit}
-                                    </span>
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t dark:border-slate-700">
-                                <div>
-                                  <Label>Minimum Value</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={setpoint.minValue ?? ''}
-                                    onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
-                                      minValue: e.target.value ? parseFloat(e.target.value) : undefined 
-                                    })}
-                                    placeholder="Optional safety minimum"
-                                    className="mt-1.5"
-                                  />
-                                </div>
-                                
-                                <div>
-                                  <Label>Maximum Value</Label>
-                                  <Input
-                                    type="number"
-                                    step="0.1"
-                                    value={setpoint.maxValue ?? ''}
-                                    onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
-                                      maxValue: e.target.value ? parseFloat(e.target.value) : undefined 
-                                    })}
-                                    placeholder="Optional safety maximum"
-                                    className="mt-1.5"
-                                  />
+                              {/* Relative Humidity */}
+                              <div>
+                                <Label className="text-base font-semibold mb-3 block">Relative Humidity (%):</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm">Min:</Label>
+                                    <Input
+                                      type="number"
+                                      step="1"
+                                      value={setpoint.humidityMin ?? ''}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        humidityMin: e.target.value ? parseFloat(e.target.value) : undefined 
+                                      })}
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm">Max:</Label>
+                                    <Input
+                                      type="number"
+                                      step="1"
+                                      value={setpoint.humidityMax ?? ''}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        humidityMax: e.target.value ? parseFloat(e.target.value) : undefined 
+                                      })}
+                                      className="mt-1.5"
+                                    />
+                                  </div>
                                 </div>
                               </div>
 
-                              <div className="flex justify-end">
+                              {/* VPD */}
+                              <div>
+                                <Label className="text-base font-semibold mb-3 block">VPD (kPa):</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm">Min:</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.1"
+                                      value={setpoint.vpdMin ?? ''}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        vpdMin: e.target.value ? parseFloat(e.target.value) : undefined 
+                                      })}
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm">Max:</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.1"
+                                      value={setpoint.vpdMax ?? ''}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        vpdMax: e.target.value ? parseFloat(e.target.value) : undefined 
+                                      })}
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Light Level */}
+                              <div>
+                                <Label className="text-base font-semibold mb-3 block">Light Level (%):</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm">Min:</Label>
+                                    <Select
+                                      value={setpoint.lightMin?.toString() ?? '0'}
+                                      onValueChange={(value) => updateSetpoint(stage.id, setpoint.id, { 
+                                        lightMin: parseInt(value) 
+                                      })}
+                                    >
+                                      <SelectTrigger className="mt-1.5">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {LIGHT_LEVELS.map(level => (
+                                          <SelectItem key={level} value={level.toString()}>
+                                            {level}%
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm">Max:</Label>
+                                    <Select
+                                      value={setpoint.lightMax?.toString() ?? '100'}
+                                      onValueChange={(value) => updateSetpoint(stage.id, setpoint.id, { 
+                                        lightMax: parseInt(value) 
+                                      })}
+                                    >
+                                      <SelectTrigger className="mt-1.5">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {LIGHT_LEVELS.map(level => (
+                                          <SelectItem key={level} value={level.toString()}>
+                                            {level}%
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Light Schedule */}
+                              <div>
+                                <Label className="text-base font-semibold mb-3 block">Light Schedule:</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm">On:</Label>
+                                    <Input
+                                      type="time"
+                                      value={setpoint.lightOn ?? '06:00'}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        lightOn: e.target.value 
+                                      })}
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm">Off:</Label>
+                                    <Input
+                                      type="time"
+                                      value={setpoint.lightOff ?? '22:00'}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        lightOff: e.target.value 
+                                      })}
+                                      className="mt-1.5"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex justify-end pt-4 border-t dark:border-slate-700">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -761,9 +802,23 @@ export function RecipeAuthor({
                       ))}
 
                       {stage.setpoints.length === 0 && (
-                        <div className="text-center py-8 text-slate-600 dark:text-slate-400 border border-dashed rounded-lg">
-                          <p>No setpoints defined for this stage</p>
-                        </div>
+                        <>
+                          <div className="text-center py-8 text-slate-600 dark:text-slate-400 border border-dashed rounded-lg">
+                            <p>No environmental setpoints defined for this stage</p>
+                            <p className="text-sm mt-1">Click the button below to add setpoints</p>
+                          </div>
+
+                          <div className="flex justify-center pt-2">
+                            <Button 
+                              onClick={() => addSetpoint(stage.id)} 
+                              size="sm" 
+                              variant="outline"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Setpoint
+                            </Button>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>

@@ -29,13 +29,19 @@ import { useState, useEffect, useMemo } from 'react'
 import { AssignRecipeDialog } from './assign-recipe-dialog'
 import { createClient } from '@/lib/supabase/client'
 
+// Format date consistently for SSR/CSR hydration
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toISOString().replace('T', ' ').substring(0, 19)
+}
+
 interface RecipeViewerProps {
   recipe: RecipeWithVersions
   version?: RecipeVersionWithStages
   canEdit?: boolean
   canClone?: boolean
   canApply?: boolean
-  onClose: () => void
+  onClose?: () => void
   onEdit?: () => void
   onClone?: () => void
 }
@@ -55,6 +61,8 @@ export function RecipeViewer({
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [organizationId, setOrganizationId] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
+  const [creatorName, setCreatorName] = useState<string>('')
+  const [userNames, setUserNames] = useState<Record<string, string>>({})
 
   // Fetch user and organization info for assignment
   useEffect(() => {
@@ -84,6 +92,67 @@ export function RecipeViewer({
     (version?.stages || []) as RecipeStageWithDetails[], 
     [version]
   )
+
+  // Fetch creator's name and all version creators
+  useEffect(() => {
+    async function fetchUserNames() {
+      try {
+        const supabase = createClient()
+        
+        // Collect all unique user IDs
+        const userIds = new Set<string>()
+        if (currentVersion?.created_by) {
+          userIds.add(currentVersion.created_by)
+        }
+        if (recipe.versions && recipe.versions.length > 0) {
+          recipe.versions.forEach(v => {
+            if (v.created_by) userIds.add(v.created_by)
+          })
+        }
+        
+        if (userIds.size === 0) {
+          console.log('No user IDs found')
+          return
+        }
+        
+        console.log('Fetching user names for IDs:', Array.from(userIds))
+        
+        // Fetch all users at once
+        const { data: usersData, error } = await supabase
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', Array.from(userIds))
+        
+        if (error) {
+          console.error('Error fetching user names:', error)
+          return
+        }
+        
+        console.log('Fetched user data:', usersData)
+        
+        if (usersData && usersData.length > 0) {
+          const names: Record<string, string> = {}
+          usersData.forEach(user => {
+            names[user.id] = user.full_name || user.email || 'Unknown User'
+          })
+          
+          console.log('User names map:', names)
+          setUserNames(names)
+          
+          // Set creator name for current version
+          if (currentVersion?.created_by && names[currentVersion.created_by]) {
+            setCreatorName(names[currentVersion.created_by])
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchUserNames:', error)
+      }
+    }
+    
+    if (currentVersion || recipe.versions) {
+      fetchUserNames()
+    }
+  }, [currentVersion, recipe.versions])
 
   // Set initial selected stage
   useEffect(() => {
@@ -146,7 +215,7 @@ export function RecipeViewer({
               )}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              v{currentVersion?.version || recipe.current_version} · Created by {currentVersion?.created_by || 'Unknown'}
+              v{currentVersion?.version || recipe.current_version} · Created by {creatorName || 'Loading...'}
             </p>
           </div>
         </div>
@@ -210,7 +279,9 @@ export function RecipeViewer({
                 <p className="text-sm text-slate-600 dark:text-slate-400">Created By</p>
                 <div className="flex items-center gap-2 mt-1">
                   <User className="w-4 h-4 text-slate-400" />
-                  <p className="text-slate-900 dark:text-slate-100">{currentVersion.created_by || 'Unknown'}</p>
+                  <p className="text-slate-900 dark:text-slate-100">
+                    {creatorName || 'Loading...'}
+                  </p>
                 </div>
               </div>
               <div>
@@ -218,7 +289,7 @@ export function RecipeViewer({
                 <div className="flex items-center gap-2 mt-1">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   <p className="text-slate-900 dark:text-slate-100">
-                    {new Date(currentVersion.created_at).toLocaleString()}
+                    {formatDate(currentVersion.created_at)}
                   </p>
                 </div>
               </div>
@@ -253,22 +324,26 @@ export function RecipeViewer({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={selectedStageId} onValueChange={setSelectedStageId}>
-              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(stages.length, 4)}, 1fr)` }}>
-                {stages.map(stage => (
-                  <TabsTrigger key={stage.id} value={stage.id}>
-                    <span className="truncate">{stage.name}</span>
-                    <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">({stage.duration_days}d)</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+            <div className="relative">
+              <div className="overflow-x-auto pb-2">
+                <Tabs value={selectedStageId} onValueChange={setSelectedStageId}>
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    {stages.map(stage => (
+                      <TabsTrigger key={stage.id} value={stage.id} className="flex-shrink-0 min-w-[120px]">
+                        <span className="truncate">{stage.name}</span>
+                        <span className="ml-2 text-xs text-slate-500">({stage.duration_days}d)</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
 
-              {stages.map(stage => (
-                <TabsContent key={stage.id} value={stage.id} className="mt-6">
-                  <StageDetails stage={stage} />
-                </TabsContent>
-              ))}
-            </Tabs>
+                  {stages.map(stage => (
+                    <TabsContent key={stage.id} value={stage.id} className="mt-6">
+                      <StageDetails stage={stage} />
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -291,7 +366,7 @@ export function RecipeViewer({
                       {activation.scope_type}: {activation.scope_name || activation.scope_id}
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Started: {new Date(activation.activated_at).toLocaleString()}
+                      Started: {formatDate(activation.activated_at)}
                       {activation.current_stage_id && ` · Stage ${activation.current_stage_day} days`}
                     </p>
                   </div>
@@ -324,10 +399,10 @@ export function RecipeViewer({
                     </Badge>
                     <div>
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {v.created_by || 'Unknown'}
+                        {userNames[v.created_by] || 'Loading...'}
                       </p>
                       <p className="text-xs text-slate-600 dark:text-slate-400">
-                        {new Date(v.created_at).toLocaleString()}
+                        {formatDate(v.created_at)}
                       </p>
                     </div>
                   </div>

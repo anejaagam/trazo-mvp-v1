@@ -345,7 +345,14 @@ export async function createRecipeVersion(
     if (recipeError) throw recipeError
     if (!recipe) throw new Error('Recipe not found')
 
-    const newVersion = recipe.current_version + 1
+    // For new recipes, current_version is 1 (from default), so we use it as-is for the first version
+    // For existing recipes with versions, we increment
+    const { count } = await supabase
+      .from('recipe_versions')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipe_id', recipeId)
+
+    const newVersion = (count || 0) + 1
 
     // Create version record
     const versionInsert: InsertRecipeVersion = {

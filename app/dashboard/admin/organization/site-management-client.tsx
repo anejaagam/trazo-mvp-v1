@@ -5,7 +5,7 @@
  * Client-side component for managing organization sites
  */
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,11 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { Plus, MoreVertical, Edit, Trash2, MapPin, Building2, Boxes, ChevronDown, ChevronRight, DoorOpen } from 'lucide-react';
 import { SiteFormDialog } from '@/components/features/admin/site-form-dialog';
 import { DeleteSiteDialog } from '@/components/features/admin/delete-site-dialog';
@@ -51,6 +46,7 @@ interface Site {
   updated_at: string;
   room_count: number;
   pod_count: number;
+  user_count: number;
 }
 
 interface Room {
@@ -372,6 +368,7 @@ export function SiteManagementClient({
                   <TableHead className="w-[30px]"></TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Users</TableHead>
                   <TableHead>Rooms</TableHead>
                   <TableHead>Pods</TableHead>
                   <TableHead>Capacity</TableHead>
@@ -385,43 +382,38 @@ export function SiteManagementClient({
                   const rooms = siteRooms.get(site.id) || [];
                   
                   return (
-                    <Collapsible
-                      key={site.id}
-                      open={isExpanded}
-                      onOpenChange={() => toggleSiteExpanded(site.id)}
-                    >
-                      <>
-                        <TableRow>
-                          <TableCell>
-                            <CollapsibleTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-0 h-auto"
-                                disabled={!site.is_active || site.room_count === 0}
-                              >
-                                {site.room_count > 0 ? (
-                                  isExpanded ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )
-                                ) : null}
-                              </Button>
-                            </CollapsibleTrigger>
-                          </TableCell>
-                          <TableCell className="font-medium">{site.name}</TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              {site.city && site.state_province ? (
-                                <>
-                                  {site.city}, {site.state_province}
-                                </>
-                              ) : site.address || (
-                                <span className="text-muted-foreground">No address</span>
-                              )}
-                            </div>
-                          </TableCell>
+                    <React.Fragment key={site.id}>
+                      <TableRow>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-0 h-auto"
+                            disabled={!site.is_active || site.room_count === 0}
+                            onClick={() => toggleSiteExpanded(site.id)}
+                          >
+                            {site.room_count > 0 ? (
+                              isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )
+                            ) : null}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium">{site.name}</TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {site.city && site.state_province ? (
+                              <>
+                                {site.city}, {site.state_province}
+                              </>
+                            ) : site.address || (
+                              <span className="text-muted-foreground">No address</span>
+                            )}
+                          </div>
+                        </TableCell>
+                          <TableCell>{site.user_count || 0}</TableCell>
                           <TableCell>{site.room_count || 0}</TableCell>
                           <TableCell>{site.pod_count || 0}</TableCell>
                           <TableCell>
@@ -457,7 +449,7 @@ export function SiteManagementClient({
                                     className="text-red-600 dark:text-red-400"
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    Deactivate
+                                    Delete
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
@@ -466,9 +458,9 @@ export function SiteManagementClient({
                         </TableRow>
                         
                         {/* Expandable Rooms Section */}
-                        <CollapsibleContent asChild>
+                        {isExpanded && (
                           <TableRow>
-                            <TableCell colSpan={8} className="bg-muted/30 p-0">
+                            <TableCell colSpan={9} className="bg-muted/30 p-0">
                               <div className="p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2">
@@ -515,37 +507,31 @@ export function SiteManagementClient({
                                           const pods = roomPods.get(room.id) || [];
                                           
                                           return (
-                                            <Collapsible
-                                              key={room.id}
-                                              open={isRoomExpanded}
-                                              onOpenChange={() => toggleRoomExpanded(room.id)}
-                                            >
-                                              <>
-                                                <TableRow>
-                                                  <TableCell>
-                                                    <CollapsibleTrigger asChild>
-                                                      <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="p-0 h-auto"
-                                                        disabled={!room.is_active || (room.pod_count || 0) === 0}
-                                                      >
-                                                        {(room.pod_count || 0) > 0 ? (
-                                                          isRoomExpanded ? (
-                                                            <ChevronDown className="h-3 w-3" />
-                                                          ) : (
-                                                            <ChevronRight className="h-3 w-3" />
-                                                          )
-                                                        ) : null}
-                                                      </Button>
-                                                    </CollapsibleTrigger>
-                                                  </TableCell>
-                                                  <TableCell className="font-medium">{room.name}</TableCell>
-                                                  <TableCell>
-                                                    <Badge variant="outline" className="capitalize">
-                                                      {room.room_type}
-                                                    </Badge>
-                                                  </TableCell>
+                                            <React.Fragment key={room.id}>
+                                              <TableRow>
+                                                <TableCell>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="p-0 h-auto"
+                                                    disabled={!room.is_active || (room.pod_count || 0) === 0}
+                                                    onClick={() => toggleRoomExpanded(room.id)}
+                                                  >
+                                                    {(room.pod_count || 0) > 0 ? (
+                                                      isRoomExpanded ? (
+                                                        <ChevronDown className="h-3 w-3" />
+                                                      ) : (
+                                                        <ChevronRight className="h-3 w-3" />
+                                                      )
+                                                    ) : null}
+                                                  </Button>
+                                                </TableCell>
+                                                <TableCell className="font-medium">{room.name}</TableCell>
+                                                <TableCell>
+                                                  <Badge variant="outline" className="capitalize">
+                                                    {room.room_type}
+                                                  </Badge>
+                                                </TableCell>
                                                   <TableCell>{room.capacity_pods || 0}</TableCell>
                                                   <TableCell>{room.pod_count || 0}</TableCell>
                                                   <TableCell>
@@ -586,7 +572,7 @@ export function SiteManagementClient({
                                                             className="text-red-600 dark:text-red-400"
                                                           >
                                                             <Trash2 className="mr-2 h-4 w-4" />
-                                                            Deactivate
+                                                            Delete
                                                           </DropdownMenuItem>
                                                         )}
                                                       </DropdownMenuContent>
@@ -595,9 +581,9 @@ export function SiteManagementClient({
                                                 </TableRow>
                                                 
                                                 {/* Expandable Pods Section */}
-                                                <CollapsibleContent asChild>
+                                                {isRoomExpanded && (
                                                   <TableRow>
-                                                    <TableCell colSpan={8} className="bg-muted/50 p-0">
+                                                    <TableCell colSpan={9} className="bg-muted/50 p-0">
                                                       <div className="p-3 pl-10">
                                                         <div className="text-xs font-semibold text-muted-foreground mb-2">
                                                           Pods in {room.name}
@@ -646,9 +632,8 @@ export function SiteManagementClient({
                                                       </div>
                                                     </TableCell>
                                                   </TableRow>
-                                                </CollapsibleContent>
-                                              </>
-                                            </Collapsible>
+                                                )}
+                                            </React.Fragment>
                                           );
                                         })}
                                       </TableBody>
@@ -658,9 +643,8 @@ export function SiteManagementClient({
                               </div>
                             </TableCell>
                           </TableRow>
-                        </CollapsibleContent>
-                      </>
-                    </Collapsible>
+                        )}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>

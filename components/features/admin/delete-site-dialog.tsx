@@ -53,20 +53,36 @@ export function DeleteSiteDialog({
         }
       );
 
-      const data = await response.json();
-
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+      
       if (!response.ok) {
-        // Show more detailed error if available
-        const errorMessage = data.details || data.error || 'Failed to delete site'
-        throw new Error(errorMessage);
+        if (isJson) {
+          const data = await response.json();
+          const errorMessage = data.details || data.error || 'Failed to delete site';
+          toast.error(errorMessage);
+        } else {
+          // Handle non-JSON error responses
+          const text = await response.text();
+          toast.error(text || 'Failed to delete site');
+        }
+        setLoading(false);
+        return;
       }
 
-      toast.success('Site deactivated successfully');
+      // Success response
+      if (isJson) {
+        await response.json(); // Consume the response
+      }
+      
+      toast.success('Site deleted successfully');
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error('Error deleting site:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete site');
+      // Only log unexpected errors (network issues, etc.)
+      console.error('Unexpected error deleting site:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -76,34 +92,33 @@ export function DeleteSiteDialog({
     <AlertDialog open={open} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Deactivate Site</AlertDialogTitle>
+          <AlertDialogTitle>Delete Site</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
-            <p>
-              Are you sure you want to deactivate{' '}
+            <span className="block">
+              Are you sure you want to delete{' '}
               <span className="font-semibold text-foreground">{siteName}</span>?
-            </p>
+            </span>
             {(roomCount > 0 || podCount > 0) && (
-              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
-                <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                <div className="text-sm text-red-800 dark:text-red-200 font-medium">
                   ⚠️ This site contains:
-                </p>
-                <ul className="mt-2 text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                </div>
+                <ul className="mt-2 text-sm text-red-700 dark:text-red-300 space-y-1">
                   {roomCount > 0 && <li>• {roomCount} room(s)</li>}
                   {podCount > 0 && <li>• {podCount} pod(s)</li>}
                 </ul>
-                <p className="mt-3 text-sm text-amber-800 dark:text-amber-200 font-semibold">
-                  ⚠️ Deactivation will be blocked if any rooms or pods are still active.
-                </p>
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                  Please ensure all rooms and pods are deactivated or decommissioned before 
-                  attempting to deactivate this site.
-                </p>
+                <div className="mt-3 text-sm text-red-800 dark:text-red-200 font-semibold">
+                  ⚠️ You must delete all rooms and pods first.
+                </div>
+                <div className="mt-1 text-sm text-red-700 dark:text-red-300">
+                  Sites with assigned users, rooms, or pods cannot be deleted.
+                  Delete or reassign all dependencies before deleting this site.
+                </div>
               </div>
             )}
-            <p className="mt-4 text-sm">
-              This action will mark the site as inactive. It can be reactivated later by
-              an administrator if needed.
-            </p>
+            <span className="block mt-4 text-sm font-semibold text-red-600 dark:text-red-400">
+              This action cannot be undone. The site will be permanently deleted.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -114,7 +129,7 @@ export function DeleteSiteDialog({
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Deactivate Site
+            Delete Site
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

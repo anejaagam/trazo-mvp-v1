@@ -53,19 +53,36 @@ export function DeleteRoomDialog({
         }
       );
 
-      const data = await response.json();
-
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+      
       if (!response.ok) {
-        const errorMessage = data.details || data.error || 'Failed to delete room'
-        throw new Error(errorMessage);
+        if (isJson) {
+          const data = await response.json();
+          const errorMessage = data.details || data.error || 'Failed to delete room';
+          toast.error(errorMessage);
+        } else {
+          // Handle non-JSON error responses
+          const text = await response.text();
+          toast.error(text || 'Failed to delete room');
+        }
+        setLoading(false);
+        return;
       }
 
-      toast.success('Room deactivated successfully');
+      // Success response
+      if (isJson) {
+        await response.json(); // Consume the response
+      }
+      
+      toast.success('Room deleted successfully');
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error('Error deleting room:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete room');
+      // Only log unexpected errors (network issues, etc.)
+      console.error('Unexpected error deleting room:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -75,29 +92,28 @@ export function DeleteRoomDialog({
     <AlertDialog open={open} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Deactivate Room</AlertDialogTitle>
+          <AlertDialogTitle>Delete Room</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
-            <p>
-              Are you sure you want to deactivate{' '}
+            <span className="block">
+              Are you sure you want to delete{' '}
               <span className="font-semibold text-foreground">{roomName}</span>?
-            </p>
+            </span>
             {podCount > 0 && (
-              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
-                <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                <div className="text-sm text-red-800 dark:text-red-200 font-medium">
                   ⚠️ This room contains {podCount} pod(s)
-                </p>
-                <p className="mt-3 text-sm text-amber-800 dark:text-amber-200 font-semibold">
-                  ⚠️ Deactivation will be blocked if any pods are still active.
-                </p>
-                <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
-                  Please ensure all pods are decommissioned before attempting to deactivate this room.
-                </p>
+                </div>
+                <div className="mt-3 text-sm text-red-800 dark:text-red-200 font-semibold">
+                  ⚠️ You must delete all pods first.
+                </div>
+                <div className="mt-1 text-sm text-red-700 dark:text-red-300">
+                  Rooms with existing pods cannot be deleted. Delete all pods before deleting this room.
+                </div>
               </div>
             )}
-            <p className="mt-4 text-sm">
-              This action will mark the room as inactive. It can be reactivated later by
-              an administrator if needed.
-            </p>
+            <span className="block mt-4 text-sm font-semibold text-red-600 dark:text-red-400">
+              This action cannot be undone. The room will be permanently deleted.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -108,7 +124,7 @@ export function DeleteRoomDialog({
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
           >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Deactivate Room
+            Delete Room
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

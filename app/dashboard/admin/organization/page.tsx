@@ -82,10 +82,18 @@ export default async function OrganizationPage() {
         podCount = count || 0
       }
 
+      // Count users assigned to this site
+      const { count: userCount } = await supabase
+        .from('user_site_assignments')
+        .select('*', { count: 'exact', head: true })
+        .eq('site_id', site.id)
+        .eq('is_active', true)
+
       return {
         ...site,
         room_count: roomCount,
-        pod_count: podCount
+        pod_count: podCount,
+        user_count: userCount || 0
       }
     })
   )

@@ -393,30 +393,26 @@ export async function DELETE(
       )
     }
 
-    // Check for active pods
-    const { count: activePodCount } = await supabase
+    // Check for ANY pods (not just active ones)
+    const { count: podCount } = await supabase
       .from('pods')
       .select('*', { count: 'exact', head: true })
       .eq('room_id', roomId)
-      .eq('is_active', true)
 
-    if (activePodCount && activePodCount > 0) {
+    if (podCount && podCount > 0) {
       return NextResponse.json(
         { 
-          error: 'Cannot deactivate room with active pods',
-          details: `This room has ${activePodCount} active pod(s). Please decommission all pods before deactivating the room.`
+          error: 'Cannot delete room with existing pods',
+          details: `This room has ${podCount} pod(s). Please delete all pods before deleting the room.`
         },
         { status: 400 }
       )
     }
 
-    // Soft delete (mark as inactive)
+    // Hard delete the room
     const { error } = await supabase
       .from('rooms')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
+      .delete()
       .eq('id', roomId)
 
     if (error) {

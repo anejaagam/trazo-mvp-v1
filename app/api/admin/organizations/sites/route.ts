@@ -98,10 +98,18 @@ export async function GET(request: NextRequest) {
           podCount = count || 0
         }
 
+        // Count users assigned to this site
+        const { count: userCount } = await supabase
+          .from('user_site_assignments')
+          .select('*', { count: 'exact', head: true })
+          .eq('site_id', site.id)
+          .eq('is_active', true)
+
         return {
           ...site,
           room_count: roomCount || 0,
-          pod_count: podCount
+          pod_count: podCount,
+          user_count: userCount || 0
         }
       })
     )
@@ -369,67 +377,59 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Check for active rooms
-    const { data: rooms, error: roomsError } = await supabase
-      .from('rooms')
-      .select('id, is_active')
+    // Check for assigned users via user_site_assignments
+    const { count: userCount, error: usersError } = await supabase
+      .from('user_site_assignments')
+      .select('*', { count: 'exact', head: true })
       .eq('site_id', siteId)
+      .eq('is_active', true)
 
-    if (roomsError) {
-      console.error('Error checking rooms:', roomsError)
+    if (usersError) {
+      console.error('Error checking users:', usersError)
       return NextResponse.json(
-        { error: 'Failed to check site dependencies' },
+        { error: 'Failed to check site dependencies', details: usersError.message },
         { status: 500 }
       )
     }
 
-    const activeRooms = rooms?.filter(r => r.is_active) || []
-    
-    if (activeRooms.length > 0) {
+    if (userCount && userCount > 0) {
       return NextResponse.json(
         { 
-          error: 'Cannot deactivate site with active rooms',
-          details: `This site has ${activeRooms.length} active room(s). Please deactivate all rooms before deactivating the site.`
+          error: 'Cannot delete site with assigned users',
+          details: `This site has ${userCount} assigned user(s). Please reassign all users before deleting the site.`
         },
         { status: 400 }
       )
     }
 
-    // Check for active pods in any rooms (even inactive rooms, to be thorough)
+    // Check for ANY rooms (active or inactive)
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('site_id', siteId)
+
+    if (roomsError) {
+      console.error('Error checking rooms:', roomsError)
+      return NextResponse.json(
+        { error: 'Failed to check site dependencies', details: roomsError.message },
+        { status: 500 }
+      )
+    }
+    
     if (rooms && rooms.length > 0) {
-      const roomIds = rooms.map(r => r.id)
-      const { count: activePodCount, error: podsError } = await supabase
-        .from('pods')
-        .select('*', { count: 'exact', head: true })
-        .in('room_id', roomIds)
-        .eq('is_active', true)
-
-      if (podsError) {
-        console.error('Error checking pods:', podsError)
-        return NextResponse.json(
-          { error: 'Failed to check site dependencies' },
-          { status: 500 }
-        )
-      }
-
-      if (activePodCount && activePodCount > 0) {
-        return NextResponse.json(
-          { 
-            error: 'Cannot deactivate site with active pods',
-            details: `This site has ${activePodCount} active pod(s). Please decommission all pods before deactivating the site.`
-          },
-          { status: 400 }
-        )
-      }
+      return NextResponse.json(
+        { 
+          error: 'Cannot delete site with existing rooms',
+          details: `This site has ${rooms.length} room(s). Please delete all rooms before deleting the site.`
+        },
+        { status: 400 }
+      )
     }
 
-    // All checks passed, proceed with soft delete
+    // All checks passed, proceed with actual deletion
     const { error } = await supabase
       .from('sites')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString()
-      })
+      .delete()
       .eq('id', siteId)
 
     if (error) {

@@ -13,9 +13,10 @@ export const metadata: Metadata = {
 
 export default async function MonitoringPage() {
   let userRole: string
-  let siteId: string
+  let siteId: string | null = null
   let organizationId: string
   let userId: string
+  let useOrgLevel = false // Flag to determine if we should show all org pods
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
@@ -24,6 +25,7 @@ export default async function MonitoringPage() {
     siteId = DEV_MOCK_USER.site_assignments[0].site_id
     organizationId = DEV_MOCK_USER.organization_id
     userId = DEV_MOCK_USER.id
+    useOrgLevel = userRole === 'org_admin'
   } else {
     // PRODUCTION MODE: Get actual user data
     const supabase = await createClient()
@@ -49,24 +51,31 @@ export default async function MonitoringPage() {
       redirect('/dashboard')
     }
 
-    // Get site assignments
-    const { data: siteAssignments } = await supabase
-      .from('user_site_assignments')
-      .select('site_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-
     userRole = userData.role
     organizationId = userData.organization_id
     userId = user.id
     
-    // Get site_id from user_site_assignments or get/create default site
-    if (siteAssignments?.[0]?.site_id) {
-      siteId = siteAssignments[0].site_id
+    // IMPORTANT FIX: org_admin users should see ALL pods across ALL sites in their organization
+    if (userRole === 'org_admin') {
+      useOrgLevel = true
+      siteId = null // Don't limit to one site for org admins
+      logDevMode('org_admin detected - fetching all organization pods')
     } else {
-      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
-      siteId = defaultSiteId || organizationId
+      // For non-org_admin users, get their site assignments
+      const { data: siteAssignments } = await supabase
+        .from('user_site_assignments')
+        .select('site_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+
+      // Get site_id from user_site_assignments or get/create default site
+      if (siteAssignments?.[0]?.site_id) {
+        siteId = siteAssignments[0].site_id
+      } else {
+        const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+        siteId = defaultSiteId || organizationId
+      }
     }
   }
 
@@ -83,6 +92,7 @@ export default async function MonitoringPage() {
 
       <FleetMonitoringDashboard
         siteId={siteId}
+        organizationId={useOrgLevel ? organizationId : undefined}
         userRole={userRole}
         userId={userId}
       />

@@ -19,7 +19,8 @@ import {
   FileText,
   Trash2,
   Users,
-  Shield
+  Shield,
+  Beaker
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -154,8 +155,8 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       children: [
         {
           title: 'Recipes',
-          href: '/dashboard/environmental/recipes',
-          icon: <Settings className="h-4 w-4" />,
+          href: '/dashboard/recipes',
+          icon: <Beaker className="h-4 w-4" />,
           permission: 'control:view'
         },
         {

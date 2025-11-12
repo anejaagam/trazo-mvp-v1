@@ -15,17 +15,19 @@ import { Activity, Thermometer, Droplets, Wind, AlertTriangle } from 'lucide-rea
 import { subHours } from 'date-fns'
 
 interface FleetMonitoringDashboardProps {
-  siteId: string
+  siteId: string | null // null for org_admin viewing all sites
+  organizationId?: string // optional - if provided, fetch all org pods
   userRole: string
   userId: string
 }
 
 export function FleetMonitoringDashboard({
   siteId,
+  organizationId,
   userId,
 }: FleetMonitoringDashboardProps) {
   const router = useRouter()
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [timeRange, setTimeRange] = useState<TimeRange>({
     start: subHours(new Date(), 24),
     end: new Date(),
@@ -33,7 +35,13 @@ export function FleetMonitoringDashboard({
   })
 
   // Real-time fleet monitoring
-  const { snapshots, loading, error } = usePodSnapshots({ siteId, realtime: true, refreshInterval: 30 }) // Auto-refresh every 30s
+  // Use organizationId if provided (org_admin), otherwise use siteId
+  const { snapshots, loading, error } = usePodSnapshots({ 
+    siteId: siteId || undefined, 
+    organizationId,
+    realtime: true, 
+    refreshInterval: 30 
+  })
 
   // Handle pod click - navigate to detail page
   const handlePodClick = (podId: string) => {
@@ -111,7 +119,7 @@ export function FleetMonitoringDashboard({
       <StatsGrid stats={stats} columns={4} />
 
       {/* Alarm Summary */}
-      <AlarmSummaryWidget siteId={siteId} />
+      {siteId && <AlarmSummaryWidget siteId={siteId} />}
 
       {/* Fleet View */}
       <Card>
@@ -148,9 +156,9 @@ export function FleetMonitoringDashboard({
                 />
               ) : (
                 <FleetView
-                  siteId={siteId}
-                  realtime={true}
-                  refreshInterval={30}
+                  siteId={siteId || undefined}
+                  snapshots={snapshots}
+                  realtime={false}
                   onPodClick={handlePodClick}
                 />
               )}

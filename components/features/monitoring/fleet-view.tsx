@@ -23,7 +23,8 @@ import { usePodSnapshots } from '@/hooks/use-telemetry';
 import { usePermissions } from '@/hooks/use-permissions';
 
 interface FleetViewProps {
-  siteId: string;
+  siteId?: string;
+  snapshots?: import('@/types/telemetry').PodSnapshot[];
   onPodClick?: (podId: string) => void;
   realtime?: boolean;
   refreshInterval?: number;
@@ -49,17 +50,24 @@ function getHealthStatus(fault: boolean | null): 'Healthy' | 'Faulted' {
 }
 
 export function FleetView({ 
-  siteId, 
+  siteId,
+  snapshots: externalSnapshots,
   onPodClick, 
   realtime = true,
   refreshInterval = 30 
 }: FleetViewProps) {
   const { can } = usePermissions('org_admin');
-  const { snapshots, loading, error } = usePodSnapshots({
-    siteId,
-    realtime,
-    refreshInterval,
+  
+  // Use external snapshots if provided, otherwise fetch from hook
+  const hookResult = usePodSnapshots({
+    siteId: siteId || undefined,
+    realtime: !externalSnapshots && realtime,
+    refreshInterval: !externalSnapshots ? refreshInterval : 0,
   });
+  
+  const snapshots = externalSnapshots || hookResult.snapshots;
+  const loading = externalSnapshots ? false : hookResult.loading;
+  const error = externalSnapshots ? null : hookResult.error;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roomFilter, setRoomFilter] = useState<string>('all');

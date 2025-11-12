@@ -188,7 +188,14 @@ export function EnvironmentChart({
 
   // Format data for Recharts with adaptive time formatting
   const chartData = useMemo(() => {
-    return readings.map(reading => {
+    // Filter out readings where ALL metrics are null (invalid data points)
+    const validReadings = readings.filter(reading => 
+      reading.temperature_c !== null || 
+      reading.humidity_pct !== null || 
+      reading.co2_ppm !== null
+    );
+
+    return validReadings.map(reading => {
       const timestamp = new Date(reading.timestamp);
       
       // Adaptive time formatting based on time range

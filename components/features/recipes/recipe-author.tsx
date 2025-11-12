@@ -57,7 +57,7 @@ interface StageFormData {
 
 interface SetpointFormData {
   id: string
-  // Temperature in °F
+  // Temperature in °C
   tempMin?: number
   tempMax?: number
   // Relative Humidity %
@@ -66,6 +66,9 @@ interface SetpointFormData {
   // VPD kPa
   vpdMin?: number
   vpdMax?: number
+  // CO2 ppm
+  co2Min?: number
+  co2Max?: number
   // Light Level %
   lightMin?: number
   lightMax?: number
@@ -154,6 +157,7 @@ export function RecipeAuthor({
               const tempSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'temperature')
               const humiditySetpoint = setpoints.find((sp: any) => sp.parameter_type === 'humidity')
               const vpdSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'vpd')
+              const co2Setpoint = setpoints.find((sp: any) => sp.parameter_type === 'co2')
               const lightSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'light_intensity')
               const photoperiodSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'photoperiod')
               
@@ -182,6 +186,8 @@ export function RecipeAuthor({
                   humidityMax: humiditySetpoint?.max_value,
                   vpdMin: vpdSetpoint?.min_value,
                   vpdMax: vpdSetpoint?.max_value,
+                  co2Min: co2Setpoint?.min_value,
+                  co2Max: co2Setpoint?.max_value,
                   lightMin: lightSetpoint?.min_value,
                   lightMax: lightSetpoint?.max_value,
                   lightOn,
@@ -250,12 +256,14 @@ export function RecipeAuthor({
 
     const newSetpoint: SetpointFormData = {
       id: `sp-${Date.now()}`,
-      tempMin: 68,
-      tempMax: 78,
+      tempMin: 20,
+      tempMax: 26,
       humidityMin: 50,
       humidityMax: 70,
       vpdMin: 0.8,
       vpdMax: 1.2,
+      co2Min: 400,
+      co2Max: 1500,
       lightMin: 0,
       lightMax: 100,
       lightOn: '06:00',
@@ -366,6 +374,15 @@ export function RecipeAuthor({
           errors.push({ 
             field: `setpoint-${sp.id}`, 
             message: `VPD min cannot be greater than max`, 
+            severity: 'error' 
+          })
+        }
+        
+        // Validate CO2 range
+        if (sp.co2Min !== undefined && sp.co2Max !== undefined && sp.co2Min > sp.co2Max) {
+          errors.push({ 
+            field: `setpoint-${sp.id}`, 
+            message: `CO2 min cannot be greater than max`, 
             severity: 'error' 
           })
         }
@@ -704,7 +721,7 @@ export function RecipeAuthor({
                             <div className="space-y-6">
                               {/* Temperature */}
                               <div>
-                                <Label className="text-base font-semibold mb-3 block">Temperature (°F):</Label>
+                                <Label className="text-base font-semibold mb-3 block">Temperature (°C):</Label>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
                                     <Label className="text-sm">Min:</Label>
@@ -790,6 +807,39 @@ export function RecipeAuthor({
                                         vpdMax: e.target.value ? parseFloat(e.target.value) : undefined 
                                       })}
                                       className="mt-1.5"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* CO2 */}
+                              <div>
+                                <Label className="text-base font-semibold mb-3 block">CO₂ (ppm):</Label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="text-sm">Min:</Label>
+                                    <Input
+                                      type="number"
+                                      step="50"
+                                      value={setpoint.co2Min ?? ''}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        co2Min: e.target.value ? parseFloat(e.target.value) : undefined 
+                                      })}
+                                      className="mt-1.5"
+                                      placeholder="400"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm">Max:</Label>
+                                    <Input
+                                      type="number"
+                                      step="50"
+                                      value={setpoint.co2Max ?? ''}
+                                      onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
+                                        co2Max: e.target.value ? parseFloat(e.target.value) : undefined 
+                                      })}
+                                      className="mt-1.5"
+                                      placeholder="1500"
                                     />
                                   </div>
                                 </div>

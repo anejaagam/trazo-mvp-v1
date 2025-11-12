@@ -30,6 +30,7 @@ export interface SensorCardProps {
   isRealTime?: boolean
   thresholdMin?: number
   thresholdMax?: number
+  isDerived?: boolean // Indicates if this is a calculated metric (e.g., VPD)
 }
 
 export function SensorCard({
@@ -45,6 +46,7 @@ export function SensorCard({
   isRealTime = false,
   thresholdMin,
   thresholdMax,
+  isDerived = false,
 }: SensorCardProps) {
   const getIcon = () => {
     switch (type) {
@@ -109,6 +111,12 @@ export function SensorCard({
     return false
   }
 
+  // Check if value is within thresholds
+  const isInRange = () => {
+    if (thresholdMin === undefined && thresholdMax === undefined) return null
+    return !isOutOfRange()
+  }
+
   return (
     <Card className={isOutOfRange() ? 'border-yellow-500' : ''}>
       <CardHeader className="pb-3">
@@ -120,6 +128,11 @@ export function SensorCard({
             <CardTitle className="text-base font-medium">{name}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
+            {isDerived && (
+              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+                Derived
+              </Badge>
+            )}
             {isRealTime && <RealTimeBadge />}
             {getStatusBadge()}
           </div>
@@ -160,18 +173,38 @@ export function SensorCard({
           </div>
         )}
 
-        {/* Threshold Warning */}
-        {isOutOfRange() && (
-          <div className="flex items-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-            <AlertCircle className="h-4 w-4 text-yellow-500 flex-shrink-0" />
-            <p className="text-xs text-yellow-600 dark:text-yellow-400">
-              Value outside acceptable range
-              {thresholdMin !== undefined && thresholdMax !== undefined && (
-                <span className="block mt-0.5">
-                  ({thresholdMin.toFixed(1)} - {thresholdMax.toFixed(1)} {unit})
-                </span>
-              )}
-            </p>
+        {/* In Range Status */}
+        {isInRange() !== null && (
+          <div className={`flex items-center gap-2 p-2 rounded-md ${
+            isInRange() 
+              ? 'bg-green-500/10 border border-green-500/20' 
+              : 'bg-yellow-500/10 border border-yellow-500/20'
+          }`}>
+            {isInRange() ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  In acceptable range
+                  {thresholdMin !== undefined && thresholdMax !== undefined && (
+                    <span className="block mt-0.5">
+                      ({thresholdMin.toFixed(1)} - {thresholdMax.toFixed(1)} {unit})
+                    </span>
+                  )}
+                </p>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-4 w-4 text-yellow-500 flex-shrink-0" />
+                <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                  Outside acceptable range
+                  {thresholdMin !== undefined && thresholdMax !== undefined && (
+                    <span className="block mt-0.5">
+                      ({thresholdMin.toFixed(1)} - {thresholdMax.toFixed(1)} {unit})
+                    </span>
+                  )}
+                </p>
+              </>
+            )}
           </div>
         )}
 

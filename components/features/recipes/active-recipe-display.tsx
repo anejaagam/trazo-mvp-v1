@@ -106,6 +106,7 @@ export function ActiveRecipeDisplay({ activeRecipe }: ActiveRecipeDisplayProps) 
                   switch (setpoint.parameter_type) {
                     case 'temperature': return <Thermometer className="w-4 h-4 text-orange-500" />
                     case 'humidity': return <Droplets className="w-4 h-4 text-blue-500" />
+                    case 'co2': return <Activity className="w-4 h-4 text-green-500" />
                     case 'light_intensity': return <Sun className="w-4 h-4 text-yellow-500" />
                     default: return <Activity className="w-4 h-4 text-slate-400" />
                   }
@@ -116,6 +117,7 @@ export function ActiveRecipeDisplay({ activeRecipe }: ActiveRecipeDisplayProps) 
                     case 'temperature': return 'Temperature'
                     case 'humidity': return 'Humidity'
                     case 'vpd': return 'VPD'
+                    case 'co2': return 'CO₂'
                     case 'light_intensity': return 'Light Level'
                     case 'photoperiod': return 'Light Schedule'
                     default: return setpoint.parameter_type

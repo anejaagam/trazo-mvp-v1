@@ -278,15 +278,31 @@ export const PodCard = memo(function PodCard({
         {/* VPD - Derived Metric */}
         <div className="pt-2 border-t">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                 <Zap className="w-3.5 h-3.5" />
-                <span>VPD (Derived)</span>
+                <span>VPD</span>
+                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100 ml-1">
+                  Derived metric
+                </Badge>
               </div>
-              <div className="flex items-baseline gap-2 mt-1">
+              <div className="flex items-baseline gap-2">
                 <span className="text-xl">{vpd.toFixed(2)}</span>
                 <span className="text-sm text-muted-foreground">kPa</span>
               </div>
+              {(() => {
+                // Typical VPD ranges: 0.4-0.8 for veg, 0.8-1.2 for flower
+                // Using general optimal range of 0.8-1.2 kPa
+                const minVPD = 0.8
+                const maxVPD = 1.2
+                const inRange = vpd >= minVPD && vpd <= maxVPD
+                
+                return (
+                  <div className={`text-xs font-medium mt-1 ${inRange ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                    {inRange ? '✓ In range' : '⚠ Out of range'}
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>

@@ -26,7 +26,7 @@ interface StageFormData {
 
 interface SetpointFormData {
   id: string
-  // Temperature in °F
+  // Temperature in °C
   tempMin?: number
   tempMax?: number
   // Relative Humidity %
@@ -35,6 +35,9 @@ interface SetpointFormData {
   // VPD kPa
   vpdMin?: number
   vpdMax?: number
+  // CO2 ppm
+  co2Min?: number
+  co2Max?: number
   // Light Level %
   lightMin?: number
   lightMax?: number
@@ -105,6 +108,7 @@ export default async function RecipeEditPage({ params }: RecipeEditPageProps) {
       const tempSetpoint = setpoints.find(sp => sp.parameter_type === 'temperature')
       const humiditySetpoint = setpoints.find(sp => sp.parameter_type === 'humidity')
       const vpdSetpoint = setpoints.find(sp => sp.parameter_type === 'vpd')
+      const co2Setpoint = setpoints.find(sp => sp.parameter_type === 'co2')
       const lightSetpoint = setpoints.find(sp => sp.parameter_type === 'light_intensity')
       const photoperiodSetpoint = setpoints.find(sp => sp.parameter_type === 'photoperiod')
       
@@ -133,6 +137,8 @@ export default async function RecipeEditPage({ params }: RecipeEditPageProps) {
           humidityMax: humiditySetpoint?.max_value,
           vpdMin: vpdSetpoint?.min_value,
           vpdMax: vpdSetpoint?.max_value,
+          co2Min: co2Setpoint?.min_value,
+          co2Max: co2Setpoint?.max_value,
           lightMin: lightSetpoint?.min_value,
           lightMax: lightSetpoint?.max_value,
           lightOn,
@@ -173,7 +179,7 @@ export default async function RecipeEditPage({ params }: RecipeEditPageProps) {
               parameter_type: 'temperature' as const,
               min_value: sp.tempMin,
               max_value: sp.tempMax,
-              unit: '°F',
+              unit: '°C',
               ramp_enabled: false,
               priority: 50,
               enabled: true,
@@ -200,6 +206,19 @@ export default async function RecipeEditPage({ params }: RecipeEditPageProps) {
               min_value: sp.vpdMin,
               max_value: sp.vpdMax,
               unit: 'kPa',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // CO2 setpoint
+          if (sp.co2Min !== undefined || sp.co2Max !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'co2' as const,
+              min_value: sp.co2Min,
+              max_value: sp.co2Max,
+              unit: 'ppm',
               ramp_enabled: false,
               priority: 50,
               enabled: true,

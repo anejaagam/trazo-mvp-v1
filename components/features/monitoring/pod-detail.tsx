@@ -332,7 +332,7 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                     </span>
                     <span className="text-muted-foreground">°C</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {reading.temp_sensor_fault ? (
                       <Badge variant="destructive" className="text-xs">Fault</Badge>
                     ) : (() => {
@@ -340,7 +340,23 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                       if (!setpoint || reading.temperature_c === null) {
                         return <Badge variant="secondary" className="text-xs">OK</Badge>
                       }
-                      const { status, deviation } = checkInRange(reading.temperature_c, setpoint)
+                      const { status } = checkInRange(reading.temperature_c, setpoint)
+                      const min = setpoint.min_value ?? 0
+                      const max = setpoint.max_value ?? 0
+                      const value = reading.temperature_c
+                      
+                      let message = ''
+                      if (value < min) {
+                        message = `${(min - value).toFixed(1)}°C below range`
+                      } else if (value > max) {
+                        message = `${(value - max).toFixed(1)}°C above range`
+                      } else {
+                        // In range - show how much headroom to nearest boundary
+                        const belowMax = (max - value).toFixed(1)
+                        const aboveMin = (value - min).toFixed(1)
+                        message = `${Math.min(parseFloat(belowMax), parseFloat(aboveMin)).toFixed(1)}°C within range`
+                      }
+                      
                       return (
                         <>
                           <Badge 
@@ -352,13 +368,8 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                             {status === 'critical' && <XCircle className="w-3 h-3 mr-1" />}
                             {status === 'ok' ? 'In Range' : status === 'warning' ? 'Deviation' : 'Out of Range'}
                           </Badge>
-                          {deviation !== undefined && (
-                            <span className="text-xs text-muted-foreground">
-                              {deviation > 0 ? '+' : ''}{deviation.toFixed(1)}°C
-                            </span>
-                          )}
                           <span className="text-xs text-muted-foreground">
-                            Target: {setpoint.value?.toFixed(1) || setpoint.day_value?.toFixed(1)}°C
+                            {message}
                           </span>
                         </>
                       )
@@ -384,7 +395,7 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                     </span>
                     <span className="text-muted-foreground">%</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {reading.humidity_sensor_fault ? (
                       <Badge variant="destructive" className="text-xs">Fault</Badge>
                     ) : (() => {
@@ -392,7 +403,23 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                       if (!setpoint || reading.humidity_pct === null) {
                         return <Badge variant="secondary" className="text-xs">OK</Badge>
                       }
-                      const { status, deviation } = checkInRange(reading.humidity_pct, setpoint)
+                      const { status } = checkInRange(reading.humidity_pct, setpoint)
+                      const min = setpoint.min_value ?? 0
+                      const max = setpoint.max_value ?? 0
+                      const value = reading.humidity_pct
+                      
+                      let message = ''
+                      if (value < min) {
+                        message = `${(min - value).toFixed(1)}% below range`
+                      } else if (value > max) {
+                        message = `${(value - max).toFixed(1)}% above range`
+                      } else {
+                        // In range - show how much headroom to nearest boundary
+                        const belowMax = (max - value).toFixed(1)
+                        const aboveMin = (value - min).toFixed(1)
+                        message = `${Math.min(parseFloat(belowMax), parseFloat(aboveMin)).toFixed(1)}% within range`
+                      }
+                      
                       return (
                         <>
                           <Badge 
@@ -404,13 +431,8 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                             {status === 'critical' && <XCircle className="w-3 h-3 mr-1" />}
                             {status === 'ok' ? 'In Range' : status === 'warning' ? 'Deviation' : 'Out of Range'}
                           </Badge>
-                          {deviation !== undefined && (
-                            <span className="text-xs text-muted-foreground">
-                              {deviation > 0 ? '+' : ''}{deviation.toFixed(1)}%
-                            </span>
-                          )}
                           <span className="text-xs text-muted-foreground">
-                            Target: {setpoint.value?.toFixed(1) || setpoint.day_value?.toFixed(1)}%
+                            {message}
                           </span>
                         </>
                       )
@@ -436,7 +458,7 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                     </span>
                     <span className="text-muted-foreground text-sm">ppm</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {reading.co2_sensor_fault ? (
                       <Badge variant="destructive" className="text-xs">Fault</Badge>
                     ) : (() => {
@@ -444,7 +466,23 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                       if (!setpoint || reading.co2_ppm === null) {
                         return <Badge variant="secondary" className="text-xs">OK</Badge>
                       }
-                      const { status, deviation } = checkInRange(reading.co2_ppm, setpoint)
+                      const { status } = checkInRange(reading.co2_ppm, setpoint)
+                      const min = setpoint.min_value ?? 0
+                      const max = setpoint.max_value ?? 0
+                      const value = reading.co2_ppm
+                      
+                      let message = ''
+                      if (value < min) {
+                        message = `${Math.round(min - value)}ppm below range`
+                      } else if (value > max) {
+                        message = `${Math.round(value - max)}ppm above range`
+                      } else {
+                        // In range - show how much headroom to nearest boundary
+                        const belowMax = max - value
+                        const aboveMin = value - min
+                        message = `${Math.round(Math.min(belowMax, aboveMin))}ppm within range`
+                      }
+                      
                       return (
                         <>
                           <Badge 
@@ -456,13 +494,8 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                             {status === 'critical' && <XCircle className="w-3 h-3 mr-1" />}
                             {status === 'ok' ? 'In Range' : status === 'warning' ? 'Deviation' : 'Out of Range'}
                           </Badge>
-                          {deviation !== undefined && (
-                            <span className="text-xs text-muted-foreground">
-                              {deviation > 0 ? '+' : ''}{deviation.toFixed(0)} ppm
-                            </span>
-                          )}
                           <span className="text-xs text-muted-foreground">
-                            Target: {setpoint.value?.toFixed(0) || setpoint.day_value?.toFixed(0)} ppm
+                            {message}
                           </span>
                         </>
                       )
@@ -498,7 +531,12 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
             {/* VPD Card */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">VPD</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">VPD</CardTitle>
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+                    Derived
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -510,9 +548,32 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                     </span>
                     <span className="text-muted-foreground text-sm">kPa</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Derived metric
-                  </div>
+                  {(() => {
+                    const vpdValue = reading.temperature_c && reading.humidity_pct
+                      ? calculateVPD(reading.temperature_c, reading.humidity_pct)
+                      : reading.vpd_kpa ?? null
+                    
+                    // Typical VPD ranges: 0.4-0.8 for veg, 0.8-1.2 for flower
+                    // Using general optimal range of 0.8-1.2 kPa
+                    const minVPD = 0.8
+                    const maxVPD = 1.2
+                    
+                    if (vpdValue === null) {
+                      return (
+                        <div className="text-xs text-muted-foreground">
+                          No data
+                        </div>
+                      )
+                    }
+                    
+                    const inRange = vpdValue >= minVPD && vpdValue <= maxVPD
+                    
+                    return (
+                      <div className={`text-xs font-medium ${inRange ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                        {inRange ? '✓ In range' : '⚠ Out of range'} ({minVPD}-{maxVPD} kPa)
+                      </div>
+                    )
+                  })()}
                 </div>
               </CardContent>
             </Card>

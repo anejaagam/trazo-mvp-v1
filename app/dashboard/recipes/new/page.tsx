@@ -12,7 +12,7 @@ import type {
 
 interface SetpointFormData {
   id: string
-  // Temperature in °F
+  // Temperature in °C
   tempMin?: number
   tempMax?: number
   // Relative Humidity %
@@ -21,6 +21,9 @@ interface SetpointFormData {
   // VPD kPa
   vpdMin?: number
   vpdMax?: number
+  // CO2 ppm
+  co2Min?: number
+  co2Max?: number
   // Light Level %
   lightMin?: number
   lightMax?: number
@@ -140,7 +143,7 @@ export default async function NewRecipePage() {
               parameter_type: 'temperature' as const,
               min_value: sp.tempMin,
               max_value: sp.tempMax,
-              unit: '°F',
+              unit: '°C',
               ramp_enabled: false,
               priority: 50,
               enabled: true,
@@ -167,6 +170,19 @@ export default async function NewRecipePage() {
               min_value: sp.vpdMin,
               max_value: sp.vpdMax,
               unit: 'kPa',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // CO2 setpoint
+          if (sp.co2Min !== undefined || sp.co2Max !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'co2' as const,
+              min_value: sp.co2Min,
+              max_value: sp.co2Max,
+              unit: 'ppm',
               ramp_enabled: false,
               priority: 50,
               enabled: true,

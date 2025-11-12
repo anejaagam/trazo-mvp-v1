@@ -520,7 +520,7 @@ function StageDetails({ stage }: { stage: RecipeStageWithDetails }) {
                   if (!tempSetpoint) return null
                   return (
                     <div>
-                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Temperature (°F):</p>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Temperature (°C):</p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-slate-600 dark:text-slate-400">Min:</p>
@@ -571,6 +571,27 @@ function StageDetails({ stage }: { stage: RecipeStageWithDetails }) {
                         <div>
                           <p className="text-slate-600 dark:text-slate-400">Max:</p>
                           <p className="font-medium text-slate-900 dark:text-slate-100">{vpdSetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* CO2 */}
+                {(() => {
+                  const co2Setpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'co2')
+                  if (!co2Setpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">CO₂ (ppm):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{co2Setpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{co2Setpoint.max_value ?? '-'}</p>
                         </div>
                       </div>
                     </div>

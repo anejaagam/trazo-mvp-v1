@@ -8,6 +8,15 @@ import { Input } from '@/components/ui/input'
 import type { Recipe, RecipeStatus, PlantType } from '@/types/recipe'
 import { Plus, Search, Clock, Loader2 } from 'lucide-react'
 
+// Format date consistently for SSR/CSR hydration
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 interface RecipeLibraryProps {
   organizationId: string
   siteId?: string
@@ -211,7 +220,7 @@ export function RecipeLibrary({
                   )}
                   <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                     <Clock className="w-3 h-3" />
-                    Updated {new Date(recipe.updated_at).toLocaleDateString()}
+                    Updated {formatDate(recipe.updated_at)}
                   </div>
                   {recipe.is_template && (
                     <Badge variant="outline" className="text-xs">

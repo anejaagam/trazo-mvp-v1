@@ -12,14 +12,21 @@ import type {
 
 interface SetpointFormData {
   id: string
-  parameterType: SetpointParameterType
-  value?: number
-  dayValue?: number
-  nightValue?: number
-  unit: string
-  deadband?: number
-  minValue?: number
-  maxValue?: number
+  // Temperature in °F
+  tempMin?: number
+  tempMax?: number
+  // Relative Humidity %
+  humidityMin?: number
+  humidityMax?: number
+  // VPD kPa
+  vpdMin?: number
+  vpdMax?: number
+  // Light Level %
+  lightMin?: number
+  lightMax?: number
+  // Light Schedule (24-hour format HH:MM)
+  lightOn?: string
+  lightOff?: string
 }
 
 interface StageFormData {
@@ -123,19 +130,83 @@ export default async function NewRecipePage() {
         order_index: index,
         duration_days: stage.duration,
         description: stage.description || undefined,
-        setpoints: stage.setpoints.map(sp => ({
-          parameter_type: sp.parameterType,
-          value: sp.value,
-          day_value: sp.dayValue,
-          night_value: sp.nightValue,
-          unit: sp.unit,
-          deadband: sp.deadband,
-          min_value: sp.minValue,
-          max_value: sp.maxValue,
-          ramp_enabled: false,
-          priority: 50,
-          enabled: true,
-        })),
+        setpoints: stage.setpoints.flatMap(sp => {
+          // Convert our single comprehensive setpoint into multiple database setpoints
+          const dbSetpoints = []
+          
+          // Temperature setpoint
+          if (sp.tempMin !== undefined || sp.tempMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'temperature' as const,
+              min_value: sp.tempMin,
+              max_value: sp.tempMax,
+              unit: '°F',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // Humidity setpoint
+          if (sp.humidityMin !== undefined || sp.humidityMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'humidity' as const,
+              min_value: sp.humidityMin,
+              max_value: sp.humidityMax,
+              unit: '%',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // VPD setpoint
+          if (sp.vpdMin !== undefined || sp.vpdMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'vpd' as const,
+              min_value: sp.vpdMin,
+              max_value: sp.vpdMax,
+              unit: 'kPa',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // Light level setpoint
+          if (sp.lightMin !== undefined || sp.lightMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'light_intensity' as const,
+              min_value: sp.lightMin,
+              max_value: sp.lightMax,
+              unit: '%',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // Light schedule (photoperiod) - calculate hours from on/off times
+          if (sp.lightOn && sp.lightOff) {
+            const [onHour, onMin] = sp.lightOn.split(':').map(Number)
+            const [offHour, offMin] = sp.lightOff.split(':').map(Number)
+            const onMinutes = onHour * 60 + onMin
+            const offMinutes = offHour * 60 + offMin
+            let durationHours = (offMinutes - onMinutes) / 60
+            if (durationHours < 0) durationHours += 24 // Handle overnight schedules
+            
+            dbSetpoints.push({
+              parameter_type: 'photoperiod' as const,
+              value: durationHours,
+              unit: 'hrs',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          return dbSetpoints
+        }),
       })),
     }
 

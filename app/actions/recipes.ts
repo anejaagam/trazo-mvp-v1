@@ -3,6 +3,7 @@
 import {
   getAssignableScopes as getAssignableScopesQuery,
   assignRecipeToScope as assignRecipeToScopeQuery,
+  updateRecipe,
 } from '@/lib/supabase/queries/recipes'
 import type { RecipeScopeType } from '@/types/recipe'
 
@@ -74,6 +75,42 @@ export async function assignRecipeToScope(
     return { data, error: null }
   } catch (err) {
     console.error('Unexpected error in assignRecipeToScope:', err)
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Server action to publish a draft recipe
+ */
+export async function publishRecipe(
+  recipeId: string
+): Promise<{
+  data: { id: string; status: string } | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await updateRecipe(recipeId, {
+      status: 'published',
+      published_at: new Date().toISOString(),
+    })
+    
+    if (error) {
+      console.error('Error publishing recipe:', error)
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to publish recipe',
+      }
+    }
+    
+    return { 
+      data: data ? { id: data.id, status: data.status } : null, 
+      error: null 
+    }
+  } catch (err) {
+    console.error('Unexpected error in publishRecipe:', err)
     return {
       data: null,
       error: err instanceof Error ? err.message : 'An unexpected error occurred',

@@ -15,7 +15,8 @@ import {
   Droplets,
   Sun,
   Moon,
-  Activity
+  Activity,
+  CheckCircle2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -28,6 +29,7 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { AssignRecipeDialog } from './assign-recipe-dialog'
 import { createClient } from '@/lib/supabase/client'
+import { publishRecipe } from '@/app/actions/recipes'
 
 // Format date consistently for SSR/CSR hydration
 const formatDate = (dateString: string): string => {
@@ -57,12 +59,13 @@ export function RecipeViewer({
   onClone
 }: RecipeViewerProps) {
   const router = useRouter()
-  const [selectedStageId, setSelectedStageId] = useState<string>()
+  const [selectedStageId, setSelectedStageId] = useState<string>('')
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [organizationId, setOrganizationId] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
   const [creatorName, setCreatorName] = useState<string>('')
   const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [isPublishing, setIsPublishing] = useState(false)
 
   // Fetch user and organization info for assignment
   useEffect(() => {
@@ -92,6 +95,13 @@ export function RecipeViewer({
     (version?.stages || []) as RecipeStageWithDetails[], 
     [version]
   )
+
+  // Set first stage as selected when stages load
+  useEffect(() => {
+    if (stages.length > 0 && !selectedStageId) {
+      setSelectedStageId(stages[0].id)
+    }
+  }, [stages, selectedStageId])
 
   // Fetch creator's name and all version creators
   useEffect(() => {
@@ -169,11 +179,29 @@ export function RecipeViewer({
     }
   }
 
-  const handleClone = () => {
+  const handleClone = async () => {
     if (onClone) {
       onClone()
     } else {
-      toast.success(`Cloned "${recipe.name}" to drafts`)
+      try {
+        // Navigate to new recipe page with the current recipe data pre-filled
+        const cloneData = {
+          name: `${recipe.name} (Copy)`,
+          description: recipe.description || '',
+          plantTypes: recipe.plant_types || [],
+          tags: recipe.tags || [],
+          stages: version?.version_data?.stages || []
+        }
+        
+        // Store clone data in sessionStorage to pre-fill the form
+        sessionStorage.setItem('cloneRecipeData', JSON.stringify(cloneData))
+        
+        router.push('/dashboard/recipes/new')
+        toast.success(`Cloning "${recipe.name}"...`)
+      } catch (error) {
+        console.error('Clone error:', error)
+        toast.error('Failed to clone recipe')
+      }
     }
   }
 
@@ -182,6 +210,27 @@ export function RecipeViewer({
       onEdit()
     } else {
       router.push(`/dashboard/recipes/${recipe.id}/edit`)
+    }
+  }
+
+  const handlePublish = async () => {
+    setIsPublishing(true)
+    try {
+      const { data, error } = await publishRecipe(recipe.id)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      toast.success('Recipe published successfully!')
+      // Refresh the page to show updated status
+      router.refresh()
+    } catch (error) {
+      console.error('Publish error:', error)
+      toast.error('Failed to publish recipe')
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -220,6 +269,12 @@ export function RecipeViewer({
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {recipe.status.toLowerCase() === 'draft' && canEdit && (
+            <Button onClick={handlePublish} disabled={isPublishing}>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {isPublishing ? 'Publishing...' : 'Publish'}
+            </Button>
+          )}
           {canClone && (
             <Button variant="outline" onClick={handleClone}>
               <Copy className="w-4 h-4 mr-2" />
@@ -456,9 +511,126 @@ function StageDetails({ stage }: { stage: RecipeStageWithDetails }) {
         {setpoints.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">No setpoints defined for this stage.</p>
         ) : (
-          setpoints.map((setpoint: EnvironmentalSetpoint) => (
-            <SetpointCard key={setpoint.id} setpoint={setpoint} />
-          ))
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                {/* Temperature */}
+                {(() => {
+                  const tempSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'temperature')
+                  if (!tempSetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Temperature (°F):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{tempSetpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{tempSetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Relative Humidity */}
+                {(() => {
+                  const humiditySetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'humidity')
+                  if (!humiditySetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Relative Humidity (%):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{humiditySetpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{humiditySetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* VPD */}
+                {(() => {
+                  const vpdSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'vpd')
+                  if (!vpdSetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">VPD (kPa):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{vpdSetpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{vpdSetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Light Level */}
+                {(() => {
+                  const lightSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'light_intensity')
+                  if (!lightSetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Light Level (%):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{lightSetpoint.min_value ?? '-'}%</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{lightSetpoint.max_value ?? '-'}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Light Schedule */}
+                {(() => {
+                  const photoperiodSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'photoperiod')
+                  if (!photoperiodSetpoint || !photoperiodSetpoint.value) return null
+                  
+                  // Calculate on/off times from duration (assuming lights on at 6:00 AM)
+                  const hours = photoperiodSetpoint.value
+                  const offHour = 6 + Math.floor(hours)
+                  const offMin = Math.round((hours % 1) * 60)
+                  const lightOff = `${offHour.toString().padStart(2, '0')}:${offMin.toString().padStart(2, '0')}`
+                  
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Light Schedule:</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">On:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">06:00 AM</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Off:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{lightOff}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                        Duration: {photoperiodSetpoint.value} hours
+                      </p>
+                    </div>
+                  )
+                })()}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 

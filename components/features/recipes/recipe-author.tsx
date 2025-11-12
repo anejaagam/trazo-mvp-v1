@@ -135,6 +135,73 @@ export function RecipeAuthor({
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
+  // Check for clone data on mount
+  useEffect(() => {
+    if (mode === 'create' && !initialData) {
+      const cloneData = sessionStorage.getItem('cloneRecipeData')
+      if (cloneData) {
+        try {
+          const data = JSON.parse(cloneData)
+          setRecipeName(data.name || '')
+          setDescription(data.description || '')
+          setPlantTypes(data.plantTypes || [])
+          setTags(data.tags || [])
+          
+          // Convert database stages to form stages
+          if (data.stages && data.stages.length > 0) {
+            const formStages = data.stages.map((stage: any, idx: number) => {
+              const setpoints = stage.setpoints || []
+              const tempSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'temperature')
+              const humiditySetpoint = setpoints.find((sp: any) => sp.parameter_type === 'humidity')
+              const vpdSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'vpd')
+              const lightSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'light_intensity')
+              const photoperiodSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'photoperiod')
+              
+              // Calculate light schedule from photoperiod
+              let lightOn = '06:00'
+              let lightOff = '22:00'
+              if (photoperiodSetpoint?.value) {
+                const hours = photoperiodSetpoint.value
+                const offHour = 6 + Math.floor(hours)
+                const offMin = Math.round((hours % 1) * 60)
+                lightOff = `${offHour.toString().padStart(2, '0')}:${offMin.toString().padStart(2, '0')}`
+              }
+              
+              return {
+                id: `stage-${Date.now()}-${idx}`,
+                name: stage.name,
+                stageType: stage.stage_type || 'vegetative',
+                duration: stage.duration_days || 21,
+                description: stage.description || '',
+                order: idx,
+                setpoints: setpoints.length > 0 ? [{
+                  id: `sp-${Date.now()}-${idx}`,
+                  tempMin: tempSetpoint?.min_value,
+                  tempMax: tempSetpoint?.max_value,
+                  humidityMin: humiditySetpoint?.min_value,
+                  humidityMax: humiditySetpoint?.max_value,
+                  vpdMin: vpdSetpoint?.min_value,
+                  vpdMax: vpdSetpoint?.max_value,
+                  lightMin: lightSetpoint?.min_value,
+                  lightMax: lightSetpoint?.max_value,
+                  lightOn,
+                  lightOff
+                }] : []
+              }
+            })
+            setStages(formStages)
+            setActiveStageId(formStages[0]?.id || null)
+          }
+          
+          // Clear the clone data
+          sessionStorage.removeItem('cloneRecipeData')
+        } catch (error) {
+          console.error('Error loading clone data:', error)
+        }
+      }
+    }
+  }, [mode, initialData])
+
   // Scroll to newly added setpoint
   useEffect(() => {
     if (lastAddedSetpoint && setpointRefs.current[lastAddedSetpoint]) {
@@ -274,22 +341,40 @@ export function RecipeAuthor({
         })
       }
 
-      // Validate setpoint bounds
+      // Validate setpoint ranges
       stage.setpoints.forEach(sp => {
-        const value = sp.dayValue ?? sp.value ?? 0
-        
-        if (sp.minValue !== undefined && value < sp.minValue) {
+        // Validate temperature range
+        if (sp.tempMin !== undefined && sp.tempMax !== undefined && sp.tempMin > sp.tempMax) {
           errors.push({ 
             field: `setpoint-${sp.id}`, 
-            message: `${sp.parameterType} value below minimum (${sp.minValue})`, 
+            message: `Temperature min cannot be greater than max`, 
             severity: 'error' 
           })
         }
         
-        if (sp.maxValue !== undefined && value > sp.maxValue) {
+        // Validate humidity range
+        if (sp.humidityMin !== undefined && sp.humidityMax !== undefined && sp.humidityMin > sp.humidityMax) {
           errors.push({ 
             field: `setpoint-${sp.id}`, 
-            message: `${sp.parameterType} value above maximum (${sp.maxValue})`, 
+            message: `Humidity min cannot be greater than max`, 
+            severity: 'error' 
+          })
+        }
+        
+        // Validate VPD range
+        if (sp.vpdMin !== undefined && sp.vpdMax !== undefined && sp.vpdMin > sp.vpdMax) {
+          errors.push({ 
+            field: `setpoint-${sp.id}`, 
+            message: `VPD min cannot be greater than max`, 
+            severity: 'error' 
+          })
+        }
+        
+        // Validate light level range
+        if (sp.lightMin !== undefined && sp.lightMax !== undefined && sp.lightMin > sp.lightMax) {
+          errors.push({ 
+            field: `setpoint-${sp.id}`, 
+            message: `Light level min cannot be greater than max`, 
             severity: 'error' 
           })
         }
@@ -520,7 +605,7 @@ export function RecipeAuthor({
               <p>No stages defined. Click &quot;Add Stage&quot; to begin.</p>
             </div>
           ) : (
-            <Tabs value={activeStageId || stages[0]?.id} onValueChange={setActiveStageId}>
+            <Tabs value={activeStageId || stages[0]?.id || ''} onValueChange={setActiveStageId}>
               <div className="relative">
                 <div className="overflow-x-auto pb-2">
                   <TabsList className="inline-flex w-auto min-w-full">
@@ -769,7 +854,7 @@ export function RecipeAuthor({
                                       onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
                                         lightOn: e.target.value 
                                       })}
-                                      className="mt-1.5"
+                                      className="mt-1.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                     />
                                   </div>
                                   <div>
@@ -780,7 +865,7 @@ export function RecipeAuthor({
                                       onChange={(e) => updateSetpoint(stage.id, setpoint.id, { 
                                         lightOff: e.target.value 
                                       })}
-                                      className="mt-1.5"
+                                      className="mt-1.5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:dark:invert"
                                     />
                                   </div>
                                 </div>

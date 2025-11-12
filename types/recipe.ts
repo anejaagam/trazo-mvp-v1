@@ -425,6 +425,7 @@ export interface UpdateRecipe {
   jurisdiction_types?: JurisdictionType[]
   plant_types?: PlantType[]
   tags?: string[]
+  published_at?: string
   deprecated_at?: string
 }
 

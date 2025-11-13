@@ -1,3 +1,4 @@
+import './styles/globals.css';
 import { useState } from 'react';
 import { BatchDashboard } from './components/BatchDashboard';
 import { BatchDetailView } from './components/BatchDetailView';
@@ -24,7 +25,7 @@ import { mockCultivars, mockGenealogyRecords } from './lib/cultivar-mock-data';
 import { mockPlantCountSnapshots } from './lib/plant-tracking-mock-data';
 import { Leaf, Sprout } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function App() {
   const [batches, setBatches] = useState<Batch[]>(mockBatches);

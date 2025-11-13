@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<integration-plan>
+  <metadata>
+    <module>Batch Management</module>
+    <version>1.0.0</version>
+    <date>2025-11-12</date>
+    <phase>13</phase>
+    <estimated-duration>3-4 weeks</estimated-duration>
+    <dependencies>
+      <dependency status="complete">Inventory Module (Phase 8)</dependency>
+      <dependency status="complete">Monitoring Module (Phase 10)</dependency>
+      <dependency status="in-progress">Recipe Module (Phase 11 - QA handling)</dependency>
+      <dependency status="complete">RBAC System</dependency>
+      <dependency status="complete">Jurisdiction System</dependency>
+    </dependencies>
+    <prototype-source>/Prototypes/BatchManagementPrototype/unified/</prototype-source>
+  </metadata>
+
+  <pre-integration-research>
+    <step id="0.1" checkpoint="true">
+      <action>Comprehensive Prototype Analysis</action>
+      <location>/Prototypes/BatchManagementPrototype/</location>
+      <tasks>
+        <task>Read INTEGRATION_READINESS_AUDIT.md for known gaps</task>
+        <task>Read AgentInstructions.md for architecture principles</task>
+        <task>Read unified/docs/TYPE_SYSTEM.md for data models</task>
+        <task>Read unified/docs/BACKEND_INTEGRATION.md for integration patterns</task>
+        <task>Review IntegrationPlan.xml (Phase 1-8 completion status)</task>
+        <task>Analyze unified/types/ for all TypeScript interfaces</task>
+        <task>Review unified/components/ for UI component inventory</task>
+        <task>Check unified/services/ for service layer architecture</task>
+      </tasks>
+      <documentation>
+        <create>/docs/roadmap/integration-deployment/batch-prototype-analysis.md</create>
+        <content>
+          - Component inventory (25+ components identified)
+          - Data model mapping (IBatch, ICannabisBatch, IProduceBatch)
+          - Service interfaces (BatchService, QualityService, ComplianceService)
+          - Integration gaps from audit report
+          - Reusability assessment
+        </content>
+      </documentation>
+      <validation>
+        <check>All prototype documentation files read and summarized</check>
+        <check>Component mapping to shadcn/ui documented</check>
+        <check>Data model differences vs platform schema identified</check>
+      </validation>
+    </step>
+
+    <step id="0.2">
+      <action>Platform Schema Review</action>
+      <location>/lib/supabase/schema.sql</location>
+      <tasks>
+        <task>Review existing batches table (lines 161-205)</task>
+        <task>Review batch_pod_assignments table (lines 205-218)</task>
+        <task>Review batch_events table (lines 219-235)</task>
+        <task>Review plant_tags table (lines 236-250)</task>
+        <task>Review cultivars table (lines 138-160)</task>
+        <task>Identify gaps between prototype types and database schema</task>
+      </tasks>
+      <documentation>
+        <create>/docs/roadmap/integration-deployment/batch-schema-mapping.md</create>
+        <content>
+          - Existing vs needed tables comparison
+          - Field mapping (prototype → database)
+          - Missing tables to create
+          - Migration strategy
+        </content>
+      </documentation>
+    </step>
+  </pre-integration-research>
+
+  <database-enhancement>
+    <step id="1.1" checkpoint="true">
+      <action>Enhance Batch Schema</action>
+      <location>/lib/supabase/migrations/012_batch_management_enhancement.sql</location>
+      <rationale>Existing schema is basic. Need to add domain-specific fields, quality tracking, genealogy, and harvest workflows</rationale>
+      <tasks>
+        <task>Add domain_type column to batches ('cannabis' | 'produce')</task>
+        <task>Add cannabis-specific fields to batches table:
+          - lighting_schedule TEXT (18/6, 12/12, 24/0)
+          - mother_plant_id UUID
+          - clone_source_batch_id UUID
+          - thc_content DECIMAL(5,2)
+          - cbd_content DECIMAL(5,2)
+          - terpene_profile TEXT
+          - drying_start_date DATE
+          - drying_end_date DATE
+          - curing_start_date DATE
+          - curing_end_date DATE
+          - packaged_date DATE
+        </task>
+        <task>Add produce-specific fields to batches table:
+          - grade TEXT (A, B, C, Premium, Reject)
+          - ripeness_score INTEGER (1-10)
+          - brix_level DECIMAL(5,2)
+          - firmness_score INTEGER (1-10)
+          - color_score INTEGER (1-10)
+          - defect_rate DECIMAL(5,2)
+          - gap_certified BOOLEAN
+          - organic_certified BOOLEAN
+        </task>
+        <task>Create batch_genealogy table for parent-child tracking</task>
+        <task>Create batch_quality_metrics table for quality history</task>
+        <task>Create batch_stage_history table for lifecycle tracking</task>
+        <task>Create harvest_records table for harvest workflows</task>
+        <task>Add indexes on domain_type, stage, status, cultivar_id</task>
+      </tasks>
+      <mcp-action>
+        <server>supabase-us</server>
+        <command>Execute migration 012</command>
+        <replicate-to>supabase-canada</replicate-to>
+      </mcp-action>
+      <validation>
+        <check>All new tables created in both regions</check>
+        <check>RLS policies applied to new tables</check>
+        <check>Foreign keys properly configured</check>
+        <check>Indexes created for performance</check>
+      </validation>
+    </step>
+
+    <step id="1.2">
+      <action>Create Database Functions</action>
+      <location>/lib/supabase/functions/</location>
+      <tasks>
+        <task>Create transition_batch_stage(batch_id, new_stage, user_id)</task>
+        <task>Create quarantine_batch(batch_id, reason, user_id)</task>
+        <task>Create release_from_quarantine(batch_id, user_id)</task>
+        <task>Create record_harvest(batch_id, weight, yield_units, user_id)</task>
+        <task>Create update_plant_count(batch_id, new_count, user_id)</task>
+        <task>Create assign_batch_to_pod(batch_id, pod_id, plant_count, user_id)</task>
+        <task>Create get_batch_genealogy(batch_id) - returns ancestry tree</task>
+        <task>Create calculate_batch_health_score(batch_id) - aggregate quality metrics</task>
+      </tasks>
+      <mcp-action>
+        <server>supabase-us</server>
+        <command>Create database functions</command>
+        <replicate-to>supabase-canada</replicate-to>
+      </mcp-action>
+    </step>
+
+    <step id="1.3">
+      <action>Seed Batch Data</action>
+      <location>/lib/supabase/seed-batch-data.sql</location>
+      <tasks>
+        <task>Create sample cannabis cultivars (3-5 strains)</task>
+        <task>Create sample produce cultivars (3-5 varieties)</task>
+        <task>Create cannabis batches in various stages:
+          - 1 in propagation (mother/clone)
+          - 2 in vegetative (different cultivars)
+          - 2 in flowering (different weeks)
+          - 1 in drying
+          - 1 in curing
+        </task>
+        <task>Create produce batches in various stages:
+          - 2 in seeding/transplant
+          - 2 in growing
+          - 1 in harvest-ready
+          - 1 in post-harvest processing
+        </task>
+        <task>Create batch genealogy relationships (parent-child clones)</task>
+        <task>Create quality metrics history for each batch</task>
+        <task>Create batch events history for lifecycle tracking</task>
+      </tasks>
+      <validation>
+        <check>At least 7 cannabis batches created</check>
+        <check>At least 6 produce batches created</check>
+        <check>Each batch has stage history</check>
+        <check>Parent-child relationships verified</check>
+      </validation>
+    </step>
+  </database-enhancement>
+
+  <backend-implementation>
+    <step id="2.1" checkpoint="true">
+      <action>Create Batch Type Definitions</action>
+      <location>/types/batch.ts</location>
+      <source-reference>/Prototypes/BatchManagementPrototype/unified/types/domains/</source-reference>
+      <tasks>
+        <task>Create base Batch interface matching database schema</task>
+        <task>Create CannabisBatch interface extending Batch</task>
+        <task>Create ProduceBatch interface extending Batch</task>
+        <task>Create discriminated union: DomainBatch = CannabisBatch | ProduceBatch</task>
+        <task>Create BatchFilters interface for query filtering</task>
+        <task>Create BatchStageHistory, BatchQualityMetric, HarvestRecord interfaces</task>
+        <task>Create type guards: isCannabisBatch(), isProduceBatch()</task>
+        <task>Define CannabisStage enum: propagation | vegetative | flowering | harvest | drying | curing | testing | packaging | closed</task>
+        <task>Define ProduceStage enum: seeding | transplant | growing | harvest_ready | harvesting | washing | grading | packing | storage | shipped</task>
+        <task>Define BatchStatus enum: active | quarantined | completed | destroyed</task>
+      </tasks>
+      <testing>
+        <create>/types/__tests__/batch.test.ts</create>
+        <coverage>Type guards and discriminated unions</coverage>
+      </testing>
+      <validation>
+        <check>All types compile without errors</check>
+        <check>Type guards work correctly</check>
+        <check>Matches database schema exactly</check>
+      </validation>
+    </step>
+
+    <step id="2.2">
+      <action>Create Batch Query Functions</action>
+      <location>/lib/supabase/queries/batches.ts</location>
+      <source-reference>/Prototypes/BatchManagementPrototype/unified/services/BatchService.ts</source-reference>
+      <tasks>
+        <task>Implement getBatches(orgId, siteId, filters) - with domain filtering</task>
+        <task>Implement getBatchById(id) - returns DomainBatch with full details</task>
+        <task>Implement createBatch(data) - validates domain-specific fields</task>
+        <task>Implement updateBatch(id, data) - partial updates</task>
+        <task>Implement deleteBatch(id) - soft delete with audit trail</task>
+        <task>Implement transitionBatchStage(batchId, newStage, userId) - validates transitions</task>
+        <task>Implement quarantineBatch(batchId, reason, userId)</task>
+        <task>Implement releaseFromQuarantine(batchId, userId)</task>
+        <task>Implement recordHarvest(batchId, harvestData, userId)</task>
+        <task>Implement updatePlantCount(batchId, newCount, userId)</task>
+        <task>Implement assignBatchToPod(batchId, podId, plantCount, userId)</task>
+        <task>Implement getBatchGenealogy(batchId) - returns ancestry tree</task>
+        <task>Implement getBatchQualityHistory(batchId)</task>
+        <task>Implement addQualityMetric(batchId, metricData, userId)</task>
+        <task>Implement getBatchesByStage(stage, orgId, siteId)</task>
+        <task>Implement getBatchesByCultivar(cultivarId, orgId)</task>
+        <task>Implement getActiveBatches(orgId, siteId)</task>
+      </tasks>
+      <filtering-support>
+        - domain_type: cannabis | produce
+        - stage: array or single
+        - status: array or single
+        - cultivar_id: UUID or array
+        - location (pod/room): UUID or array
+        - quarantine_status: boolean
+        - search: batch_number, cultivar_name
+        - date_range: start_date filter
+      </filtering-support>
+      <testing>
+        <create>/lib/supabase/queries/__tests__/batches.test.ts</create>
+        <coverage>95%+</coverage>
+      </testing>
+    </step>
+
+    <step id="2.3">
+      <action>Create Cultivar Query Functions</action>
+      <location>/lib/supabase/queries/cultivars.ts</location>
+      <tasks>
+        <task>Implement getCultivars(orgId, domainType, filters)</task>
+        <task>Implement getCultivarById(id)</task>
+        <task>Implement createCultivar(data)</task>
+        <task>Implement updateCultivar(id, data)</task>
+        <task>Implement deleteCultivar(id)</task>
+        <task>Implement getCultivarUsageStats(cultivarId) - batches using it</task>
+      </tasks>
+    </step>
+
+    <step id="2.4">
+      <action>Update RBAC Permissions</action>
+      <location>/lib/rbac/permissions.ts</location>
+      <tasks>
+        <task>Add batch:view, batch:create, batch:edit, batch:delete</task>
+        <task>Add batch:stage_change - transition between stages</task>
+        <task>Add batch:quarantine - quarantine/release batches</task>
+        <task>Add batch:harvest - record harvest data</task>
+        <task>Add batch:assign_pod - assign to locations</task>
+        <task>Add cultivar:view, cultivar:create, cultivar:edit, cultivar:delete</task>
+        <task>Update role permissions mapping:
+          - operator: batch:view, batch:create, cultivar:view
+          - head_grower: all batch permissions, all cultivar permissions
+          - site_manager: all batch permissions, all cultivar permissions
+          - compliance_qa: batch:view, batch:quarantine
+        </task>
+      </tasks>
+      <validation>
+        <check>Permissions added to appropriate roles</check>
+        <check>canPerformAction() works with new permissions</check>
+      </validation>
+    </step>
+
+    <step id="2.5">
+      <action>Create Batch Validation Utilities</action>
+      <location>/lib/utils/batch-validation.ts</location>
+      <source-reference>/Prototypes/BatchManagementPrototype/unified/lib/validations.ts</source-reference>
+      <tasks>
+        <task>Create validateBatchCreation(data, domainType) - domain-specific rules</task>
+        <task>Create validateStageTransition(currentStage, newStage, domainType)</task>
+        <task>Create validatePlantCount(count, domainType, jurisdiction)</task>
+        <task>Create validateHarvestData(harvestData, batch)</task>
+        <task>Cannabis validations:
+          - minimum plant count (based on jurisdiction)
+          - valid lighting schedules
+          - THC/CBD ranges
+          - required METRC fields
+        </task>
+        <task>Produce validations:
+          - grade enums
+          - ripeness ranges (1-10)
+          - Brix levels
+          - GAP/Organic cert requirements
+        </task>
+      </tasks>
+      <testing>
+        <create>/lib/utils/__tests__/batch-validation.test.ts</create>
+      </testing>
+    </step>
+  </backend-implementation>
+
+  <frontend-integration>
+    <step id="3.1" checkpoint="true">
+      <action>Adapt Batch Management Component</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/BatchManagement.tsx</source>
+      <target>/components/features/batches/batch-management.tsx</target>
+      <tasks>
+        <task>Convert to use shadcn/ui components (replace Radix primitives)</task>
+        <task>Add usePermissions() for RBAC enforcement</task>
+        <task>Add useJurisdiction() for compliance context</task>
+        <task>Connect to Supabase queries (replace localStorage service)</task>
+        <task>Integrate with existing monitoring module (show pod assignments)</task>
+        <task>Integrate with recipe module (show active recipe for batch)</task>
+        <task>Add domain toggle using existing jurisdiction context</task>
+        <task>Implement search and filtering UI</task>
+        <task>Add stats cards (total batches, by stage, by status)</task>
+      </tasks>
+      <components-to-reuse>
+        - Card, Button, Input, Select from /components/ui/
+        - Badge for status indicators
+        - Table for batch list
+        - Dialog for modals
+      </components-to-reuse>
+      <validation>
+        <check>Component renders with real data</check>
+        <check>RBAC permissions enforced</check>
+        <check>Domain switching works</check>
+        <check>Filtering and search functional</check>
+      </validation>
+    </step>
+
+    <step id="3.2">
+      <action>Adapt Batch Modal (Create/Edit)</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/BatchModal.tsx</source>
+      <target>/components/features/batches/batch-modal.tsx</target>
+      <tasks>
+        <task>Use shadcn/ui Form components with react-hook-form</task>
+        <task>Implement zod validation schema (domain-aware)</task>
+        <task>Add DomainFieldRenderer for conditional fields</task>
+        <task>Cannabis fields: lighting_schedule, mother_plant_id, metrc_tag</task>
+        <task>Produce fields: grade, ripeness, gap_certified, organic_certified</task>
+        <task>Add CultivarSelector component integration</task>
+        <task>Add Pod/Location selector integration</task>
+        <task>Add plant count validation based on jurisdiction</task>
+        <task>Implement create and update logic with error handling</task>
+      </tasks>
+    </step>
+
+    <step id="3.3">
+      <action>Create Batch Table Component</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/BatchTable.tsx</source>
+      <target>/components/features/batches/batch-table.tsx</target>
+      <tasks>
+        <task>Use shadcn/ui Table component</task>
+        <task>Implement dynamic columns based on domainType</task>
+        <task>Cannabis columns: Batch#, Cultivar, Stage, Plant Count, Lighting, METRC Tag, Pod, Actions</task>
+        <task>Produce columns: Batch#, Cultivar, Stage, Plant Count, Grade, Ripeness, Location, Actions</task>
+        <task>Add sortable columns</task>
+        <task>Add action buttons: View, Edit, Delete (RBAC protected)</task>
+        <task>Add stage badges with color coding</task>
+        <task>Add status badges (active, quarantined, etc.)</task>
+        <task>Add row selection for bulk operations</task>
+      </tasks>
+    </step>
+
+    <step id="3.4">
+      <action>Create Batch Detail View</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/BatchDetailModal.tsx</source>
+      <target>/components/features/batches/batch-detail.tsx</target>
+      <note>This is identified as a GAP in the prototype audit - needs to be built</note>
+      <tasks>
+        <task>Create comprehensive batch detail modal/page</task>
+        <task>Display batch metadata (number, cultivar, dates, created by)</task>
+        <task>Show current stage with progress indicator</task>
+        <task>Display domain-specific fields</task>
+        <task>Show pod/location assignments with capacity usage</task>
+        <task>Display quality metrics history chart</task>
+        <task>Show stage history timeline</task>
+        <task>Display genealogy tree (parent/child batches)</task>
+        <task>Show active recipe if assigned</task>
+        <task>Display monitoring data (environmental adherence)</task>
+        <task>Add action buttons: Edit, Transition Stage, Quarantine, Harvest</task>
+      </tasks>
+    </step>
+
+    <step id="3.5" checkpoint="true">
+      <action>Create Cultivar Management Components</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/CultivarManagement.tsx</source>
+      <target>/components/features/batches/cultivar-management.tsx</target>
+      <tasks>
+        <task>Create cultivar grid view with cards</task>
+        <task>Cannabis cards: strain type, THC%, CBD%, genetics</task>
+        <task>Produce cards: category, flavor profile, storage life</task>
+        <task>Add create/edit modal</task>
+        <task>Add search and filtering</task>
+        <task>Show usage statistics (# of batches using cultivar)</task>
+        <task>Add delete with confirmation (check for active batches)</task>
+      </tasks>
+    </step>
+
+    <step id="3.6">
+      <action>Create Stage Transition Workflow</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/StageTransitionModal.tsx</source>
+      <target>/components/features/batches/stage-transition-dialog.tsx</target>
+      <tasks>
+        <task>Create stage transition dialog with validation</task>
+        <task>Show current stage and valid next stages</task>
+        <task>Add stage-specific requirements checklist</task>
+        <task>Cannabis: validate lighting changes, check for test results</task>
+        <task>Produce: validate ripeness, check for quality inspections</task>
+        <task>Add notes field for transition reason</task>
+        <task>Add evidence upload (photos, documents)</task>
+        <task>Implement transition with audit trail</task>
+      </tasks>
+    </step>
+
+    <step id="3.7">
+      <action>Create Harvest Workflow Component</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/HarvestWorkflow.tsx</source>
+      <target>/components/features/batches/harvest-workflow.tsx</target>
+      <tasks>
+        <task>Create harvest wizard/dialog</task>
+        <task>Step 1: Select plants to harvest (if individual tracking)</task>
+        <task>Step 2: Record wet weight</task>
+        <task>Step 3: Record yield units (buds, bags, etc.)</task>
+        <task>Step 4: Record waste weight and reason</task>
+        <task>Step 5: Assign to drying location (cannabis) or processing (produce)</task>
+        <task>Cannabis: transition to drying stage</task>
+        <task>Produce: transition to post-harvest processing</task>
+        <task>Update inventory with harvested product</task>
+        <task>Generate harvest report</task>
+      </tasks>
+    </step>
+
+    <step id="3.8">
+      <action>Create Quality Metrics Components</action>
+      <source>/Prototypes/BatchManagementPrototype/unified/components/QualityMetricsPanel.tsx</source>
+      <target>/components/features/batches/quality-metrics-panel.tsx</target>
+      <tasks>
+        <task>Create quality metrics display panel</task>
+        <task>Cannabis: Show THC%, CBD%, terpenes, test results</task>
+        <task>Produce: Show Brix, firmness, color, grade</task>
+        <task>Add metric entry dialog</task>
+        <task>Display metric history with trend indicators</task>
+        <task>Add chart visualization for metrics over time</task>
+      </tasks>
+    </step>
+
+    <step id="3.9">
+      <action>Create Batch Dashboard Pages</action>
+      <location>/app/dashboard/batches/</location>
+      <tasks>
+        <task>Create page.tsx - main batch list with RBAC check</task>
+        <task>Create [id]/page.tsx - batch detail page</task>
+        <task>Create new/page.tsx - create batch wizard</task>
+        <task>Create active/page.tsx - active batches view</task>
+        <task>Create planning/page.tsx - batch planning view</task>
+        <task>Create harvest/page.tsx - harvest queue</task>
+      </tasks>
+      <pattern>Follow /app/dashboard/inventory/page.tsx pattern</pattern>
+    </step>
+
+    <step id="3.10">
+      <action>Update Navigation</action>
+      <location>/components/dashboard/sidebar.tsx</location>
+      <tasks>
+        <task>Batch Management section already exists in sidebar</task>
+        <task>Verify permission checks (batch:view)</task>
+        <task>Ensure Active Batches, Planning, Harvest Queue routes work</task>
+        <task>Add badge counts (active batches, harvest ready)</task>
+      </tasks>
+      <note>Navigation already configured - just verify functionality</note>
+    </step>
+  </frontend-integration>
+
+  <integration-with-modules>
+    <step id="4.1" checkpoint="true">
+      <action>Integrate with Inventory Module</action>
+      <tasks>
+        <task>Link batch creation to inventory consumption (seeds, clones)</task>
+        <task>Link harvest to inventory addition (harvested product)</task>
+        <task>Track nutrient/chemical usage per batch</task>
+        <task>Add batch_id field to inventory_movements table</task>
+        <task>Create getBatchInventoryUsage(batchId) query</task>
+        <task>Display inventory usage in batch detail view</task>
+      </tasks>
+    </step>
+
+    <step id="4.2">
+      <action>Integrate with Recipe Module</action>
+      <tasks>
+        <task>Link batches to active recipes via recipe_activations</task>
+        <task>Display active recipe in batch detail view</task>
+        <task>Show environmental targets vs. actuals</task>
+        <task>Add "Apply Recipe" button in batch detail</task>
+        <task>Trigger recipe activation when batch assigned to pod</task>
+      </tasks>
+    </step>
+
+    <step id="4.3">
+      <action>Integrate with Monitoring Module</action>
+      <tasks>
+        <task>Display batch information in pod detail view</task>
+        <task>Show batch environmental adherence metrics</task>
+        <task>Link batch stage to alarm thresholds</task>
+        <task>Add batch timeline to monitoring dashboard</task>
+        <task>Create batch health score based on environmental data</task>
+      </tasks>
+    </step>
+
+    <step id="4.4">
+      <action>Prepare for Future Task Integration</action>
+      <tasks>
+        <task>Add batch_id foreign key to future tasks table</task>
+        <task>Document task generation triggers (stage transitions)</task>
+        <task>Prepare SOP linking for harvest workflows</task>
+      </tasks>
+    </step>
+  </integration-with-modules>
+
+  <testing-phase>
+    <step id="5.1" checkpoint="true">
+      <action>Unit Testing</action>
+      <tasks>
+        <task>Test all batch query functions</task>
+        <task>Test cultivar query functions</task>
+        <task>Test validation utilities</task>
+        <task>Test RBAC permissions for batches</task>
+        <task>Test domain-specific logic</task>
+        <task>Test type guards and discriminated unions</task>
+      </tasks>
+      <command>npm test -- --coverage</command>
+      <validation>
+        <check>Maintain 94.8%+ pass rate</check>
+        <check>All new code has tests</check>
+      </validation>
+    </step>
+
+    <step id="5.2">
+      <action>Integration Testing</action>
+      <tasks>
+        <task>Test batch creation workflow end-to-end</task>
+        <task>Test stage transition workflow</task>
+        <task>Test harvest workflow</task>
+        <task>Test quarantine/release workflow</task>
+        <task>Test cultivar management</task>
+        <task>Test batch-recipe linking</task>
+        <task>Test batch-inventory integration</task>
+        <task>Test multi-region data sync</task>
+      </tasks>
+    </step>
+
+    <step id="5.3">
+      <action>E2E Testing Scenarios</action>
+      <dev-mode>NEXT_PUBLIC_DEV_MODE=true</dev-mode>
+      <scenarios>
+        <scenario>Cannabis: Create clone batch → Assign to pod → Apply recipe → Transition through stages → Harvest → Track to packaging</scenario>
+        <scenario>Produce: Create seed batch → Transplant → Grow → Grade quality → Harvest → Post-harvest processing</scenario>
+        <scenario>Quarantine batch → Add quality metric → Release from quarantine</scenario>
+        <scenario>View batch genealogy tree with multiple generations</scenario>
+        <scenario>Test RBAC: Operator vs Head Grower vs Compliance QA permissions</scenario>
+      </scenarios>
+    </step>
+  </testing-phase>
+
+  <documentation-phase>
+    <step id="6.1" checkpoint="true">
+      <action>Update Feature Documentation</action>
+      <tasks>
+        <task>Create /docs/current/feature-batch-management.md</task>
+        <task>Create /docs/current/feature-cultivar-management.md</task>
+        <task>Update /docs/current/index.md with new features</task>
+        <task>Update /docs/roadmap/planning-progress/feature-roadmap.md</task>
+      </tasks>
+      <content>
+        - Feature overview and capabilities
+        - User workflows for cannabis vs produce
+        - API documentation
+        - Database schema
+        - Integration points with other modules
+        - RBAC permissions matrix
+      </content>
+    </step>
+
+    <step id="6.2">
+      <action>Create User Guides</action>
+      <location>/docs/guides/</location>
+      <tasks>
+        <task>Batch creation guide (cannabis and produce)</task>
+        <task>Stage transition guide</task>
+        <task>Harvest workflow guide</task>
+        <task>Cultivar management guide</task>
+        <task>Quality tracking guide</task>
+        <task>Troubleshooting guide</task>
+      </tasks>
+    </step>
+
+    <step id="6.3">
+      <action>Update Integration Checklist</action>
+      <location>/docs/roadmap/integration-deployment/integration-checklist.md</location>
+      <tasks>
+        <task>Mark Batch Management as complete</task>
+        <task>Document lessons learned</task>
+        <task>Update next steps for Phase 14 (Compliance)</task>
+      </tasks>
+    </step>
+  </documentation-phase>
+
+  <deployment-preparation>
+    <step id="7.1" checkpoint="true">
+      <action>Build Verification</action>
+      <commands>
+        <command>npm run build</command>
+        <command>npm run lint</command>
+        <command>npm test</command>
+      </commands>
+      <validation>
+        <check>No build errors</check>
+        <check>No lint errors</check>
+        <check>All tests pass</check>
+      </validation>
+    </step>
+
+    <step id="7.2">
+      <action>Staging Deployment</action>
+      <mcp-action>
+        <server>vercel</server>
+        <command>Deploy to staging environment</command>
+      </mcp-action>
+      <tasks>
+        <task>Deploy to Vercel staging</task>
+        <task>Verify both US and Canada regions work</task>
+        <task>Test with real user accounts</task>
+        <task>Verify batch workflows with multiple roles</task>
+      </tasks>
+    </step>
+
+    <step id="7.3">
+      <action>Final Validation</action>
+      <checklist>
+        <item>All prototype features integrated</item>
+        <item>Domain switching works (cannabis/produce)</item>
+        <item>Inventory integration functional</item>
+        <item>Recipe integration functional</item>
+        <item>Monitoring integration functional</item>
+        <item>RBAC permissions enforced</item>
+        <item>Jurisdiction compliance verified</item>
+        <item>Seed data populated</item>
+        <item>Documentation complete</item>
+        <item>Tests maintain 94.8%+ pass rate</item>
+      </checklist>
+    </step>
+  </deployment-preparation>
+
+  <progress-tracking>
+    <checkpoints>
+      <checkpoint id="0.1" name="Research Complete" />
+      <checkpoint id="1.1" name="Database Enhanced" />
+      <checkpoint id="2.1" name="Backend Complete" />
+      <checkpoint id="3.1" name="Frontend Started" />
+      <checkpoint id="3.5" name="Core Components Done" />
+      <checkpoint id="4.1" name="Module Integration Complete" />
+      <checkpoint id="5.1" name="Testing Complete" />
+      <checkpoint id="6.1" name="Documentation Complete" />
+      <checkpoint id="7.1" name="Ready for Production" />
+    </checkpoints>
+    
+    <documentation-trail>
+      <doc>/docs/roadmap/integration-deployment/batch-prototype-analysis.md</doc>
+      <doc>/docs/roadmap/integration-deployment/batch-schema-mapping.md</doc>
+      <doc>/docs/roadmap/planning-progress/feature-roadmap.md</doc>
+      <doc>/docs/current/feature-batch-management.md</doc>
+      <doc>/docs/current/feature-cultivar-management.md</doc>
+    </documentation-trail>
+
+    <validation-gates>
+      <gate after="1.1">Database schema verified in both regions</gate>
+      <gate after="2.1">All backend functions tested</gate>
+      <gate after="3.5">Core UI components integrated and functional</gate>
+      <gate after="4.1">Cross-module integration verified</gate>
+      <gate after="5.1">Test coverage maintained above 94.8%</gate>
+      <gate after="7.1">Build successful, ready for deployment</gate>
+    </validation-gates>
+  </progress-tracking>
+
+  <agent-instructions>
+    <critical-notes>
+      <note>The unified prototype has excellent architecture but incomplete implementation (see INTEGRATION_READINESS_AUDIT.md)</note>
+      <note>Database schema already exists - ENHANCE, don't recreate</note>
+      <note>Use discriminated union types (domainType field) for cannabis/produce</note>
+      <note>Always check existing documentation before starting each step</note>
+      <note>Use MCP servers to verify database changes in both regions</note>
+      <note>Reference AGENT_INSTRUCTIONS.md in prototype for detailed patterns</note>
+      <note>Maintain existing code patterns and quality standards</note>
+      <note>Update documentation after each checkpoint</note>
+      <note>Ask for clarification if any assumption needs validation</note>
+    </critical-notes>
+
+    <prototype-gaps-to-address>
+      <gap priority="high">No data initialization - implement seed data loading</gap>
+      <gap priority="medium">Modal integration incomplete - wire up handleOpenComponent()</gap>
+      <gap priority="medium">Batch detail view missing - create comprehensive detail page</gap>
+      <gap priority="medium">Validation displays but doesn't enforce - add form blocking</gap>
+      <gap priority="low">Testing workflow placeholders - implement real cannabis testing integration</gap>
+    </prototype-gaps-to-address>
+
+    <architectural-principles>
+      <principle>Domain-aware architecture: Single codebase, dual domain support</principle>
+      <principle>Type safety: Discriminated unions + type guards</principle>
+      <principle>Service layer: Clean interfaces for future API integration</principle>
+      <principle>No duplication: Use configuration over separate implementations</principle>
+      <principle>RBAC-first: Permission checks at every action</principle>
+      <principle>Audit trail: Log all batch lifecycle events</principle>
+    </architectural-principles>
+  </agent-instructions>
+</integration-plan>

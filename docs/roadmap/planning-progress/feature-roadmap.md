@@ -225,40 +225,137 @@ Dashboard Auto-Refresh (30s)
 
 ---
 
-## Phase 13: Batch Management ⏳ NOT STARTED (3-4 weeks)
+## Phase 13: Batch Management 🔄 PHASE 0 COMPLETE (Research)
 
-**Dependencies:** Inventory (for material consumption) ✅ DONE
+**Status:** Pre-Integration Research Complete (Nov 13, 2025)  
+**Dependencies:** Inventory ✅ | Monitoring ✅ | Recipe 🔄  
+**Timeline:** 2-3 weeks (Phase 1-7)  
+**Documentation:** [Prototype Analysis](../integration-deployment/batch-prototype-analysis.md) | [Schema Mapping](../integration-deployment/batch-schema-mapping.md)
 
-### Deliverables
+### Phase 0: Pre-Integration Research ✅ COMPLETE
+**Completed:** November 13, 2025 (Steps 0.1-0.2)
 
-1. **Plant Lifecycle Tracking**
-   - Stage transitions
-   - Growth monitoring
+**Deliverables:**
+- ✅ Comprehensive prototype analysis (32 components, 3 services, 970 lines documentation)
+- ✅ Platform schema review (5 existing tables, 3 new tables, 4 database functions)
+- ✅ Component reusability assessment (16 ready, 10 adapt, 6 build new)
+- ✅ Integration gaps identified (3 high, 3 medium, 3 low priority)
+- ✅ Migration strategy defined (4-part migration, 7-10 hours)
+- ✅ Alignment with [7-Phase Integration Pattern](../integration-deployment/integration-patterns.md)
 
-2. **Batch Genealogy**
-   - Parent-child relationships
-   - Cultivar lineage tracking
+### Remaining Phases (1-7) ⏳ NOT STARTED
 
-3. **Stage Transitions**
-   - Automated workflows
-   - Validation rules
+**Phase 1: Database Enhancement (1-2 days)**
+- Add domain_type field (discriminator for cannabis/produce)
+- Create 3 new tables: batch_genealogy, batch_quality_metrics, harvest_records
+- Add cannabis fields: lighting_schedule, THC/CBD content, drying/curing dates
+- Add produce fields: grade, ripeness, brix, certifications
+- Create 8 database functions for workflows
+- Deploy to US & Canada regions
 
-4. **Harvest Workflow**
-   - SOP-002 implementation
-   - Yield tracking
+**Phase 2: Backend Implementation (2-3 days)**
+- Create `/types/batch.ts` with discriminated unions (~400 lines)
+- Create `/lib/supabase/queries/batches.ts` with 20+ query functions (~800 lines)
+- Create `/lib/utils/batch-validation.ts` for domain-specific rules
+- Update RBAC permissions (8 new batch permissions)
 
-5. **Plant Tagging System**
-   - SOP-001 for Metrc states
-   - Barcode/QR code generation
+**Phase 3: Frontend Integration (3-4 days)**
+- Adapt 10 components from prototype (~2,500 lines)
+- Build 6 new components (including critical BatchDetailView)
+- Use shadcn/ui components (all available)
+- Add RBAC with `usePermissions()`
+- Add jurisdiction awareness with `useJurisdiction()`
 
-6. **Waste Disposal**
-   - Shared with inventory
-   - Jurisdiction-aware forms
+**Phase 4: Module Integration (1-2 days)**
+- Link to Inventory (seed consumption → harvest addition)
+- Link to Recipe (activation triggers)
+- Link to Monitoring (environmental adherence scoring)
 
-7. **Database Tables**
-   - `batches`, `plant_tags`, `batch_events` tables usage
+**Phase 5-7: Testing, Documentation, Deployment (3-4 days)**
+- Unit tests (95%+ coverage, maintain 94.8% pass rate)
+- Integration tests for workflows
+- E2E scenarios (cannabis + produce)
+- Update documentation
+- Deploy to production
 
-**Reference:** `/Prototypes/BatchManagementPrototype/`
+### Core Features
+
+1. **Dual-Domain Support** (Cannabis + Produce)
+   - Single codebase with discriminated union types
+   - Domain-specific workflows and validations
+   - Jurisdiction-aware compliance rules
+
+2. **Batch Lifecycle Tracking**
+   - Cannabis stages: propagation → vegetative → flowering → harvest → drying → curing → testing → packaging
+   - Produce stages: seeding → transplant → growing → harvest → washing → grading → packaging → storage
+   - Stage transition validation and audit trail
+
+3. **Batch Genealogy**
+   - Parent-child relationships (clones, splits, merges)
+   - Multi-generation tracking
+   - Cultivar lineage for genetics research
+
+4. **Quality Management**
+   - Cannabis: THC%, CBD%, terpenes, moisture, density
+   - Produce: Brix, firmness, color, grade, ripeness
+   - Historical trending and performance analytics
+
+5. **Harvest Workflows**
+   - Step-by-step harvest wizard
+   - Wet/dry weight tracking (cannabis)
+   - Waste recording by reason
+   - Automatic inventory integration
+
+6. **Cultivar Management**
+   - Cannabis: Strain type, genetics, cannabinoid ranges
+   - Produce: Category, flavor profile, storage life
+   - Optimal growing conditions
+
+7. **Compliance Integration**
+   - METRC plant tagging (Oregon/Maryland)
+   - Batch number generation
+   - Audit trail via batch_events table
+
+### Database Schema
+
+**New Tables:**
+- `batch_genealogy` - Parent-child relationships
+- `batch_quality_metrics` - Quality measurements over time
+- `harvest_records` - Detailed harvest tracking
+
+**Enhanced Tables:**
+- `batches` - Add domain_type + cannabis/produce fields
+- `cultivars` - Add produce category + optimal conditions
+
+**Database Functions:**
+- `transition_batch_stage()` - Validate and log stage changes
+- `quarantine_batch()` / `release_from_quarantine()`
+- `record_harvest()` - Harvest workflow with inventory integration
+- `get_batch_genealogy()` - Recursive ancestry tree
+
+### Prototype Components (32 total)
+
+**Ready for Integration (16):**
+- CultivarManagement, CultivarSelector, StageProgressBar
+- StageHistoryTimeline, QualityMetricsPanel, DomainFieldRenderer
+- WasteTracking, LocationTransfer, QuarantineManagement
+- GradingSystem, RipenessTracking, HarvestWindowPredictions
+- (See [Prototype Analysis](../integration-deployment/batch-prototype-analysis.md) for full list)
+
+**Need Adaptation (10):**
+- BatchManagement (replace localStorage, add RBAC)
+- BatchModal (use shadcn Form + zod)
+- BatchTable (use shadcn Table)
+- StageTransitionModal, CannabisWorkflowManager, ProduceWorkflowManager
+- (Full list in documentation)
+
+**Build New (6):**
+- **BatchDetailView** - Critical gap identified in audit
+- BatchDashboard, HarvestWorkflow
+- BatchSplitting, BatchMerging (refactor for production)
+- CannabisTestingIntegration (future Phase 15)
+
+**Reference:** `/Prototypes/BatchManagementPrototype/unified/`
 
 ---
 

@@ -158,12 +158,6 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/recipes',
           icon: <Beaker className="h-4 w-4" />,
           permission: 'control:view'
-        },
-        {
-          title: 'Schedules',
-          href: '/dashboard/environmental/schedules',
-          icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'control:view'
         }
       ]
     },

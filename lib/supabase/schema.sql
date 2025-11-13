@@ -248,85 +248,6 @@ CREATE TABLE plant_tags (
   created_by UUID NOT NULL REFERENCES users(id)
 );
 
--- Batch groups (for organizing batches)
-CREATE TABLE batch_groups (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  created_by UUID REFERENCES users(id)
-);
-
--- Growing areas (rooms/locations for batch cultivation)
-CREATE TABLE growing_areas (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('greenhouse', 'indoor', 'field', 'nursery')),
-  capacity INTEGER NOT NULL,
-  current_occupancy INTEGER DEFAULT 0,
-  location TEXT,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Batch stage history (audit trail for stage transitions)
-CREATE TABLE batch_stage_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  batch_id UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
-  stage TEXT NOT NULL,
-  started_at TIMESTAMPTZ NOT NULL,
-  ended_at TIMESTAMPTZ,
-  transitioned_by UUID REFERENCES users(id),
-  notes TEXT
-);
-
--- Harvest records (tracking harvest events)
-CREATE TABLE harvest_records (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  batch_id UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  wet_weight DECIMAL(10, 2) NOT NULL,
-  plant_count INTEGER NOT NULL,
-  harvested_at TIMESTAMPTZ NOT NULL,
-  harvested_by UUID REFERENCES users(id),
-  location TEXT,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Plant count snapshots (tracking plant counts at specific points in time)
-CREATE TABLE plant_count_snapshots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  batch_id UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
-  plant_count INTEGER NOT NULL,
-  stage TEXT NOT NULL,
-  counted_at TIMESTAMPTZ NOT NULL,
-  counted_by UUID REFERENCES users(id),
-  notes TEXT
-);
-
--- Post-harvest processing records (drying, curing, packaging)
-CREATE TABLE post_harvest_records (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  batch_id UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  process_type TEXT NOT NULL CHECK (process_type IN ('drying', 'curing', 'packaging')),
-  start_weight DECIMAL(10, 2),
-  end_weight DECIMAL(10, 2),
-  started_at TIMESTAMPTZ NOT NULL,
-  completed_at TIMESTAMPTZ,
-  location TEXT,
-  performed_by UUID REFERENCES users(id),
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
 -- =====================================================
 -- INVENTORY MANAGEMENT
 -- =====================================================
@@ -941,16 +862,6 @@ CREATE INDEX idx_user_permissions_user ON user_permissions(user_id);
 CREATE INDEX idx_batches_org_site ON batches(organization_id, site_id, stage);
 CREATE INDEX idx_batches_status ON batches(status);
 CREATE INDEX idx_batch_events_batch ON batch_events(batch_id, timestamp DESC);
-CREATE INDEX idx_batch_groups_org_site ON batch_groups(organization_id, site_id) WHERE is_active = TRUE;
-CREATE INDEX idx_growing_areas_org_site ON growing_areas(organization_id, site_id) WHERE is_active = TRUE;
-CREATE INDEX idx_batch_stage_history_batch ON batch_stage_history(batch_id, started_at DESC);
-CREATE INDEX idx_harvest_records_batch ON harvest_records(batch_id, harvested_at DESC);
-CREATE INDEX idx_plant_count_snapshots_batch ON plant_count_snapshots(batch_id, counted_at DESC);
-CREATE INDEX idx_waste_logs_org_site ON waste_logs(organization_id, site_id, status);
-CREATE INDEX idx_waste_logs_status_pending ON waste_logs(status) WHERE status = 'pending_approval';
-CREATE INDEX idx_waste_logs_batch ON waste_logs(batch_id) WHERE batch_id IS NOT NULL;
-CREATE INDEX idx_post_harvest_records_batch ON post_harvest_records(batch_id, process_type);
-CREATE INDEX idx_plant_tags_batch ON plant_tags(batch_id, plant_state);
 
 -- Inventory indexes
 CREATE INDEX idx_inventory_org_site ON inventory_items(organization_id, site_id, item_type);
@@ -1306,9 +1217,6 @@ CREATE TRIGGER update_cultivars_updated_at BEFORE UPDATE ON cultivars
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_batches_updated_at BEFORE UPDATE ON batches
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_growing_areas_updated_at BEFORE UPDATE ON growing_areas
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_inventory_items_updated_at BEFORE UPDATE ON inventory_items

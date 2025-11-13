@@ -16,7 +16,9 @@ import {
   Sun,
   Moon,
   Activity,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -29,7 +31,18 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { AssignRecipeDialog } from './assign-recipe-dialog'
 import { createClient } from '@/lib/supabase/client'
-import { publishRecipe } from '@/app/actions/recipes'
+import { publishRecipe, deprecateRecipe, undeprecateRecipe } from '@/app/actions/recipes'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // Format date in local timezone for display
 const formatDate = (dateString: string): string => {
@@ -72,6 +85,9 @@ export function RecipeViewer({
   const [creatorName, setCreatorName] = useState<string>('')
   const [userNames, setUserNames] = useState<Record<string, string>>({})
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isDeprecating, setIsDeprecating] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [showDeprecateConfirm, setShowDeprecateConfirm] = useState(false)
 
   // Fetch user and organization info for assignment
   useEffect(() => {
@@ -240,6 +256,74 @@ export function RecipeViewer({
     }
   }
 
+  const handleDeprecateClick = () => {
+    // For applied recipes, show confirmation dialog
+    if (recipe.status.toLowerCase() === 'applied') {
+      setShowDeprecateConfirm(true)
+    } else {
+      handleDeprecate()
+    }
+  }
+
+  const handleDeprecate = async () => {
+    if (!userId) {
+      toast.error('User not authenticated')
+      return
+    }
+
+    setShowDeprecateConfirm(false)
+    setIsDeprecating(true)
+    try {
+      const { data, activeCount, error } = await deprecateRecipe(recipe.id, userId)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      if (activeCount && activeCount > 0) {
+        toast.success(
+          `Recipe deprecated. ${activeCount} active application${activeCount > 1 ? 's' : ''} will continue running.`,
+          { duration: 5000 }
+        )
+      } else {
+        toast.success('Recipe marked as deprecated')
+      }
+      
+      router.refresh()
+    } catch (error) {
+      console.error('Deprecate error:', error)
+      toast.error('Failed to deprecate recipe')
+    } finally {
+      setIsDeprecating(false)
+    }
+  }
+
+  const handleUndeprecate = async () => {
+    if (!userId) {
+      toast.error('User not authenticated')
+      return
+    }
+
+    setIsRestoring(true)
+    try {
+      const { data, error } = await undeprecateRecipe(recipe.id, userId)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      toast.success('Recipe restored successfully')
+      router.refresh()
+    } catch (error) {
+      console.error('Restore error:', error)
+      toast.error('Failed to restore recipe')
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'published': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300'
@@ -281,6 +365,18 @@ export function RecipeViewer({
               {isPublishing ? 'Publishing...' : 'Publish'}
             </Button>
           )}
+          {recipe.status.toLowerCase() === 'deprecated' && canEdit && (
+            <Button onClick={handleUndeprecate} disabled={isRestoring} variant="default">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {isRestoring ? 'Restoring...' : 'Restore Recipe'}
+            </Button>
+          )}
+          {(recipe.status.toLowerCase() === 'published' || recipe.status.toLowerCase() === 'applied') && canEdit && (
+            <Button onClick={handleDeprecateClick} disabled={isDeprecating} variant="destructive">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              {isDeprecating ? 'Deprecating...' : 'Deprecate'}
+            </Button>
+          )}
           {canClone && (
             <Button variant="outline" onClick={handleClone}>
               <Copy className="w-4 h-4 mr-2" />
@@ -293,7 +389,9 @@ export function RecipeViewer({
               Edit
             </Button>
           )}
-          {canApply && recipe.status.toLowerCase() === 'published' && (
+          {canApply && 
+           (recipe.status.toLowerCase() === 'published' || recipe.status.toLowerCase() === 'applied') && 
+           recipe.status.toLowerCase() !== 'deprecated' && (
             <Button onClick={() => setAssignDialogOpen(true)}>
               <Calendar className="w-4 h-4 mr-2" />
               Assign Recipe
@@ -301,6 +399,57 @@ export function RecipeViewer({
           )}
         </div>
       </div>
+
+      {/* Deprecated Warning Banner */}
+      {recipe.status.toLowerCase() === 'deprecated' && (
+        <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+          <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <AlertTitle className="text-orange-800 dark:text-orange-300">Recipe Deprecated</AlertTitle>
+          <AlertDescription className="text-orange-700 dark:text-orange-400">
+            This recipe is deprecated and not recommended for new applications. 
+            Existing activations will continue to run normally.
+            {recipe.deprecated_at && (
+              <span className="block mt-1 text-sm">
+                Deprecated on {formatDate(recipe.deprecated_at)}
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Deprecate Confirmation Dialog */}
+      <AlertDialog open={showDeprecateConfirm} onOpenChange={setShowDeprecateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deprecate Active Recipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This recipe is currently applied and running on one or more pods/batches.
+            </AlertDialogDescription>
+            <div className="space-y-3 pt-4">
+              <p className="text-sm">
+                Deprecating will:
+              </p>
+              <ul className="list-disc pl-6 space-y-1 text-sm">
+                <li>Mark the recipe as deprecated (not recommended for new use)</li>
+                <li><strong className="text-emerald-600">Keep existing applications running normally</strong></li>
+                <li>Prevent the recipe from being assigned to new pods/batches</li>
+              </ul>
+              <p className="text-sm text-muted-foreground pt-2">
+                You can restore the recipe later if needed.
+              </p>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeprecate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deprecate Recipe
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Assign Recipe Dialog */}
       {canApply && currentVersion && (

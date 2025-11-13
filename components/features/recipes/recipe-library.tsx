@@ -69,7 +69,14 @@ export function RecipeLibrary({
       recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesSearch
+    
+    const matchesStatus = filterStatus === 'all' || recipe.status === filterStatus
+    
+    const matchesPlantType = 
+      filterPlantType === 'all' || 
+      (recipe.plant_types && recipe.plant_types.includes(filterPlantType))
+    
+    return matchesSearch && matchesStatus && matchesPlantType
   })
 
   const getStatusColor = (status: string) => {

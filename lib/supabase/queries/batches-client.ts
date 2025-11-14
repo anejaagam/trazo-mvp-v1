@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Client-Side Batch Database Queries
  *
@@ -117,12 +119,14 @@ export async function getBatches(
       includeDomainFilter: boolean
       includeRoomJoin: boolean
       includePodNotes: boolean
+      includePodAssignments: boolean
     }
 
     const defaultOptions: BatchQueryOptions = {
       includeDomainFilter: true,
       includeRoomJoin: true,
       includePodNotes: true,
+      includePodAssignments: true,
     }
 
     const runQuery = (options: BatchQueryOptions) => {
@@ -219,6 +223,16 @@ export async function getBatches(
         message:
           'batch_pod_assignments.notes column missing - rerunning without pod notes. Apply the batch domain enhancement migration to store notes on assignments.',
       },
+      {
+        test: (error: unknown) =>
+          supabaseErrorIncludes(error, 'batch_pod_assignments') || supabaseErrorIncludes(error, 'pods'),
+        adjust: (options: BatchQueryOptions) => ({
+          ...options,
+          includePodAssignments: false,
+        }),
+        message:
+          'batch_pod_assignments or pods table missing - rerunning without pod assignment joins. Apply the batch management migrations to enable pod context.',
+      },
     ]
 
     let options = defaultOptions
@@ -242,7 +256,7 @@ export async function getBatches(
 
     throw attemptError
   } catch (error) {
-    console.error('Error in getBatches:', error)
+      logSupabaseError('Error in getBatches:', error)
     return { data: null, error }
   }
 }
@@ -262,7 +276,7 @@ export async function getBatchById(id: string) {
     if (error) throw error
     return { data: data as DomainBatch, error: null }
   } catch (error) {
-    console.error('Error in getBatchById:', error)
+     logSupabaseError('Error in getBatchById:', error)
     return { data: null, error }
   }
 }
@@ -279,7 +293,7 @@ export async function createBatch(batchData: InsertBatch) {
     if (error) throw error
     return { data: data as DomainBatch, error: null }
   } catch (error) {
-    console.error('Error in createBatch:', error)
+     logSupabaseError('Error in createBatch:', error)
     return { data: null, error }
   }
 }
@@ -300,7 +314,7 @@ export async function updateBatch(id: string, updates: UpdateBatch) {
     if (error) throw error
     return { data: data as DomainBatch, error: null }
   } catch (error) {
-    console.error('Error in updateBatch:', error)
+     logSupabaseError('Error in updateBatch:', error)
     return { data: null, error }
   }
 }
@@ -319,7 +333,7 @@ export async function deleteBatch(id: string) {
     if (error) throw error
     return { error: null }
   } catch (error) {
-    console.error('Error in deleteBatch:', error)
+     logSupabaseError('Error in deleteBatch:', error)
     return { error }
   }
 }
@@ -346,7 +360,7 @@ export async function transitionBatchStage(
     if (error) throw error
     return getBatchById(batchId)
   } catch (error) {
-    console.error('Error transitioning batch stage:', error)
+     logSupabaseError('Error transitioning batch stage:', error)
     return { data: null, error }
   }
 }
@@ -367,7 +381,7 @@ export async function quarantineBatch(
     if (error) throw error
     return getBatchById(batchId)
   } catch (error) {
-    console.error('Error quarantining batch:', error)
+     logSupabaseError('Error quarantining batch:', error)
     return { data: null, error }
   }
 }
@@ -388,7 +402,7 @@ export async function releaseFromQuarantine(
     if (error) throw error
     return getBatchById(batchId)
   } catch (error) {
-    console.error('Error releasing batch from quarantine:', error)
+     logSupabaseError('Error releasing batch from quarantine:', error)
     return { data: null, error }
   }
 }
@@ -423,7 +437,7 @@ export async function recordHarvest(
     if (error) throw error
     return getBatchById(batchId)
   } catch (error) {
-    console.error('Error recording harvest:', error)
+     logSupabaseError('Error recording harvest:', error)
     return { data: null, error }
   }
 }
@@ -456,7 +470,7 @@ export async function assignBatchToPod(
     }
     return { error: null }
   } catch (error) {
-    console.error('Error assigning batch to pod:', error)
+     logSupabaseError('Error assigning batch to pod:', error)
     return { error }
   }
 }
@@ -491,7 +505,7 @@ export async function addQualityMetric(
     if (error) throw error
     return { data, error: null }
   } catch (error) {
-    console.error('Error creating quality metric:', error)
+     logSupabaseError('Error creating quality metric:', error)
     return { data: null, error }
   }
 }
@@ -543,7 +557,7 @@ export async function getActiveBatchesForPod(
 
     return { data: summaries, error: null }
   } catch (error) {
-    console.error('Error fetching pod batches:', error)
+     logSupabaseError('Error fetching pod batches:', error)
     return { data: null, error }
   }
 }
@@ -560,7 +574,7 @@ export async function getBatchStageHistorySummary(batchId: string) {
     if (error) throw error
     return { data: (data || []) as BatchStageHistory[], error: null }
   } catch (error) {
-    console.error('Failed to load stage history', error)
+     logSupabaseError('Failed to load stage history', error)
     return { data: null, error }
   }
 }
@@ -663,7 +677,7 @@ export async function getBatchDetail(batchId: string): Promise<{
 
     return { data: batch, error: null }
   } catch (error) {
-    console.error('Error in getBatchDetail:', error)
+     logSupabaseError('Error in getBatchDetail:', error)
     return { data: null, error }
   }
 }
@@ -802,6 +816,26 @@ async function fetchTelemetrySnapshots(batch: BatchListItem) {
   }
 }
 
+function logSupabaseError(context: string, error: unknown) {
+  if (!error || typeof error !== 'object') {
+    console.error(context, error)
+    return
+  }
+
+  const err = error as Record<string, unknown>
+  const payload: Record<string, unknown> = {}
+  const keys: Array<keyof typeof err> = ['message', 'details', 'hint', 'code', 'status']
+
+  keys.forEach((key) => {
+    const value = err[key]
+    if (value !== undefined && value !== null && value !== '') {
+      payload[key as string] = value
+    }
+  })
+
+  console.error(context, Object.keys(payload).length ? payload : err)
+}
+
 function supabaseErrorIncludes(error: unknown, search: string): boolean {
   const haystack = getSupabaseErrorText(error)
   if (!haystack) return false
@@ -902,25 +936,23 @@ async function fetchBatchInventoryUsage(batchId: string): Promise<BatchInventory
   }
 }
 
-function buildBatchSelect(options: { includeRoomJoin: boolean; includePodNotes: boolean }) {
-  const podAssignmentFields = [
-    'id',
-    'batch_id',
-    'pod_id',
-    'plant_count',
-    'assigned_at',
-    'removed_at',
-  ]
-  if (options.includePodNotes) {
-    podAssignmentFields.push('notes')
-  }
-  podAssignmentFields.push(`pod:pods(${buildPodSelect(options.includeRoomJoin)})`)
+function buildBatchSelect(options: {
+  includeRoomJoin: boolean
+  includePodNotes: boolean
+  includePodAssignments: boolean
+}) {
+  const fields = ['*', 'cultivar:cultivars(id, name, common_name, strain_type)']
 
-  return `
-    *,
-    cultivar:cultivars(id, name, common_name, strain_type),
-    pod_assignments:batch_pod_assignments(${podAssignmentFields.join(', ')})
-  `
+  if (options.includePodAssignments) {
+    const podAssignmentFields = ['id', 'batch_id', 'pod_id', 'plant_count', 'assigned_at', 'removed_at']
+    if (options.includePodNotes) {
+      podAssignmentFields.push('notes')
+    }
+    podAssignmentFields.push(`pod:pods(${buildPodSelect(options.includeRoomJoin)})`)
+    fields.push(`pod_assignments:batch_pod_assignments(${podAssignmentFields.join(', ')})`)
+  }
+
+  return fields.join(',\n')
 }
 
 function buildPodSelect(includeRoomJoin: boolean) {

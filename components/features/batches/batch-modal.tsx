@@ -255,7 +255,7 @@ export function BatchForm({
     }
   }, [selectedPropagationItemId, form])
 
-  const minPlantCount = jurisdiction?.rules.batch.min_plant_count ?? 0
+  const minPlantCount = jurisdiction?.rules?.batch?.min_plant_count ?? 0
 
   const onSubmit = async (values: FormValues) => {
     if (minPlantCount && values.plantCount < minPlantCount) {

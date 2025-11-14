@@ -100,7 +100,7 @@ export function jurisdictionSupports(
  */
 export function getWasteReasons(jurisdictionId: JurisdictionId): string[] {
   const jurisdiction = getJurisdictionConfig(jurisdictionId)
-  return jurisdiction?.rules.waste.allowed_reasons || []
+  return jurisdiction?.rules?.waste?.allowed_reasons || []
 }
 
 /**
@@ -108,7 +108,7 @@ export function getWasteReasons(jurisdictionId: JurisdictionId): string[] {
  */
 export function getDisposalMethods(jurisdictionId: JurisdictionId): string[] {
   const jurisdiction = getJurisdictionConfig(jurisdictionId)
-  return jurisdiction?.rules.waste.disposal_methods || []
+  return jurisdiction?.rules?.waste?.disposal_methods || []
 }
 
 /**
@@ -116,7 +116,7 @@ export function getDisposalMethods(jurisdictionId: JurisdictionId): string[] {
  */
 export function getAllowedBatchStages(jurisdictionId: JurisdictionId): string[] {
   const jurisdiction = getJurisdictionConfig(jurisdictionId)
-  return jurisdiction?.rules.batch.allowed_stages || []
+  return jurisdiction?.rules?.batch?.allowed_stages || []
 }
 
 /**
@@ -147,7 +147,7 @@ export function isBatchStageTransitionAllowed(
  */
 export function getComplianceReportTypes(jurisdictionId: JurisdictionId): string[] {
   const jurisdiction = getJurisdictionConfig(jurisdictionId)
-  return jurisdiction?.rules.compliance.report_types || []
+  return jurisdiction?.rules?.compliance?.report_types || []
 }
 
 /**

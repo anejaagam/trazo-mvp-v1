@@ -728,30 +728,30 @@
     </step>
   </seed-data>
 
-  <integration-with-modules status="pending">
-    <step id="4.1" checkpoint="true" status="pending">
+  <integration-with-modules status="in-progress">
+    <step id="4.1" checkpoint="true" status="in-progress">
       <action>Integrate with Inventory Module</action>
       <tasks>
         <task status="pending">Link batch creation to inventory consumption (seeds, clones)</task>
         <task status="pending">Link harvest to inventory addition (harvested product)</task>
         <task status="pending">Track nutrient/chemical usage per batch</task>
-        <task status="pending">Add batch_id field to inventory_movements table</task>
+        <task status="complete">Add batch_id field to inventory_movements table</task>
         <task status="pending">Create getBatchInventoryUsage(batchId) query</task>
         <task status="pending">Display inventory usage in batch detail view</task>
       </tasks>
-      <note>Pending implementation in Phase 4.</note>
+      <note>Only schema prerequisite (batch_id on inventory_movements) is in place; no application wiring yet.</note>
     </step>
 
-    <step id="4.2" status="pending">
+    <step id="4.2" status="in-progress">
       <action>Integrate with Recipe Module</action>
       <tasks>
-        <task status="pending">Link batches to active recipes via recipe_activations</task>
-        <task status="pending">Display active recipe in batch detail view</task>
+        <task status="complete">Link batches to active recipes via recipe_activations</task>
+        <task status="complete">Display active recipe in batch detail view</task>
         <task status="pending">Show environmental targets vs. actuals</task>
         <task status="pending">Add "Apply Recipe" button in batch detail</task>
         <task status="pending">Trigger recipe activation when batch assigned to pod</task>
       </tasks>
-      <note>Pending implementation in Phase 4.</note>
+      <note>Recipe hydration is live (list + detail views), but user actions/telemetry comparisons remain outstanding.</note>
     </step>
 
     <step id="4.3" status="pending">
@@ -766,14 +766,14 @@
       <note>Pending implementation in Phase 4.</note>
     </step>
 
-    <step id="4.4" status="pending">
+    <step id="4.4" status="in-progress">
       <action>Prepare for Future Task Integration</action>
       <tasks>
-        <task status="pending">Add batch_id foreign key to future tasks table</task>
+        <task status="complete">Add batch_id foreign key to future tasks table</task>
         <task status="pending">Document task generation triggers (stage transitions)</task>
         <task status="pending">Prepare SOP linking for harvest workflows</task>
       </tasks>
-      <note>Pending implementation in Phase 4.</note>
+      <note>Schema support exists for task linkage, but documentation and SOP automation work are still pending.</note>
     </step>
   </integration-with-modules>
 

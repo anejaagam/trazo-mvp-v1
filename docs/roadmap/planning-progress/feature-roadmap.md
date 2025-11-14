@@ -13,12 +13,13 @@ This roadmap outlines all planned features for TRAZO MVP, organized by developme
 ## Current Status
 
 - ✅ **Phase 1-8:** Foundation + Identity + Inventory - COMPLETE
-- 🔄 **Phase 10:** Monitoring & Telemetry - 90% complete (device mapping + testing remaining)
-- ⏳ **Phase 11-16:** Recipe Management, Tasks, Batch, Compliance, Alarms, Settings
+- ⏳ **Phase 10:** Monitoring & Telemetry - PENDING LIVE DATA TESTING
+- ⏳ **Phase 11:** Recipe Management - PENDING PRODUCE TESTING
+- ⏳ **Phase 12-16:** Tasks, Batch, Compliance, Alarms, Settings
 
 ---
 
-## Phase 10: Monitoring & Telemetry 🔄 IN PROGRESS (90% Complete)
+## Phase 10: Monitoring & Telemetry ⏳ PENDING LIVE DATA TESTING
 
 **Goal:** Real-time environmental monitoring and historical data visualization
 
@@ -158,38 +159,85 @@ Dashboard Auto-Refresh (30s)
 
 ---
 
-## Phase 11: Recipe Management ⏳ NOT STARTED (2-3 weeks)
+## Phase 11: Recipe Management ⏳ PENDING PRODUCE TESTING
 
-**Dependencies:** Monitoring & Telemetry must be complete first
+**Status:** Pending Produce Account Testing (Build verified: 0 errors, 49 pages generated)
 
-### Deliverables
+### Completed Deliverables ✅
 
-1. **Recipe Management**
-   - Temperature/humidity/CO2 setpoints
-   - Multi-stage configurations
-   - Recipe templates library
+**Database (10 tables, 2 migrations, 28 indexes, 26 RLS policies):**
+- ✅ Recipe management tables with version control
+- ✅ Environmental setpoints (day/night values)
+- ✅ Nutrient formulas and schedules
+- ✅ Recipe activation tracking
+- ✅ Control overrides with precedence system
+- ✅ Batch groups for multi-pod assignments
+- ✅ Complete audit trail (control_logs)
+- ✅ Deployed to US & Canada Supabase regions
 
-2. **Photoperiod Scheduling**
-   - Light cycle automation
-   - Sunrise/sunset simulation
+**Backend (2,163 lines TypeScript):**
+- ✅ `/types/recipe.ts` (480 lines, 40+ interfaces)
+- ✅ `/lib/supabase/queries/recipes.ts` (973 lines, 20+ functions)
+- ✅ `/lib/supabase/queries/environmental-controls.ts` (608 lines, 24+ functions)
+- ✅ `/app/actions/recipes.ts` (9 server actions with RBAC)
+- ✅ Full CRUD operations with versioning
+- ✅ Recipe activation/deactivation
+- ✅ Override precedence resolution
+- ✅ Stage advancement automation
 
-3. **Schedule Builder**
-   - Automated recipe application
-   - Calendar-based planning
+**Frontend Components:**
+- ✅ `recipe-library.tsx` (247 lines) - Browse, search, filter recipes
+- ✅ `recipe-viewer.tsx` (854 lines) - View recipe details with deprecation system
+- ✅ `recipe-author.tsx` (966 lines) - Create/edit recipes with multi-stage builder
+- ✅ `active-recipe-display.tsx` - Show active recipe on monitoring pages
+- ✅ `assign-recipe-dialog.tsx` - Assign recipes to pods/batches
 
-4. **Manual Overrides**
-   - Emergency controls
-   - Maintenance mode
-   - Safety interlocks
+**Pages:**
+- ✅ `/app/dashboard/recipes/page.tsx` - Recipe library with RBAC
+- ✅ `/app/dashboard/recipes/[id]/page.tsx` - Recipe detail view
+- ✅ `/app/dashboard/recipes/[id]/edit/page.tsx` - Recipe editing
+- ✅ `/app/dashboard/recipes/new/page.tsx` - New recipe creation
 
-5. **HVAC Automation Interface**
-   - Equipment control
-   - Conflict detection
+**Features:**
+- ✅ Multi-stage recipe configurations (germination → flowering → curing)
+- ✅ Day/night environmental setpoints (temp, humidity, VPD, CO2, light)
+- ✅ Photoperiod scheduling with auto-calculated light cycles
+- ✅ Nutrient formula management (EC, pH, NPK ratios)
+- ✅ Recipe versioning (immutable version history)
+- ✅ Recipe deprecation with active application tracking
+- ✅ Recipe cloning for template reuse
+- ✅ Status lifecycle: draft → published → applied → deprecated
+- ✅ Monitoring integration (shows target setpoints vs actual)
+- ✅ Automatic status synchronization via database triggers
+- ✅ Plant type support (cannabis, produce)
+- ✅ Jurisdiction compliance tags
 
-6. **Database Tables**
-   - `recipes` and `recipe_applications` tables usage
+**Quality Metrics:**
+- ✅ TypeScript errors: 0 (17 errors fixed Nov 13)
+- ✅ ESLint errors: 0
+- ✅ Build: Passing (49 pages generated)
+- ✅ RBAC: 7 new permissions integrated
+- ✅ RLS: 100% coverage on all tables
 
-**Reference:** `/Prototypes/RecipePrototype/` (formerly EnvironmentalControlsPrototype)
+### Remaining Work ⏳
+
+**Not Yet Implemented:**
+- [ ] Manual overrides UI (backend complete, UI deferred)
+- [ ] HVAC automation interface (device control - deferred to end)
+- [ ] Sidebar navigation menu item
+- [ ] Automated test suite (95%+ coverage target)
+- [ ] Produce plant type testing (blocked by room creation bug)
+
+**Deferred to Final Polish (Phase 17):**
+- Alarm threshold management
+- Advanced analytics
+- Version comparison UI (diff view)
+- TagoIO real device control (currently mocked)
+
+**Reference:** 
+- `/Prototypes/RecipePrototype/` (converted)
+- `/docs/roadmap/planning-progress/phase-11-complete.md` (detailed report)
+- `/docs/current/2-features/feature-recipes.md` (feature documentation)
 
 ---
 
@@ -297,11 +345,13 @@ Dashboard Auto-Refresh (30s)
 
 ---
 
-## Phase 15: Alarms & Notifications ⏳ NOT STARTED (1-2 weeks)
+## Phase 15: Alarms & Notifications ⏳ DEFERRED TO FINAL POLISH
 
-**Dependencies:** Monitoring & Telemetry
+**Dependencies:** Monitoring & Telemetry ✅
 
-### Deliverables
+**Note:** Alarm policy configuration, notification routing, and escalation rules will be implemented at the end when all features are working and can display their real-time information in the alarm system.
+
+### Planned Deliverables (End of Development)
 
 1. **Alarm Policy Configuration**
    - Threshold settings
@@ -361,8 +411,8 @@ Dashboard Auto-Refresh (30s)
 | Phase | Feature | Duration | Status |
 |-------|---------|----------|--------|
 | 1-8 | Foundation + Identity + Inventory | 6 weeks | ✅ Complete |
-| 10 | Monitoring & Telemetry | 3 weeks | 🔄 90% Complete |
-| 11 | Recipe Management | 2-3 weeks | ⏳ Not Started |
+| 10 | Monitoring & Telemetry | 3 weeks | ⏳ Pending Live Testing |
+| 11 | Recipe Management | 2-3 weeks | ⏳ Pending Testing |
 | 12 | Task Management & SOPs | 2 weeks | ⏳ Not Started |
 | 13 | Batch Management | 3-4 weeks | ⏳ Not Started |
 | 14 | Compliance Engine | 3 weeks | ⏳ Not Started |

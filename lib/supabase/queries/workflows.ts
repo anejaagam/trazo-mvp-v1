@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import {
   SOPTemplate,
   Task,
+  TaskEvidence,
   TaskDependency,
   TaskStep,
   CreateTemplateInput,

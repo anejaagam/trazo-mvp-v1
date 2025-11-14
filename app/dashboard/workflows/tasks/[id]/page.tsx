@@ -4,11 +4,10 @@ import { canPerformAction } from '@/lib/rbac/guards';
 import { getTaskById, getTemplateById } from '@/lib/supabase/queries/workflows';
 import { TaskExecutorWrapper } from './task-executor-wrapper';
 
-export default async function TaskExecutionPage({ 
-  params 
-}: { 
-  params: { id: string } 
+export default async function TaskExecutionPage(props: { 
+  params: Promise<{ id: string }>
 }) {
+  const params = await props.params;
   const supabase = await createClient();
   
   // Check authentication

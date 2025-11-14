@@ -32,8 +32,8 @@ export async function getBatches(
       .order('created_at', { ascending: false })
 
     // Apply domain filter
-    if (filters?.domainType) {
-      query = query.eq('domain_type', filters.domainType)
+    if (filters?.domain_type) {
+      query = query.eq('domain_type', filters.domain_type)
     }
 
     // Apply stage filter

@@ -84,6 +84,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/batches/harvest',
           icon: <Package className="h-4 w-4" />,
           permission: 'batch:stage_change'
+        },
+        {
+          title: 'Cultivars',
+          href: '/dashboard/cultivars',
+          icon: <Beaker className="h-4 w-4" />,
+          permission: 'cultivar:view'
         }
       ]
     },

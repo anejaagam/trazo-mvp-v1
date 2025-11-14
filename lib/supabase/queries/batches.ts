@@ -442,18 +442,33 @@ export async function assignBatchToPod(
 ) {
   try {
     const supabase = await createClient()
+    const timestamp = new Date().toISOString()
 
-    const { error } = await supabase
+    const { data: insertedAssignment, error: insertError } = await supabase
       .from('batch_pod_assignments')
       .insert({
         batch_id: batchId,
         pod_id: podId,
         plant_count: plantCount,
         assigned_by: userId,
-        notes,
+        notes: notes ?? null,
       })
+      .select('id')
+      .single()
 
-    if (error) throw error
+    if (insertError) throw insertError
+
+    const { error: releaseError } = await supabase
+      .from('batch_pod_assignments')
+      .update({
+        removed_at: timestamp,
+        removed_by: userId,
+      })
+      .eq('batch_id', batchId)
+      .is('removed_at', null)
+      .neq('id', insertedAssignment.id)
+
+    if (releaseError) throw releaseError
 
     // Log assignment event
     await createBatchEvent(batchId, 'pod_assignment', userId, {

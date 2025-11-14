@@ -60,9 +60,9 @@ export function useJurisdiction(jurisdictionId: JurisdictionId | null | undefine
   }, [jurisdictionId])
 
   // Computed properties for common checks
-  const requiresPlantTags = jurisdiction?.rules.batch.require_plant_tags || false
-  const requiresMetrc = jurisdiction?.rules.batch.require_metrc_id || false
-  const requiresWitness = jurisdiction?.rules.waste.require_witness || false
+  const requiresPlantTags = jurisdiction?.rules?.batch?.require_plant_tags || false
+  const requiresMetrc = jurisdiction?.rules?.batch?.require_metrc_id || false
+  const requiresWitness = jurisdiction?.rules?.waste?.require_witness || false
   const isCannabiJurisdiction = jurisdiction?.plant_type === 'cannabis'
   const isProduceJurisdiction = jurisdiction?.plant_type === 'produce'
 

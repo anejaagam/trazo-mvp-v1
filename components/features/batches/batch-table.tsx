@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MoreVertical, Eye, Edit, Trash2, AlertTriangle } from 'lucide-react'
 import {
   Table,
@@ -28,7 +29,6 @@ import {
 import { usePermissions } from '@/hooks/use-permissions'
 import { isCannabisBatch, isProduceBatch } from '@/types/batch'
 import type { DomainBatch } from '@/types/batch'
-import { BatchDetailDialog } from './batch-detail-dialog'
 import { deleteBatch } from '@/lib/supabase/queries/batches-client'
 
 interface BatchTableProps {
@@ -40,8 +40,7 @@ interface BatchTableProps {
 
 export function BatchTable({ batches, onRefresh, userId, userRole }: BatchTableProps) {
   const { can } = usePermissions(userRole as any, [])
-  const [selectedBatch, setSelectedBatch] = useState<DomainBatch | null>(null)
-  const [showDetailDialog, setShowDetailDialog] = useState(false)
+  const router = useRouter()
   const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null)
 
   // Get stage color for badge
@@ -78,8 +77,7 @@ export function BatchTable({ batches, onRefresh, userId, userRole }: BatchTableP
   }
 
   const handleViewDetails = (batch: DomainBatch) => {
-    setSelectedBatch(batch)
-    setShowDetailDialog(true)
+    router.push(`/dashboard/batches/${batch.id}`)
   }
 
   const handleDeleteBatch = async (batchId: string) => {
@@ -210,21 +208,6 @@ export function BatchTable({ batches, onRefresh, userId, userRole }: BatchTableP
           </TableBody>
         </Table>
       </div>
-
-      {/* Detail Dialog */}
-      {showDetailDialog && selectedBatch && (
-        <BatchDetailDialog
-          batch={selectedBatch}
-          isOpen={showDetailDialog}
-          onClose={() => {
-            setShowDetailDialog(false)
-            setSelectedBatch(null)
-          }}
-          onRefresh={onRefresh}
-          userId={userId}
-          userRole={userRole}
-        />
-      )}
     </>
   )
 }

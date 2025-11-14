@@ -379,31 +379,17 @@ export interface BatchStageHistory {
 // =====================================================
 
 /**
- * Harvest record
+ * Harvest record (matches database schema)
  */
 export interface HarvestRecord {
   id: string;
   batch_id: string;
-  harvest_date: string;
-  harvested_by: string;
-  
-  // Harvest metrics
-  wet_weight?: number; // Cannabis
-  dry_weight?: number; // Cannabis
-  total_weight?: number; // Both
-  waste_weight?: number;
-  unit: 'grams' | 'kg' | 'lbs' | 'oz';
-  
-  // Grade breakdown
-  grade_a?: number;
-  grade_b?: number;
-  grade_c?: number;
-  premium?: number;
-  reject?: number;
-  
-  // Quality at harvest
-  ripeness?: ProduceRipeness;
-  
+  organization_id: string;
+  wet_weight: number; // Decimal(10,2)
+  plant_count: number;
+  harvested_at: string; // TIMESTAMPTZ
+  harvested_by?: string;
+  location?: string;
   notes?: string;
   created_at: string;
 }

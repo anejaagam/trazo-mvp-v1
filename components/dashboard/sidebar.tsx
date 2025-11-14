@@ -171,25 +171,31 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       title: 'Tasks & Workflows',
       href: '/dashboard/tasks',
       icon: <ClipboardList className="h-4 w-4" />,
-      permission: 'task:view',
+      permission: 'tasks:view',
       children: [
         {
           title: 'My Tasks',
           href: '/dashboard/tasks/assigned',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'task:view'
+          permission: 'tasks:view'
+        },
+        {
+          title: 'Templates',
+          href: '/dashboard/workflows/templates',
+          icon: <FileText className="h-4 w-4" />,
+          permission: 'tasks:view'
         },
         {
           title: 'SOPs',
           href: '/dashboard/tasks/sops',
           icon: <FileText className="h-4 w-4" />,
-          permission: 'task:view'
+          permission: 'tasks:view'
         },
         {
           title: 'Schedule',
           href: '/dashboard/tasks/schedule',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'task:assign'
+          permission: 'tasks:assign'
         }
       ]
     },

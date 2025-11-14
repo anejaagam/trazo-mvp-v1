@@ -186,6 +186,8 @@ export interface SOPTemplate {
   required_role?: string[];
   requires_approval: boolean;
   approval_role?: string;
+  requires_dual_signoff?: boolean;
+  is_exception_scenario?: boolean;
   
   // Resources
   safety_notes?: string;
@@ -219,15 +221,20 @@ export interface CreateTemplateInput {
   description?: string;
   steps: SOPStep[];
   estimated_duration_minutes?: number;
+  sla_hours?: number;
   required_role?: string[];
   requires_approval?: boolean;
   approval_role?: string;
+  requires_dual_signoff?: boolean;
+  is_exception_scenario?: boolean;
   safety_notes?: string;
   equipment_required?: string[];
   materials_required?: Array<{
     item_id: string;
     quantity: number;
   }>;
+  created_by?: string;
+  organization_id?: string;
 }
 
 export interface UpdateTemplateInput extends Partial<CreateTemplateInput> {

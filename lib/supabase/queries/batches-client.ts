@@ -602,7 +602,7 @@ export async function getBatchDetail(batchId: string): Promise<{
             id,
             stage,
             started_at,
-            completed_at,
+            ended_at:completed_at,
             notes,
             transitioned_by_user:users!transitioned_by(id, full_name)
           ),
@@ -739,12 +739,26 @@ async function fetchGenealogy(batchId: string) {
     })
 
     if (error) throw error
-    return (data || []).map((node: any) => ({
-      id: node.id,
-      batch_number: node.batch_number,
-      relationship: node.relationship as 'parent' | 'child' | 'sibling',
-      stage: node.stage,
-    }))
+    type GenealogyRow = {
+      batch_id: string | null
+      batch_number?: string | null
+      relationship_type?: string | null
+      stage?: string | null
+    }
+
+    const normalizeRelationship = (value?: string | null): 'parent' | 'child' | 'sibling' => {
+      if (value === 'child' || value === 'sibling') return value
+      return 'parent'
+    }
+
+    return (data || [])
+      .filter((row: GenealogyRow): row is GenealogyRow & { batch_id: string } => Boolean(row?.batch_id))
+      .map((row: GenealogyRow & { batch_id: string }) => ({
+        id: row.batch_id,
+        batch_number: row.batch_number || 'Unknown batch',
+        relationship: normalizeRelationship(row.relationship_type),
+        stage: row.stage ?? null,
+      }))
   } catch (error) {
     console.warn('Failed to hydrate genealogy', error)
     return null

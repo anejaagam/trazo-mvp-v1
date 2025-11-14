@@ -145,6 +145,7 @@ export function BatchForm({
   const produceBatch = asProduceBatch(batch)
 
   const domainDefault = (batch?.domain_type as DomainType) || plantType
+  const activePodId = getActivePodId(batch)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(batchSchema) as Resolver<FormValues>,
@@ -156,7 +157,7 @@ export function BatchForm({
       stage: batch?.stage ?? 'planning',
       startDate: batch?.start_date ?? new Date().toISOString().slice(0, 10),
       expectedHarvestDate: batch?.expected_harvest_date ?? undefined,
-      podId: getActivePodId(batch),
+      podId: activePodId,
       lightingSchedule: cannabisBatch?.lighting_schedule ?? '',
       thcContent: cannabisBatch?.thc_content != null ? String(cannabisBatch.thc_content) : '',
       cbdContent: cannabisBatch?.cbd_content != null ? String(cannabisBatch.cbd_content) : '',
@@ -303,8 +304,11 @@ export function BatchForm({
       if (response.error) throw response.error
 
       const createdBatch = response.data
-      if (values.podId && createdBatch) {
-        await assignBatchToPod(createdBatch.id, values.podId, values.plantCount, userId)
+      const nextPodId = values.podId ?? null
+      const currentPodId = activePodId || null
+      const shouldAssignPod = createdBatch && nextPodId && (!batch || nextPodId !== currentPodId)
+      if (shouldAssignPod && createdBatch) {
+        await assignBatchToPod(createdBatch.id, nextPodId, values.plantCount, userId)
       }
 
       const isPropagationSource = values.sourceType === 'seed' || values.sourceType === 'clone'

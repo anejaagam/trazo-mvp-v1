@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { PodDetailDashboard } from '@/components/features/monitoring/pod-detail-dashboard'
-import { ActiveRecipeDisplay } from '@/components/features/recipes/active-recipe-display'
 import type { ActiveRecipeDetails, StageType, EnvironmentalSetpoint, NutrientFormula } from '@/types/recipe'
 
 interface PodDetailPageProps {

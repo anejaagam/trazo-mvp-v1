@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FleetView } from './fleet-view'
 import { FleetGridView } from './fleet-grid-view'
@@ -11,7 +11,7 @@ import { TimeRangeSelector, TimeRange } from './time-range-selector'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePodSnapshots } from '@/hooks/use-telemetry'
-import { Activity, Thermometer, Droplets, Wind, AlertTriangle } from 'lucide-react'
+import { Activity, Thermometer, Droplets, Wind, AlertTriangle, RefreshCw } from 'lucide-react'
 import { subHours } from 'date-fns'
 
 interface FleetMonitoringDashboardProps {
@@ -33,6 +33,8 @@ export function FleetMonitoringDashboard({
     end: new Date(),
     preset: '24h',
   })
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('just now')
 
   // Real-time fleet monitoring
   // Use organizationId if provided (org_admin), otherwise use siteId
@@ -42,6 +44,32 @@ export function FleetMonitoringDashboard({
     realtime: true, 
     refreshInterval: 30 
   })
+
+  // Update timestamp when snapshots change
+  useEffect(() => {
+    if (snapshots && !loading) {
+      setLastUpdate(new Date())
+    }
+  }, [snapshots, loading])
+
+  // Update time since last update every second
+  useEffect(() => {
+    const updateTimeSince = () => {
+      const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000)
+      if (seconds < 5) {
+        setTimeSinceUpdate('just now')
+      } else if (seconds < 60) {
+        setTimeSinceUpdate(`${seconds}s ago`)
+      } else {
+        const minutes = Math.floor(seconds / 60)
+        setTimeSinceUpdate(`${minutes}m ago`)
+      }
+    }
+
+    updateTimeSince()
+    const interval = setInterval(updateTimeSince, 1000)
+    return () => clearInterval(interval)
+  }, [lastUpdate])
 
   // Handle pod click - navigate to detail page
   const handlePodClick = (podId: string) => {
@@ -126,28 +154,42 @@ export function FleetMonitoringDashboard({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Pod Fleet Status</CardTitle>
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'table')}>
-              <TabsList>
-                <TabsTrigger value="grid">Grid</TabsTrigger>
-                <TabsTrigger value="table">Table</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-3">
+              {/* Last Update Indicator */}
+              {snapshots && snapshots.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  <span>{timeSinceUpdate}</span>
+                </div>
+              )}
+              
+              {/* Grid/Table Toggle */}
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'table')}>
+                <TabsList>
+                  <TabsTrigger value="grid">Grid</TabsTrigger>
+                  <TabsTrigger value="table">Table</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {loading && (
-            <div className="flex items-center justify-center h-64">
+        <CardContent className="min-h-[260px] relative">
+          {/* Show loading ONLY on initial page load (no data yet) */}
+          {loading && (!snapshots || snapshots.length === 0) && !error && (
+            <div className="absolute inset-0 flex items-center justify-center">
               <p className="text-muted-foreground">Loading pod data...</p>
             </div>
           )}
 
-          {error && (
-            <div className="flex items-center justify-center h-64">
+          {/* Show error state */}
+          {error && (!snapshots || snapshots.length === 0) && (
+            <div className="absolute inset-0 flex items-center justify-center">
               <p className="text-destructive">Failed to load pod data</p>
             </div>
           )}
 
-          {!loading && !error && snapshots && (
+          {/* Show data (stays visible during background refreshes) */}
+          {snapshots && snapshots.length > 0 && (
             <>
               {viewMode === 'grid' ? (
                 <FleetGridView
@@ -165,7 +207,7 @@ export function FleetMonitoringDashboard({
             </>
           )}
 
-          {!loading && !error && (!snapshots || snapshots.length === 0) && (
+          {!loading && !error && snapshots && snapshots.length === 0 && (
             <div className="flex flex-col items-center justify-center h-64 space-y-4">
               <Activity className="h-12 w-12 text-muted-foreground" />
               <div className="text-center">

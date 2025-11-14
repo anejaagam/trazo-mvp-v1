@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
@@ -24,7 +25,11 @@ const harvestSchema = z.object({
   notes: z.string().optional().nullable(),
   logInventory: z.boolean().optional(),
   inventoryItemId: z.string().optional().nullable(),
-  inventoryQuantity: z.coerce.number().positive('Quantity must be greater than 0').optional().nullable(),
+  inventoryQuantity: z
+    .coerce.number()
+    .positive('Quantity must be greater than 0')
+    .optional()
+    .nullable(),
   inventoryLotCode: z.string().optional().nullable(),
   inventoryStorageLocation: z.string().optional().nullable(),
 })
@@ -51,16 +56,21 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
       inventoryLotCode: getDefaultLotCode(batch.batch_number),
     },
   })
+
   const [inventoryItems, setInventoryItems] = useState<InventoryItemWithStock[]>([])
   const inventoryItemId = form.watch('inventoryItemId')
   const logInventory = form.watch('logInventory')
+
   const selectedInventoryItem = useMemo(
     () => inventoryItems.find((item) => item.id === inventoryItemId) || null,
     [inventoryItems, inventoryItemId]
   )
+
   useEffect(() => {
     if (!isOpen) return
+
     let isMounted = true
+
     const loadItems = async () => {
       try {
         const { data } = await getInventoryItemsClient(batch.site_id)
@@ -72,7 +82,9 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
         if (isMounted) setInventoryItems([])
       }
     }
+
     loadItems()
+
     return () => {
       isMounted = false
     }
@@ -90,8 +102,7 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
       if (error) throw error
 
       if (values.logInventory && values.inventoryItemId) {
-        const quantityToReceive =
-          values.inventoryQuantity ?? values.dryWeight ?? values.wetWeight
+        const quantityToReceive = values.inventoryQuantity ?? values.dryWeight ?? values.wetWeight
         if (quantityToReceive && quantityToReceive > 0) {
           try {
             await receiveInventoryForBatch({
@@ -101,8 +112,7 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
               batchId: batch.id,
               quantity: quantityToReceive,
               unitOfMeasure: selectedInventoryItem?.unit_of_measure || 'g',
-              lotCode:
-                values.inventoryLotCode || getDefaultLotCode(batch.batch_number),
+              lotCode: values.inventoryLotCode || getDefaultLotCode(batch.batch_number),
               storageLocation: values.inventoryStorageLocation || undefined,
               notes: values.notes || undefined,
             })
@@ -144,13 +154,16 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                       min={0}
                       {...field}
                       value={field.value ?? ''}
-                      onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+                      onChange={(event) =>
+                        field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
+                      }
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <div className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}
@@ -165,7 +178,9 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                         min={0}
                         {...field}
                         value={field.value ?? ''}
-                        onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+                        onChange={(event) =>
+                          field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -185,7 +200,9 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                         min={0}
                         {...field}
                         value={field.value ?? ''}
-                        onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+                        onChange={(event) =>
+                          field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -193,6 +210,7 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                 )}
               />
             </div>
+
             <FormField
               control={form.control}
               name="notes"
@@ -211,6 +229,7 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                 </FormItem>
               )}
             />
+
             <div className="rounded-md border p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -292,7 +311,11 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                         <FormItem>
                           <FormLabel>Lot code</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+                            <Input
+                              {...field}
+                              value={field.value ?? ''}
+                              onChange={(event) => field.onChange(event.target.value)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -306,7 +329,11 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                       <FormItem>
                         <FormLabel>Storage location</FormLabel>
                         <FormControl>
-                          <Input {...field} value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} />
+                          <Input
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(event) => field.onChange(event.target.value)}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -315,6 +342,7 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
                 </div>
               )}
             </div>
+
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel

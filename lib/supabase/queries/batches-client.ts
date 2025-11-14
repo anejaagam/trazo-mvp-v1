@@ -242,18 +242,7 @@ export async function getBatches(
 
     throw attemptError
   } catch (error) {
-    // Log Supabase errors with full details
-    if (error && typeof error === 'object') {
-      const err = error as Record<string, unknown>
-      console.error('Error in getBatches:', {
-        message: err.message,
-        details: err.details,
-        hint: err.hint,
-        code: err.code,
-      })
-    } else {
-      console.error('Error in getBatches:', error)
-    }
+    console.error('Error in getBatches:', error)
     return { data: null, error }
   }
 }
@@ -273,11 +262,7 @@ export async function getBatchById(id: string) {
     if (error) throw error
     return { data: data as DomainBatch, error: null }
   } catch (error) {
-    console.error('Error in getBatchById:', error && typeof error === 'object' ? {
-      message: (error as Record<string, unknown>).message,
-      details: (error as Record<string, unknown>).details,
-      code: (error as Record<string, unknown>).code,
-    } : error)
+    console.error('Error in getBatchById:', error)
     return { data: null, error }
   }
 }
@@ -294,11 +279,7 @@ export async function createBatch(batchData: InsertBatch) {
     if (error) throw error
     return { data: data as DomainBatch, error: null }
   } catch (error) {
-    console.error('Error in createBatch:', error && typeof error === 'object' ? {
-      message: (error as Record<string, unknown>).message,
-      details: (error as Record<string, unknown>).details,
-      code: (error as Record<string, unknown>).code,
-    } : error)
+    console.error('Error in createBatch:', error)
     return { data: null, error }
   }
 }
@@ -319,11 +300,7 @@ export async function updateBatch(id: string, updates: UpdateBatch) {
     if (error) throw error
     return { data: data as DomainBatch, error: null }
   } catch (error) {
-    console.error('Error in updateBatch:', error && typeof error === 'object' ? {
-      message: (error as Record<string, unknown>).message,
-      details: (error as Record<string, unknown>).details,
-      code: (error as Record<string, unknown>).code,
-    } : error)
+    console.error('Error in updateBatch:', error)
     return { data: null, error }
   }
 }
@@ -342,11 +319,7 @@ export async function deleteBatch(id: string) {
     if (error) throw error
     return { error: null }
   } catch (error) {
-    console.error('Error in deleteBatch:', error && typeof error === 'object' ? {
-      message: (error as Record<string, unknown>).message,
-      details: (error as Record<string, unknown>).details,
-      code: (error as Record<string, unknown>).code,
-    } : error)
+    console.error('Error in deleteBatch:', error)
     return { error }
   }
 }

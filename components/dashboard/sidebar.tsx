@@ -111,6 +111,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           icon: <Package className="h-4 w-4" />, 
           permission: 'batch:stage_change',
           badge: batchBadges.harvest ? String(batchBadges.harvest) : undefined,
+        },
+        {
+          title: 'Cultivars',
+          href: '/dashboard/cultivars',
+          icon: <Beaker className="h-4 w-4" />,
+          permission: 'cultivar:view'
         }
       ]
     },

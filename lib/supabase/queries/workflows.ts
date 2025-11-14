@@ -35,6 +35,26 @@ import { wouldCreateDependencyCycle } from '@/lib/utils/dependency-graph';
 import { generateNextRecurrenceInstances } from '@/lib/utils/recurrence';
 import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
+function normalizeTaskRows(rows: any[] | null): TaskWithTemplate[] {
+  if (!rows) return [];
+
+  return rows.map((row) => {
+    const { sop_templates, ...rest } = row ?? {};
+    const template = sop_templates as SOPTemplate | undefined;
+    const templateStepCount =
+      rest.template_step_count ??
+      (Array.isArray(template?.steps) ? template.steps.length : undefined);
+
+    return {
+      ...rest,
+      template: template || undefined,
+      template_name: rest.template_name ?? template?.name ?? undefined,
+      template_version: rest.template_version ?? template?.version ?? undefined,
+      template_step_count: templateStepCount,
+    } as TaskWithTemplate;
+  });
+}
+
 // =====================================================
 // SOP TEMPLATE QUERIES
 // =====================================================
@@ -512,7 +532,7 @@ export async function getTasks(
     const supabase = await createClient();
     let query = supabase
       .from('tasks')
-      .select('*, sop_templates!left(name, version)', { count: 'exact' });
+      .select('*, sop_templates!left(name, version, steps)', { count: 'exact' });
 
     // Apply filters
     if (filters?.status?.length) {
@@ -575,7 +595,7 @@ export async function getTasks(
     if (error) throw error;
 
     return {
-      data: data as TaskWithTemplate[],
+      data: normalizeTaskRows(data as any[]),
       error: null,
       total: count || 0,
       page,
@@ -642,14 +662,14 @@ export async function getMyTasks() {
 
     const { data, error } = await supabase
       .from('tasks')
-      .select('*, sop_templates!left(name, version)')
+      .select('*, sop_templates!left(name, version, steps)')
       .eq('assigned_to', user.id)
-      .in('status', ['to_do', 'in_progress', 'blocked'])
+      .in('status', ['to_do', 'in_progress', 'blocked', 'awaiting_approval', 'approved', 'done'])
       .order('due_date', { ascending: true, nullsFirst: false });
 
     if (error) throw error;
 
-    return { data: data as TaskWithTemplate[], error: null };
+    return { data: normalizeTaskRows(data as any[]), error: null };
   } catch (error) {
     console.error('Error in getMyTasks:', error);
     return { data: null, error };

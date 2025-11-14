@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { EvidenceCapture } from './evidence-capture';
 import { compressEvidence } from '@/lib/utils/evidence-compression';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
 
 interface TaskExecutorProps {
   task: Task;
@@ -60,12 +61,21 @@ export function TaskExecutor({
   const [retainOriginalEvidence, setRetainOriginalEvidence] = useState(false);
   const { can } = usePermissions(userRole ?? null, additionalPermissions);
   const canRetainOriginalEvidence = can('task:retain_original_evidence');
+  const { toast } = useToast();
+  const draftStorageKey = useMemo(() => `task-exec-draft-${task.id}`, [task.id]);
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch {
+      // ignore storage errors
+    }
+  };
   
   // Offline draft persistence (localStorage)
   useEffect(() => {
     // Load draft if exists
     try {
-      const raw = localStorage.getItem(`task-exec-draft-${task.id}`);
+      const raw = localStorage.getItem(draftStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.evidence)) {
@@ -94,13 +104,13 @@ export function TaskExecutor({
     const to = setTimeout(() => {
       try {
         const payload = JSON.stringify({ evidence, currentStepIndex, retainOriginalEvidence });
-        localStorage.setItem(`task-exec-draft-${task.id}`, payload);
+        localStorage.setItem(draftStorageKey, payload);
       } catch {
         // ignore
       }
     }, 400);
     return () => clearTimeout(to);
-  }, [evidence, currentStepIndex, retainOriginalEvidence, task.id]);
+  }, [draftStorageKey, evidence, currentStepIndex, retainOriginalEvidence]);
   // Compression summary derived data
   const compressionSummary = (() => {
     const compressedItems = evidence.filter(e => e.compressed && typeof e.originalSize === 'number' && typeof e.compressedSize === 'number');
@@ -308,7 +318,11 @@ export function TaskExecutor({
       await onSaveDraft(evidence, currentStepIndex);
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert('Failed to save draft. Please try again.');
+      toast({
+        title: 'Save failed',
+        description: 'Failed to save draft. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -321,13 +335,20 @@ export function TaskExecutor({
       .filter(step => !evidence.some(e => e.stepId === step.id));
 
     if (missingEvidence.length > 0) {
-      alert(`Please complete all required evidence. Missing: ${missingEvidence.map(s => s.title).join(', ')}`);
+      toast({
+        title: 'Evidence required',
+        description: `Missing: ${missingEvidence.map(s => s.title).join(', ')}`,
+        variant: 'destructive',
+      });
       return;
     }
 
     // Simulate offline sync
     if (isOffline) {
-      alert('Task will sync when connection is restored');
+      toast({
+        title: 'Offline mode',
+        description: 'Task will sync when connection is restored.',
+      });
     }
 
     // If template-level dual signoff required and not yet captured, open panel instead of completing
@@ -339,9 +360,14 @@ export function TaskExecutor({
     setIsCompleting(true);
     try {
       await onComplete(evidence);
+      clearDraft();
     } catch (error) {
       console.error('Error completing task:', error);
-      alert('Failed to complete task. Please try again.');
+      toast({
+        title: 'Completion failed',
+        description: 'Failed to complete task. Please try again.',
+        variant: 'destructive',
+      });
       setIsCompleting(false);
     }
   };
@@ -354,7 +380,11 @@ export function TaskExecutor({
     const sig2Role = (completionDualSignature as { signature2?: { role?: string } })?.signature2?.role;
     const rolesDistinct = sig1Role && sig2Role && sig1Role !== sig2Role;
     if (!rolesDistinct) {
-      alert('Dual sign-off requires two distinct authorized roles.');
+      toast({
+        title: 'Dual sign-off blocked',
+        description: 'Dual sign-off requires two distinct authorized roles.',
+        variant: 'destructive',
+      });
       return;
     }
     setIsCompleting(true);
@@ -389,13 +419,16 @@ export function TaskExecutor({
       };
       const updated = [...evidence, dualEvidence];
       await onComplete(updated);
+      clearDraft();
     } catch (err) {
       console.error('Dual signoff completion error:', err);
-      alert('Failed during dual sign-off completion.');
+      toast({
+        title: 'Completion failed',
+        description: 'Failed during dual sign-off completion.',
+        variant: 'destructive',
+      });
       setIsCompleting(false);
     }
-    // Clear draft upon successful completion
-    try { localStorage.removeItem(`task-exec-draft-${task.id}`); } catch {}
   };
 
   // Simulate offline detection

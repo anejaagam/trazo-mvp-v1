@@ -46,7 +46,18 @@ function getStatusColor(status: TaskStatus): 'default' | 'destructive' | 'second
 }
 
 function getStatusLabel(status: TaskStatus): string {
-  return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return status
+    .split('_')
+    .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+}
+
+function getActionLabel(status: TaskStatus): string {
+  if (status === 'in_progress') return 'Continue';
+  if (status === 'to_do' || status === 'blocked' || status === 'awaiting_approval') return 'Start';
+  if (status === 'approved' || status === 'done') return 'Review';
+  if (status === 'rejected' || status === 'cancelled') return 'View';
+  return 'Start';
 }
 
 export function TaskList({ tasks, onTaskExecute }: TaskListProps) {
@@ -122,6 +133,10 @@ export function TaskList({ tasks, onTaskExecute }: TaskListProps) {
             <option value="in_progress">In Progress</option>
             <option value="blocked">Blocked</option>
             <option value="done">Done</option>
+            <option value="awaiting_approval">Awaiting Approval</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           <select
@@ -213,7 +228,7 @@ export function TaskList({ tasks, onTaskExecute }: TaskListProps) {
                     }}
                   >
                     <PlayCircle className="mr-2 h-4 w-4" />
-                    {task.status === 'in_progress' ? 'Continue' : 'Start'}
+                    {getActionLabel(task.status)}
                   </Button>
                 </div>
               );

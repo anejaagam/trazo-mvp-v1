@@ -13,7 +13,11 @@ import {
   Ban, 
   User,
   Calendar,
-  MoreVertical
+  MoreVertical,
+  Hourglass,
+  ShieldCheck,
+  XCircle,
+  CircleSlash
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -65,6 +69,34 @@ const columns: Column[] = [
     icon: CheckCircle2,
     color: 'text-green-600',
     bgColor: 'bg-green-50'
+  },
+  {
+    id: 'awaiting_approval',
+    title: 'Awaiting Approval',
+    icon: Hourglass,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50'
+  },
+  {
+    id: 'approved',
+    title: 'Approved',
+    icon: ShieldCheck,
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50'
+  },
+  {
+    id: 'rejected',
+    title: 'Rejected',
+    icon: XCircle,
+    color: 'text-rose-600',
+    bgColor: 'bg-rose-50'
+  },
+  {
+    id: 'cancelled',
+    title: 'Cancelled',
+    icon: CircleSlash,
+    color: 'text-slate-500',
+    bgColor: 'bg-slate-100'
   }
 ];
 
@@ -127,6 +159,17 @@ export function TaskBoard({ tasks, onTaskUpdate, onTaskExecute }: TaskBoardProps
   const renderTaskCard = (task: Task) => {
     const Icon = AlertCircle;
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+    const totalSteps = task.template_step_count && task.template_step_count > 0 ? task.template_step_count : null;
+    const completedSteps = totalSteps ? Math.min(task.current_step_index + 1, totalSteps) : null;
+    const progressPercent = totalSteps && completedSteps
+      ? Math.round((completedSteps / totalSteps) * 100)
+      : null;
+    const actionLabel = (() => {
+      if (task.status === 'in_progress') return 'Continue';
+      if (['done', 'approved'].includes(task.status)) return 'Review';
+      if (['cancelled', 'rejected'].includes(task.status)) return 'View';
+      return 'Start';
+    })();
 
     return (
       <Card 
@@ -216,17 +259,17 @@ export function TaskBoard({ tasks, onTaskUpdate, onTaskExecute }: TaskBoardProps
           )}
 
           {/* Progress indicator */}
-          {task.status === 'in_progress' && task.sop_template_id && (
+          {task.status === 'in_progress' && totalSteps && (
             <div className="mt-2 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
-                <span>Step {task.current_step_index + 1}</span>
-                <span>{Math.round(((task.current_step_index + 1) / Math.max(task.current_step_index + 1, 1)) * 100)}%</span>
+                <span>Step {completedSteps} of {totalSteps}</span>
+                <span>{progressPercent}%</span>
               </div>
               <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-500 transition-all"
                   style={{ 
-                    width: `${Math.round(((task.current_step_index + 1) / Math.max(task.current_step_index + 1, 1)) * 100)}%` 
+                    width: `${progressPercent}%` 
                   }}
                 />
               </div>
@@ -243,7 +286,7 @@ export function TaskBoard({ tasks, onTaskUpdate, onTaskExecute }: TaskBoardProps
             }}
           >
             <PlayCircle className="mr-2 h-3 w-3" />
-            {task.status === 'in_progress' ? 'Continue' : 'Start'}
+            {actionLabel}
           </Button>
         </CardContent>
       </Card>

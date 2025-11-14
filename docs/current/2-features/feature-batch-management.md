@@ -340,25 +340,21 @@ Complete batch management system with domain-specific support for cannabis and p
 
 ## Integration Points
 
-### Module Integrations (Phase 4 - ⏳ Pending)
+### Module Integrations (Phase 4 - ✅ Inventory & Recipes complete, Monitoring in-progress)
 
 **Inventory Integration:**
-- Link batch creation to seed/clone inventory consumption
-- Harvest → automatic inventory addition
-- Track nutrient/chemical usage per batch
-- Add `batch_id` field to inventory_movements
+- ✅ Batch creation automatically logs seed/clone consumption through `issueInventoryForBatch`.
+- ✅ Harvest workflow (`harvest-workflow.tsx`) records finished goods via `/api/inventory/receive`.
+- ✅ `getBatchInventoryUsage()` aggregates `inventory_movements` so batch detail inventory tabs show consumption/production with summaries.
 
 **Recipe Integration:**
-- Link batches to active recipes via recipe_activations
-- Display active recipe in batch detail
-- Show environmental targets vs. actuals
-- "Apply Recipe" button in batch detail
+- ✅ Active recipes hydrate batch detail + monitoring views via `recipe_activations` joins.
+- ✅ `ApplyRecipeDialog` lets operators activate recipes on-demand.
+- ✅ `syncPodAndBatchRecipes` mirrors recipes between pods and batches during assignments, and `/api/recipes/advance-stage` keeps recipe stages aligned with batch stage transitions.
 
 **Monitoring Integration:**
-- Display batch info in pod detail view
-- Batch environmental adherence metrics
-- Link batch stage to alarm thresholds
-- Batch health score from environmental data
+- ✅ Pod detail pages highlight assigned batch metadata, health score, adherence badges, and stage timelines sourced from `getActiveBatchesForPod`.
+- ⏳ Remaining: link batch stages directly to alarm thresholds/RBAC notifications.
 
 **Future Task Integration:**
 - Add `batch_id` FK to tasks table

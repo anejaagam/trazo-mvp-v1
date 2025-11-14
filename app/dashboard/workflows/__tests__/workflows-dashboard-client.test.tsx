@@ -71,4 +71,23 @@ describe('WorkflowsDashboardClient', () => {
 
     expect(screen.queryByRole('button', { name: /New Task/i })).not.toBeInTheDocument();
   });
+
+  it('switches between board and list views', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <WorkflowsDashboardClient
+        myTasks={[baseTask]}
+        allTasks={[baseTask]}
+        userId="user-1"
+        canCreateTask
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /List/i }));
+    expect(screen.getByPlaceholderText('Search tasks...')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Board/i }));
+    expect(screen.getByText('To Do')).toBeInTheDocument();
+  });
 });

@@ -216,13 +216,8 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Active Recipe Display */}
-      {activeRecipe && (
-        <ActiveRecipeDisplay activeRecipe={activeRecipe} />
-      )}
-
-      {/* Pod Monitoring Dashboard */}
+    <>
+      {/* Pod Monitoring Dashboard (includes Back to Fleet button at top) */}
       <PodDetailDashboard
         podId={podId}
         podName={podName}
@@ -232,6 +227,6 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
         deviceToken={deviceToken}
         activeRecipe={activeRecipe}
       />
-    </div>
+    </>
   )
 }

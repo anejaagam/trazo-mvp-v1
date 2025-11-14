@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { PodDetail } from './pod-detail'
+import { ActiveRecipeDisplay } from '@/components/features/recipes/active-recipe-display'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import type { ActiveRecipeDetails } from '@/types/recipe'
@@ -27,15 +28,19 @@ export function PodDetailDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Back Navigation */}
+      {/* Back Navigation - Always at top */}
       <Button
         variant="ghost"
         onClick={() => router.push('/dashboard/monitoring')}
-        className="mb-4"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to Fleet
       </Button>
+
+      {/* Active Recipe Display - Shows when recipe is active */}
+      {activeRecipe && (
+        <ActiveRecipeDisplay activeRecipe={activeRecipe} />
+      )}
 
       {/* Pod Detail Component */}
       <PodDetail

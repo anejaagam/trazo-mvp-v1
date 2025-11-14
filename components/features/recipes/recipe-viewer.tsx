@@ -15,7 +15,10 @@ import {
   Droplets,
   Sun,
   Moon,
-  Activity
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -28,6 +31,30 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { AssignRecipeDialog } from './assign-recipe-dialog'
 import { createClient } from '@/lib/supabase/client'
+import { publishRecipe, deprecateRecipe, undeprecateRecipe } from '@/app/actions/recipes'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+
+// Format date in local timezone for display
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
 
 interface RecipeViewerProps {
   recipe: RecipeWithVersions
@@ -35,7 +62,7 @@ interface RecipeViewerProps {
   canEdit?: boolean
   canClone?: boolean
   canApply?: boolean
-  onClose: () => void
+  onClose?: () => void
   onEdit?: () => void
   onClone?: () => void
 }
@@ -51,10 +78,16 @@ export function RecipeViewer({
   onClone
 }: RecipeViewerProps) {
   const router = useRouter()
-  const [selectedStageId, setSelectedStageId] = useState<string>()
+  const [selectedStageId, setSelectedStageId] = useState<string>('')
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [organizationId, setOrganizationId] = useState<string>('')
   const [userId, setUserId] = useState<string>('')
+  const [creatorName, setCreatorName] = useState<string>('')
+  const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [isDeprecating, setIsDeprecating] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [showDeprecateConfirm, setShowDeprecateConfirm] = useState(false)
 
   // Fetch user and organization info for assignment
   useEffect(() => {
@@ -85,6 +118,74 @@ export function RecipeViewer({
     [version]
   )
 
+  // Set first stage as selected when stages load
+  useEffect(() => {
+    if (stages.length > 0 && !selectedStageId) {
+      setSelectedStageId(stages[0].id)
+    }
+  }, [stages, selectedStageId])
+
+  // Fetch creator's name and all version creators
+  useEffect(() => {
+    async function fetchUserNames() {
+      try {
+        const supabase = createClient()
+        
+        // Collect all unique user IDs
+        const userIds = new Set<string>()
+        if (currentVersion?.created_by) {
+          userIds.add(currentVersion.created_by)
+        }
+        if (recipe.versions && recipe.versions.length > 0) {
+          recipe.versions.forEach(v => {
+            if (v.created_by) userIds.add(v.created_by)
+          })
+        }
+        
+        if (userIds.size === 0) {
+          console.log('No user IDs found')
+          return
+        }
+        
+        console.log('Fetching user names for IDs:', Array.from(userIds))
+        
+        // Fetch all users at once
+        const { data: usersData, error } = await supabase
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', Array.from(userIds))
+        
+        if (error) {
+          console.error('Error fetching user names:', error)
+          return
+        }
+        
+        console.log('Fetched user data:', usersData)
+        
+        if (usersData && usersData.length > 0) {
+          const names: Record<string, string> = {}
+          usersData.forEach(user => {
+            names[user.id] = user.full_name || user.email || 'Unknown User'
+          })
+          
+          console.log('User names map:', names)
+          setUserNames(names)
+          
+          // Set creator name for current version
+          if (currentVersion?.created_by && names[currentVersion.created_by]) {
+            setCreatorName(names[currentVersion.created_by])
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchUserNames:', error)
+      }
+    }
+    
+    if (currentVersion || recipe.versions) {
+      fetchUserNames()
+    }
+  }, [currentVersion, recipe.versions])
+
   // Set initial selected stage
   useEffect(() => {
     if (!selectedStageId && stages.length > 0) {
@@ -100,11 +201,29 @@ export function RecipeViewer({
     }
   }
 
-  const handleClone = () => {
+  const handleClone = async () => {
     if (onClone) {
       onClone()
     } else {
-      toast.success(`Cloned "${recipe.name}" to drafts`)
+      try {
+        // Navigate to new recipe page with the current recipe data pre-filled
+        const cloneData = {
+          name: `${recipe.name} (Copy)`,
+          description: recipe.description || '',
+          plantTypes: recipe.plant_types || [],
+          tags: recipe.tags || [],
+          stages: version?.version_data?.stages || []
+        }
+        
+        // Store clone data in sessionStorage to pre-fill the form
+        sessionStorage.setItem('cloneRecipeData', JSON.stringify(cloneData))
+        
+        router.push('/dashboard/recipes/new')
+        toast.success(`Cloning "${recipe.name}"...`)
+      } catch (error) {
+        console.error('Clone error:', error)
+        toast.error('Failed to clone recipe')
+      }
     }
   }
 
@@ -113,6 +232,95 @@ export function RecipeViewer({
       onEdit()
     } else {
       router.push(`/dashboard/recipes/${recipe.id}/edit`)
+    }
+  }
+
+  const handlePublish = async () => {
+    setIsPublishing(true)
+    try {
+      const { data, error } = await publishRecipe(recipe.id)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      toast.success('Recipe published successfully!')
+      // Refresh the page to show updated status
+      router.refresh()
+    } catch (error) {
+      console.error('Publish error:', error)
+      toast.error('Failed to publish recipe')
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
+  const handleDeprecateClick = () => {
+    // For applied recipes, show confirmation dialog
+    if (recipe.status.toLowerCase() === 'applied') {
+      setShowDeprecateConfirm(true)
+    } else {
+      handleDeprecate()
+    }
+  }
+
+  const handleDeprecate = async () => {
+    if (!userId) {
+      toast.error('User not authenticated')
+      return
+    }
+
+    setShowDeprecateConfirm(false)
+    setIsDeprecating(true)
+    try {
+      const { data, activeCount, error } = await deprecateRecipe(recipe.id, userId)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      if (activeCount && activeCount > 0) {
+        toast.success(
+          `Recipe deprecated. ${activeCount} active application${activeCount > 1 ? 's' : ''} will continue running.`,
+          { duration: 5000 }
+        )
+      } else {
+        toast.success('Recipe marked as deprecated')
+      }
+      
+      router.refresh()
+    } catch (error) {
+      console.error('Deprecate error:', error)
+      toast.error('Failed to deprecate recipe')
+    } finally {
+      setIsDeprecating(false)
+    }
+  }
+
+  const handleUndeprecate = async () => {
+    if (!userId) {
+      toast.error('User not authenticated')
+      return
+    }
+
+    setIsRestoring(true)
+    try {
+      const { data, error } = await undeprecateRecipe(recipe.id, userId)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      toast.success('Recipe restored successfully')
+      router.refresh()
+    } catch (error) {
+      console.error('Restore error:', error)
+      toast.error('Failed to restore recipe')
+    } finally {
+      setIsRestoring(false)
     }
   }
 
@@ -146,11 +354,29 @@ export function RecipeViewer({
               )}
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              v{currentVersion?.version || recipe.current_version} · Created by {currentVersion?.created_by || 'Unknown'}
+              v{currentVersion?.version || recipe.current_version} · Created by {creatorName || 'Loading...'}
             </p>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {recipe.status.toLowerCase() === 'draft' && canEdit && (
+            <Button onClick={handlePublish} disabled={isPublishing}>
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              {isPublishing ? 'Publishing...' : 'Publish'}
+            </Button>
+          )}
+          {recipe.status.toLowerCase() === 'deprecated' && canEdit && (
+            <Button onClick={handleUndeprecate} disabled={isRestoring} variant="default">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {isRestoring ? 'Restoring...' : 'Restore Recipe'}
+            </Button>
+          )}
+          {(recipe.status.toLowerCase() === 'published' || recipe.status.toLowerCase() === 'applied') && canEdit && (
+            <Button onClick={handleDeprecateClick} disabled={isDeprecating} variant="destructive">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              {isDeprecating ? 'Deprecating...' : 'Deprecate'}
+            </Button>
+          )}
           {canClone && (
             <Button variant="outline" onClick={handleClone}>
               <Copy className="w-4 h-4 mr-2" />
@@ -163,7 +389,9 @@ export function RecipeViewer({
               Edit
             </Button>
           )}
-          {canApply && recipe.status.toLowerCase() === 'published' && (
+          {canApply && 
+           (recipe.status.toLowerCase() === 'published' || recipe.status.toLowerCase() === 'applied') && 
+           recipe.status.toLowerCase() !== 'deprecated' && (
             <Button onClick={() => setAssignDialogOpen(true)}>
               <Calendar className="w-4 h-4 mr-2" />
               Assign Recipe
@@ -171,6 +399,57 @@ export function RecipeViewer({
           )}
         </div>
       </div>
+
+      {/* Deprecated Warning Banner */}
+      {recipe.status.toLowerCase() === 'deprecated' && (
+        <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+          <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          <AlertTitle className="text-orange-800 dark:text-orange-300">Recipe Deprecated</AlertTitle>
+          <AlertDescription className="text-orange-700 dark:text-orange-400">
+            This recipe is deprecated and not recommended for new applications. 
+            Existing activations will continue to run normally.
+            {recipe.deprecated_at && (
+              <span className="block mt-1 text-sm">
+                Deprecated on {formatDate(recipe.deprecated_at)}
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Deprecate Confirmation Dialog */}
+      <AlertDialog open={showDeprecateConfirm} onOpenChange={setShowDeprecateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deprecate Active Recipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This recipe is currently applied and running on one or more pods/batches.
+            </AlertDialogDescription>
+            <div className="space-y-3 pt-4">
+              <p className="text-sm">
+                Deprecating will:
+              </p>
+              <ul className="list-disc pl-6 space-y-1 text-sm">
+                <li>Mark the recipe as deprecated (not recommended for new use)</li>
+                <li><strong className="text-emerald-600">Keep existing applications running normally</strong></li>
+                <li>Prevent the recipe from being assigned to new pods/batches</li>
+              </ul>
+              <p className="text-sm text-muted-foreground pt-2">
+                You can restore the recipe later if needed.
+              </p>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeprecate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deprecate Recipe
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Assign Recipe Dialog */}
       {canApply && currentVersion && (
@@ -210,7 +489,9 @@ export function RecipeViewer({
                 <p className="text-sm text-slate-600 dark:text-slate-400">Created By</p>
                 <div className="flex items-center gap-2 mt-1">
                   <User className="w-4 h-4 text-slate-400" />
-                  <p className="text-slate-900 dark:text-slate-100">{currentVersion.created_by || 'Unknown'}</p>
+                  <p className="text-slate-900 dark:text-slate-100">
+                    {creatorName || 'Loading...'}
+                  </p>
                 </div>
               </div>
               <div>
@@ -218,7 +499,7 @@ export function RecipeViewer({
                 <div className="flex items-center gap-2 mt-1">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   <p className="text-slate-900 dark:text-slate-100">
-                    {new Date(currentVersion.created_at).toLocaleString()}
+                    {formatDate(currentVersion.created_at)}
                   </p>
                 </div>
               </div>
@@ -253,22 +534,26 @@ export function RecipeViewer({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={selectedStageId} onValueChange={setSelectedStageId}>
-              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(stages.length, 4)}, 1fr)` }}>
-                {stages.map(stage => (
-                  <TabsTrigger key={stage.id} value={stage.id}>
-                    <span className="truncate">{stage.name}</span>
-                    <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">({stage.duration_days}d)</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+            <div className="relative">
+              <div className="overflow-x-auto pb-2">
+                <Tabs value={selectedStageId} onValueChange={setSelectedStageId}>
+                  <TabsList className="inline-flex w-auto min-w-full">
+                    {stages.map(stage => (
+                      <TabsTrigger key={stage.id} value={stage.id} className="flex-shrink-0 min-w-[120px]">
+                        <span className="truncate">{stage.name}</span>
+                        <span className="ml-2 text-xs text-slate-500">({stage.duration_days}d)</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
 
-              {stages.map(stage => (
-                <TabsContent key={stage.id} value={stage.id} className="mt-6">
-                  <StageDetails stage={stage} />
-                </TabsContent>
-              ))}
-            </Tabs>
+                  {stages.map(stage => (
+                    <TabsContent key={stage.id} value={stage.id} className="mt-6">
+                      <StageDetails stage={stage} />
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -291,7 +576,7 @@ export function RecipeViewer({
                       {activation.scope_type}: {activation.scope_name || activation.scope_id}
                     </p>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Started: {new Date(activation.activated_at).toLocaleString()}
+                      Started: {formatDate(activation.activated_at)}
                       {activation.current_stage_id && ` · Stage ${activation.current_stage_day} days`}
                     </p>
                   </div>
@@ -324,10 +609,10 @@ export function RecipeViewer({
                     </Badge>
                     <div>
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {v.created_by || 'Unknown'}
+                        {userNames[v.created_by] || 'Loading...'}
                       </p>
                       <p className="text-xs text-slate-600 dark:text-slate-400">
-                        {new Date(v.created_at).toLocaleString()}
+                        {formatDate(v.created_at)}
                       </p>
                     </div>
                   </div>
@@ -381,9 +666,147 @@ function StageDetails({ stage }: { stage: RecipeStageWithDetails }) {
         {setpoints.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">No setpoints defined for this stage.</p>
         ) : (
-          setpoints.map((setpoint: EnvironmentalSetpoint) => (
-            <SetpointCard key={setpoint.id} setpoint={setpoint} />
-          ))
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-6">
+                {/* Temperature */}
+                {(() => {
+                  const tempSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'temperature')
+                  if (!tempSetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Temperature (°C):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{tempSetpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{tempSetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Relative Humidity */}
+                {(() => {
+                  const humiditySetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'humidity')
+                  if (!humiditySetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Relative Humidity (%):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{humiditySetpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{humiditySetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* VPD */}
+                {(() => {
+                  const vpdSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'vpd')
+                  if (!vpdSetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">VPD (kPa):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{vpdSetpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{vpdSetpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* CO2 */}
+                {(() => {
+                  const co2Setpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'co2')
+                  if (!co2Setpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">CO₂ (ppm):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{co2Setpoint.min_value ?? '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{co2Setpoint.max_value ?? '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Light Level */}
+                {(() => {
+                  const lightSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'light_intensity')
+                  if (!lightSetpoint) return null
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Light Level (%):</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Min:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{lightSetpoint.min_value ?? '-'}%</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Max:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{lightSetpoint.max_value ?? '-'}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Light Schedule */}
+                {(() => {
+                  const photoperiodSetpoint = setpoints.find((sp: EnvironmentalSetpoint) => sp.parameter_type === 'photoperiod')
+                  if (!photoperiodSetpoint || !photoperiodSetpoint.value) return null
+                  
+                  // Calculate on/off times from duration (assuming lights on at 6:00 AM)
+                  const hours = photoperiodSetpoint.value
+                  const offHour = 6 + Math.floor(hours)
+                  const offMin = Math.round((hours % 1) * 60)
+                  const lightOff = `${offHour.toString().padStart(2, '0')}:${offMin.toString().padStart(2, '0')}`
+                  
+                  return (
+                    <div>
+                      <p className="text-base font-semibold mb-3 text-slate-900 dark:text-slate-100">Light Schedule:</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">On:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">06:00 AM</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 dark:text-slate-400">Off:</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{lightOff}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                        Duration: {photoperiodSetpoint.value} hours
+                      </p>
+                    </div>
+                  )
+                })()}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 

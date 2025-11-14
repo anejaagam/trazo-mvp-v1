@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { PodDetail } from './pod-detail'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
+import type { ActiveRecipeDetails } from '@/types/recipe'
 
 interface PodDetailDashboardProps {
   podId: string
@@ -12,6 +13,7 @@ interface PodDetailDashboardProps {
   userRole: string
   userId: string
   deviceToken?: string | null
+  activeRecipe?: ActiveRecipeDetails | null
 }
 
 export function PodDetailDashboard({
@@ -19,6 +21,7 @@ export function PodDetailDashboard({
   podName,
   roomName,
   deviceToken,
+  activeRecipe,
 }: PodDetailDashboardProps) {
   const router = useRouter()
 
@@ -40,6 +43,7 @@ export function PodDetailDashboard({
         podName={podName}
         roomName={roomName}
         deviceToken={deviceToken}
+        activeRecipe={activeRecipe}
         onBack={() => router.push('/dashboard/monitoring')}
       />
     </div>

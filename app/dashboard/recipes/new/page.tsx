@@ -3,7 +3,44 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { createRecipe, createRecipeVersion } from '@/lib/supabase/queries/recipes'
 import { RecipeAuthor } from '@/components/features/recipes/recipe-author'
-import type { PlantType, RecipeVersionData } from '@/types/recipe'
+import type { 
+  PlantType, 
+  RecipeVersionData,
+  StageType,
+  SetpointParameterType
+} from '@/types/recipe'
+
+interface SetpointFormData {
+  id: string
+  // Temperature in °C
+  tempMin?: number
+  tempMax?: number
+  // Relative Humidity %
+  humidityMin?: number
+  humidityMax?: number
+  // VPD kPa
+  vpdMin?: number
+  vpdMax?: number
+  // CO2 ppm
+  co2Min?: number
+  co2Max?: number
+  // Light Level %
+  lightMin?: number
+  lightMax?: number
+  // Light Schedule (24-hour format HH:MM)
+  lightOn?: string
+  lightOff?: string
+}
+
+interface StageFormData {
+  id: string
+  name: string
+  stageType: StageType
+  duration: number
+  description: string
+  order: number
+  setpoints: SetpointFormData[]
+}
 
 interface RecipeFormData {
   name: string
@@ -11,7 +48,7 @@ interface RecipeFormData {
   notes: string
   plantTypes: PlantType[]
   tags: string[]
-  stages: unknown[]
+  stages: StageFormData[]
 }
 
 export default async function NewRecipePage() {
@@ -86,12 +123,126 @@ export default async function NewRecipePage() {
       .limit(1)
       .single()
 
-    // Create version data
+    // Create version data - transform form data to match database schema
     const versionData: RecipeVersionData = {
       name: formData.name,
       description: formData.description || undefined,
-      stages: formData.stages as RecipeVersionData['stages']
+      stages: formData.stages.map((stage, index) => ({
+        name: stage.name,
+        stage_type: stage.stageType,
+        order_index: index,
+        duration_days: stage.duration,
+        description: stage.description || undefined,
+        setpoints: stage.setpoints.flatMap(sp => {
+          // Convert our single comprehensive setpoint into multiple database setpoints
+          const dbSetpoints = []
+          
+          // Temperature setpoint
+          if (sp.tempMin !== undefined || sp.tempMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'temperature' as const,
+              min_value: sp.tempMin,
+              max_value: sp.tempMax,
+              unit: '°C',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // Humidity setpoint
+          if (sp.humidityMin !== undefined || sp.humidityMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'humidity' as const,
+              min_value: sp.humidityMin,
+              max_value: sp.humidityMax,
+              unit: '%',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // VPD setpoint
+          if (sp.vpdMin !== undefined || sp.vpdMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'vpd' as const,
+              min_value: sp.vpdMin,
+              max_value: sp.vpdMax,
+              unit: 'kPa',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // CO2 setpoint
+          if (sp.co2Min !== undefined || sp.co2Max !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'co2' as const,
+              min_value: sp.co2Min,
+              max_value: sp.co2Max,
+              unit: 'ppm',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // Light level setpoint
+          if (sp.lightMin !== undefined || sp.lightMax !== undefined) {
+            dbSetpoints.push({
+              parameter_type: 'light_intensity' as const,
+              min_value: sp.lightMin,
+              max_value: sp.lightMax,
+              unit: '%',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          // Light schedule (photoperiod) - calculate hours from on/off times
+          if (sp.lightOn && sp.lightOff) {
+            const [onHour, onMin] = sp.lightOn.split(':').map(Number)
+            const [offHour, offMin] = sp.lightOff.split(':').map(Number)
+            const onMinutes = onHour * 60 + onMin
+            const offMinutes = offHour * 60 + offMin
+            let durationHours = (offMinutes - onMinutes) / 60
+            if (durationHours < 0) durationHours += 24 // Handle overnight schedules
+            
+            dbSetpoints.push({
+              parameter_type: 'photoperiod' as const,
+              value: durationHours,
+              unit: 'hrs',
+              ramp_enabled: false,
+              priority: 50,
+              enabled: true,
+            })
+          }
+          
+          return dbSetpoints
+        }),
+      })),
     }
+
+    console.log('Creating recipe with data:', {
+      recipeData: {
+        organization_id: userData.organization_id,
+        name: formData.name,
+        plantTypes: formData.plantTypes,
+      },
+      versionData: {
+        name: versionData.name,
+        stagesCount: versionData.stages.length,
+        stages: versionData.stages.map(s => ({
+          name: s.name,
+          type: s.stage_type,
+          duration: s.duration_days,
+          setpointsCount: s.setpoints.length,
+        })),
+      },
+    })
 
     // Create recipe
     const { data: recipe, error: recipeError } = await createRecipe({
@@ -106,8 +257,12 @@ export default async function NewRecipePage() {
     })
 
     if (recipeError || !recipe) {
-      console.error('Recipe creation error:', recipeError)
-      throw new Error('Failed to create recipe')
+      console.error('Recipe creation error details:', {
+        error: recipeError,
+        errorMessage: recipeError instanceof Error ? recipeError.message : 'Unknown error',
+        errorDetails: JSON.stringify(recipeError, null, 2)
+      })
+      throw new Error(`Failed to create recipe: ${recipeError instanceof Error ? recipeError.message : JSON.stringify(recipeError)}`)
     }
 
     // Create initial version
@@ -120,7 +275,8 @@ export default async function NewRecipePage() {
 
     if (versionError) {
       console.error('Version creation error:', versionError)
-      throw new Error('Failed to create recipe version')
+      console.error('Version data that caused error:', JSON.stringify(versionData, null, 2))
+      throw new Error(`Failed to create recipe version: ${versionError instanceof Error ? versionError.message : JSON.stringify(versionError)}`)
     }
 
     return recipe.id

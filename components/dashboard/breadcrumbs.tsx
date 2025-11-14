@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronRight, Home } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface DashboardBreadcrumbsProps {
   className?: string
@@ -14,8 +16,59 @@ interface BreadcrumbItem {
   href?: string
 }
 
+// Helper to check if string is a UUID
+const isUUID = (str: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(str)
+}
+
 export function DashboardBreadcrumbs({ className }: DashboardBreadcrumbsProps) {
   const pathname = usePathname()
+  const [dynamicNames, setDynamicNames] = useState<Record<string, string>>({})
+  
+  // Fetch dynamic names for UUIDs (recipes, batches, etc.)
+  useEffect(() => {
+    const fetchDynamicNames = async () => {
+      const segments = pathname.split('/').filter(Boolean)
+      const supabase = createClient()
+      const newNames: Record<string, string> = {}
+      
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i]
+        const prevSegment = i > 0 ? segments[i - 1] : null
+        
+        if (isUUID(segment) && prevSegment) {
+          // Fetch name based on the previous segment
+          try {
+            if (prevSegment === 'recipes') {
+              const { data } = await supabase
+                .from('recipes')
+                .select('name')
+                .eq('id', segment)
+                .single()
+              if (data?.name) newNames[segment] = data.name
+            } else if (prevSegment === 'batches') {
+              const { data } = await supabase
+                .from('batches')
+                .select('batch_code')
+                .eq('id', segment)
+                .single()
+              if (data?.batch_code) newNames[segment] = data.batch_code
+            }
+            // Add more entity types as needed
+          } catch (error) {
+            console.error(`Error fetching name for ${prevSegment}:`, error)
+          }
+        }
+      }
+      
+      if (Object.keys(newNames).length > 0) {
+        setDynamicNames(newNames)
+      }
+    }
+    
+    fetchDynamicNames()
+  }, [pathname])
   
   // Generate breadcrumbs from pathname
   const generateBreadcrumbs = (): BreadcrumbItem[] => {
@@ -62,7 +115,18 @@ export function DashboardBreadcrumbs({ className }: DashboardBreadcrumbsProps) {
       const segment = segments[i]
       currentPath += `/${segment}`
       
-      const title = segmentTitles[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
+      // Use dynamic name if available, otherwise use static mapping or capitalize
+      let title: string
+      if (dynamicNames[segment]) {
+        title = dynamicNames[segment]
+      } else if (segmentTitles[segment]) {
+        title = segmentTitles[segment]
+      } else if (isUUID(segment)) {
+        title = 'Loading...'
+      } else {
+        title = segment.charAt(0).toUpperCase() + segment.slice(1)
+      }
+      
       const isLast = i === segments.length - 1
       
       breadcrumbs.push({

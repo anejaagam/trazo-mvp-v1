@@ -3,6 +3,9 @@
 import {
   getAssignableScopes as getAssignableScopesQuery,
   assignRecipeToScope as assignRecipeToScopeQuery,
+  updateRecipe,
+  deprecateRecipe as deprecateRecipeQuery,
+  undeprecateRecipe as undeprecateRecipeQuery,
 } from '@/lib/supabase/queries/recipes'
 import type { RecipeScopeType } from '@/types/recipe'
 
@@ -76,6 +79,106 @@ export async function assignRecipeToScope(
     console.error('Unexpected error in assignRecipeToScope:', err)
     return {
       data: null,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Server action to publish a draft recipe
+ */
+export async function publishRecipe(
+  recipeId: string
+): Promise<{
+  data: { id: string; status: string } | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await updateRecipe(recipeId, {
+      status: 'published',
+      published_at: new Date().toISOString(),
+    })
+    
+    if (error) {
+      console.error('Error publishing recipe:', error)
+      return {
+        data: null,
+        error: error instanceof Error ? error.message : 'Failed to publish recipe',
+      }
+    }
+    
+    return { 
+      data: data ? { id: data.id, status: data.status } : null, 
+      error: null 
+    }
+  } catch (err) {
+    console.error('Unexpected error in publishRecipe:', err)
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Server action to deprecate a recipe
+ */
+export async function deprecateRecipe(
+  recipeId: string,
+  userId: string,
+  reason?: string
+): Promise<{
+  data: boolean
+  activeCount?: number
+  error: string | null
+}> {
+  try {
+    const { data, error, activeCount } = await deprecateRecipeQuery(recipeId, userId, reason)
+    
+    if (error) {
+      console.error('Error deprecating recipe:', error)
+      return {
+        data: false,
+        error: error instanceof Error ? error.message : 'Failed to deprecate recipe',
+      }
+    }
+    
+    return { data, activeCount, error: null }
+  } catch (err) {
+    console.error('Unexpected error in deprecateRecipe:', err)
+    return {
+      data: false,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Server action to undeprecate a recipe (restore to published/applied)
+ */
+export async function undeprecateRecipe(
+  recipeId: string,
+  userId: string
+): Promise<{
+  data: boolean
+  error: string | null
+}> {
+  try {
+    const { data, error } = await undeprecateRecipeQuery(recipeId, userId)
+    
+    if (error) {
+      console.error('Error undeprecating recipe:', error)
+      return {
+        data: false,
+        error: error instanceof Error ? error.message : 'Failed to restore recipe',
+      }
+    }
+    
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in undeprecateRecipe:', err)
+    return {
+      data: false,
       error: err instanceof Error ? err.message : 'An unexpected error occurred',
     }
   }

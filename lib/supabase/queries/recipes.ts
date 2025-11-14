@@ -345,7 +345,14 @@ export async function createRecipeVersion(
     if (recipeError) throw recipeError
     if (!recipe) throw new Error('Recipe not found')
 
-    const newVersion = recipe.current_version + 1
+    // For new recipes, current_version is 1 (from default), so we use it as-is for the first version
+    // For existing recipes with versions, we increment
+    const { count } = await supabase
+      .from('recipe_versions')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipe_id', recipeId)
+
+    const newVersion = (count || 0) + 1
 
     // Create version record
     const versionInsert: InsertRecipeVersion = {
@@ -448,8 +455,10 @@ export async function activateRecipe(
   versionId: string,
   scopeType: RecipeScopeType,
   scopeId: string,
+  scopeName: string,
   userId: string,
-  scheduledStart?: string
+  scheduledStart?: string,
+  scheduledEnd?: string
 ) {
   try {
     const supabase = await createClient()
@@ -457,11 +466,13 @@ export async function activateRecipe(
     // Use database function for activation
     const { data, error } = await supabase.rpc('activate_recipe', {
       p_recipe_id: recipeId,
-      p_version_id: versionId,
+      p_recipe_version_id: versionId,
       p_scope_type: scopeType,
       p_scope_id: scopeId,
-      p_user_id: userId,
+      p_scope_name: scopeName,
+      p_activated_by: userId,
       p_scheduled_start: scheduledStart,
+      p_scheduled_end: scheduledEnd,
     })
 
     if (error) throw error
@@ -518,6 +529,8 @@ export async function getActiveRecipeForScope(
   try {
     const supabase = await createClient()
     
+    console.log('🔎 getActiveRecipeForScope called:', { scopeType, scopeId })
+    
     // Get active activation with recipe and version details
     const { data: activation, error: activationError } = await supabase
       .from('recipe_activations')
@@ -533,9 +546,16 @@ export async function getActiveRecipeForScope(
       .limit(1)
       .single()
 
+    console.log('📊 Recipe activation query result:', { 
+      hasData: !!activation, 
+      error: activationError?.code,
+      errorMessage: activationError?.message 
+    })
+
     if (activationError) {
       if (activationError.code === 'PGRST116') {
         // No active recipe found
+        console.log('ℹ️ No active recipe found (PGRST116)')
         return { data: null, error: null }
       }
       throw activationError
@@ -957,8 +977,9 @@ export async function assignRecipeToScope(
       versionId,
       scopeType,
       scopeId,
+      scopeName,
       userId,
-      scheduledStart
+      scheduledStart || new Date().toISOString()
     )
     
     if (error) throw error
@@ -968,5 +989,101 @@ export async function assignRecipeToScope(
   } catch (error) {
     console.error('Error in assignRecipeToScope:', error)
     return { data: null, error }
+  }
+}
+
+/**
+ * Deprecate a recipe (mark as outdated/not recommended for new applications)
+ * 
+ * Note: If the recipe has active activations, they will continue running normally.
+ * The recipe status will change to 'deprecated' but existing activations remain active.
+ * New activations cannot be created for deprecated recipes.
+ */
+export async function deprecateRecipe(
+  recipeId: string,
+  userId: string,
+  reason?: string
+): Promise<{ data: boolean; error: unknown; activeCount?: number }> {
+  try {
+    const supabase = await createClient()
+    
+    // Check for active activations
+    const { data: activations, error: checkError } = await supabase
+      .from('recipe_activations')
+      .select('id, scope_name, scope_type')
+      .eq('recipe_id', recipeId)
+      .eq('is_active', true)
+    
+    if (checkError) throw checkError
+    
+    const activeCount = activations?.length || 0
+    
+    // Update recipe status
+    const { error: updateError } = await supabase
+      .from('recipes')
+      .update({
+        status: 'deprecated',
+        deprecated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', recipeId)
+    
+    if (updateError) throw updateError
+    
+    // Log the deprecation with active activation info
+    console.log('Recipe deprecated:', { 
+      recipeId, 
+      userId, 
+      reason,
+      activeCount,
+      activeScopes: activations?.map(a => `${a.scope_type}:${a.scope_name}`)
+    })
+    
+    return { data: true, error: null, activeCount }
+  } catch (error) {
+    console.error('Error in deprecateRecipe:', error)
+    return { data: false, error }
+  }
+}
+
+/**
+ * Undeprecate a recipe (restore to published status)
+ */
+export async function undeprecateRecipe(
+  recipeId: string,
+  userId: string
+): Promise<{ data: boolean; error: unknown }> {
+  try {
+    const supabase = await createClient()
+    
+    // Check if recipe has any active activations
+    const { data: activations } = await supabase
+      .from('recipe_activations')
+      .select('id')
+      .eq('recipe_id', recipeId)
+      .eq('is_active', true)
+      .limit(1)
+    
+    // If active, set to 'applied', otherwise 'published'
+    const newStatus = activations && activations.length > 0 ? 'applied' : 'published'
+    
+    // Update recipe status
+    const { error: updateError } = await supabase
+      .from('recipes')
+      .update({
+        status: newStatus,
+        deprecated_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', recipeId)
+    
+    if (updateError) throw updateError
+    
+    console.log('Recipe undeprecated:', { recipeId, userId, newStatus })
+    
+    return { data: true, error: null }
+  } catch (error) {
+    console.error('Error in undeprecateRecipe:', error)
+    return { data: false, error }
   }
 }

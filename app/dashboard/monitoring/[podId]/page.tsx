@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { PodDetailDashboard } from '@/components/features/monitoring/pod-detail-dashboard'
+import { getActiveRecipeForScope } from '@/lib/supabase/queries/recipes'
+import { ActiveRecipeDisplay } from '@/components/features/recipes/active-recipe-display'
+import type { ActiveRecipeDetails } from '@/types/recipe'
 
 interface PodDetailPageProps {
   params: Promise<{
@@ -28,6 +31,7 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
   let podName = 'Pod'
   let roomName = 'Room'
   let deviceToken: string | null = null
+  let activeRecipe: ActiveRecipeDetails | null = null
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
@@ -120,14 +124,103 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
     notFound()
   }
 
+  // Fetch active recipe for this pod using service client to bypass RLS
+  console.log('🔍 Fetching active recipe for pod:', podId)
+  const { createServiceClient } = await import('@/lib/supabase/service')
+  const serviceSupabase = createServiceClient('US')
+  
+  // Query recipe_activations directly
+  const { data: activationData, error: activationError } = await serviceSupabase
+    .from('recipe_activations')
+    .select(`
+      *,
+      recipe:recipes(*),
+      recipe_version:recipe_versions(*)
+    `)
+    .eq('scope_type', 'pod')
+    .eq('scope_id', podId)
+    .eq('is_active', true)
+    .order('activated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  
+  if (activationError) {
+    console.error('❌ Error fetching active recipe:', activationError)
+  } else if (activationData) {
+    console.log('✅ Found active recipe:', {
+      recipeId: activationData.recipe_id,
+      recipeName: activationData.recipe?.name,
+      scopeName: activationData.scope_name
+    })
+    
+    // Fetch stages with setpoints
+    const { data: stages } = await serviceSupabase
+      .from('recipe_stages')
+      .select(`
+        *,
+        setpoints:environmental_setpoints(*),
+        nutrient_formula:nutrient_formulas(*)
+      `)
+      .eq('recipe_version_id', activationData.recipe_version_id)
+      .order('order_index', { ascending: true })
+    
+    const currentStage = stages?.find((s: { id: string }) => s.id === activationData.current_stage_id)
+    const currentSetpoints = currentStage?.setpoints || []
+    
+    activeRecipe = {
+      activation: {
+        ...activationData,
+        current_stage: currentStage ? {
+          id: currentStage.id,
+          recipe_version_id: currentStage.recipe_version_id,
+          name: currentStage.name,
+          stage_type: currentStage.stage_type,
+          order_index: currentStage.order_index,
+          duration_days: currentStage.duration_days,
+          description: currentStage.description,
+          color_code: currentStage.color_code,
+          created_at: currentStage.created_at,
+          setpoints: currentStage.setpoints || [],
+          nutrient_formula: currentStage.nutrient_formula?.[0] || null,
+        } : undefined,
+      },
+      stages: stages?.map((stage: any) => ({
+        id: stage.id,
+        recipe_version_id: stage.recipe_version_id,
+        name: stage.name,
+        stage_type: stage.stage_type,
+        order_index: stage.order_index,
+        duration_days: stage.duration_days,
+        description: stage.description,
+        color_code: stage.color_code,
+        created_at: stage.created_at,
+        setpoints: stage.setpoints || [],
+        nutrient_formula: stage.nutrient_formula?.[0] || null,
+      })) || [],
+      current_setpoints: currentSetpoints,
+      active_overrides: [],
+    }
+  } else {
+    console.log('ℹ️ No active recipe found for pod:', podId)
+  }
+
   return (
-    <PodDetailDashboard
-      podId={podId}
-      podName={podName}
-      roomName={roomName}
-      userRole={userRole}
-      userId={userId}
-      deviceToken={deviceToken}
-    />
+    <div className="space-y-6">
+      {/* Active Recipe Display */}
+      {activeRecipe && (
+        <ActiveRecipeDisplay activeRecipe={activeRecipe} />
+      )}
+
+      {/* Pod Monitoring Dashboard */}
+      <PodDetailDashboard
+        podId={podId}
+        podName={podName}
+        roomName={roomName}
+        userRole={userRole}
+        userId={userId}
+        deviceToken={deviceToken}
+        activeRecipe={activeRecipe}
+      />
+    </div>
   )
 }

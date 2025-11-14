@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { canPerformAction } from '@/lib/rbac/permissions';
+import { canPerformAction } from '@/lib/rbac/guards';
 import { getTemplateById } from '@/lib/supabase/queries/workflows';
 import { TemplateEditorWrapper } from '@/components/features/workflows/template-editor-wrapper';
 
@@ -9,7 +9,7 @@ interface EditTemplatePageProps {
 }
 
 export default async function EditTemplatePage({ params }: EditTemplatePageProps) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();

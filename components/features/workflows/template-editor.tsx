@@ -534,7 +534,6 @@ function EvidenceConfigEditor({
                 value={config.minValue || ''}
                 onChange={(e) => onUpdate({ ...config, minValue: parseFloat(e.target.value) })}
                 placeholder="Min"
-                size={1}
               />
             </div>
             <div className="space-y-1">
@@ -544,7 +543,6 @@ function EvidenceConfigEditor({
                 value={config.maxValue || ''}
                 onChange={(e) => onUpdate({ ...config, maxValue: parseFloat(e.target.value) })}
                 placeholder="Max"
-                size={1}
               />
             </div>
             <div className="space-y-1">
@@ -553,7 +551,6 @@ function EvidenceConfigEditor({
                 value={config.unit || ''}
                 onChange={(e) => onUpdate({ ...config, unit: e.target.value })}
                 placeholder="e.g., °F"
-                size={1}
               />
             </div>
           </div>

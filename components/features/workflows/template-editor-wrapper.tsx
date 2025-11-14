@@ -31,7 +31,7 @@ export function TemplateEditorWrapper({
       }
 
       if (result?.error) {
-        throw new Error(result.error);
+        throw new Error(typeof result.error === 'string' ? result.error : 'An error occurred');
       }
 
       // Navigate back to templates list

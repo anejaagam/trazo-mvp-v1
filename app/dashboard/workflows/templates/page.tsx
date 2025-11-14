@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { canPerformAction } from '@/lib/rbac/permissions';
+import { canPerformAction } from '@/lib/rbac/guards';
 import { getTemplates } from '@/lib/supabase/queries/workflows';
 import { TemplateLibraryWrapper } from '@/components/features/workflows/template-library-wrapper';
 
 export default async function WorkflowTemplatesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { canPerformAction } from '@/lib/rbac/permissions';
+import { canPerformAction } from '@/lib/rbac/guards';
 import { 
   createTemplate, 
   updateTemplate,
@@ -17,7 +17,7 @@ import { SOPTemplate, CreateTemplateInput, UpdateTemplateInput } from '@/types/w
  * Create a new template
  */
 export async function createTemplateAction(templateData: Partial<SOPTemplate>) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
@@ -86,7 +86,7 @@ export async function updateTemplateAction(
   templateId: string,
   templateData: Partial<SOPTemplate>
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
@@ -151,7 +151,7 @@ export async function updateTemplateAction(
  * Publish a template
  */
 export async function publishTemplateAction(templateId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
@@ -195,7 +195,7 @@ export async function publishTemplateAction(templateId: string) {
  * Archive a template
  */
 export async function archiveTemplateAction(templateId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
@@ -238,7 +238,7 @@ export async function archiveTemplateAction(templateId: string) {
  * Duplicate a template
  */
 export async function duplicateTemplateAction(templateId: string, newName: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();

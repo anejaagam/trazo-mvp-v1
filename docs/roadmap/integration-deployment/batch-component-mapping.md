@@ -47,7 +47,7 @@ This document provides a comprehensive mapping of the BatchManagementPrototype (
 | Prototype Component | Lines | Target Location | shadcn/ui Components | Phase |
 |-------------------|-------|----------------|---------------------|-------|
 | `CultivarManagement.tsx` | 443 | `/components/features/batch/cultivar-manager.tsx` | Card, Dialog, Form, Table | 4 |
-| `BatchGroupManagement.tsx` | 202 | `/components/features/batch/batch-groups.tsx` | Card, Checkbox, Badge | 4 |
+| `BatchCollectionManagement.tsx` | 202 | `/components/features/batch/batch-collections.tsx` | Card, Checkbox, Badge | 4 |
 | `BulkBatchOperations.tsx` | 286 | `/components/features/batch/bulk-operations.tsx` | Card, Checkbox, Select | 4 |
 | `QuarantineManagement.tsx` | 225 | `/components/features/batch/quarantine.tsx` | Card, Dialog, Textarea | 4 |
 | `RoomCapacityMonitor.tsx` | 204 | `/components/features/batch/room-capacity.tsx` | Card, Progress, Badge | 4 |
@@ -178,7 +178,7 @@ CREATE TABLE batches (
   quarantine_reason TEXT,
   quarantined_at TIMESTAMPTZ,
   quarantined_by UUID REFERENCES users(id),
-  group_id UUID REFERENCES batch_groups(id),
+  collection_id UUID REFERENCES batch_collections(id),
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
@@ -202,9 +202,9 @@ CREATE TABLE cultivars (
 );
 ```
 
-**3. batch_groups**
+**3. batch_collections** (for organizing batches; note: batch_groups exists for recipe pod grouping)
 ```sql
-CREATE TABLE batch_groups (
+CREATE TABLE batch_collections (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
@@ -745,7 +745,7 @@ export async function getBatches(siteId: string, filters?: BatchFilters) {
 - [ ] WasteDisposal (WasteDisposalWorkflow → waste-disposal.tsx)
 
 **Tier 3 Components (1 day):**
-- [ ] CultivarManager, BatchGroups, BulkOperations, Quarantine, RoomCapacity
+- [ ] CultivarManager, BatchCollections, BulkOperations, Quarantine, RoomCapacity
 
 **Tier 4 Components (1 day):**
 - [ ] GenealogyView, PlantCount, EvidenceCapture, WasteLogs

@@ -3,19 +3,20 @@
 -- Created: November 13, 2025
 -- 
 -- This migration creates:
--- 1. Six new batch-related tables (batch_groups, growing_areas, batch_stage_history, harvest_records, plant_count_snapshots, post_harvest_records)
+-- 1. Six new batch-related tables (batch_collections, growing_areas, batch_stage_history, harvest_records, plant_count_snapshots, post_harvest_records)
 -- 2. Performance indexes for all new tables
 -- 3. Row-level security (RLS) policies for multi-tenancy and RBAC
 -- 4. Triggers for automatic timestamp updates
 --
 -- Note: waste_logs table already exists with comprehensive fields, so not recreated
+-- Note: batch_groups already exists for pod grouping with recipes, so using batch_collections instead
 
 -- ============================================================================
 -- PART 1: New Tables
 -- ============================================================================
 
--- Batch groups (for organizing batches)
-CREATE TABLE IF NOT EXISTS batch_groups (
+-- Batch collections (for organizing batches into logical groups)
+CREATE TABLE IF NOT EXISTS batch_collections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
@@ -97,8 +98,8 @@ CREATE TABLE IF NOT EXISTS post_harvest_records (
 -- PART 2: Performance Indexes
 -- ============================================================================
 
--- Batch groups indexes
-CREATE INDEX IF NOT EXISTS idx_batch_groups_org_site ON batch_groups(organization_id, site_id) WHERE is_active = TRUE;
+-- Batch collections indexes
+CREATE INDEX IF NOT EXISTS idx_batch_collections_org_site ON batch_collections(organization_id, site_id) WHERE is_active = TRUE;
 
 -- Growing areas indexes
 CREATE INDEX IF NOT EXISTS idx_growing_areas_org_site ON growing_areas(organization_id, site_id) WHERE is_active = TRUE;
@@ -113,9 +114,8 @@ CREATE INDEX IF NOT EXISTS idx_harvest_records_batch ON harvest_records(batch_id
 CREATE INDEX IF NOT EXISTS idx_plant_count_snapshots_batch ON plant_count_snapshots(batch_id, counted_at DESC);
 
 -- Waste logs indexes (for existing table)
-CREATE INDEX IF NOT EXISTS idx_waste_logs_org_site ON waste_logs(organization_id, site_id, status);
-CREATE INDEX IF NOT EXISTS idx_waste_logs_status_pending ON waste_logs(status) WHERE status = 'pending_approval';
-CREATE INDEX IF NOT EXISTS idx_waste_logs_batch ON waste_logs(batch_id) WHERE batch_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_waste_logs_org_site ON waste_logs(organization_id, site_id);
+CREATE INDEX IF NOT EXISTS idx_waste_logs_source ON waste_logs(source_type, source_id) WHERE source_id IS NOT NULL;
 
 -- Post-harvest records indexes
 CREATE INDEX IF NOT EXISTS idx_post_harvest_records_batch ON post_harvest_records(batch_id, process_type);
@@ -137,7 +137,7 @@ CREATE TRIGGER update_growing_areas_updated_at
 -- PART 4: Enable Row-Level Security
 -- ============================================================================
 
-ALTER TABLE batch_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE batch_collections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE growing_areas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE batch_stage_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE harvest_records ENABLE ROW LEVEL SECURITY;
@@ -145,33 +145,33 @@ ALTER TABLE plant_count_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE post_harvest_records ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
--- PART 5: RLS Policies - Batch Groups
+-- PART 5: RLS Policies - Batch Collections
 -- ============================================================================
 
--- Users can view batch groups in their organization
-CREATE POLICY "Users can view batch groups in their org"
-  ON batch_groups FOR SELECT
+-- Users can view batch collections in their organization
+CREATE POLICY "Users can view batch collections in their org"
+  ON batch_collections FOR SELECT
   USING (organization_id IN (SELECT organization_id FROM users WHERE id = auth.uid()));
 
--- Growers and above can create batch groups
-CREATE POLICY "Growers can create batch groups"
-  ON batch_groups FOR INSERT
+-- Growers and above can create batch collections
+CREATE POLICY "Growers can create batch collections"
+  ON batch_collections FOR INSERT
   WITH CHECK (
     organization_id IN (SELECT organization_id FROM users WHERE id = auth.uid())
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('org_admin', 'site_manager', 'head_grower')
   );
 
--- Growers and above can update batch groups
-CREATE POLICY "Growers can update batch groups"
-  ON batch_groups FOR UPDATE
+-- Growers and above can update batch collections
+CREATE POLICY "Growers can update batch collections"
+  ON batch_collections FOR UPDATE
   USING (
     organization_id IN (SELECT organization_id FROM users WHERE id = auth.uid())
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('org_admin', 'site_manager', 'head_grower')
   );
 
--- Only admins and managers can delete batch groups
-CREATE POLICY "Admins can delete batch groups"
-  ON batch_groups FOR DELETE
+-- Only admins and managers can delete batch collections
+CREATE POLICY "Admins can delete batch collections"
+  ON batch_collections FOR DELETE
   USING (
     organization_id IN (SELECT organization_id FROM users WHERE id = auth.uid())
     AND (SELECT role FROM users WHERE id = auth.uid()) IN ('org_admin', 'site_manager')

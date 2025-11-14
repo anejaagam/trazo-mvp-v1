@@ -48,7 +48,7 @@ Phase 0 documentation alignment has been completed for the BatchManagementProtot
 - Designed 10 new tables for batch management:
   1. `batches` - Core batch tracking
   2. `cultivars` - Produce varieties
-  3. `batch_groups` - Batch organization
+  3. `batch_collections` - Batch organization (note: batch_groups used for recipe pod grouping)
   4. `growing_areas` - Room/location management
   5. `batch_stage_history` - Audit trail
   6. `harvest_records` - Harvest tracking

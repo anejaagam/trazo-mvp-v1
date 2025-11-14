@@ -108,7 +108,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         {
           title: 'Harvest Queue',
           href: '/dashboard/batches/harvest',
-          icon: <Package className="h-4 w-4" />, 
+          icon: <Package className="h-4 w-4" />,
           permission: 'batch:stage_change',
           badge: batchBadges.harvest ? String(batchBadges.harvest) : undefined,
         },
@@ -116,7 +116,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           title: 'Cultivars',
           href: '/dashboard/cultivars',
           icon: <Beaker className="h-4 w-4" />,
-          permission: 'cultivar:view'
+          permission: 'cultivar:view',
         }
       ]
     },

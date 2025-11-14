@@ -25,6 +25,7 @@ This directory contains detailed documentation of the current TRAZO MVP project 
 - **[Inventory Feature](./2-features/feature-inventory.md)** - Complete inventory system (Phase 8 - DEPLOYED)
 - **[Monitoring Feature](./2-features/feature-monitoring.md)** - Telemetry & monitoring (Phase 10 - DEPLOYED)
 - **[Recipe Management Feature](./2-features/feature-recipes.md)** - Environmental control & recipes (Phase 11 - DEPLOYED)
+- **[Recipe Removal Feature](./feature-recipe-removal.md)** - Remove recipes from pods via monitoring dashboard
 
 ### **Reference**
 - **[Project Overview](./3-reference/project-overview.md)** - Architecture, tech stack, and project structure

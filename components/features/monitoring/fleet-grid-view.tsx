@@ -10,6 +10,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Thermometer, Droplets, Wind, Activity } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { getActiveRecipesForScopes } from '@/app/actions/recipes'
 import type { PodSnapshot } from '@/types/telemetry'
 
 interface FleetGridViewProps {
@@ -17,7 +19,31 @@ interface FleetGridViewProps {
   onPodClick?: (podId: string) => void
 }
 
+type RecipeInfo = {
+  recipeName: string
+  stageName: string
+  currentDay: number
+  totalDays: number
+} | null
+
 export function FleetGridView({ snapshots, onPodClick }: FleetGridViewProps) {
+  // Fetch active recipes for all pods
+  const [activeRecipes, setActiveRecipes] = useState<Record<string, RecipeInfo>>({})
+  
+  useEffect(() => {
+    async function fetchRecipes() {
+      if (snapshots.length === 0) return
+      
+      const podIds = snapshots.map(s => s.pod.id)
+      const { data } = await getActiveRecipesForScopes('pod', podIds)
+      
+      if (data) {
+        setActiveRecipes(data)
+      }
+    }
+    
+    fetchRecipes()
+  }, [snapshots])
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {snapshots.map((snapshot) => {
@@ -29,6 +55,8 @@ export function FleetGridView({ snapshots, onPodClick }: FleetGridViewProps) {
           ? (snapshot.humidity_pct < 40 || snapshot.humidity_pct > 70 ? 'warning' : 'normal')
           : 'unknown'
 
+        const recipe = activeRecipes[snapshot.pod.id]
+
         return (
           <Card
             key={snapshot.pod.id}
@@ -39,11 +67,30 @@ export function FleetGridView({ snapshots, onPodClick }: FleetGridViewProps) {
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-base">{snapshot.pod.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {snapshot.room.name}
-                  </p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-base">{snapshot.pod.name}</CardTitle>
+                    {recipe && (
+                      <Badge variant="secondary" className="text-xs">
+                        {recipe.recipeName}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <p className="text-xs text-muted-foreground">
+                      {snapshot.room.name}
+                    </p>
+                    {recipe && (
+                      <>
+                        <Badge variant="outline" className="text-xs">
+                          {recipe.stageName}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          Day {recipe.currentDay} of {recipe.totalDays}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <Badge variant={snapshot.alarm_count_24h > 0 ? 'destructive' : 'default'}>
                   {snapshot.alarm_count_24h > 0 ? `${snapshot.alarm_count_24h} Alarms` : 'OK'}

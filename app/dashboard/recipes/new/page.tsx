@@ -2,12 +2,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { createRecipe, createRecipeVersion } from '@/lib/supabase/queries/recipes'
+import { logAuditEvent } from '@/lib/supabase/queries/audit'
 import { RecipeAuthor } from '@/components/features/recipes/recipe-author'
 import type { 
   PlantType, 
   RecipeVersionData,
-  StageType,
-  SetpointParameterType
+  StageType
 } from '@/types/recipe'
 
 interface SetpointFormData {
@@ -263,6 +263,25 @@ export default async function NewRecipePage() {
         errorDetails: JSON.stringify(recipeError, null, 2)
       })
       throw new Error(`Failed to create recipe: ${recipeError instanceof Error ? recipeError.message : JSON.stringify(recipeError)}`)
+    }
+
+    // Record recipe creation in audit log (best-effort)
+    try {
+      await logAuditEvent(
+        user.id,
+        'recipe',
+        recipe.id,
+        'recipe.created',
+        undefined,
+        {
+          organization_id: userData.organization_id,
+          site_id: userSite?.site_id || null,
+          stage_count: formData.stages.length,
+          plant_types: formData.plantTypes,
+        }
+      )
+    } catch (auditError) {
+      console.error('Failed to log recipe.created audit event:', auditError)
     }
 
     // Create initial version

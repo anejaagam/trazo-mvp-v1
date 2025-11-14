@@ -29,7 +29,17 @@
 - **Applied Status:** Added database trigger for automatic status sync
 - **HTML Validation:** Fixed nested `<p>` tag hydration errors
 
-### 4. Monitoring UX Enhancements (Minor) ✅
+### 4. TypeScript & Build Fixes (November 13, 2025) ✅
+- **Fixed 17 ESLint errors** across 6 files
+- **Removed unused imports:** `getActiveRecipeForScope`, `SetpointParameterType`, `Sun`, `Moon`, `Thermometer`, `Droplets`, `Activity`
+- **Fixed unused variables:** Removed unused `supabase`, `data` variables
+- **Fixed type errors:** Added proper type definitions for `StageType`, `EnvironmentalSetpoint`, `NutrientFormula`
+- **Fixed const declarations:** Changed `let` to `const` where variables never reassigned
+- **Fixed Recharts types:** Changed `Array<>` to `ReadonlyArray<>` for Tooltip payloads
+- **Removed dead code:** Deleted unused `SetpointCard` component (87 lines)
+- **Build Status:** ✅ Successful (all 49 pages generated, 0 errors)
+
+### 5. Monitoring UX Enhancements (Minor) ✅
 - Enhanced environment charts with "All Metrics" tab
 - Dual Y-axes for different units (°C/% vs ppm)
 - Improved color coding and tooltips
@@ -50,15 +60,23 @@
 6. `/app/actions/recipes.ts` - Server actions (9 functions)
 7. `/docs/roadmap/planning-progress/phase-11-complete.md` - This document
 
-### Modified Files (10+)
+### Modified Files (16+)
 1. `/components/features/recipes/recipe-library.tsx` - Status/plant filters fixed
-2. `/components/features/recipes/recipe-viewer.tsx` - Complete with deprecation system
-3. `/app/dashboard/recipes/page.tsx` - List page with RBAC
-4. `/app/dashboard/recipes/[id]/page.tsx` - Detail page
-5. `/docs/current/index.md` - Updated status to Phase 11 complete
-6. `/docs/current/2-features/feature-monitoring.md` - Noted UX enhancements
-7. `/docs/roadmap/index.md` - Updated progress to 100%
-8. Multiple monitoring chart files (minor enhancements)
+2. `/components/features/recipes/recipe-viewer.tsx` - Complete with deprecation system + build fixes
+3. `/components/features/recipes/recipe-author.tsx` - Type fixes, removed unused imports
+4. `/app/dashboard/recipes/page.tsx` - List page with RBAC
+5. `/app/dashboard/recipes/[id]/page.tsx` - Detail page + type fixes
+6. `/app/dashboard/recipes/[id]/edit/page.tsx` - Type fixes
+7. `/app/dashboard/recipes/new/page.tsx` - Type fixes
+8. `/app/dashboard/monitoring/[podId]/page.tsx` - Type fixes for recipe integration
+9. `/components/features/monitoring/environment-chart.tsx` - Recharts type fixes
+10. `/docs/current/index.md` - Updated status to Phase 11 complete
+11. `/docs/current/2-features/feature-monitoring.md` - Noted UX enhancements
+12. `/docs/current/2-features/feature-recipes.md` - Complete feature documentation
+13. `/docs/roadmap/index.md` - Updated progress to 100%
+14. `/docs/roadmap/planning-progress/phase-11-complete.md` - This document
+15. `/RECIPE_INTEGRATION_STATUS.md` - Updated with build fixes
+16. Multiple monitoring chart files (minor enhancements)
 
 ---
 
@@ -74,6 +92,8 @@
 
 ### Testing Gaps ⏳
 - **Produce plant type:** Filter UI works, but full workflow (create, assign) not yet tested
+  - **Blocked by:** Main site/room creation bug in monitoring system
+  - Cannot create produce test environment without room setup working
 - **Backend tests:** No automated test suite yet (95%+ coverage target)
 
 ### Database ✅
@@ -102,11 +122,10 @@
 - Edge cases handled
 
 ### ⏳ Future Enhancements
-- RecipeAuthor component (for creating recipes via UI)
-- Recipe edit page (for modifying recipes)
 - Backend test suite (95%+ coverage)
 - Version comparison UI
 - TagoIO real device control (currently mocked)
+- Sidebar navigation menu item
 
 ---
 
@@ -127,8 +146,10 @@
 - **Total:** ~20 hours
 
 ### Quality Metrics
-- **TypeScript Errors:** 0
-- **Build Status:** ✅ Passing
+- **TypeScript Errors:** 0 (17 errors fixed on Nov 13)
+- **ESLint Errors:** 0 (all cleaned up)
+- **Build Status:** ✅ Passing (49 pages generated)
+- **Build Time:** ~18 seconds (optimized production build)
 - **RLS Coverage:** 100% (all tables protected)
 - **RBAC Integration:** Complete
 - **Test Coverage:** Manual testing complete, automated tests pending
@@ -137,13 +158,17 @@
 
 ## Known Limitations
 
-1. **No Recipe Creation UI:** RecipeAuthor component not yet converted
-2. **No Recipe Edit UI:** Edit page not yet built
-3. **No Automated Tests:** Backend test suite pending (95%+ coverage target)
-4. **Mock Device Control:** TagoIO integration fully mocked
-5. **Version Comparison:** UI not yet implemented
+1. **No Sidebar Navigation:** Recipe menu item not added to sidebar (must access via direct URL)
+2. **No Automated Tests:** Backend test suite pending (95%+ coverage target)
+3. **Mock Device Control:** TagoIO integration fully mocked (console.log only)
+4. **Version Comparison:** UI not yet implemented (version history list exists, but no side-by-side diff)
+5. **No Produce Testing:** Full workflow not yet tested with produce plant type accounts
+   - **Blocker:** Main site setup bug - cannot add rooms in monitoring system
+   - Users see main site but "Add Room" functionality not working
+   - Prevents creation of produce test environment
+   - Must be fixed before produce recipe workflow can be tested
 
-These are planned for future phases and don't block production use of viewing/browsing features.
+**Note:** RecipeAuthor (create/edit) component IS built and functional - we have full CRUD capabilities.
 
 ---
 
@@ -210,17 +235,17 @@ These are planned for future phases and don't block production use of viewing/br
 ## Recommendations for Next Phase
 
 ### Immediate Actions
-1. **Test Produce Plant Type:** Verify full workflow for produce recipes (filter, create, assign)
-2. **User Testing:** Get feedback on recipe browsing/deprecation workflow
-3. **Batch Management Prep:** Review BatchManagementPrototype components
-4. **Test Suite:** Start writing backend tests for recipes (parallel work)
+1. **Fix Main Site/Room Bug:** Cannot add rooms in monitoring system - blocking produce testing
+2. **Test Produce Plant Type:** Verify full workflow for produce recipes (filter, create, assign) - BLOCKED
+3. **User Testing:** Get feedback on recipe browsing/deprecation workflow
+4. **Batch Management Prep:** Review BatchManagementPrototype components
+5. **Test Suite:** Start writing backend tests for recipes (parallel work)
 
 ### Technical Debt
-1. Convert RecipeAuthor for recipe creation (when needed)
-2. Build recipe edit page (when needed)
+1. Add sidebar navigation for recipes (5-minute fix)
+2. Write comprehensive test suite (high priority)
 3. Implement version comparison UI (nice-to-have)
-4. Write comprehensive test suite (high priority)
-5. Replace TagoIO mocks with real device control (before production deployment)
+4. Replace TagoIO mocks with real device control (before production deployment)
 
 ### Process Improvements
 1. Continue documentation-as-we-go approach

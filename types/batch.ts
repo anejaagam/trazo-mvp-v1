@@ -4,6 +4,8 @@
  * Supports cannabis and produce operations with jurisdiction-based compliance
  */
 
+import type { ItemType, MovementType } from './inventory';
+
 // =====================================================
 // DOMAIN & STATUS TYPES
 // =====================================================
@@ -78,7 +80,14 @@ export type ProduceRipeness = 'unripe' | 'turning' | 'ripe' | 'overripe';
 /**
  * Cannabis strain types
  */
-export type StrainType = 'indica' | 'sativa' | 'hybrid' | 'indica-dominant' | 'sativa-dominant';
+export type StrainType =
+  | 'indica'
+  | 'sativa'
+  | 'hybrid'
+  | 'indica-dominant'
+  | 'sativa-dominant'
+  | 'cbd'
+  | 'auto';
 
 /**
  * Produce categories
@@ -261,6 +270,18 @@ export interface Cultivar {
   expected_yield?: number;
   is_active: boolean;
   created_at: string;
+  updated_at?: string;
+  created_by?: string;
+  strain_type?: string | null;
+  genetics?: string | null;
+  breeder?: string | null;
+  thc_range_min?: number | null;
+  thc_range_max?: number | null;
+  cbd_range_min?: number | null;
+  cbd_range_max?: number | null;
+  flowering_days?: number | null;
+  harvest_notes?: string | null;
+  grow_characteristics?: string | null;
   
   // Domain-specific fields from migration
   // Produce fields
@@ -593,4 +614,27 @@ export interface StageTransitionValidation extends ValidationResult {
   allowedNextStages: BatchStage[];
   requiredFields: string[];
   requiredChecks: string[];
+}
+
+// =====================================================
+// INVENTORY USAGE TYPES
+// =====================================================
+
+export interface BatchInventoryUsageEntry {
+  item_id: string;
+  item_name: string;
+  item_type: ItemType;
+  movement_type: MovementType;
+  total_quantity: number;
+  unit_of_measure?: string | null;
+  last_movement_at: string;
+  lot_count: number;
+}
+
+export interface BatchInventoryUsage {
+  entries: BatchInventoryUsageEntry[];
+  summary: {
+    consumed_by_type: Partial<Record<ItemType, number>>;
+    received_by_type: Partial<Record<ItemType, number>>;
+  };
 }

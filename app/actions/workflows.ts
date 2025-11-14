@@ -9,7 +9,10 @@ import {
   updateTemplate,
   publishTemplate,
   archiveTemplate,
-  duplicateTemplate
+  duplicateTemplate,
+  getTemplateVersions,
+  diffTemplateVersions,
+  revertTemplateVersion
 } from '@/lib/supabase/queries/workflows';
 import { SOPTemplate, CreateTemplateInput, UpdateTemplateInput } from '@/types/workflow';
 
@@ -77,6 +80,62 @@ export async function createTemplateAction(templateData: Partial<SOPTemplate>) {
     console.error('Error in createTemplateAction:', error);
     return { error: 'Failed to create template' };
   }
+}
+
+/**
+ * Get template versions (original + published descendants)
+ */
+export async function getTemplateVersionsAction(templateId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!userData) return { error: 'User not found' };
+  if (!canPerformAction(userData.role, 'task:view').allowed) return { error: 'Permission denied' };
+  const result = await getTemplateVersions(templateId);
+  return result.error ? { error: result.error } : { data: result.data };
+}
+
+/**
+ * Diff two template versions
+ */
+export async function diffTemplateVersionsAction(aId: string, bId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!userData) return { error: 'User not found' };
+  if (!canPerformAction(userData.role, 'task:view').allowed) return { error: 'Permission denied' };
+  const result = await diffTemplateVersions(aId, bId);
+  return result.error ? { error: result.error } : { data: result.data };
+}
+
+/**
+ * Revert to a prior template version (creates a new draft clone)
+ */
+export async function revertTemplateVersionAction(originalId: string, targetVersionId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Unauthorized' };
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!userData) return { error: 'User not found' };
+  if (!canPerformAction(userData.role, 'task:update').allowed) return { error: 'Permission denied' };
+  const result = await revertTemplateVersion(originalId, targetVersionId);
+  if (result.error) return { error: result.error };
+  revalidatePath('/dashboard/workflows/templates');
+  return { success: true, data: result.data };
 }
 
 /**

@@ -74,6 +74,7 @@ export type PermissionKey =
   | 'task:update'
   | 'task:assign'
   | 'task:complete'
+  | 'task:retain_original_evidence'
   | 'task:delete'
   
   // Control permissions

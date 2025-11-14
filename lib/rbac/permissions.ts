@@ -185,6 +185,13 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     resource: 'task',
     action: 'complete'
   },
+  'task:retain_original_evidence': {
+    key: 'task:retain_original_evidence',
+    name: 'Retain Original Evidence Files',
+    description: 'Bypass compression for evidence to preserve original files',
+    resource: 'task',
+    action: 'retain_original_evidence'
+  },
   'task:delete': {
     key: 'task:delete',
     name: 'Delete Tasks',

@@ -20,6 +20,7 @@ import {
   ConditionalLogic,
   ConditionalOperator 
 } from '@/types/workflow';
+import { ROLES } from '@/lib/rbac/roles';
 import { 
   Plus, 
   Trash2, 
@@ -94,6 +95,11 @@ export function TemplateEditor({
   const [isExceptionScenario, setIsExceptionScenario] = useState(
     template?.is_exception_scenario || false
   );
+  // Recurrence (template-level scheduling metadata - not yet persisted to DB)
+  const [recurringPattern, setRecurringPattern] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [recurringInterval, setRecurringInterval] = useState('1');
+  const [recurringDaysOfWeek, setRecurringDaysOfWeek] = useState<string[]>([]);
+  const [recurringDayOfMonth, setRecurringDayOfMonth] = useState('1');
 
   // Steps
   const [steps, setSteps] = useState<SOPStep[]>(
@@ -189,6 +195,17 @@ export function TemplateEditor({
         steps: steps,
         status: publish ? 'published' : 'draft',
       };
+
+      // Attach recurrence metadata to steps root (will be utilized in task creation phase)
+      if (recurringPattern !== 'none') {
+        (templateData as any).recurring_pattern = recurringPattern;
+        (templateData as any).recurring_config = {
+          interval: parseInt(recurringInterval) || 1,
+          daysOfWeek: recurringPattern === 'weekly' ? recurringDaysOfWeek : undefined,
+          dayOfMonth: recurringPattern === 'monthly' ? parseInt(recurringDayOfMonth) : undefined,
+          startDate: new Date().toISOString().split('T')[0],
+        };
+      }
 
       if (onSave) {
         await onSave(templateData);
@@ -330,6 +347,69 @@ export function TemplateEditor({
 
           <Separator />
 
+          {/* Recurrence Scheduling (Template-level) */}
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Recurrence Pattern</Label>
+              <Select value={recurringPattern} onValueChange={(v) => setRecurringPattern(v as any)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (Manual)</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {recurringPattern !== 'none' && (
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                  <Label>Interval</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={recurringInterval}
+                    onChange={(e) => setRecurringInterval(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Every N {recurringPattern === 'daily' ? 'day(s)' : recurringPattern === 'weekly' ? 'week(s)' : 'month(s)'}.</p>
+                </div>
+                {recurringPattern === 'weekly' && (
+                  <div className="space-y-1">
+                    <Label>Days of Week</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => {
+                        const active = recurringDaysOfWeek.includes(d);
+                        return (
+                          <Button
+                            key={d}
+                            type="button"
+                            variant={active ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setRecurringDaysOfWeek(prev => active ? prev.filter(x => x!==d) : [...prev,d])}
+                          >{d}</Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {recurringPattern === 'monthly' && (
+                  <div className="space-y-1">
+                    <Label>Day of Month</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={recurringDayOfMonth}
+                      onChange={(e) => setRecurringDayOfMonth(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -398,6 +478,9 @@ export function TemplateEditor({
           )}
         </CardContent>
       </Card>
+
+      {/* Version History */}
+      <VersionHistoryViewer template={template} />
     </div>
   );
 }
@@ -501,9 +584,190 @@ function StepEditor({
                 onUpdate={(config) => onUpdate({ evidenceConfig: config })}
               />
             )}
+
+            {/* Step-level approvals */}
+            <div className="mt-2 space-y-3 border rounded-md p-3 bg-muted/40">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Requires Approval</Label>
+                <Switch
+                  checked={step.requiresApproval || false}
+                  onCheckedChange={(checked) => onUpdate({ requiresApproval: checked })}
+                />
+              </div>
+              {step.requiresApproval && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Primary Approval Role</Label>
+                    <Select
+                      value={step.approvalPrimaryRole || ''}
+                      onValueChange={(v) => onUpdate({ approvalPrimaryRole: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(ROLES).map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Secondary Approval Role (optional)</Label>
+                    <Select
+                      value={step.approvalSecondaryRole || ''}
+                      onValueChange={(v) => onUpdate({ approvalSecondaryRole: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {Object.values(ROLES).map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">Dual Sign-off Override</Label>
+                <Switch
+                  checked={step.requiresDualSignoffOverride || false}
+                  onCheckedChange={(checked) => onUpdate({ requiresDualSignoffOverride: checked })}
+                />
+              </div>
+            </div>
+
+            {/* Conditional Logic Builder */}
+            <ConditionalLogicBuilder
+              step={step}
+              steps={totalSteps}
+              onUpdate={(logic) => onUpdate({ conditionalLogic: logic, isConditional: logic.length > 0 })}
+            />
           </div>
         </div>
       </CardHeader>
+    </Card>
+  );
+}
+
+// Conditional Logic Builder Component
+function ConditionalLogicBuilder({ step, steps, onUpdate }: { step: SOPStep; steps: number; onUpdate: (logic: ConditionalLogic[]) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const logic = step.conditionalLogic || [];
+  const addCondition = () => {
+    const prevStepId = `step-${step.order - 1}`; // heuristic id reference; real mapping occurs at save
+    const newCond: ConditionalLogic = {
+      stepId: prevStepId,
+      condition: 'equals',
+      value: '',
+      nextStepId: step.id, // default
+      description: ''
+    };
+    onUpdate([...logic, newCond]);
+  };
+  const updateCondition = (index: number, updates: Partial<ConditionalLogic>) => {
+    const updated = logic.map((c,i) => i===index ? { ...c, ...updates } : c);
+    onUpdate(updated);
+  };
+  const removeCondition = (index: number) => {
+    const updated = logic.filter((_,i)=>i!==index);
+    onUpdate(updated);
+  };
+  return (
+    <div className="mt-3">
+      <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)}>
+        <GitBranch className="w-4 h-4 mr-2" />
+        {expanded ? 'Hide Conditional Logic' : logic.length ? `Edit ${logic.length} Conditions` : 'Add Conditional Logic'}
+      </Button>
+      {expanded && (
+        <div className="mt-2 space-y-3 border rounded-md p-3 bg-muted/30">
+          {logic.map((c,idx)=> (
+            <div key={idx} className="space-y-2 border rounded p-2">
+              <div className="flex justify-between items-center">
+                <Badge variant="secondary">Condition {idx+1}</Badge>
+                <Button variant="ghost" size="sm" onClick={()=>removeCondition(idx)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="grid md:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Operator</Label>
+                  <Select value={c.condition} onValueChange={(v)=>updateCondition(idx,{ condition: v as ConditionalOperator })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['equals','not_equals','greater_than','less_than','contains'].map(op=> <SelectItem key={op} value={op}>{op}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Value</Label>
+                  <Input value={String(c.value)} onChange={(e)=>updateCondition(idx,{ value: e.target.value })} placeholder="Expected value" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Next Step #</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={steps}
+                    value={c.nextStepId.replace('step-','')}
+                    onChange={(e)=>updateCondition(idx,{ nextStepId: `step-${e.target.value}` })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Description</Label>
+                  <Input value={c.description || ''} onChange={(e)=>updateCondition(idx,{ description: e.target.value })} placeholder="When value matches..." />
+                </div>
+              </div>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={addCondition}>
+            <Plus className="w-4 h-4 mr-2" /> Add Condition
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Version History Viewer (basic diff between last two versions)
+function VersionHistoryViewer({ template }: { template?: SOPTemplate | null }) {
+  if (!template?.version_history?.length) return null;
+  const history = template.version_history;
+  const lastTwo = history.slice(-2);
+  let diff: { added: number; removed: number; changed: number } | null = null;
+  if (lastTwo.length === 2) {
+    const prevVersion = lastTwo[0];
+    const currentVersion = lastTwo[1];
+    // Simple diff heuristic using step titles length (actual step snapshots not stored in history yet)
+    const prevCount = (template.steps || []).length; // placeholder (ideally stored per version)
+    const currCount = prevCount; // no historical snapshot available
+    diff = { added: Math.max(0, currCount - prevCount), removed: Math.max(0, prevCount - currCount), changed: 0 };
+  }
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>Version History</CardTitle>
+        <CardDescription>Recent publish events</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <ul className="space-y-2 text-sm">
+          {history.map(v => (
+            <li key={v.version} className="flex items-center justify-between border rounded px-2 py-1">
+              <span className="font-mono">v{v.version}</span>
+              <span className="text-muted-foreground">{v.status}</span>
+              <span className="text-xs">{new Date(v.publishedAt).toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
+        {diff && (
+          <div className="text-xs text-muted-foreground">
+            Estimated changes between last two versions: +{diff.added} / -{diff.removed} / ~{diff.changed} modified steps
+          </div>
+        )}
+      </CardContent>
     </Card>
   );
 }

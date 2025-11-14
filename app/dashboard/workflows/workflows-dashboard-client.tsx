@@ -14,12 +14,14 @@ interface WorkflowsDashboardClientProps {
   myTasks: Task[];
   allTasks: Task[];
   userId: string;
+  canCreateTask?: boolean;
 }
 
 export function WorkflowsDashboardClient({ 
   myTasks, 
   allTasks,
-  userId 
+  userId,
+  canCreateTask = false,
 }: WorkflowsDashboardClientProps) {
   const router = useRouter();
   const [view, setView] = useState<'board' | 'list'>('board');
@@ -36,8 +38,11 @@ export function WorkflowsDashboardClient({
   };
 
   const handleCreateTask = () => {
-    // TODO: Open create task modal or navigate to create page
-    console.log('Create task clicked');
+    if (!canCreateTask) {
+      return;
+    }
+
+    router.push('/dashboard/workflows/tasks/new');
   };
 
   return (
@@ -63,10 +68,12 @@ export function WorkflowsDashboardClient({
           </Button>
         </div>
 
-        <Button onClick={handleCreateTask}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Task
-        </Button>
+        {canCreateTask && (
+          <Button onClick={handleCreateTask}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Task
+          </Button>
+        )}
       </div>
 
       {/* Content Tabs */}

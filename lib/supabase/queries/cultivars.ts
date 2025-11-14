@@ -26,25 +26,25 @@ export interface InsertCultivar {
   organization_id: string;
   name: string;
   // Cannabis fields
-  strain_type?: StrainType;
-  genetics?: string;
-  breeder?: string;
-  thc_range_min?: number;
-  thc_range_max?: number;
-  cbd_range_min?: number;
-  cbd_range_max?: number;
-  flowering_days?: number;
+  strain_type?: string | null;
+  genetics?: string | null;
+  breeder?: string | null;
+  thc_range_min?: number | null;
+  thc_range_max?: number | null;
+  cbd_range_min?: number | null;
+  cbd_range_max?: number | null;
+  flowering_days?: number | null;
   // Produce fields
-  category?: ProduceCategory;
-  flavor_profile?: string;
-  storage_life_days?: number;
-  optimal_temp_c_min?: number;
-  optimal_temp_c_max?: number;
-  optimal_humidity_min?: number;
-  optimal_humidity_max?: number;
+  category?: ProduceCategory | null;
+  flavor_profile?: string | null;
+  storage_life_days?: number | null;
+  optimal_temp_c_min?: number | null;
+  optimal_temp_c_max?: number | null;
+  optimal_humidity_min?: number | null;
+  optimal_humidity_max?: number | null;
   // Common fields
-  harvest_notes?: string;
-  grow_characteristics?: string;
+  harvest_notes?: string | null;
+  grow_characteristics?: string | null;
   created_by: string;
 }
 
@@ -53,23 +53,23 @@ export interface InsertCultivar {
  */
 export interface UpdateCultivar {
   name?: string;
-  strain_type?: StrainType;
-  genetics?: string;
-  breeder?: string;
-  thc_range_min?: number;
-  thc_range_max?: number;
-  cbd_range_min?: number;
-  cbd_range_max?: number;
-  flowering_days?: number;
-  category?: ProduceCategory;
-  flavor_profile?: string;
-  storage_life_days?: number;
-  optimal_temp_c_min?: number;
-  optimal_temp_c_max?: number;
-  optimal_humidity_min?: number;
-  optimal_humidity_max?: number;
-  harvest_notes?: string;
-  grow_characteristics?: string;
+  strain_type?: string | null;
+  genetics?: string | null;
+  breeder?: string | null;
+  thc_range_min?: number | null;
+  thc_range_max?: number | null;
+  cbd_range_min?: number | null;
+  cbd_range_max?: number | null;
+  flowering_days?: number | null;
+  category?: ProduceCategory | null;
+  flavor_profile?: string | null;
+  storage_life_days?: number | null;
+  optimal_temp_c_min?: number | null;
+  optimal_temp_c_max?: number | null;
+  optimal_humidity_min?: number | null;
+  optimal_humidity_max?: number | null;
+  harvest_notes?: string | null;
+  grow_characteristics?: string | null;
   is_active?: boolean;
 }
 

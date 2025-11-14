@@ -147,8 +147,9 @@ export function TemplateLibrary({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTemplates.map(template => {
-            const hasConditionalSteps = template.steps?.some((s: any) => s.is_conditional);
-            const evidenceSteps = template.steps?.filter((s: any) => s.evidence_required).length || 0;
+            const hasConditionalSteps = template.steps?.some((s: any) => s.is_conditional || s.isConditional);
+            const evidenceSteps = template.steps?.filter((s: any) => s.evidence_required || s.evidenceRequired).length || 0;
+            const approvalSteps = template.steps?.filter((s: any) => s.requiresApproval).length || 0;
             const totalSteps = template.steps?.length || 0;
 
             return (
@@ -202,6 +203,12 @@ export function TemplateLibrary({
                       <Badge variant="default" className="text-xs">
                         <CheckCircle2 className="w-3 h-3 mr-1" />
                         Dual Sign-off
+                      </Badge>
+                    )}
+                    {approvalSteps > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        {approvalSteps} approval
                       </Badge>
                     )}
                   </div>

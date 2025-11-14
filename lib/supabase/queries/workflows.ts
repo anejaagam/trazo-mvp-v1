@@ -28,7 +28,12 @@ import {
   PaginatedResult,
   PublishTemplateResult,
   MAX_TASK_HIERARCHY_LEVEL,
+  EvidenceAggregation,
 } from '@/types/workflow';
+import { decompressEvidence } from '@/lib/utils/evidence-compression';
+import { wouldCreateDependencyCycle } from '@/lib/utils/dependency-graph';
+import { generateNextRecurrenceInstances } from '@/lib/utils/recurrence';
+import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
 // =====================================================
 // SOP TEMPLATE QUERIES
@@ -398,6 +403,100 @@ export async function duplicateTemplate(templateId: string) {
   }
 }
 
+// =============================================
+// VERSION HISTORY & DIFF QUERIES (Phase 3 UI)
+// =============================================
+
+/**
+ * Get all versions for an original template (includes the original draft/published and published descendants)
+ */
+export async function getTemplateVersions(originalTemplateId: string) {
+  try {
+    const supabase = await createClient();
+    // Fetch original + published versions referencing it as parent
+    const { data, error } = await supabase
+      .from('sop_templates')
+      .select('*')
+      .or(`id.eq.${originalTemplateId},parent_template_id.eq.${originalTemplateId}`)
+      .order('published_at', { ascending: true, nullsFirst: true });
+    if (error) throw error;
+    return { data: data as SOPTemplate[], error: null };
+  } catch (error) {
+    console.error('Error in getTemplateVersions:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Compute a lightweight diff between two template versions' steps (title-based heuristic)
+ */
+export async function diffTemplateVersions(templateAId: string, templateBId: string) {
+  try {
+    const supabase = await createClient();
+    const fetchOne = async (id: string): Promise<SOPTemplate | null> => {
+      const { data, error } = await supabase
+        .from('sop_templates')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) return null;
+      return data as SOPTemplate;
+    };
+    const a = await fetchOne(templateAId);
+    const b = await fetchOne(templateBId);
+    if (!a || !b) {
+      return { data: null, error: new Error('Templates not found for diff') };
+    }
+    const aTitles = new Set((a.steps || []).map(s => s.title));
+    const bTitles = new Set((b.steps || []).map(s => s.title));
+    const added = Array.from(bTitles).filter(t => !aTitles.has(t));
+    const removed = Array.from(aTitles).filter(t => !bTitles.has(t));
+    const changed: string[] = []; // Placeholder: could compare description/evidence changes later
+    return { data: { added, removed, changed }, error: null };
+  } catch (error) {
+    console.error('Error in diffTemplateVersions:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Revert: create a new draft from a prior published version (does not publish immediately)
+ */
+export async function revertTemplateVersion(originalTemplateId: string, targetVersionId: string) {
+  try {
+    const supabase = await createClient();
+    // Fetch target version
+    const { data: target, error: fetchError } = await supabase
+      .from('sop_templates')
+      .select('*')
+      .eq('id', targetVersionId)
+      .single();
+    if (fetchError) throw fetchError;
+    if (!target) throw new Error('Target version not found');
+    const {
+      id, created_at, updated_at, published_at, published_by, version_history, parent_template_id, version, status,
+      ...rest
+    } = target as any;
+    const { data: inserted, error: insertError } = await supabase
+      .from('sop_templates')
+      .insert({
+        ...rest,
+        name: rest.name + ' (Revert Draft)',
+        status: 'draft',
+        version: '1.0',
+        parent_template_id: originalTemplateId, // maintain linkage
+        is_latest_version: false,
+      })
+      .select()
+      .single();
+    if (insertError) throw insertError;
+    return { data: inserted as SOPTemplate, error: null };
+  } catch (error) {
+    console.error('Error in revertTemplateVersion:', error);
+    return { data: null, error };
+  }
+}
+
 // =====================================================
 // TASK QUERIES
 // =====================================================
@@ -602,10 +701,25 @@ export async function createTask(input: CreateTaskInput) {
       }
     }
 
+    // Auto sequence ordering if not provided
+    let sequence_order = input.sequence_order;
+    if (sequence_order === undefined) {
+      const { data: siblings } = await supabase
+        .from('tasks')
+        .select('sequence_order')
+        .eq('parent_task_id', input.parent_task_id || null);
+      const maxOrder = (siblings || []).reduce(
+        (max: number, row: any) => Math.max(max, row.sequence_order || 0),
+        0
+      );
+      sequence_order = maxOrder + 1;
+    }
+
     const { data, error } = await supabase
       .from('tasks')
       .insert({
         ...input,
+        sequence_order,
         organization_id: userData.organization_id,
         created_by: user.id,
         status: 'to_do',
@@ -728,11 +842,12 @@ export async function completeTask(
       actual_duration_minutes: actualDurationMinutes,
     };
 
-    // Add evidence if provided
+    // Add evidence if provided and aggregate compression metrics
     if (evidence) {
       updateData.evidence = evidence;
-      // Mark as compressed if any evidence is compressed
-      updateData.evidence_compressed = evidence.some(e => e.compressed);
+      const aggregation = aggregateEvidence(evidence);
+      updateData.evidence_compressed = aggregation.compressedBytes < aggregation.originalBytes;
+      updateData.evidence_metadata = aggregation;
     }
 
     const { data, error } = await supabase
@@ -744,10 +859,70 @@ export async function completeTask(
 
     if (error) throw error;
 
+    // Unlock dependent tasks if all their blocking prerequisites are now complete
+    await cascadeUnlockDependentTasks(taskId);
+
     return { data: data as Task, error: null };
   } catch (error) {
     console.error('Error in completeTask:', error);
     return { data: null, error };
+  }
+}
+
+// Evidence aggregation helper
+function aggregateEvidence(evidence: TaskEvidence[]): EvidenceAggregation {
+  let originalBytes = 0;
+  let compressedBytes = 0;
+  const byType: EvidenceAggregation['byType'] = {};
+  for (const e of evidence) {
+    const o = e.originalSize || 0;
+    const c = e.compressedSize || o;
+    originalBytes += o;
+    compressedBytes += c;
+    if (!byType[e.type]) {
+      byType[e.type] = { count: 0, originalBytes: 0, compressedBytes: 0 };
+    }
+    byType[e.type]!.count += 1;
+    byType[e.type]!.originalBytes += o;
+    byType[e.type]!.compressedBytes += c;
+  }
+  return {
+    totalItems: evidence.length,
+    originalBytes,
+    compressedBytes,
+    compressionRatio: compressedBytes === 0 ? 1 : originalBytes / compressedBytes,
+    byType,
+  };
+}
+
+// Unlock dependent tasks whose blocking prerequisites are now all done/approved
+async function cascadeUnlockDependentTasks(completedTaskId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: dependents } = await supabase
+      .from('task_dependencies')
+      .select('task_id')
+      .eq('depends_on_task_id', completedTaskId)
+      .eq('dependency_type', 'blocking');
+    if (!dependents?.length) return;
+    for (const dep of dependents) {
+      const { data: remaining } = await supabase
+        .from('task_dependencies')
+        .select('depends_on:tasks!task_dependencies_depends_on_task_id_fkey(status)')
+        .eq('task_id', dep.task_id)
+        .eq('dependency_type', 'blocking');
+      const stillBlocked = (remaining || []).some(
+        (r: any) => r.depends_on.status !== 'done' && r.depends_on.status !== 'approved'
+      );
+      if (!stillBlocked) {
+        await supabase
+          .from('tasks')
+          .update({ status: 'to_do', prerequisite_completed: true })
+          .eq('id', dep.task_id);
+      }
+    }
+  } catch (err) {
+    console.error('Error cascadeUnlockDependentTasks:', err);
   }
 }
 
@@ -906,6 +1081,28 @@ export async function addTaskDependency(
 ) {
   try {
     const supabase = await createClient();
+    if (taskId === dependsOnTaskId) {
+      return { data: null, error: new Error('Task cannot depend on itself') };
+    }
+
+    const { data: allDeps, error: depsErr } = await supabase
+      .from('task_dependencies')
+      .select('*');
+    if (depsErr) throw depsErr;
+
+    const duplicate = allDeps?.find(
+      (d: any) =>
+        d.task_id === taskId &&
+        d.depends_on_task_id === dependsOnTaskId &&
+        d.dependency_type === dependencyType
+    );
+    if (duplicate) {
+      return { data: null, error: new Error('Duplicate dependency exists') };
+    }
+
+    if (wouldCreateDependencyCycle(taskId, dependsOnTaskId, allDeps || [])) {
+      return { data: null, error: new Error('Adding this dependency would create a cycle') };
+    }
 
     const { data, error } = await supabase
       .from('task_dependencies')
@@ -1006,6 +1203,78 @@ export async function checkPrerequisites(
   }
 }
 
+// Expanded task retrieval with optional evidence decompression
+export async function getTaskByIdExpanded(
+  taskId: string,
+  options?: { decompress?: boolean }
+) {
+  const base = await getTaskById(taskId);
+  if (base.error || !base.data) return base;
+  const task = base.data;
+  if (options?.decompress) {
+    task.evidence = task.evidence.map((e) => {
+      if (e.compressed && e.compressionType && e.value && typeof e.value === 'string') {
+        const result = decompressEvidence(e.value, e.compressionType);
+        if (result.success) {
+          const data = typeof result.data === 'string' ? result.data : '[binary]';
+          return { ...e, value: data };
+        }
+      }
+      return e;
+    });
+  }
+  return { data: task, error: null };
+}
+
+export async function createNextRecurrenceInstance(taskId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: task, error: fetchError } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', taskId)
+      .single();
+    if (fetchError) throw fetchError;
+    if (!task.recurring_pattern || !task.recurring_config) {
+      return { data: null, error: new Error('Task is not recurring') };
+    }
+    const next = generateNextRecurrenceInstances(task as Task, 1)[0];
+    if (!next) {
+      return { data: null, error: new Error('No future recurrence generated') };
+    }
+    const { data: newTask, error: createError } = await supabase
+      .from('tasks')
+      .insert({
+        organization_id: task.organization_id,
+        site_id: task.site_id,
+        sop_template_id: task.sop_template_id,
+        title: task.title,
+        description: task.description,
+        status: 'to_do',
+        priority: task.priority,
+        parent_task_id: task.parent_task_id,
+        sequence_order: task.sequence_order + 1,
+        hierarchy_level: task.hierarchy_level,
+        due_date: next.dueDate,
+        recurring_pattern: task.recurring_pattern,
+        recurring_config: task.recurring_config,
+        schedule_mode: task.schedule_mode,
+        created_by: task.created_by,
+        current_step_index: 0,
+        evidence: [],
+        evidence_compressed: false,
+        prerequisite_completed: false,
+      })
+      .select()
+      .single();
+    if (createError) throw createError;
+    return { data: newTask as Task, error: null };
+  } catch (error) {
+    console.error('Error in createNextRecurrenceInstance:', error);
+    return { data: null, error };
+  }
+}
+
 /**
  * Get all dependencies for a task
  */
@@ -1028,6 +1297,89 @@ export async function getTaskDependencies(taskId: string) {
     return { data: data as TaskDependency[], error: null };
   } catch (error) {
     console.error('Error in getTaskDependencies:', error);
+    return { data: null, error };
+  }
+}
+
+// Update compression metadata for a task step (task_steps table)
+export async function updateTaskStepCompression(
+  taskStepId: string,
+  metadata: {
+    evidence_compressed: boolean;
+    evidence_compression_type: string | null;
+    original_evidence_size?: number | null;
+    compressed_evidence_size?: number | null;
+  }
+) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('task_steps')
+      .update(metadata)
+      .eq('id', taskStepId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in updateTaskStepCompression:', error);
+    return { data: null, error };
+  }
+}
+
+// Set dependency type (e.g. suggested -> blocking)
+export async function setDependencyType(
+  dependencyId: string,
+  newType: 'blocking' | 'suggested'
+) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('task_dependencies')
+      .update({ dependency_type: newType })
+      .eq('id', dependencyId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data: data as TaskDependency, error: null };
+  } catch (error) {
+    console.error('Error in setDependencyType:', error);
+    return { data: null, error };
+  }
+}
+
+export async function promoteSuggestedDependency(dependencyId: string) {
+  return setDependencyType(dependencyId, 'blocking');
+}
+
+export async function getBlockingStatus(taskId: string) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('task_dependencies')
+      .select(
+        `*, depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id, title, status)`
+      )
+      .eq('task_id', taskId)
+      .eq('dependency_type', 'blocking');
+    if (error) throw error;
+    const incomplete = (data || []).filter(
+      (d: any) => d.depends_on?.status !== 'done' && d.depends_on?.status !== 'approved'
+    );
+    return {
+      data: {
+        task_id: taskId,
+        blocked: incomplete.length > 0,
+        incomplete_prerequisites: incomplete.map((d: any) => ({
+          id: d.depends_on.id,
+          title: d.depends_on.title,
+          status: d.depends_on.status,
+        })),
+      },
+      error: null,
+    };
+  } catch (error) {
+    console.error('Error in getBlockingStatus:', error);
     return { data: null, error };
   }
 }

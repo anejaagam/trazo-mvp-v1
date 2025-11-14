@@ -18,6 +18,8 @@ import type { ActiveRecipeDetails, EnvironmentalSetpoint } from '@/types/recipe'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { TelemetryReading } from '@/types/telemetry'
 import { toast } from 'sonner'
+import { getActiveBatchesForPod, getBatchStageHistorySummary, type PodBatchSummary } from '@/lib/supabase/queries/batches-client'
+import type { BatchStageHistory } from '@/types/batch'
 
 interface PodDetailProps {
   podId: string
@@ -38,6 +40,8 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
   const [userRole, setUserRole] = useState<RoleKey | null>(null)
   const [overrideMode, setOverrideMode] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<Map<string, { state: EquipmentState; level?: number }>>(new Map())
+  const [activeBatch, setActiveBatch] = useState<PodBatchSummary | null>(null)
+  const [batchTimeline, setBatchTimeline] = useState<BatchStageHistory[]>([])
   
   // Fetch user role
   useEffect(() => {
@@ -108,6 +112,27 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
     }
     
     fetchEquipmentControls()
+  }, [podId])
+
+  useEffect(() => {
+    async function loadBatchContext() {
+      try {
+        const { data } = await getActiveBatchesForPod(podId)
+        const summary = data?.[0] || null
+        setActiveBatch(summary || null)
+        if (summary) {
+          const { data: history } = await getBatchStageHistorySummary(summary.id)
+          setBatchTimeline(history || [])
+        } else {
+          setBatchTimeline([])
+        }
+      } catch (error) {
+        console.error('Failed to load batch context', error)
+        setActiveBatch(null)
+        setBatchTimeline([])
+      }
+    }
+    loadBatchContext()
   }, [podId])
   
   // Calculate VPD (Vapor Pressure Deficit)
@@ -217,6 +242,8 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
     // The useTelemetry hook will fetch fresh data
     window.location.reload()
   }
+
+  const batchHealthScore = computeBatchHealthScore(activeRecipe, reading)
   
   // Helper to get setpoint for a parameter type
   const getSetpoint = (parameterType: string): EnvironmentalSetpoint | null => {
@@ -294,6 +321,14 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
         </div>
       </div>
       
+      {activeBatch && (
+        <BatchInfoCard batch={activeBatch} healthScore={batchHealthScore} />
+      )}
+
+      <RecipeAdherenceCard recipe={activeRecipe} telemetry={reading} />
+
+      {batchTimeline.length > 0 && <BatchTimeline timeline={batchTimeline} />}
+
       {/* Loading State */}
       {telemetryLoading && (
         <div className="py-12 text-center">
@@ -702,5 +737,141 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
         </Card>
       )}
     </div>
+  )
+}
+
+function computeBatchHealthScore(recipe: ActiveRecipeDetails | null, telemetry: TelemetryReading | null) {
+  if (!recipe || !telemetry) return 50
+
+  const metrics = [
+    { key: 'temperature', actual: telemetry.temperature_c, weight: 5, unit: '°C' },
+    { key: 'humidity', actual: telemetry.humidity_pct, weight: 4, unit: '%' },
+    { key: 'co2', actual: telemetry.co2_ppm, weight: 3, unit: 'ppm' },
+  ]
+
+  let score = 100
+  metrics.forEach((metric) => {
+    if (metric.actual == null) return
+    const setpoint = recipe.current_setpoints.find((sp) => sp.parameter_type === metric.key)
+    if (!setpoint) return
+    const min = setpoint.min_value ?? setpoint.value ?? metric.actual
+    const max = setpoint.max_value ?? setpoint.value ?? metric.actual
+    if (metric.actual < min) {
+      score -= Math.min(20, (min - metric.actual) * metric.weight)
+    } else if (metric.actual > max) {
+      score -= Math.min(20, (metric.actual - max) * metric.weight)
+    }
+  })
+
+  return Math.max(0, Math.min(100, Math.round(score)))
+}
+
+function BatchInfoCard({ batch, healthScore }: { batch: PodBatchSummary; healthScore: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>Batch {batch.batch_number}</span>
+          <Badge variant={healthScore > 70 ? 'secondary' : 'destructive'}>{healthScore}%</Badge>
+        </CardTitle>
+        <CardDescription>Stage: {batch.stage}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex gap-6 text-sm">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Plants</p>
+          <p className="text-lg font-semibold">{batch.plant_count.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Started</p>
+          <p className="text-lg font-semibold">
+            {batch.start_date ? new Date(batch.start_date).toLocaleDateString() : '—'}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RecipeAdherenceCard({
+  recipe,
+  telemetry,
+}: {
+  recipe: ActiveRecipeDetails | null
+  telemetry: TelemetryReading | null
+}) {
+  if (!recipe) return null
+
+  const metrics = [
+    { key: 'temperature', label: 'Temperature', unit: '°C', actual: telemetry?.temperature_c ?? null },
+    { key: 'humidity', label: 'Humidity', unit: '%', actual: telemetry?.humidity_pct ?? null },
+    { key: 'co2', label: 'CO₂', unit: 'ppm', actual: telemetry?.co2_ppm ?? null },
+  ]
+
+  const getSetpoint = (parameterType: string) =>
+    recipe.current_setpoints.find((sp) => sp.parameter_type === parameterType)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recipe adherence</CardTitle>
+        <CardDescription>{recipe.activation.recipe?.name || 'Active recipe'}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-3">
+        {metrics.map((metric) => {
+          const setpoint = getSetpoint(metric.key)
+          const min = setpoint?.min_value ?? setpoint?.value ?? null
+          const max = setpoint?.max_value ?? setpoint?.value ?? null
+          const actual = metric.actual
+          const inRange =
+            actual != null && min != null && max != null && actual >= min && actual <= max
+          return (
+            <div key={metric.key} className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">{metric.label}</p>
+              <p className="text-lg font-semibold">
+                {actual != null ? `${actual.toFixed(1)} ${metric.unit}` : '—'}
+              </p>
+              {setpoint ? (
+                <p className="text-xs text-muted-foreground">
+                  Target: {min?.toFixed(1)} - {max?.toFixed(1)} {metric.unit}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">No target defined</p>
+              )}
+              {setpoint && actual != null && (
+                <Badge className="mt-2" variant={inRange ? 'secondary' : 'destructive'}>
+                  {inRange ? 'On target' : 'Out of range'}
+                </Badge>
+              )}
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
+function BatchTimeline({ timeline }: { timeline: BatchStageHistory[] }) {
+  if (!timeline.length) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Batch timeline</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {timeline.map((entry) => (
+          <div key={entry.id} className="flex items-center gap-3 text-sm">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="font-medium capitalize">{entry.stage}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(entry.started_at).toLocaleDateString()}
+                {entry.ended_at && ` → ${new Date(entry.ended_at).toLocaleDateString()}`}
+              </p>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   )
 }

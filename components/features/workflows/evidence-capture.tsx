@@ -252,6 +252,12 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
     case 'photo':
       return (
         <div className="space-y-4">
+          {/* Pre-compression advisory */}
+          {!existingValue && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded" aria-label="Compression advisory">
+              <p className="text-xs text-blue-900">Photos larger than 500KB are automatically optimized (est. up to 60% size reduction) to preserve storage and speed.</p>
+            </div>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -307,6 +313,11 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
     case 'signature':
       return (
         <div className="space-y-4">
+          {!existingValue && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded" aria-label="Compression advisory">
+              <p className="text-xs text-blue-900">Large signatures (&gt;50KB) may be reduced ~30% for efficiency. Small signatures are stored as-is.</p>
+            </div>
+          )}
           <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
             <canvas
               ref={canvasRef}

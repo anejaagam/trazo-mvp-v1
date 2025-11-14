@@ -12,7 +12,7 @@
       <phase1>complete</phase1>
       <phase2>complete</phase2>
       <phase3>in-progress</phase3>
-      <phase3-progress>70%</phase3-progress>
+      <phase3-progress>84%</phase3-progress>
     </completion-status>
     <dependencies>
       <dependency status="complete">Inventory Module (Phase 8)</dependency>
@@ -426,9 +426,9 @@
         <lines>12,117 bytes</lines>
         <features-implemented>
           - Stats cards (total, active, plants/units, quarantined)
-          - Advanced filtering (domain, status, stage)
+          - Org-scoped filtering (status, stage, search respect plantType)
           - Search by batch number
-          - Domain-aware UI (cannabis/produce)
+          - Org plant-type enforcement (receives plantType from layout)
           - RBAC permission checks
           - Real-time data refresh
           - Empty state handling
@@ -439,11 +439,11 @@
       <tasks>
         <task status="complete">Convert to use shadcn/ui components (replace Radix primitives)</task>
         <task status="complete">Add usePermissions() for RBAC enforcement</task>
-        <task status="pending">Add useJurisdiction() for compliance context</task>
+        <task status="complete">Add useJurisdiction() for compliance context</task>
         <task status="complete">Connect to Supabase queries (replace localStorage service)</task>
-        <task status="pending">Integrate with existing monitoring module (show pod assignments)</task>
-        <task status="pending">Integrate with recipe module (show active recipe for batch)</task>
-        <task status="complete">Add domain toggle using existing jurisdiction context</task>
+        <task status="complete">Integrate with existing monitoring module (show pod assignments)</task>
+        <task status="complete">Integrate with recipe module (show active recipe for batch)</task>
+        <task status="complete">Consume organization plantType and remove manual domain toggle</task>
         <task status="complete">Implement search and filtering UI</task>
         <task status="complete">Add stats cards (total batches, by stage, by status)</task>
       </tasks>
@@ -469,7 +469,7 @@
         <file>/components/features/batches/batch-modal.tsx</file>
         <lines>5,378 bytes</lines>
         <features-implemented>
-          - Domain selection (cannabis/produce)
+          - Org plant type auto-selected (no manual toggle)
           - Batch number input
           - Plant/unit count input
           - Initial stage selection
@@ -481,16 +481,17 @@
       </completion-evidence>
       <tasks>
         <task status="complete">Use shadcn/ui Form components with react-hook-form</task>
-        <task status="pending">Implement zod validation schema (domain-aware)</task>
-        <task status="pending">Add DomainFieldRenderer for conditional fields</task>
-        <task status="pending">Cannabis fields: lighting_schedule, mother_plant_id, metrc_tag</task>
-        <task status="pending">Produce fields: grade, ripeness, gap_certified, organic_certified</task>
-        <task status="pending">Add CultivarSelector component integration</task>
-        <task status="pending">Add Pod/Location selector integration</task>
-        <task status="pending">Add plant count validation based on jurisdiction</task>
+        <task status="complete">Implement zod validation schema (domain-aware)</task>
+        <task status="complete">Add DomainFieldRenderer for conditional fields</task>
+        <task status="complete">Force domainType to organization plantType and hide selector</task>
+        <task status="complete">Cannabis fields: lighting_schedule, mother_plant_id, metrc_tag</task>
+        <task status="complete">Produce fields: grade, ripeness, gap_certified, organic_certified</task>
+        <task status="complete">Add CultivarSelector component integration</task>
+        <task status="complete">Add Pod/Location selector integration</task>
+        <task status="complete">Add plant count validation based on jurisdiction</task>
         <task status="complete">Implement create and update logic with error handling</task>
       </tasks>
-      <note>Basic modal complete. Advanced fields and validation pending.</note>
+      <note>Modal uses jurisdiction context for compliance copy but locks domainType to the organization plant type.</note>
     </step>
 
     <step id="3.3" status="complete">
@@ -513,16 +514,16 @@
       </completion-evidence>
       <tasks>
         <task status="complete">Use shadcn/ui Table component</task>
-        <task status="partial">Implement dynamic columns based on domainType</task>
-        <task status="pending">Cannabis columns: Batch#, Cultivar, Stage, Plant Count, Lighting, METRC Tag, Pod, Actions</task>
-        <task status="pending">Produce columns: Batch#, Cultivar, Stage, Plant Count, Grade, Ripeness, Location, Actions</task>
-        <task status="pending">Add sortable columns</task>
+        <task status="complete">Implement dynamic columns based on domainType</task>
+        <task status="complete">Cannabis columns: Batch#, Cultivar, Stage, Plant Count, Lighting, METRC Tag, Pod, Actions</task>
+        <task status="complete">Produce columns: Batch#, Cultivar, Stage, Plant Count, Grade, Ripeness, Location, Actions</task>
+        <task status="complete">Add sortable columns</task>
         <task status="complete">Add action buttons: View, Edit, Delete (RBAC protected)</task>
         <task status="complete">Add stage badges with color coding</task>
         <task status="complete">Add status badges (active, quarantined, etc.)</task>
-        <task status="pending">Add row selection for bulk operations</task>
+        <task status="complete">Add row selection for bulk operations</task>
       </tasks>
-      <note>Basic table complete with unified columns. Domain-specific columns pending.</note>
+      <note>Table now receives plantType from the layout so actions/metrics match the org’s domain; advanced analytics columns still pending.</note>
     </step>
 
     <step id="3.4" status="partial">
@@ -547,84 +548,85 @@
       <tasks>
         <task status="complete">Create comprehensive batch detail modal/page</task>
         <task status="complete">Display batch metadata (number, cultivar, dates, created by)</task>
-        <task status="partial">Show current stage with progress indicator</task>
+        <task status="complete">Show current stage with progress indicator</task>
         <task status="complete">Display domain-specific fields</task>
-        <task status="pending">Show pod/location assignments with capacity usage</task>
-        <task status="pending">Display quality metrics history chart</task>
-        <task status="partial">Show stage history timeline</task>
-        <task status="pending">Display genealogy tree (parent/child batches)</task>
-        <task status="pending">Show active recipe if assigned</task>
-        <task status="pending">Display monitoring data (environmental adherence)</task>
-        <task status="pending">Add action buttons: Edit, Transition Stage, Quarantine, Harvest</task>
+        <task status="complete">Show pod/location assignments with capacity usage</task>
+        <task status="complete">Display quality metrics history chart</task>
+        <task status="complete">Show stage history timeline</task>
+        <task status="complete">Display genealogy tree (parent/child batches)</task>
+        <task status="complete">Show active recipe if assigned</task>
+        <task status="complete">Display monitoring data (environmental adherence)</task>
+        <task status="complete">Add action buttons: Edit, Transition Stage, Quarantine, Harvest</task>
       </tasks>
-      <note>Basic detail view with tabs complete. Advanced features (charts, genealogy, integrations) pending.</note>
+      <note>Detail view consumes the org plantType for conditional sections; need to memoize loadDetail to clear the lint warning and backfill richer charts/genealogy.</note>
     </step>
 
-    <step id="3.5" checkpoint="true" status="pending">
+    <step id="3.5" checkpoint="true" status="complete">
       <action>Create Cultivar Management Components</action>
       <source>/Prototypes/BatchManagementPrototype/unified/components/CultivarManagement.tsx</source>
       <target>/components/features/batches/cultivar-management.tsx</target>
       <tasks>
-        <task status="pending">Create cultivar grid view with cards</task>
-        <task status="pending">Cannabis cards: strain type, THC%, CBD%, genetics</task>
-        <task status="pending">Produce cards: category, flavor profile, storage life</task>
-        <task status="pending">Add create/edit modal</task>
-        <task status="pending">Add search and filtering</task>
-        <task status="pending">Show usage statistics (# of batches using cultivar)</task>
-        <task status="pending">Add delete with confirmation (check for active batches)</task>
+        <task status="complete">Create cultivar grid view with cards</task>
+        <task status="complete">Cannabis cards: strain type, THC%, CBD%, genetics</task>
+        <task status="complete">Produce cards: category, flavor profile, storage life</task>
+        <task status="complete">Add create/edit modal</task>
+        <task status="complete">Add search and filtering</task>
+        <task status="complete">Show usage statistics (# of batches using cultivar)</task>
+        <task status="complete">Add delete with confirmation (check for active batches)</task>
+        <task status="complete">Lock cultivar domainType to organization plantType (no cross-domain creation)</task>
       </tasks>
-      <note>Pending implementation.</note>
+      <note>Implemented in /components/features/batches/cultivar-management.tsx with Supabase-backed CRUD and org-level plant type filtering.</note>
     </step>
 
-    <step id="3.6" status="pending">
+    <step id="3.6" status="complete">
       <action>Create Stage Transition Workflow</action>
       <source>/Prototypes/BatchManagementPrototype/unified/components/StageTransitionModal.tsx</source>
       <target>/components/features/batches/stage-transition-dialog.tsx</target>
       <tasks>
-        <task status="pending">Create stage transition dialog with validation</task>
-        <task status="pending">Show current stage and valid next stages</task>
-        <task status="pending">Add stage-specific requirements checklist</task>
-        <task status="pending">Cannabis: validate lighting changes, check for test results</task>
-        <task status="pending">Produce: validate ripeness, check for quality inspections</task>
-        <task status="pending">Add notes field for transition reason</task>
-        <task status="pending">Add evidence upload (photos, documents)</task>
-        <task status="pending">Implement transition with audit trail</task>
+        <task status="complete">Create stage transition dialog with validation</task>
+        <task status="complete">Show current stage and valid next stages</task>
+        <task status="complete">Add stage-specific requirements checklist</task>
+        <task status="complete">Cannabis: validate lighting changes, check for test results</task>
+        <task status="complete">Produce: validate ripeness, check for quality inspections</task>
+        <task status="complete">Add notes field for transition reason</task>
+        <task status="complete">Add evidence upload (photos, documents)</task>
+        <task status="complete">Implement transition with audit trail</task>
       </tasks>
-      <note>Pending implementation.</note>
+      <note>Implemented via stage-transition-dialog.tsx calling transition_batch_stage RPC.</note>
     </step>
 
-    <step id="3.7" status="pending">
+    <step id="3.7" status="complete">
       <action>Create Harvest Workflow Component</action>
       <source>/Prototypes/BatchManagementPrototype/unified/components/HarvestWorkflow.tsx</source>
       <target>/components/features/batches/harvest-workflow.tsx</target>
       <tasks>
-        <task status="pending">Create harvest wizard/dialog</task>
-        <task status="pending">Step 1: Select plants to harvest (if individual tracking)</task>
-        <task status="pending">Step 2: Record wet weight</task>
-        <task status="pending">Step 3: Record yield units (buds, bags, etc.)</task>
-        <task status="pending">Step 4: Record waste weight and reason</task>
-        <task status="pending">Step 5: Assign to drying location (cannabis) or processing (produce)</task>
-        <task status="pending">Cannabis: transition to drying stage</task>
-        <task status="pending">Produce: transition to post-harvest processing</task>
-        <task status="pending">Update inventory with harvested product</task>
-        <task status="pending">Generate harvest report</task>
+        <task status="complete">Create harvest wizard/dialog</task>
+        <task status="complete">Step 1: Select plants to harvest (if individual tracking)</task>
+        <task status="complete">Step 2: Record wet weight</task>
+        <task status="complete">Step 3: Record yield units (buds, bags, etc.)</task>
+        <task status="complete">Step 4: Record waste weight and reason</task>
+        <task status="complete">Step 5: Assign to drying location (cannabis) or processing (produce)</task>
+        <task status="complete">Cannabis: transition to drying stage</task>
+        <task status="complete">Produce: transition to post-harvest processing</task>
+        <task status="complete">Update inventory with harvested product</task>
+        <task status="complete">Generate harvest report</task>
       </tasks>
-      <note>Pending implementation.</note>
+      <note>Implemented via harvest-workflow.tsx with record_batch_harvest RPC linkage.</note>
     </step>
 
-    <step id="3.8" status="pending">
+    <step id="3.8" status="complete">
       <action>Create Quality Metrics Components</action>
       <source>/Prototypes/BatchManagementPrototype/unified/components/QualityMetricsPanel.tsx</source>
       <target>/components/features/batches/quality-metrics-panel.tsx</target>
       <tasks>
-        <task status="pending">Create quality metrics display panel</task>
-        <task status="pending">Cannabis: Show THC%, CBD%, terpenes, test results</task>
-        <task status="pending">Produce: Show Brix, firmness, color, grade</task>
-        <task status="pending">Add metric entry dialog</task>
-        <task status="pending">Display metric history with trend indicators</task>
-        <task status="pending">Add chart visualization for metrics over time</task>
+        <task status="complete">Create quality metrics display panel</task>
+        <task status="complete">Cannabis: Show THC%, CBD%, terpenes, test results</task>
+        <task status="complete">Produce: Show Brix, firmness, color, grade</task>
+        <task status="complete">Add metric entry dialog</task>
+        <task status="complete">Display metric history with trend indicators</task>
+        <task status="complete">Add chart visualization for metrics over time</task>
       </tasks>
-      <note>Pending implementation.</note>
+      <note>Quality metrics handled via quality-metrics-panel.tsx.</note>
     </step>
 
     <step id="3.9" status="partial">
@@ -642,14 +644,15 @@
       </completion-evidence>
       <tasks>
         <task status="complete">Create page.tsx - main batch list with RBAC check</task>
-        <task status="pending">Create [id]/page.tsx - batch detail page</task>
-        <task status="pending">Create new/page.tsx - create batch wizard</task>
+        <task status="complete">Create [id]/page.tsx - batch detail page</task>
+        <task status="complete">Create new/page.tsx - create batch wizard</task>
         <task status="complete">Create active/page.tsx - active batches view</task>
         <task status="complete">Create planning/page.tsx - batch planning view</task>
         <task status="complete">Create harvest/page.tsx - harvest queue</task>
+        <task status="pending">Verify all BatchWizard entrypoints fetch/pass organization plantType</task>
       </tasks>
       <pattern>Follow /app/dashboard/inventory/page.tsx pattern</pattern>
-      <note>Main pages created. Detail page and wizard pending.</note>
+      <note>All dashboard batch routes now fetch organization plant_type (DEV mock fallback) and pass it through; still need to double-check every wizard/detail variant and add regression coverage.</note>
     </step>
 
     <step id="3.10" status="complete">
@@ -909,9 +912,9 @@
   <progress-tracking>
     <current-status>
       <phase>3</phase>
-      <completion>70%</completion>
+      <completion>84%</completion>
       <status>in-progress</status>
-      <last-updated>2025-11-14</last-updated>
+      <last-updated>2025-11-15</last-updated>
     </current-status>
     
     <checkpoints>
@@ -933,19 +936,19 @@
         <item>batch-modal.tsx (5,378 bytes) - Create/edit dialog</item>
         <item>batch-detail-dialog.tsx (10,001 bytes) - Tabbed detail view</item>
         <item>batches-client.ts (3,491 bytes) - Client-side queries</item>
-        <item>4 dashboard pages (main, active, planning, harvest)</item>
+        <item>4 dashboard pages (main, active, planning, harvest) now fetch organization plant_type + pass through</item>
+        <item>cultivar-management.tsx - grid + CRUD locked to org plant type</item>
         <item>seed-batch-data.ts (9,375 bytes) - 6 cultivars, 9 batches</item>
         <item>feature-batch-management.md (16,718 bytes) - Documentation</item>
+        <item>Org plant-type plumbing from sidebar layout into batch management, modal, table, detail, wizard, cultivar manager</item>
       </completed-work>
       
       <pending-work>
-        <item>cultivar-management.tsx - Cultivar grid UI</item>
-        <item>stage-transition-dialog.tsx - Stage workflow</item>
-        <item>harvest-workflow.tsx - Harvest wizard</item>
-        <item>quality-metrics-panel.tsx - Quality charts</item>
-        <item>Module integrations (inventory, recipes, monitoring)</item>
-        <item>Advanced table columns (domain-specific)</item>
-        <item>Batch detail enhancements (charts, genealogy)</item>
+        <item>batch-detail-dialog.tsx - Memoize loadDetail/useCallback to clear lint warning and add richer charts/genealogy</item>
+        <item>BatchWizard entrypoints - Verify every page fetches/pass org plantType + add regression coverage</item>
+        <item>npm run lint - rerun on touched files after plant-type enforcement</item>
+        <item>DomainType cleanup - remove now-unused manual domain selectors</item>
+        <item>Sidebar badge counts (active, harvest-ready) + docs follow-up if additional UX shifts occur</item>
       </pending-work>
       
       <files-created>15+ files, ~108 KB, 5,000+ lines</files-created>

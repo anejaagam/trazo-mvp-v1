@@ -781,6 +781,7 @@ CREATE TABLE tasks (
   -- Scope (what this task relates to)
   related_to_type TEXT CHECK (related_to_type IN ('pod', 'batch', 'room', 'site', 'inventory_item', 'recipe')),
   related_to_id UUID,
+  batch_id UUID REFERENCES batches(id),
   
   -- Scheduling
   due_date TIMESTAMPTZ,
@@ -968,6 +969,7 @@ CREATE INDEX idx_waste_logs_source ON waste_logs(source_type, source_id) WHERE s
 -- Task indexes
 CREATE INDEX idx_tasks_assigned ON tasks(assigned_to, status, due_date);
 CREATE INDEX idx_tasks_org_site ON tasks(organization_id, site_id);
+CREATE INDEX idx_tasks_batch ON tasks(batch_id);
 CREATE INDEX idx_task_steps_task ON task_steps(task_id, step_number);
 
 -- Alarm indexes

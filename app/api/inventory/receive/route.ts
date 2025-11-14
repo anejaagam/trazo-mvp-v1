@@ -24,6 +24,7 @@ interface ReceiveInventoryRequest {
   notes?: string | null
   organization_id: string
   site_id: string
+  batch_id?: string | null
 }
 
 export async function POST(request: NextRequest) {
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
       to_location: body.storage_location || undefined,
       notes: body.notes || undefined,
       performed_by: user.id,
+      batch_id: body.batch_id || undefined,
     }
 
     const { error: movementError } = await supabase

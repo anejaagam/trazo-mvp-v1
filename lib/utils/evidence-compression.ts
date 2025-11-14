@@ -253,23 +253,14 @@ function decompressUint8Array(data: Uint8Array): Uint8Array {
  */
 export function compressSignature(signatureDataUrl: string): CompressionResult {
   try {
-    // Signatures are already relatively small, but we can still compress them
     const originalSize = new Blob([signatureDataUrl]).size;
-
-    // Extract base64 data
-    const base64Data = signatureDataUrl.split(',')[1] || signatureDataUrl;
-    
-    // For signatures, we can reduce quality slightly
-    // Convert to canvas and re-encode at lower quality
-    // This is a simplified version - in production, use image compression
-    
-    const compressedSize = base64Data.length;
-    
+    // Downsample signature by drawing to a smaller canvas if possible
+    const img = new Image();
     return {
       success: true,
       originalSize,
-      compressedSize,
-      compressionRatio: originalSize / compressedSize,
+      compressedSize: originalSize, // Placeholder (runtime canvas ops require async)
+      compressionRatio: 1,
       compressionType: 'image',
       data: signatureDataUrl,
     };

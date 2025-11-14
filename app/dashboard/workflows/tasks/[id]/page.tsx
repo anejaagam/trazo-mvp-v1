@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
 import { getTaskById, getTemplateById } from '@/lib/supabase/queries/workflows';
 import { TaskExecutorWrapper } from './task-executor-wrapper';
+import type { RoleKey } from '@/lib/rbac/types';
 
 export default async function TaskExecutionPage(props: { 
   params: Promise<{ id: string }>
@@ -19,7 +20,7 @@ export default async function TaskExecutionPage(props: {
   // Get user data
   const { data: userData } = await supabase
     .from('users')
-    .select('role')
+    .select('role, additional_permissions')
     .eq('id', user.id)
     .single();
 
@@ -69,6 +70,8 @@ export default async function TaskExecutionPage(props: {
       task={task} 
       template={template}
       userId={user.id}
+      userRole={userData.role as RoleKey}
+      additionalPermissions={userData.additional_permissions || []}
     />
   );
 }

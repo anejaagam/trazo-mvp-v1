@@ -7,15 +7,16 @@ import {
   createTask,
   startTask,
   completeTask,
-  getTaskById,
-  updateTask
+  updateTask,
+  addTaskDependency,
+  deleteTask,
 } from '@/lib/supabase/queries/workflows';
-import { Task, TaskEvidence, CreateTaskInput, UpdateTaskInput, TaskStatus } from '@/types/workflow';
+import { Task, TaskEvidence, CreateTaskRequest, UpdateTaskInput, TaskStatus } from '@/types/workflow';
 
 /**
  * Create a new task from a template
  */
-export async function createTaskAction(taskData: CreateTaskInput) {
+export async function createTaskAction(taskData: CreateTaskRequest) {
   const supabase = await createClient();
   
   // Check authentication
@@ -41,15 +42,49 @@ export async function createTaskAction(taskData: CreateTaskInput) {
   }
 
   try {
-    const result = await createTask(taskData);
+    const { dependencies, ...taskPayload } = taskData;
+    const result = await createTask(taskPayload);
 
     if (result.error) {
       return { error: result.error };
     }
 
+    const newTask = result.data;
+
+    if (newTask && dependencies) {
+      const dependencyErrors: string[] = [];
+
+      for (const blockingId of dependencies.blocking || []) {
+        const depResult = await addTaskDependency(newTask.id, blockingId, 'blocking');
+        if (depResult.error) {
+          dependencyErrors.push(
+            depResult.error instanceof Error ? depResult.error.message : 'Failed to add blocking dependency'
+          );
+          break;
+        }
+      }
+
+      if (dependencyErrors.length === 0) {
+        for (const suggestedId of dependencies.suggested || []) {
+          const depResult = await addTaskDependency(newTask.id, suggestedId, 'suggested');
+          if (depResult.error) {
+            dependencyErrors.push(
+              depResult.error instanceof Error ? depResult.error.message : 'Failed to add suggested dependency'
+            );
+            break;
+          }
+        }
+      }
+
+      if (dependencyErrors.length > 0) {
+        await deleteTask(newTask.id);
+        return { error: dependencyErrors[0] };
+      }
+    }
+
     revalidatePath('/dashboard/workflows');
     revalidatePath('/dashboard/workflows/tasks');
-    return { success: true, data: result.data };
+    return { success: true, data: newTask };
   } catch (error) {
     console.error('Error in createTaskAction:', error);
     return { error: 'Failed to create task' };

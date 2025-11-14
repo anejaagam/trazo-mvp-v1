@@ -4,12 +4,15 @@ import { BatchManagement } from '@/components/features/batches/batch-management'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 
 export default async function ActiveBatchesPage() {
   let userRole: string
   let siteId: string
   let organizationId: string
   let userId: string
+  let jurisdictionId: JurisdictionId | null = null
+  let plantType: PlantType = 'cannabis'
 
   if (isDevModeActive()) {
     logDevMode('Active Batches Page')
@@ -17,6 +20,10 @@ export default async function ActiveBatchesPage() {
     siteId = DEV_MOCK_USER.site_assignments[0].site_id
     organizationId = DEV_MOCK_USER.organization_id
     userId = DEV_MOCK_USER.id
+    const devJurisdiction = (DEV_MOCK_USER as { jurisdiction?: JurisdictionId | null }).jurisdiction
+    jurisdictionId = devJurisdiction ?? null
+    const devPlantType = (DEV_MOCK_USER as { plant_type?: PlantType }).plant_type
+    plantType = devPlantType ?? 'cannabis'
   } else {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -49,6 +56,13 @@ export default async function ActiveBatchesPage() {
     userRole = userData.role
     organizationId = userData.organization_id
     userId = user.id
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('jurisdiction, plant_type')
+      .eq('id', organizationId)
+      .single()
+    jurisdictionId = (org?.jurisdiction as JurisdictionId) || null
+    plantType = (org?.plant_type as PlantType) || 'cannabis'
     
     if (siteAssignments?.[0]?.site_id) {
       siteId = siteAssignments[0].site_id
@@ -72,6 +86,8 @@ export default async function ActiveBatchesPage() {
         organizationId={organizationId}
         userId={userId}
         userRole={userRole}
+        jurisdictionId={jurisdictionId}
+        plantType={plantType}
       />
     </div>
   )

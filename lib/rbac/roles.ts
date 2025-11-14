@@ -55,6 +55,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:update',
       'task:assign',
       'task:complete',
+      'task:retain_original_evidence',
       'task:delete',
       
       // Full control management
@@ -128,6 +129,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:update',
       'task:assign',
       'task:complete',
+      'task:retain_original_evidence',
       
       // Inventory viewing and consumption
       'inventory:view',
@@ -230,6 +232,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:create',
       'task:assign',
       'task:update',
+      'task:retain_original_evidence',
     ],
   },
 

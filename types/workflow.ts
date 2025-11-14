@@ -31,6 +31,13 @@ export type ScheduleMode =
   | 'event_driven' 
   | 'manual';
 
+// Recurring pattern high-level categories (simple MVP set)
+export type RecurringPattern =
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'custom';
+
 export type TemplateStatus = 
   | 'draft' 
   | 'published' 
@@ -151,6 +158,11 @@ export interface SOPStep {
   isHighRisk?: boolean;
   requiresApproval?: boolean;
   approvalRoles?: string[];
+  // Granular per-step approval (primary & optional secondary role)
+  approvalPrimaryRole?: string;
+  approvalSecondaryRole?: string;
+  // Override template-level dual sign-off requirement for this step only
+  requiresDualSignoffOverride?: boolean;
   
   // Safety
   safetyNotes?: string;
@@ -300,6 +312,16 @@ export interface TaskEvidence {
   compressedSize?: number;
 }
 
+// Structured recurrence configuration
+export interface RecurringConfig {
+  startDate: string; // ISO start date
+  endDate?: string; // optional end date
+  interval?: number; // every N units (days/weeks/months)
+  daysOfWeek?: string[]; // e.g. ['Mon','Wed'] for weekly pattern
+  dayOfMonth?: number; // 1-31 for monthly pattern
+  customRule?: string; // placeholder for advanced RRULE-like expressions
+}
+
 export interface Task {
   id: string;
   organization_id: string;
@@ -332,12 +354,13 @@ export interface Task {
   // Scope
   related_to_type?: string;
   related_to_id?: string;
+  batch_id?: string;
   
   // Scheduling
   due_date?: string;
   scheduled_start?: string;
-  recurring_pattern?: string;
-  recurring_config?: Record<string, any>;
+  recurring_pattern?: RecurringPattern; // e.g. 'daily', 'weekly', 'monthly', 'custom'
+  recurring_config?: RecurringConfig; // structured config for recurrence
   schedule_mode?: ScheduleMode;
   
   // Execution
@@ -353,6 +376,9 @@ export interface Task {
   approved_at?: string;
   approved_by?: string;
   rejection_reason?: string;
+  requires_dual_signoff?: boolean;
+  dual_signoff_roles?: string[];
+  dual_signoff_description?: string;
   
   // Evidence
   evidence: TaskEvidence[];
@@ -360,7 +386,7 @@ export interface Task {
   evidence_documents?: string[];
   evidence_signatures?: Record<string, any>;
   evidence_compressed: boolean;
-  evidence_metadata?: Record<string, any>;
+  evidence_metadata?: Record<string, unknown>;
   
   // Time tracking
   estimated_duration_minutes?: number;
@@ -376,6 +402,21 @@ export interface Task {
   created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+// Aggregated compression/evidence metrics
+export interface EvidenceAggregation {
+  totalItems: number;
+  originalBytes: number;
+  compressedBytes: number;
+  compressionRatio: number; // originalBytes / compressedBytes, 1 if no compression
+  byType: {
+    [K in EvidenceType]?: {
+      count: number;
+      originalBytes: number;
+      compressedBytes: number;
+    };
+  };
 }
 
 export interface TaskDependency {
@@ -438,11 +479,20 @@ export interface CreateTaskInput {
   // Scheduling
   due_date?: string;
   scheduled_start?: string;
-  recurring_pattern?: string;
-  recurring_config?: Record<string, any>;
+  schedule_mode?: ScheduleMode;
+  recurring_pattern?: RecurringPattern;
+  recurring_config?: RecurringConfig;
   
   // Batch
   batch_id?: string;
+
+  // Approvals & dual sign-off
+  requires_approval?: boolean;
+  approval_role?: string;
+  // Metadata & notes
+  notes?: string;
+  evidence_metadata?: Record<string, unknown>;
+  estimated_duration_minutes?: number;
 }
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {
@@ -452,6 +502,15 @@ export interface UpdateTaskInput extends Partial<CreateTaskInput> {
   evidence?: TaskEvidence[];
   completion_notes?: string;
   actual_duration_minutes?: number;
+}
+
+export interface TaskDependencySelection {
+  blocking: string[];
+  suggested: string[];
+}
+
+export interface CreateTaskRequest extends CreateTaskInput {
+  dependencies?: TaskDependencySelection;
 }
 
 // =====================================================

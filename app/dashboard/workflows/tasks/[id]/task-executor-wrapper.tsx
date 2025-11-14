@@ -5,14 +5,17 @@ import { TaskExecutor } from '@/components/features/workflows/task-executor';
 import { Task, SOPTemplate, TaskEvidence } from '@/types/workflow';
 import { completeTaskAction, saveTaskProgressAction, startTaskAction } from '@/app/actions/tasks';
 import { useState, useEffect } from 'react';
+import type { RoleKey } from '@/lib/rbac/types';
 
 interface TaskExecutorWrapperProps {
   task: Task;
   template: SOPTemplate;
   userId: string;
+  userRole: RoleKey;
+  additionalPermissions?: string[];
 }
 
-export function TaskExecutorWrapper({ task, template, userId }: TaskExecutorWrapperProps) {
+export function TaskExecutorWrapper({ task, template, userId, userRole, additionalPermissions = [] }: TaskExecutorWrapperProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
 
@@ -75,6 +78,8 @@ export function TaskExecutorWrapper({ task, template, userId }: TaskExecutorWrap
       onComplete={handleComplete}
       onSaveDraft={handleSaveDraft}
       onClose={handleClose}
+      userRole={userRole}
+      additionalPermissions={additionalPermissions}
     />
   );
 }

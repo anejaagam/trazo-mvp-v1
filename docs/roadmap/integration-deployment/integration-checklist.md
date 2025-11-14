@@ -230,9 +230,11 @@ See [CURRENT.md - Inventory Feature](../CURRENT.md#inventory-feature) for full d
 - [ ] Create CTLS report generator (Canada)
 - [ ] Create PrimusGFS report generator (Produce)
 
-### Batch Management 🔄 PHASE 0 COMPLETE (Pre-Integration Research)
+### Batch Management ✅ PHASE 1 COMPLETE - Database Deployed with Domain Support
 
-**Documentation:** [Prototype Analysis](./batch-prototype-analysis.md) | [Schema Mapping](./batch-schema-mapping.md)
+**Documentation:** [Prototype Analysis](../planning-progress/batch-prototype-analysis.md) | [Schema Mapping](../planning-progress/batch-schema-mapping.md)
+
+**Database Status:** 13 tables deployed with full cannabis/produce domain support ✅
 
 #### Phase 0: Pre-Integration Research ✅ COMPLETE (Nov 13, 2025)
 **2 documents, 970 lines**
@@ -242,40 +244,32 @@ See [CURRENT.md - Inventory Feature](../CURRENT.md#inventory-feature) for full d
   - Data model mapping: Prototype → Platform schema
   - Integration gaps documented (3 high priority, 3 medium, 3 low)
 - [x] **Step 0.2:** Platform schema review (580 lines)
-  - Existing table assessment: 5 tables reviewed
-  - New tables designed: 3 (batch_genealogy, batch_quality_metrics, harvest_records)
+  - Existing tables assessed: 11 tables already deployed
+  - New tables designed: 2 (batch_genealogy, batch_quality_metrics)
   - Schema enhancements specified: domain_type + cannabis/produce fields
-  - Database functions designed: 4 complete implementations
+  - Database functions designed: 5 complete implementations
   - Migration strategy defined: 4-part migration, 7-10 hours estimated
 
-#### Phase 1: Database Enhancement ⏳ NOT STARTED (1-2 days)
-- [ ] **Step 1.1:** Enhance batch schema (`012_batch_management_enhancement.sql`)
-  - [ ] Add domain_type column to batches table
-  - [ ] Add cannabis-specific fields (lighting, THC/CBD, drying/curing dates)
-  - [ ] Add produce-specific fields (grade, ripeness, brix, certifications)
-  - [ ] Create batch_genealogy table for parent-child tracking
-  - [ ] Create batch_quality_metrics table for quality history
-  - [ ] Create harvest_records table for harvest workflows
-  - [ ] Add indexes on domain_type, stage, status, cultivar_id
-  - [ ] Configure RLS policies for new tables
-  - [ ] Deploy to US region
-  - [ ] Deploy to Canada region
-- [ ] **Step 1.2:** Create database functions
-  - [ ] transition_batch_stage() - validate and log stage changes
-  - [ ] quarantine_batch() - quarantine with reason tracking
-  - [ ] release_from_quarantine() - release with validation
-  - [ ] record_harvest() - detailed harvest workflow
-  - [ ] update_plant_count() - with event logging
-  - [ ] assign_batch_to_pod() - location assignment
-  - [ ] get_batch_genealogy() - recursive ancestry tree
-  - [ ] calculate_batch_health_score() - aggregate metrics
-- [ ] **Step 1.3:** Seed batch data
-  - [ ] Create sample cannabis cultivars (3-5 strains)
-  - [ ] Create sample produce cultivars (3-5 varieties)
-  - [ ] Create cannabis batches in various stages (7 batches)
-  - [ ] Create produce batches in various stages (6 batches)
-  - [ ] Create genealogy relationships
-  - [ ] Create quality metrics history
+#### Phase 1: Database Enhancement ✅ COMPLETE (Nov 13, 2025)
+**Migration:** `20251114010000_batch_domain_enhancement_v2.sql` (deployed)
+- [x] **Step 1.1:** Enhance batch schema
+  - [x] Add domain_type column to batches table ('cannabis' | 'produce') ✅
+  - [x] Add 6 cannabis fields: lighting_schedule, thc_content, cbd_content, drying_date, curing_date, terpene_profile ✅
+  - [x] Add 9 produce fields to batches: grade, ripeness, brix_level, firmness, color, defect_rate, certifications, storage_temp_c, storage_humidity_pct ✅
+  - [x] Add 7 produce fields to cultivars: category, flavor_profile, storage_life_days, optimal_temp ranges, optimal_humidity ranges ✅
+  - [x] Create batch_genealogy table (8 columns): id, batch_id, parent_batch_id, relationship_type, generation_level, contribution_pct, notes, created_at ✅
+  - [x] Create batch_quality_metrics table (10 columns): id, batch_id, metric_type, value, unit, recorded_at, recorded_by, test_method, lab_certified, certification_url, notes ✅
+  - [x] Add 7 indexes: domain_type, cultivar_id, parent_id, org_site, start_date, genealogy batch/parent ✅
+  - [x] Configure RLS policies for 2 new tables (6 policies total) ✅
+  - [x] Deploy to US region ✅ (Nov 13, 2025)
+  - [ ] Deploy to Canada region ⏳ Pending
+- [x] **Step 1.2:** Create database functions
+  - [x] get_batch_genealogy() - recursive ancestry tree (10 generation max) ✅
+  - [x] transition_batch_stage() - validate and log stage changes with history tracking ✅
+  - [x] quarantine_batch() - quarantine with reason + timestamp tracking ✅
+  - [x] release_from_quarantine() - release with validation + audit ✅
+  - [x] calculate_quality_score() - domain-specific quality scoring (cannabis: THC/CBD/moisture, produce: Brix/defect/firmness) ✅
+- [ ] **Step 1.3:** Seed batch data ⏳ Ready (database complete)
 
 #### Phase 2: Backend Implementation ⏳ NOT STARTED (2-3 days)
 - [ ] **Step 2.1:** Create batch type definitions (`/types/batch.ts`)

@@ -26,9 +26,9 @@ Phase 0 (Pre-Integration Research) has been completed following the established 
   - Integration patterns reference
 
 - [x] **Referenced in tracking documents**:
-  - `/docs/roadmap/integration-deployment/integration-checklist.md` (Phase 13 added)
-  - `/docs/roadmap/planning-progress/feature-roadmap.md` (Phase 13 detailed)
-  - `/docs/roadmap/index.md` (status updated)
+  - `/docs/roadmap/integration-deployment/integration-checklist.md` (Phase 13 added, database status updated)
+  - `/docs/roadmap/planning-progress/feature-roadmap.md` (Phase 13 detailed with database inventory)
+  - `/docs/roadmap/index.md` (status updated to Phase 0 complete)
 
 ### Integration Pattern Compliance ✅
 
@@ -65,30 +65,57 @@ Following the proven [7-Phase Integration Pattern](../integration-deployment/int
 
 Following patterns from Inventory (Phase 8) and Monitoring (Phase 10):
 
-**New Tables:**
+**Existing Tables (Already Deployed):**
+- ✅ `batches` - Core batch tracking with quarantine, genealogy, yield tracking
+- ✅ `cultivars` - Variety management with strain types, THC/CBD ranges
+- ✅ `batch_pod_assignments` - Location tracking (pod assignments)
+- ✅ `batch_events` - Complete audit trail for all lifecycle changes
+- ✅ `plant_tags` - Plant labeling for METRC compliance
+- ✅ `batch_collections` - Batch grouping functionality
+- ✅ `growing_areas` - Growing zone definitions
+- ✅ `batch_stage_history` - Stage transition tracking
+- ✅ `harvest_records` - Harvest workflow tracking
+- ✅ `plant_count_snapshots` - Plant count history
+- ✅ `post_harvest_records` - Drying, curing, packaging tracking
+
+**New Tables (Phase 1 - To Be Created):**
 ```sql
--- Multi-tenancy columns
+-- Multi-tenancy columns (inherits via batch foreign key)
 batch_genealogy.id UUID PRIMARY KEY
--- (no org_id needed - inherits via batch foreign key)
+batch_genealogy.batch_id UUID REFERENCES batches(id)
+batch_genealogy.parent_batch_id UUID REFERENCES batches(id)
+batch_genealogy.relationship_type TEXT
+batch_genealogy.generation_level INTEGER
 
 batch_quality_metrics.id UUID PRIMARY KEY
--- (no org_id needed - inherits via batch foreign key)
-
-harvest_records.id UUID PRIMARY KEY
--- (no org_id needed - inherits via batch foreign key)
+batch_quality_metrics.batch_id UUID REFERENCES batches(id)
+batch_quality_metrics.metric_type TEXT
+batch_quality_metrics.value DECIMAL
+batch_quality_metrics.recorded_at TIMESTAMPTZ
 ```
 
-**Enhanced Tables:**
+**Enhanced Tables (Phase 1 - To Be Modified):**
 ```sql
 -- Domain discriminator (pattern: discriminated unions)
 batches.domain_type TEXT CHECK (domain_type IN ('cannabis', 'produce'))
 
--- Domain-specific fields (pattern: nullable optional fields)
-batches.lighting_schedule TEXT  -- Cannabis only
-batches.grade TEXT  -- Produce only
+-- Cannabis-specific fields (pattern: nullable optional fields)
+batches.lighting_schedule TEXT
+batches.thc_content DECIMAL(5,2)
+batches.cbd_content DECIMAL(5,2)
+batches.drying_date DATE
+batches.curing_date DATE
+
+-- Produce-specific fields (pattern: nullable optional fields)
+batches.grade TEXT
+batches.ripeness TEXT
+batches.brix_level DECIMAL(5,2)
+batches.firmness TEXT
+batches.color TEXT
+batches.certifications JSONB
 ```
 
-**Functions:**
+**Functions (Phase 1 - To Be Created):**
 ```sql
 -- Consistent signature pattern
 CREATE FUNCTION transition_batch_stage(

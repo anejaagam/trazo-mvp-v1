@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server';
 import {
   SOPTemplate,
   Task,
+  TaskEvidence,
   TaskDependency,
   TaskStep,
   CreateTemplateInput,
@@ -705,6 +706,7 @@ export async function startTask(taskId: string) {
  */
 export async function completeTask(
   taskId: string,
+  evidence?: TaskEvidence[],
   completionNotes?: string,
   actualDurationMinutes?: number
 ) {
@@ -718,15 +720,24 @@ export async function completeTask(
       return { data: null, error: new Error('Not authenticated') };
     }
 
+    const updateData: any = {
+      status: 'done',
+      completed_at: new Date().toISOString(),
+      completed_by: user.id,
+      completion_notes: completionNotes,
+      actual_duration_minutes: actualDurationMinutes,
+    };
+
+    // Add evidence if provided
+    if (evidence) {
+      updateData.evidence = evidence;
+      // Mark as compressed if any evidence is compressed
+      updateData.evidence_compressed = evidence.some(e => e.compressed);
+    }
+
     const { data, error } = await supabase
       .from('tasks')
-      .update({
-        status: 'done',
-        completed_at: new Date().toISOString(),
-        completed_by: user.id,
-        completion_notes: completionNotes,
-        actual_duration_minutes: actualDurationMinutes,
-      })
+      .update(updateData)
       .eq('id', taskId)
       .select()
       .single();

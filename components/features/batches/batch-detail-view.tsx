@@ -260,7 +260,11 @@ export function BatchDetailView({ batch, onBack, userRole }: BatchDetailViewProp
                   {batch.terpene_profile && (
                     <div>
                       <label className="text-sm font-medium">Terpene Profile</label>
-                      <p className="text-sm text-muted-foreground">{batch.terpene_profile}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {typeof batch.terpene_profile === 'string' 
+                          ? batch.terpene_profile 
+                          : JSON.stringify(batch.terpene_profile)}
+                      </p>
                     </div>
                   )}
                 </div>

@@ -105,7 +105,7 @@ export function StageTransitionDialog({
   domainType,
   onTransition,
 }: StageTransitionDialogProps) {
-  const [selectedStage, setSelectedStage] = useState<BatchStage>('')
+  const [selectedStage, setSelectedStage] = useState<BatchStage | ''>('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -174,7 +174,7 @@ export function StageTransitionDialog({
           {/* New Stage Selection */}
           <div>
             <Label htmlFor="new-stage">New Stage</Label>
-            <Select value={selectedStage} onValueChange={setSelectedStage}>
+            <Select value={selectedStage} onValueChange={(value: string) => setSelectedStage(value as BatchStage)}>
               <SelectTrigger id="new-stage" className="mt-2">
                 <SelectValue placeholder="Select new stage" />
               </SelectTrigger>

@@ -73,7 +73,11 @@ export function QualityMetricsPanel({ batch }: QualityMetricsPanelProps) {
           {batch.terpene_profile && (
             <div>
               <span className="text-sm font-medium">Terpene Profile</span>
-              <p className="text-sm text-muted-foreground mt-1">{batch.terpene_profile}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {typeof batch.terpene_profile === 'string' 
+                  ? batch.terpene_profile 
+                  : JSON.stringify(batch.terpene_profile)}
+              </p>
             </div>
           )}
 

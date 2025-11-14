@@ -5,6 +5,9 @@
 // Admin types
 export * from './admin';
 
+// Batch types
+export * from './batch';
+
 // Inventory types
 export * from './inventory';
 

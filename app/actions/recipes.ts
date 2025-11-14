@@ -3,10 +3,13 @@
 import {
   getAssignableScopes as getAssignableScopesQuery,
   assignRecipeToScope as assignRecipeToScopeQuery,
+  deactivateRecipe as deactivateRecipeQuery,
   updateRecipe,
   deprecateRecipe as deprecateRecipeQuery,
   undeprecateRecipe as undeprecateRecipeQuery,
 } from '@/lib/supabase/queries/recipes'
+import { createClient } from '@/lib/supabase/server'
+import { logAuditEvent } from '@/lib/supabase/queries/audit'
 import type { RecipeScopeType } from '@/types/recipe'
 
 /**
@@ -85,6 +88,38 @@ export async function assignRecipeToScope(
 }
 
 /**
+ * Server action to deactivate a recipe activation
+ */
+export async function deactivateRecipe(
+  activationId: string,
+  userId: string,
+  reason?: string
+): Promise<{
+  data: boolean
+  error: string | null
+}> {
+  try {
+    const { data, error } = await deactivateRecipeQuery(activationId, userId, reason)
+    
+    if (error) {
+      console.error('Error deactivating recipe:', error)
+      return {
+        data: false,
+        error: error instanceof Error ? error.message : 'Failed to deactivate recipe',
+      }
+    }
+    
+    return { data: data || false, error: null }
+  } catch (err) {
+    console.error('Unexpected error in deactivateRecipe:', err)
+    return {
+      data: false,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
  * Server action to publish a draft recipe
  */
 export async function publishRecipe(
@@ -94,6 +129,31 @@ export async function publishRecipe(
   error: string | null
 }> {
   try {
+    const supabase = await createClient()
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    const user = authData?.user
+
+    if (authError) {
+      console.error('Auth error when publishing recipe:', authError)
+    }
+
+    if (!user) {
+      return {
+        data: null,
+        error: 'User not authenticated',
+      }
+    }
+
+    const { data: currentRecipe, error: currentRecipeError } = await supabase
+      .from('recipes')
+      .select('status, current_version')
+      .eq('id', recipeId)
+      .single()
+
+    if (currentRecipeError && currentRecipeError.code !== 'PGRST116') {
+      console.error('Error fetching recipe before publish:', currentRecipeError)
+    }
+
     const { data, error } = await updateRecipe(recipeId, {
       status: 'published',
       published_at: new Date().toISOString(),
@@ -104,6 +164,29 @@ export async function publishRecipe(
       return {
         data: null,
         error: error instanceof Error ? error.message : 'Failed to publish recipe',
+      }
+    }
+
+    if (data) {
+      try {
+        await logAuditEvent(
+          user.id,
+          'recipe',
+          recipeId,
+          'recipe.published',
+          {
+            status: {
+              from: currentRecipe?.status ?? null,
+              to: data.status,
+            },
+          },
+          {
+            published_at: data.published_at,
+            current_version: data.current_version,
+          }
+        )
+      } catch (auditError) {
+        console.error('Failed to log recipe.published audit event:', auditError)
       }
     }
     

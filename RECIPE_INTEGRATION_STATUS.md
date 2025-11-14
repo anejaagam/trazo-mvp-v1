@@ -602,7 +602,7 @@ npm run build    # ✅ PASSED - 49 pages generated, 0 errors
 8. **Advanced Features** (Future)
    - Recipe templates library
    - AI-suggested setpoints
-   - Automated stage advancement
+   - ~~Automated stage advancement~~ ✅ (Nov 13)
    - Predictive alerts based on recipe adherence
 
 ---

@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
+import { logAuditEvent } from '@/lib/supabase/queries/audit'
 import type {
   RecipeFilters,
   RecipeActivationFilters,
@@ -35,6 +36,35 @@ type DbStageWithRelations = {
   created_at: string
   setpoints: EnvironmentalSetpoint[]
   nutrient_formula: NutrientFormula[]
+}
+
+async function recordRecipeAuditEvent(
+  params: {
+    userId?: string | null
+    recipeId: string
+    action: string
+    metadata?: Record<string, unknown>
+    changes?: Record<string, unknown>
+  }
+) {
+  const { userId, recipeId, action, metadata, changes } = params
+
+  if (!userId) {
+    console.log('⚠️ recordRecipeAuditEvent: No userId provided, skipping audit log')
+    return
+  }
+
+  try {
+    console.log('📝 Recording recipe audit event:', { userId, recipeId, action, metadata })
+    await logAuditEvent(userId, 'recipe', recipeId, action, changes, metadata)
+    console.log('✅ Recipe audit event logged successfully')
+  } catch (error) {
+    console.error('❌ Failed to log recipe audit event', {
+      action,
+      recipeId,
+      error,
+    })
+  }
 }
 
 /**
@@ -440,6 +470,18 @@ export async function createRecipeVersion(
 
     if (updateError) throw updateError
 
+    await recordRecipeAuditEvent({
+      userId,
+      recipeId,
+      action: 'recipe.version.created',
+      metadata: {
+        version_number: newVersion,
+        version_id: version.id,
+        stage_count: versionData.stages?.length ?? 0,
+        has_notes: Boolean(notes),
+      },
+    })
+
     return { data: version, error: null }
   } catch (error) {
     console.error('Error in createRecipeVersion:', error)
@@ -486,6 +528,20 @@ export async function activateRecipe(
 
     if (activationError) throw activationError
 
+    await recordRecipeAuditEvent({
+      userId,
+      recipeId,
+      action: 'recipe.activation.created',
+      metadata: {
+        activation_id: activation.id,
+        scope_type: scopeType,
+        scope_id: scopeId,
+        scope_name: scopeName,
+        scheduled_start: scheduledStart,
+        scheduled_end: scheduledEnd,
+      },
+    })
+
     return { data: activation, error: null }
   } catch (error) {
     console.error('Error in activateRecipe:', error)
@@ -504,14 +560,43 @@ export async function deactivateRecipe(
   try {
     const supabase = await createClient()
     
+    // Fetch activation details before deactivation for audit log
+    const { data: beforeActivation, error: beforeError } = await supabase
+      .from('recipe_activations')
+      .select('recipe_id, scope_type, scope_id, scope_name, current_stage_id')
+      .eq('id', activationId)
+      .single()
+
+    if (beforeError && beforeError.code !== 'PGRST116') {
+      throw beforeError
+    }
+    
     // Use database function for deactivation
     const { data, error } = await supabase.rpc('deactivate_recipe', {
       p_activation_id: activationId,
-      p_user_id: userId,
+      p_deactivated_by: userId,
       p_reason: reason,
     })
 
     if (error) throw error
+    
+    // Log audit event
+    if (beforeActivation?.recipe_id) {
+      await recordRecipeAuditEvent({
+        userId,
+        recipeId: beforeActivation.recipe_id,
+        action: 'recipe.activation.deactivated',
+        metadata: {
+          activation_id: activationId,
+          scope_type: beforeActivation.scope_type,
+          scope_id: beforeActivation.scope_id,
+          scope_name: beforeActivation.scope_name,
+          stage_id: beforeActivation.current_stage_id,
+          reason: reason || 'Manual deactivation',
+        },
+      })
+    }
+    
     return { data, error: null }
   } catch (error) {
     console.error('Error in deactivateRecipe:', error)
@@ -686,15 +771,46 @@ export async function advanceRecipeStage(
 ) {
   try {
     const supabase = await createClient()
+
+    const { data: beforeActivation, error: beforeError } = await supabase
+      .from('recipe_activations')
+      .select('recipe_id, current_stage_id')
+      .eq('id', activationId)
+      .single()
+
+    if (beforeError && beforeError.code !== 'PGRST116') {
+      throw beforeError
+    }
     
     // Use database function to advance stage
-    const { data, error } = await supabase.rpc('advance_recipe_stage', {
+    const { data: advanceResult, error } = await supabase.rpc('advance_recipe_stage', {
       p_activation_id: activationId,
       p_user_id: userId,
     })
 
     if (error) throw error
-    return { data, error: null }
+
+    if (advanceResult && beforeActivation?.recipe_id) {
+      const { data: afterActivation } = await supabase
+        .from('recipe_activations')
+        .select('current_stage_id, current_stage_day')
+        .eq('id', activationId)
+        .single()
+
+      await recordRecipeAuditEvent({
+        userId,
+        recipeId: beforeActivation.recipe_id,
+        action: 'recipe.stage.advanced',
+        metadata: {
+          activation_id: activationId,
+          previous_stage_id: beforeActivation.current_stage_id,
+          new_stage_id: afterActivation?.current_stage_id,
+          current_stage_day: afterActivation?.current_stage_day,
+        },
+      })
+    }
+
+    return { data: advanceResult, error: null }
   } catch (error) {
     console.error('Error in advanceRecipeStage:', error)
     return { data: null, error }
@@ -814,6 +930,15 @@ export async function cloneRecipe(
         await createRecipeVersion(newRecipe.id, userId, versionData, 'Cloned from original recipe')
       }
     }
+
+    await recordRecipeAuditEvent({
+      userId,
+      recipeId: newRecipe.id,
+      action: 'recipe.cloned',
+      metadata: {
+        source_recipe_id: sourceRecipeId,
+      },
+    })
 
     return { data: newRecipe, error: null }
   } catch (error) {
@@ -1038,6 +1163,21 @@ export async function deprecateRecipe(
       activeCount,
       activeScopes: activations?.map(a => `${a.scope_type}:${a.scope_name}`)
     })
+
+    await recordRecipeAuditEvent({
+      userId,
+      recipeId,
+      action: 'recipe.deprecated',
+      metadata: {
+        reason: reason || null,
+        active_count: activeCount,
+        active_scopes: activations?.map(a => ({
+          id: a.id,
+          scope_type: a.scope_type,
+          scope_name: a.scope_name,
+        })),
+      },
+    })
     
     return { data: true, error: null, activeCount }
   } catch (error) {
@@ -1080,6 +1220,15 @@ export async function undeprecateRecipe(
     if (updateError) throw updateError
     
     console.log('Recipe undeprecated:', { recipeId, userId, newStatus })
+
+    await recordRecipeAuditEvent({
+      userId,
+      recipeId,
+      action: 'recipe.undeprecated',
+      metadata: {
+        new_status: newStatus,
+      },
+    })
     
     return { data: true, error: null }
   } catch (error) {

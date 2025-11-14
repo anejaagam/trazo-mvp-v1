@@ -10,6 +10,7 @@ import { Clock, RefreshCw, Thermometer, Droplets, Wind, Sun, CheckCircle2, Alert
 import { useTelemetry } from '@/hooks/use-telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getActiveRecipe } from '@/app/actions/monitoring'
+import { deactivateRecipe } from '@/app/actions/recipes'
 import { createClient } from '@/lib/supabase/client'
 import type { EquipmentControlRecord } from '@/lib/supabase/queries/equipment-controls'
 import type { EquipmentControlRecord as TypedEquipmentControlRecord } from '@/types/equipment'
@@ -18,6 +19,16 @@ import type { ActiveRecipeDetails, EnvironmentalSetpoint } from '@/types/recipe'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { TelemetryReading } from '@/types/telemetry'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface PodDetailProps {
   podId: string
@@ -38,6 +49,8 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
   const [userRole, setUserRole] = useState<RoleKey | null>(null)
   const [overrideMode, setOverrideMode] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<Map<string, { state: EquipmentState; level?: number }>>(new Map())
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [removing, setRemoving] = useState(false)
   
   // Fetch user role
   useEffect(() => {
@@ -218,6 +231,50 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
     window.location.reload()
   }
   
+  const handleRemoveRecipe = async () => {
+    if (!activeRecipe?.activation?.id || !userRole) {
+      toast.error('Unable to remove recipe')
+      return
+    }
+    
+    setRemoving(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        toast.error('You must be logged in to remove a recipe')
+        return
+      }
+      
+      // Deactivate the recipe using server action (includes audit logging)
+      const { error: deactivateError } = await deactivateRecipe(
+        activeRecipe.activation.id,
+        user.id,
+        `Manual removal from ${podName} via monitoring dashboard`
+      )
+      
+      if (deactivateError) {
+        console.error('Error deactivating recipe:', deactivateError)
+        toast.error('Failed to remove recipe')
+        return
+      }
+      
+      // Refresh the active recipe state
+      setActiveRecipe(null)
+      setShowRemoveDialog(false)
+      toast.success(`Recipe removed from ${podName}`)
+      
+      // Refresh after a short delay to allow state to update
+      setTimeout(() => handleRefresh(), 1000)
+    } catch (error) {
+      console.error('Error removing recipe:', error)
+      toast.error('Failed to remove recipe')
+    } finally {
+      setRemoving(false)
+    }
+  }
+  
   // Helper to get setpoint for a parameter type
   const getSetpoint = (parameterType: string): EnvironmentalSetpoint | null => {
     if (!activeRecipe?.activation?.current_stage?.setpoints) return null
@@ -287,6 +344,17 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
             <Clock className="w-4 h-4" />
             Last update: {reading ? getTimeAgo(reading.timestamp) : '--'}
           </div>
+          {activeRecipe?.activation && can('control:recipe_apply') && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => setShowRemoveDialog(true)}
+              disabled={removing}
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Remove Recipe
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
@@ -701,6 +769,31 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
           </CardContent>
         </Card>
       )}
+      
+      {/* Remove Recipe Confirmation Dialog */}
+      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Recipe from {podName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the current recipe ({activeRecipe?.activation?.recipe?.name || 'Unknown'}) 
+              and stop tracking its progress. The recipe itself will remain in your library.
+              <br /><br />
+              This action will be logged in the audit trail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveRecipe}
+              disabled={removing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removing ? 'Removing...' : 'Remove Recipe'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -37,7 +37,7 @@ export async function createTemplateAction(templateData: Partial<SOPTemplate>) {
   }
 
   // Check permissions
-  if (!canPerformAction(userData.role, 'tasks:create')) {
+  if (!canPerformAction(userData.role, 'task:create').allowed) {
     return { error: 'Permission denied' };
   }
 
@@ -64,7 +64,7 @@ export async function createTemplateAction(templateData: Partial<SOPTemplate>) {
 
     // If status is published, publish the template
     if (templateData.status === 'published' && result.data) {
-      const publishResult = await publishTemplate(result.data.id, user.id);
+      const publishResult = await publishTemplate(result.data.id);
       
       if (publishResult.error) {
         return { error: publishResult.error };
@@ -106,13 +106,14 @@ export async function updateTemplateAction(
   }
 
   // Check permissions
-  if (!canPerformAction(userData.role, 'tasks:edit')) {
+  if (!canPerformAction(userData.role, 'task:update').allowed) {
     return { error: 'Permission denied' };
   }
 
   try {
     // Prepare update input
     const input: UpdateTemplateInput = {
+      id: templateId,
       name: templateData.name,
       category: templateData.category,
       description: templateData.description,
@@ -123,7 +124,7 @@ export async function updateTemplateAction(
       steps: templateData.steps,
     };
 
-    const result = await updateTemplate(templateId, input);
+    const result = await updateTemplate(input);
 
     if (result.error) {
       return { error: result.error };
@@ -131,7 +132,7 @@ export async function updateTemplateAction(
 
     // If status changed to published, publish the template
     if (templateData.status === 'published') {
-      const publishResult = await publishTemplate(templateId, user.id);
+      const publishResult = await publishTemplate(templateId);
       
       if (publishResult.error) {
         return { error: publishResult.error };
@@ -171,12 +172,12 @@ export async function publishTemplateAction(templateId: string) {
   }
 
   // Check permissions
-  if (!canPerformAction(userData.role, 'tasks:approve')) {
+  if (!canPerformAction(userData.role, 'task:update').allowed) {
     return { error: 'Permission denied' };
   }
 
   try {
-    const result = await publishTemplate(templateId, user.id);
+    const result = await publishTemplate(templateId);
 
     if (result.error) {
       return { error: result.error };
@@ -184,7 +185,7 @@ export async function publishTemplateAction(templateId: string) {
 
     revalidatePath('/dashboard/workflows/templates');
     revalidatePath(`/dashboard/workflows/templates/${templateId}`);
-    return { success: true, data: result.data };
+    return { success: true, published_template_id: result.published_template_id };
   } catch (error) {
     console.error('Error in publishTemplateAction:', error);
     return { error: 'Failed to publish template' };
@@ -215,7 +216,7 @@ export async function archiveTemplateAction(templateId: string) {
   }
 
   // Check permissions
-  if (!canPerformAction(userData.role, 'tasks:delete')) {
+  if (!canPerformAction(userData.role, 'task:delete').allowed) {
     return { error: 'Permission denied' };
   }
 
@@ -258,17 +259,12 @@ export async function duplicateTemplateAction(templateId: string, newName: strin
   }
 
   // Check permissions
-  if (!canPerformAction(userData.role, 'tasks:create')) {
+  if (!canPerformAction(userData.role, 'task:create').allowed) {
     return { error: 'Permission denied' };
   }
 
   try {
-    const result = await duplicateTemplate(
-      templateId,
-      newName,
-      user.id,
-      userData.organization_id
-    );
+    const result = await duplicateTemplate(templateId);
 
     if (result.error) {
       return { error: result.error };

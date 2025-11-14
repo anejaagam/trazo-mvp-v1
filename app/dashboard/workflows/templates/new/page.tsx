@@ -28,7 +28,7 @@ export default async function NewTemplatePage({ searchParams }: NewTemplatePageP
   const userRole = userData?.role || '';
 
   // Check create permission
-  if (!canPerformAction(userRole, 'tasks:create')) {
+  if (!canPerformAction(userRole, 'task:create').allowed) {
     redirect('/dashboard/workflows/templates');
   }
 
@@ -39,7 +39,7 @@ export default async function NewTemplatePage({ searchParams }: NewTemplatePageP
     sourceTemplate = result.data;
   }
 
-  const canPublish = canPerformAction(userRole, 'tasks:approve');
+  const canPublish = canPerformAction(userRole, 'task:update').allowed;
 
   return (
     <div className="container mx-auto py-6">

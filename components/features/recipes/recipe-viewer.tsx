@@ -11,11 +11,6 @@ import {
   Edit, 
   Copy, 
   Clock,
-  Thermometer,
-  Droplets,
-  Sun,
-  Moon,
-  Activity,
   CheckCircle2,
   AlertTriangle,
   RotateCcw
@@ -238,7 +233,7 @@ export function RecipeViewer({
   const handlePublish = async () => {
     setIsPublishing(true)
     try {
-      const { data, error } = await publishRecipe(recipe.id)
+      const { error } = await publishRecipe(recipe.id)
       
       if (error) {
         toast.error(error)
@@ -274,7 +269,7 @@ export function RecipeViewer({
     setShowDeprecateConfirm(false)
     setIsDeprecating(true)
     try {
-      const { data, activeCount, error } = await deprecateRecipe(recipe.id, userId)
+      const { activeCount, error } = await deprecateRecipe(recipe.id, userId)
       
       if (error) {
         toast.error(error)
@@ -307,7 +302,7 @@ export function RecipeViewer({
 
     setIsRestoring(true)
     try {
-      const { data, error } = await undeprecateRecipe(recipe.id, userId)
+      const { error } = await undeprecateRecipe(recipe.id, userId)
       
       if (error) {
         toast.error(error)
@@ -854,91 +849,5 @@ function StageDetails({ stage }: { stage: RecipeStageWithDetails }) {
         </div>
       )}
     </div>
-  )
-}
-
-function SetpointCard({ setpoint }: { setpoint: EnvironmentalSetpoint }) {
-  const hasDay = setpoint.day_value !== null && setpoint.day_value !== undefined
-  const hasNight = setpoint.night_value !== null && setpoint.night_value !== undefined
-  const hasSingleValue = setpoint.value !== null && setpoint.value !== undefined
-
-  const getSetpointIcon = (type: string) => {
-    const lowerType = type.toLowerCase()
-    if (lowerType.includes('temp')) return <Thermometer className="w-4 h-4 text-slate-400" />
-    if (lowerType.includes('humid') || lowerType.includes('rh')) return <Droplets className="w-4 h-4 text-slate-400" />
-    if (lowerType.includes('light') || lowerType.includes('photo')) return <Sun className="w-4 h-4 text-slate-400" />
-    return <Activity className="w-4 h-4 text-slate-400" />
-  }
-
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            {getSetpointIcon(setpoint.parameter_type)}
-            <h5 className="font-medium text-slate-900 dark:text-slate-100">{setpoint.parameter_type}</h5>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {hasSingleValue && (
-              <div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Target Value</p>
-                <p className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                  {setpoint.value} {setpoint.unit}
-                </p>
-              </div>
-            )}
-            {hasDay && (
-              <div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                  <Sun className="w-3 h-3" /> Day Value
-                </p>
-                <p className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                  {setpoint.day_value} {setpoint.unit}
-                </p>
-              </div>
-            )}
-            {hasNight && (
-              <div>
-                <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                  <Moon className="w-3 h-3" /> Night Value
-                </p>
-                <p className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                  {setpoint.night_value} {setpoint.unit}
-                </p>
-              </div>
-            )}
-            {setpoint.deadband !== null && setpoint.deadband !== undefined && (
-              <div>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Deadband</p>
-                <p className="font-medium text-slate-900 dark:text-slate-100">
-                  ±{setpoint.deadband} {setpoint.unit}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {(setpoint.min_value !== null || setpoint.max_value !== null) && (
-            <div className="pt-3 border-t dark:border-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Safety Bounds</p>
-              <p className="text-sm text-slate-900 dark:text-slate-100">
-                {setpoint.min_value !== null && `Min: ${setpoint.min_value} ${setpoint.unit}`}
-                {setpoint.min_value !== null && setpoint.max_value !== null && ' · '}
-                {setpoint.max_value !== null && `Max: ${setpoint.max_value} ${setpoint.unit}`}
-              </p>
-            </div>
-          )}
-
-          {setpoint.ramp_duration_minutes && (
-            <div className="pt-3 border-t dark:border-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Ramp Configuration</p>
-              <p className="text-sm text-slate-900 dark:text-slate-100">
-                Gradual transition over {setpoint.ramp_duration_minutes} minutes
-              </p>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   )
 }

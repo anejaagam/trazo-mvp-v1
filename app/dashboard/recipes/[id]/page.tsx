@@ -13,7 +13,6 @@ interface RecipeDetailPageProps {
 
 export async function generateMetadata({ params }: RecipeDetailPageProps): Promise<Metadata> {
   const { id } = await params
-  const supabase = await createClient()
   
   const { data: recipe } = await getRecipeById(id)
   

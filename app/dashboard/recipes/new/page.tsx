@@ -6,8 +6,7 @@ import { RecipeAuthor } from '@/components/features/recipes/recipe-author'
 import type { 
   PlantType, 
   RecipeVersionData,
-  StageType,
-  SetpointParameterType
+  StageType
 } from '@/types/recipe'
 
 interface SetpointFormData {

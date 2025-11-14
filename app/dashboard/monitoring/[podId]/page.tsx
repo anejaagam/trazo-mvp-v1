@@ -4,9 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { PodDetailDashboard } from '@/components/features/monitoring/pod-detail-dashboard'
-import { getActiveRecipeForScope } from '@/lib/supabase/queries/recipes'
 import { ActiveRecipeDisplay } from '@/components/features/recipes/active-recipe-display'
-import type { ActiveRecipeDetails } from '@/types/recipe'
+import type { ActiveRecipeDetails, StageType, EnvironmentalSetpoint, NutrientFormula } from '@/types/recipe'
 
 interface PodDetailPageProps {
   params: Promise<{
@@ -184,7 +183,19 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
           nutrient_formula: currentStage.nutrient_formula?.[0] || null,
         } : undefined,
       },
-      stages: stages?.map((stage: any) => ({
+      stages: stages?.map((stage: {
+        id: string
+        recipe_version_id: string
+        name: string
+        stage_type: StageType
+        order_index: number
+        duration_days: number
+        description: string | null
+        color_code: string | null
+        created_at: string
+        setpoints: EnvironmentalSetpoint[]
+        nutrient_formula: NutrientFormula[] | null
+      }) => ({
         id: stage.id,
         recipe_version_id: stage.recipe_version_id,
         name: stage.name,

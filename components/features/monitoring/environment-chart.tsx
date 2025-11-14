@@ -558,7 +558,7 @@ export function EnvironmentChart({
                 }}
               />
               <Tooltip
-                content={({ active, payload }: { active?: boolean; payload?: Array<{ payload: Record<string, unknown> }> }) => {
+                content={({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload: Record<string, unknown> }> }) => {
                   if (!active || !payload || !payload.length) return null;
 
                   const data = payload[0].payload;
@@ -654,7 +654,7 @@ export function EnvironmentChart({
                 }}
               />
               <Tooltip
-                content={({ active, payload }: { active?: boolean; payload?: Array<{ payload: Record<string, unknown> }> }) => {
+                content={({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload: Record<string, unknown> }> }) => {
                   if (!active || !payload || !payload.length) return null;
 
                   const data = payload[0].payload;

@@ -16,15 +16,12 @@ import {
   Trash2, 
   AlertTriangle, 
   CheckCircle2, 
-  Save,
-  Sun,
-  Moon
+  Save
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { 
   type StageType,
-  type SetpointParameterType,
   type PlantType
 } from '@/types/recipe'
 
@@ -152,17 +149,17 @@ export function RecipeAuthor({
           
           // Convert database stages to form stages
           if (data.stages && data.stages.length > 0) {
-            const formStages = data.stages.map((stage: any, idx: number) => {
+            const formStages = data.stages.map((stage: { setpoints?: Array<{ parameter_type: string; value?: number; min_value?: number; max_value?: number }> } & Record<string, unknown>, idx: number) => {
               const setpoints = stage.setpoints || []
-              const tempSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'temperature')
-              const humiditySetpoint = setpoints.find((sp: any) => sp.parameter_type === 'humidity')
-              const vpdSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'vpd')
-              const co2Setpoint = setpoints.find((sp: any) => sp.parameter_type === 'co2')
-              const lightSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'light_intensity')
-              const photoperiodSetpoint = setpoints.find((sp: any) => sp.parameter_type === 'photoperiod')
+              const tempSetpoint = setpoints.find((sp: { parameter_type: string }) => sp.parameter_type === 'temperature')
+              const humiditySetpoint = setpoints.find((sp: { parameter_type: string }) => sp.parameter_type === 'humidity')
+              const vpdSetpoint = setpoints.find((sp: { parameter_type: string }) => sp.parameter_type === 'vpd')
+              const co2Setpoint = setpoints.find((sp: { parameter_type: string }) => sp.parameter_type === 'co2')
+              const lightSetpoint = setpoints.find((sp: { parameter_type: string }) => sp.parameter_type === 'light_intensity')
+              const photoperiodSetpoint = setpoints.find((sp: { parameter_type: string }) => sp.parameter_type === 'photoperiod')
               
               // Calculate light schedule from photoperiod
-              let lightOn = '06:00'
+              const lightOn = '06:00'
               let lightOff = '22:00'
               if (photoperiodSetpoint?.value) {
                 const hours = photoperiodSetpoint.value

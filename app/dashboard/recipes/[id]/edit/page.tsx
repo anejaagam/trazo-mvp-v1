@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { getRecipeById, createRecipeVersion } from '@/lib/supabase/queries/recipes'
 import { RecipeAuthor } from '@/components/features/recipes/recipe-author'
-import type { PlantType, RecipeVersionData, StageType, SetpointParameterType } from '@/types/recipe'
+import type { PlantType, RecipeVersionData, StageType } from '@/types/recipe'
 
 interface RecipeFormData {
   name: string
@@ -113,7 +113,7 @@ export default async function RecipeEditPage({ params }: RecipeEditPageProps) {
       const photoperiodSetpoint = setpoints.find(sp => sp.parameter_type === 'photoperiod')
       
       // Calculate light schedule from photoperiod
-      let lightOn = '06:00'
+      const lightOn = '06:00'
       let lightOff = '22:00'
       if (photoperiodSetpoint?.value) {
         const hours = photoperiodSetpoint.value

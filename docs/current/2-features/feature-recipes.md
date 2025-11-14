@@ -130,16 +130,24 @@ Complete recipe management system for cultivation operations with environmental 
 - Status reverts to 'published' when last activation is deactivated
 - Trigger excludes deprecated recipes from auto-updates
 
-#### Component 3: RecipeAuthor (Deferred)
-**Status:** Not yet converted from prototype  
-**Reason:** Core viewing and browsing functionality prioritized first
+#### Component 3: RecipeAuthor ✅ COMPLETE (969 lines)
+**File:** `/components/features/recipes/recipe-author.tsx`
 
-**Planned Features:**
-- Multi-step form wizard
-- Stage builder with add/remove
-- Environmental setpoint inputs (day/night)
-- Nutrient formula inputs
-- Form validation with zod
+**Features:**
+- Multi-stage recipe builder with add/remove stages
+- Comprehensive environmental setpoint inputs:
+  - Temperature (min/max in °C)
+  - Humidity (min/max in %)
+  - VPD (min/max in kPa)
+  - CO2 (min/max in ppm)
+  - Light intensity (min/max in %)
+  - Light schedule (on/off times)
+- Stage management (vegetative, flower, harvest, etc.)
+- Duration configuration per stage
+- Form validation with error feedback
+- Real-time preview of setpoints
+- Create and Edit modes
+- Cancel/Save actions
 - Integration with createRecipe and createRecipeVersion
 
 ### Dashboard Pages ✅ COMPLETE
@@ -161,13 +169,31 @@ Complete recipe management system for cultivation operations with environmental 
 - Async params (Next.js 15 pattern)
 - Breadcrumb navigation (Recipes → Recipe Name)
 
+#### New Recipe Page: /app/dashboard/recipes/new/page.tsx (270+ lines)
+- Server component with auth/RBAC checks
+- Permission check for `control:recipe_create`
+- Organization plant type detection
+- Server action for saving recipe + initial version
+- Data transformation from form to database schema
+- Redirect to recipe detail on success
+
+#### Edit Recipe Page: /app/dashboard/recipes/[id]/edit/page.tsx (280+ lines)
+- Server component with auth/RBAC checks
+- Permission check for `control:recipe_edit`
+- Loads existing recipe and converts to form format
+- Server action for creating new version
+- Updates recipe metadata
+- Redirect to recipe detail on success
+
 #### Navigation Flow:
 1. List page: Grid of recipe cards
 2. Click card → Detail page with RecipeViewer
-3. Click "Clone" → New draft recipe created
-4. Click "Assign Recipe" → Opens assignment modal
-5. Click "Deprecate" → Shows confirmation if applied
-6. Click "Restore" → Restores to published/applied
+3. Click "Create First Recipe" → New recipe form
+4. Click "Edit" (draft only) → Edit recipe form with populated data
+5. Click "Clone" → New draft recipe created
+6. Click "Assign Recipe" → Opens assignment modal
+7. Click "Deprecate" → Shows confirmation if applied
+8. Click "Restore" → Restores to published/applied
 
 ---
 
@@ -343,9 +369,9 @@ Complete recipe management system for cultivation operations with environmental 
 ## Code Metrics
 
 ### Frontend
-- **Components:** 2 complete (RecipeLibrary, RecipeViewer)
-- **Pages:** 2 complete (list, detail)
-- **Total Lines:** ~1,400 lines (243 + 945 + 200 pages/actions)
+- **Components:** 3 complete (RecipeLibrary, RecipeViewer, RecipeAuthor)
+- **Pages:** 4 complete (list, detail, new, edit)
+- **Total Lines:** ~3,100+ lines (243 + 945 + 969 + 900+ pages)
 - **Type Safety:** 100% (0 TypeScript errors)
 
 ### Backend
@@ -374,12 +400,12 @@ Complete recipe management system for cultivation operations with environmental 
 - Edge cases handled (deprecating applied recipes)
 
 ### ⏳ Future Enhancements
-- [ ] RecipeAuthor component (for creating recipes via UI)
-- [ ] Recipe edit page (for modifying existing recipes)
-- [ ] Version comparison UI (diff view)
+- [ ] Version comparison UI (diff view in History tab)
 - [ ] Batch Management integration (Phase 12)
 - [ ] Backend test suite (95%+ coverage target)
-- [ ] TagoIO integration (currently mocked)
+- [ ] TagoIO integration for live environmental control (currently mocked)
+- [ ] Advanced validation rules (e.g., VPD calculation from temp/humidity)
+- [ ] Recipe templates library
 
 ---
 
@@ -407,12 +433,11 @@ Complete recipe management system for cultivation operations with environmental 
 
 ## Known Limitations
 
-1. **Recipe Creation:** No UI for creating recipes yet (RecipeAuthor not converted)
-2. **Recipe Editing:** No edit page yet (planned)
-3. **TagoIO Control:** Environmental control functions are mocked (no real device control)
-4. **Tests:** No backend test suite yet (manual testing only)
-5. **Version Comparison:** UI not yet implemented (data structure ready)
-6. **Produce Testing:** Produce plant type filter UI works, but full workflow not yet tested (create, assign, etc.)
+1. **TagoIO Control:** Environmental control functions are mocked (no real device control)
+2. **Tests:** No backend test suite yet (manual testing only)
+3. **Version Comparison:** UI not yet implemented (data structure ready)
+4. **Produce Testing:** Produce plant type filter UI works, but full workflow not yet tested (create, assign, etc.)
+5. **Nutrient Formulas:** UI inputs exist but not yet fully integrated with database schema
 
 ---
 

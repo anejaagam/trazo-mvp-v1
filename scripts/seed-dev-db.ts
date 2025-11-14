@@ -28,6 +28,10 @@ import {
   SEED_AUDIT_EVENTS,
   SEED_USER_SITE_ASSIGNMENTS,
 } from '../lib/supabase/seed-data';
+import {
+  SEED_CULTIVARS,
+  SEED_BATCHES,
+} from '../lib/supabase/seed-batch-data';
 
 // Check for required environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -62,6 +66,12 @@ async function cleanDatabase() {
 
   try {
     // Delete in reverse order of dependencies
+    await supabase.from('batches').delete().in('id', SEED_BATCHES.map(b => b.id));
+    console.log('   ✓ Cleaned batches');
+
+    await supabase.from('cultivars').delete().in('id', SEED_CULTIVARS.map(c => c.id));
+    console.log('   ✓ Cleaned cultivars');
+
     await supabase.from('user_site_assignments').delete().in('user_id', SEED_USERS.map(u => u.id));
     console.log('   ✓ Cleaned user_site_assignments');
 
@@ -185,6 +195,36 @@ async function seedAuditEvents() {
   console.log(`   ✓ Created ${SEED_AUDIT_EVENTS.length} audit events\n`);
 }
 
+async function seedCultivars() {
+  console.log('🌱 Seeding cultivars...');
+  
+  const { error } = await supabase
+    .from('cultivars')
+    .upsert(SEED_CULTIVARS, { onConflict: 'id' });
+
+  if (error) {
+    console.error('❌ Error seeding cultivars:', error);
+    throw error;
+  }
+
+  console.log(`   ✓ Created ${SEED_CULTIVARS.length} cultivars\n`);
+}
+
+async function seedBatches() {
+  console.log('📦 Seeding batches...');
+  
+  const { error } = await supabase
+    .from('batches')
+    .upsert(SEED_BATCHES, { onConflict: 'id' });
+
+  if (error) {
+    console.error('❌ Error seeding batches:', error);
+    throw error;
+  }
+
+  console.log(`   ✓ Created ${SEED_BATCHES.length} batches\n`);
+}
+
 async function verifySeeding() {
   console.log('🔍 Verifying seeded data...\n');
 
@@ -194,6 +234,8 @@ async function verifySeeding() {
     { table: 'users', expected: SEED_USERS.length },
     { table: 'audit_log', expected: SEED_AUDIT_EVENTS.length },
     { table: 'user_site_assignments', expected: SEED_USER_SITE_ASSIGNMENTS.length },
+    { table: 'cultivars', expected: SEED_CULTIVARS.length },
+    { table: 'batches', expected: SEED_BATCHES.length },
   ];
 
   let allPassed = true;
@@ -234,6 +276,8 @@ async function main() {
     await seedUsers();
     await seedUserSiteAssignments();
     await seedAuditEvents();
+    await seedCultivars();
+    await seedBatches();
 
     const verified = await verifySeeding();
 
@@ -244,7 +288,9 @@ async function main() {
       console.log(`   • ${SEED_SITES.length} sites`);
       console.log(`   • ${SEED_USERS.length} users (profiles only)`);
       console.log(`   • ${SEED_USER_SITE_ASSIGNMENTS.length} site assignments`);
-      console.log(`   • ${SEED_AUDIT_EVENTS.length} audit events\n`);
+      console.log(`   • ${SEED_AUDIT_EVENTS.length} audit events`);
+      console.log(`   • ${SEED_CULTIVARS.length} cultivars`);
+      console.log(`   • ${SEED_BATCHES.length} batches\n`);
       console.log('🔐 Admin Access:');
       console.log('   Email: admin@greenleaf.example');
       console.log('   Role: org_admin\n');

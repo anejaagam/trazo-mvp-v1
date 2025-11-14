@@ -19,6 +19,7 @@
 
 import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import type { TooltipContentProps } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,15 @@ interface EnvironmentChartProps {
 
 type MetricType = 'temp' | 'humidity' | 'co2' | 'vpd' | 'all';
 type TimeRange = '1h' | '24h' | '7d' | 'custom';
+
+type ChartDatum = {
+  timestamp: string;
+  time: string;
+  temperature_c: number | null;
+  humidity_pct: number | null;
+  co2_ppm: number | null;
+  vpd_kpa: number | null;
+};
 
 const metrics: Record<MetricType, {
   label: string;
@@ -558,15 +568,18 @@ export function EnvironmentChart({
                 }}
               />
               <Tooltip
-                content={({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload: Record<string, unknown> }> }) => {
-                  if (!active || !payload || !payload.length) return null;
+                content={(tooltipProps: TooltipContentProps<number, string>) => {
+                  const { active, payload } = tooltipProps;
+                  const entries = payload as ReadonlyArray<{ payload: ChartDatum }> | undefined;
+                  if (!active || !entries || !entries.length) return null;
 
-                  const data = payload[0].payload;
+                  const data = entries[0]?.payload;
+                  if (!data) return null;
 
                   return (
                     <div className="rounded-lg border bg-background p-3 shadow-md">
                       <p className="text-xs text-muted-foreground mb-2">
-                        {new Date(data.timestamp as string).toLocaleString()}
+                        {new Date(data.timestamp).toLocaleString()}
                       </p>
                       <div className="space-y-1">
                         <p className="text-sm">
@@ -654,19 +667,22 @@ export function EnvironmentChart({
                 }}
               />
               <Tooltip
-                content={({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload: Record<string, unknown> }> }) => {
-                  if (!active || !payload || !payload.length) return null;
+                content={(tooltipProps: TooltipContentProps<number, string>) => {
+                  const { active, payload } = tooltipProps;
+                  const entries = payload as ReadonlyArray<{ payload: ChartDatum & Record<string, unknown> }> | undefined;
+                  if (!active || !entries || !entries.length) return null;
 
-                  const data = payload[0].payload;
-                  const value = data[currentMetric.dataKey];
+                  const data = entries[0]?.payload;
+                  if (!data) return null;
+                  const value = data[currentMetric.dataKey as keyof ChartDatum] as number | null | undefined;
 
                   return (
                     <div className="rounded-lg border bg-background p-3 shadow-md">
                       <p className="text-xs text-muted-foreground mb-1">
-                        {new Date(data.timestamp as string).toLocaleString()}
+                        {new Date(data.timestamp).toLocaleString()}
                       </p>
                       <p className="font-semibold">
-                        {currentMetric.label}: {value !== null ? Number(value).toFixed(2) : '--'} {currentMetric.unit}
+                        {currentMetric.label}: {value != null ? Number(value).toFixed(2) : '--'} {currentMetric.unit}
                       </p>
                     </div>
                   );

@@ -31,6 +31,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:delete',
       'batch:stage_change',
       'batch:quarantine',
+      'batch:harvest',
+      'batch:assign_pod',
+      
+      // Full cultivar management
+      'cultivar:view',
+      'cultivar:create',
+      'cultivar:edit',
+      'cultivar:delete',
       
       // Full inventory management
       'inventory:view',
@@ -47,6 +55,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:update',
       'task:assign',
       'task:complete',
+      'task:retain_original_evidence',
       'task:delete',
       
       // Full control management
@@ -97,6 +106,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:update',
       'batch:stage_change',
       'batch:quarantine',
+      'batch:harvest',
+      'batch:assign_pod',
+      
+      // Cultivar management (full)
+      'cultivar:view',
+      'cultivar:create',
+      'cultivar:edit',
+      'cultivar:delete',
       
       // Recipe and control management
       'control:view',
@@ -112,6 +129,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:update',
       'task:assign',
       'task:complete',
+      'task:retain_original_evidence',
       
       // Inventory viewing and consumption
       'inventory:view',
@@ -143,9 +161,13 @@ export const ROLES: Record<RoleKey, Role> = {
     isSystemRole: true,
     permissions: [
       'dashboard:view',
-      // Basic batch viewing
+      // Basic batch viewing and creation
       'batch:view',
+      'batch:create',
       'batch:update', // Basic updates like plant counts
+      
+      // Basic cultivar viewing
+      'cultivar:view',
       
       // Basic inventory operations
       'inventory:view',
@@ -199,6 +221,8 @@ export const ROLES: Record<RoleKey, Role> = {
       
       // Viewing access to operations
       'batch:view',
+      'batch:quarantine', // Can quarantine batches for QA issues
+      'cultivar:view',
       'inventory:view',
       'task:view',
       'alarm:view',
@@ -208,6 +232,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:create',
       'task:assign',
       'task:update',
+      'task:retain_original_evidence',
     ],
   },
 
@@ -220,6 +245,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'dashboard:view',
       // View-only access across all areas
       'batch:view',
+      'cultivar:view',
       'inventory:view',
       'task:view',
       'compliance:view',

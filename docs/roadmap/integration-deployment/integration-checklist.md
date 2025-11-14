@@ -230,27 +230,142 @@ See [CURRENT.md - Inventory Feature](../CURRENT.md#inventory-feature) for full d
 - [ ] Create CTLS report generator (Canada)
 - [ ] Create PrimusGFS report generator (Produce)
 
-### Batch Management
-- [ ] Migrate all 19 batch components to `/components/features/batch/`
-- [ ] **Consolidate type definitions** from 7 files into `/types/batch.ts`
-- [ ] Create `/app/dashboard/batches/` pages
-- [ ] Implement batch queries in `/lib/supabase/queries/batches.ts`
-- [ ] Create batch dashboard with filtering
-- [ ] Implement create batch wizard (jurisdiction-aware)
-- [ ] Create batch detail view with timeline
-- [ ] Implement cultivar management
-- [ ] Create batch genealogy tree view
-- [ ] Implement stage transition workflow
-- [ ] Add batch metrics panel
-- [ ] Create harvest workflow (SOP-002)
-- [ ] Implement plant tagging workflow (SOP-001) (for Metrc states)
-- [ ] Create plant count tracking
-- [ ] Implement post-harvest processing (dry, cure, packaging)
-- [ ] Add quarantine management
-- [ ] Create room capacity monitor
-- [ ] **Consolidate waste disposal** (link to inventory waste)
-- [ ] Add batch-to-pod assignments (Pods-as-a-Batch)
-- [ ] Implement bulk operations for Metrc compliance
+### Batch Management ✅ PHASE 3 COMPLETE - Frontend Integration Complete
+
+**Documentation:** [Prototype Analysis](../planning-progress/batch-prototype-analysis.md) | [Schema Mapping](../planning-progress/batch-schema-mapping.md)
+
+**Status:** Phase 0-3 Complete ✅ | Ready for Phase 4 (Module Integration)
+
+#### Phase 0: Pre-Integration Research ✅ COMPLETE (Nov 13, 2025)
+**2 documents, 970 lines**
+- [x] **Step 0.1:** Comprehensive prototype analysis (390 lines)
+  - Component inventory: 32 components identified
+  - Reusability assessment: 16 ready, 10 need adaptation, 6 build new
+  - Data model mapping: Prototype → Platform schema
+  - Integration gaps documented (3 high priority, 3 medium, 3 low)
+- [x] **Step 0.2:** Platform schema review (580 lines)
+  - Existing tables assessed: 11 tables already deployed
+  - New tables designed: 2 (batch_genealogy, batch_quality_metrics)
+  - Schema enhancements specified: domain_type + cannabis/produce fields
+  - Database functions designed: 5 complete implementations
+  - Migration strategy defined: 4-part migration, 7-10 hours estimated
+
+#### Phase 1: Database Enhancement ✅ COMPLETE (Nov 13, 2025)
+**Migration:** `20251114010000_batch_domain_enhancement_v2.sql` (deployed)
+- [x] **Step 1.1:** Enhance batch schema
+  - [x] Add domain_type column to batches table ('cannabis' | 'produce') ✅
+  - [x] Add 6 cannabis fields: lighting_schedule, thc_content, cbd_content, drying_date, curing_date, terpene_profile ✅
+  - [x] Add 9 produce fields to batches: grade, ripeness, brix_level, firmness, color, defect_rate, certifications, storage_temp_c, storage_humidity_pct ✅
+  - [x] Add 7 produce fields to cultivars: category, flavor_profile, storage_life_days, optimal_temp ranges, optimal_humidity ranges ✅
+  - [x] Create batch_genealogy table (8 columns): id, batch_id, parent_batch_id, relationship_type, generation_level, contribution_pct, notes, created_at ✅
+  - [x] Create batch_quality_metrics table (10 columns): id, batch_id, metric_type, value, unit, recorded_at, recorded_by, test_method, lab_certified, certification_url, notes ✅
+  - [x] Add 7 indexes: domain_type, cultivar_id, parent_id, org_site, start_date, genealogy batch/parent ✅
+  - [x] Configure RLS policies for 2 new tables (6 policies total) ✅
+  - [x] Deploy to US region ✅ (Nov 13, 2025)
+  - [ ] Deploy to Canada region ⏳ Pending
+- [x] **Step 1.2:** Create database functions
+  - [x] get_batch_genealogy() - recursive ancestry tree (10 generation max) ✅
+  - [x] transition_batch_stage() - validate and log stage changes with history tracking ✅
+  - [x] quarantine_batch() - quarantine with reason + timestamp tracking ✅
+  - [x] release_from_quarantine() - release with validation + audit ✅
+  - [x] calculate_quality_score() - domain-specific quality scoring (cannabis: THC/CBD/moisture, produce: Brix/defect/firmness) ✅
+- [ ] **Step 1.3:** Seed batch data ⏳ Ready (database complete)
+
+#### Phase 2: Backend Implementation ✅ COMPLETE (Nov 13, 2025)
+**Files:** `types/batch.ts`, `lib/supabase/queries/batches.ts`, `lib/supabase/queries/batches-client.ts`, `lib/utils/batch-validation.ts`
+- [x] **Step 2.1:** Create batch type definitions (`/types/batch.ts`)
+  - [x] Base Batch interface ✅
+  - [x] CannabisBatch interface ✅
+  - [x] ProduceBatch interface ✅
+  - [x] DomainBatch discriminated union ✅
+  - [x] Type guards (isCannabisBatch, isProduceBatch) ✅
+  - [x] CannabisStage and ProduceStage enums ✅
+  - [x] BatchStatus enum ✅
+  - [x] BatchFilters interface ✅
+- [x] **Step 2.2:** Create batch query functions (`/lib/supabase/queries/batches.ts`)
+  - [x] getBatches() with domain filtering ✅
+  - [x] getBatchById() with full details ✅
+  - [x] createBatch() with domain validation ✅
+  - [x] updateBatch() with partial updates ✅
+  - [x] deleteBatch() with soft delete ✅
+  - [x] transitionBatchStage() with validation ✅
+  - [x] quarantineBatch() and releaseFromQuarantine() ✅
+  - [x] recordHarvest() with inventory integration ✅
+  - [x] getBatchGenealogy() - ancestry tree ✅
+  - [x] getBatchQualityHistory() ✅
+  - [x] addQualityMetric() ✅
+  - [x] getBatchesByStage(), getBatchesByCultivar() ✅
+- [x] **Step 2.3:** Create cultivar query functions (`/lib/supabase/queries/cultivars.ts`) ✅
+- [x] **Step 2.4:** Update RBAC permissions (`/lib/rbac/permissions.ts`)
+  - [x] batch:view, batch:create, batch:edit, batch:delete ✅
+  - [x] batch:stage_change, batch:quarantine, batch:harvest ✅
+  - [x] cultivar:view, cultivar:create, cultivar:edit, cultivar:delete ✅
+- [x] **Step 2.5:** Create validation utilities (`/lib/utils/batch-validation.ts`) ✅
+
+#### Phase 3: Frontend Integration ✅ COMPLETE (Nov 14, 2025)
+**Components:** 7 new components, 2 pages, 3 updated files (~1,700 lines)
+- [x] **Step 3.1:** Adapt BatchManagement component ✅ (EXISTS - reviewed, working)
+- [x] **Step 3.2:** Adapt BatchModal (Create/Edit) ✅ (EXISTS - reviewed, working)
+- [x] **Step 3.3:** Create BatchTable component ✅ (EXISTS - updated to navigate to detail page)
+- [x] **Step 3.4:** Create BatchDetailView ✅ NEW - `components/features/batches/batch-detail-view.tsx` (465 lines)
+  - Tabbed interface: Overview, Details, History, Quality
+  - Domain-specific field rendering (cannabis vs produce)
+  - Quarantine status display with timeline
+- [x] **Step 3.5:** Create CultivarManagement components ✅ NEW - `components/features/cultivars/cultivar-list.tsx` (230 lines)
+  - Search and filtering functionality
+  - Active/archived separation
+  - Statistics cards
+- [x] **Step 3.6:** Create StageTransitionDialog ✅ NEW - `components/features/batches/stage-transition-dialog.tsx` (227 lines)
+  - Domain-aware stage workflows (cannabis vs produce)
+  - Validation and notes
+  - Visual transition preview
+- [x] **Step 3.7:** Create HarvestWorkflow component ✅ NEW - `components/features/batches/harvest-workflow.tsx` (228 lines)
+  - Wet/dry/final weight tracking
+  - Yield units calculation
+  - Waste tracking with reasons
+- [x] **Step 3.8:** Create QualityMetricsPanel ✅ NEW - `components/features/batches/quality-metrics-panel.tsx` (246 lines)
+  - Cannabis: THC/CBD content, terpene profiles
+  - Produce: Brix level, grade, defect rate, certifications
+  - Progress bars and quality indicators
+- [x] **Step 3.9:** Create batch dashboard pages ✅
+  - Main batch list: `/app/dashboard/batches/page.tsx` (EXISTS)
+  - Batch detail: `/app/dashboard/batches/[id]/page.tsx` (NEW - 105 lines)
+  - Cultivars management: `/app/dashboard/cultivars/page.tsx` (NEW - 105 lines)
+- [x] **Step 3.10:** Update navigation sidebar ✅
+  - Added Cultivars link under Batch Management section
+  - Permission-based visibility (cultivar:view)
+
+#### Phase 4: Module Integration ⏳ NOT STARTED (1-2 days)
+- [ ] **Step 4.1:** Integrate with Inventory (seeds → harvest)
+- [ ] **Step 4.2:** Integrate with Recipe Module (recipe activation)
+- [ ] **Step 4.3:** Integrate with Monitoring (environmental adherence)
+- [ ] **Step 4.4:** Prepare for Task Integration (future Phase 14)
+
+#### Phase 5: Testing ⏳ NOT STARTED (2-3 days)
+- [ ] **Step 5.1:** Unit tests (maintain 94.8%+ pass rate)
+- [ ] **Step 5.2:** Integration tests (workflows)
+- [ ] **Step 5.3:** E2E test scenarios (cannabis + produce)
+
+#### Phase 6: Documentation ⏳ NOT STARTED (1 day)
+- [ ] **Step 6.1:** Update feature documentation
+- [ ] **Step 6.2:** Create user guides
+- [ ] **Step 6.3:** Update integration checklist
+
+#### Phase 7: Deployment ⏳ NOT STARTED (1 day)
+- [ ] **Step 7.1:** Build verification
+- [ ] **Step 7.2:** Staging deployment
+- [ ] **Step 7.3:** Final validation
+
+**Estimated Total Time:** 2-3 weeks  
+**Progress:** 
+- ✅ Phase 0: Pre-Integration Research (Nov 13, 2025)
+- ✅ Phase 1: Database Enhancement (Nov 13, 2025)
+- ✅ Phase 2: Backend Implementation (Nov 13, 2025)
+- ✅ Phase 3: Frontend Integration (Nov 14, 2025)
+- ⏳ Phase 4: Module Integration (Next)
+- ⏳ Phase 5: Testing
+- ⏳ Phase 6: Documentation
+- ⏳ Phase 7: Deployment
 
 ### Alarms & Notifications
 - [ ] Migrate alarm components to `/components/features/alarms/`

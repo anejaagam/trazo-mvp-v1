@@ -63,6 +63,14 @@ export class MockQueryBuilder {
     return this;
   }
 
+  gte() {
+    return this;
+  }
+
+  lte() {
+    return this;
+  }
+
   or() {
     return this;
   }
@@ -84,6 +92,10 @@ export class MockQueryBuilder {
   }
 
   maybeSingle() {
+    return this;
+  }
+
+  rpc() {
     return this;
   }
 

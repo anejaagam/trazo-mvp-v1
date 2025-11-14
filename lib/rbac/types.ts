@@ -50,6 +50,14 @@ export type PermissionKey =
   | 'batch:delete'
   | 'batch:stage_change'
   | 'batch:quarantine'
+  | 'batch:harvest'
+  | 'batch:assign_pod'
+  
+  // Cultivar permissions
+  | 'cultivar:view'
+  | 'cultivar:create'
+  | 'cultivar:edit'
+  | 'cultivar:delete'
   
   // Inventory permissions
   | 'inventory:view'
@@ -66,6 +74,7 @@ export type PermissionKey =
   | 'task:update'
   | 'task:assign'
   | 'task:complete'
+  | 'task:retain_original_evidence'
   | 'task:delete'
   
   // Control permissions

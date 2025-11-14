@@ -69,6 +69,7 @@ This roadmap is split into focused sections for better readability:
 - **[Deployment Guide](./integration-deployment/deployment-guide.md)** - Complete deployment steps and testing procedures
 - **[Integration Patterns](./integration-deployment/integration-patterns.md)** - Proven 7-phase approach for new features
 - **[Recipe Component Mapping](./integration-deployment/recipe-component-mapping.md)** - RecipePrototype conversion analysis
+- **[Batch Component Mapping](./integration-deployment/batch-component-mapping.md)** - BatchManagementPrototype conversion analysis
 
 ### **Planning & Progress**
 - **[Feature Roadmap](./planning-progress/feature-roadmap.md)** - Future features (Phases 10-16)

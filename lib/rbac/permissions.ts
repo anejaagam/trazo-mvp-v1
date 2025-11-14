@@ -53,6 +53,50 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     resource: 'batch',
     action: 'quarantine'
   },
+  'batch:harvest': {
+    key: 'batch:harvest',
+    name: 'Record Harvest',
+    description: 'Record harvest data, yield weights, and quality metrics',
+    resource: 'batch',
+    action: 'harvest'
+  },
+  'batch:assign_pod': {
+    key: 'batch:assign_pod',
+    name: 'Assign Batch to Location',
+    description: 'Assign batches to pods/growing areas',
+    resource: 'batch',
+    action: 'assign_pod'
+  },
+
+  // Cultivar permissions
+  'cultivar:view': {
+    key: 'cultivar:view',
+    name: 'View Cultivars',
+    description: 'View cultivar (strain/variety) information and details',
+    resource: 'cultivar',
+    action: 'view'
+  },
+  'cultivar:create': {
+    key: 'cultivar:create',
+    name: 'Create Cultivars',
+    description: 'Add new cultivars (strains/varieties) to the system',
+    resource: 'cultivar',
+    action: 'create'
+  },
+  'cultivar:edit': {
+    key: 'cultivar:edit',
+    name: 'Edit Cultivars',
+    description: 'Edit cultivar details and characteristics',
+    resource: 'cultivar',
+    action: 'edit'
+  },
+  'cultivar:delete': {
+    key: 'cultivar:delete',
+    name: 'Delete Cultivars',
+    description: 'Delete cultivars from the system',
+    resource: 'cultivar',
+    action: 'delete'
+  },
 
   // Inventory permissions
   'inventory:view': {
@@ -140,6 +184,13 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     description: 'Mark tasks as complete and provide evidence',
     resource: 'task',
     action: 'complete'
+  },
+  'task:retain_original_evidence': {
+    key: 'task:retain_original_evidence',
+    name: 'Retain Original Evidence Files',
+    description: 'Bypass compression for evidence to preserve original files',
+    resource: 'task',
+    action: 'retain_original_evidence'
   },
   'task:delete': {
     key: 'task:delete',

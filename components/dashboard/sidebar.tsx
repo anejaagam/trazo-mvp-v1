@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
+import { createClient } from '@/lib/supabase/client'
 
 interface DashboardSidebarProps {
   user: {
@@ -32,6 +33,7 @@ interface DashboardSidebarProps {
     role: string
     additional_permissions?: string[]
     organization?: {
+      id?: string
       name: string
       jurisdiction: string
     }
@@ -53,6 +55,29 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const router = useRouter()
   const { can } = usePermissions(user.role as RoleKey, user.additional_permissions || [])
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [batchBadges, setBatchBadges] = useState<{ active: number; harvest: number }>({ active: 0, harvest: 0 })
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      if (typeof window === 'undefined' || !user.organization?.id) return
+      const supabase = createClient()
+      const [{ count: activeCount }, { count: harvestCount }] = await Promise.all([
+        supabase
+          .from('batches')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', user.organization.id)
+          .in('status', ['active', 'quarantined']),
+        supabase
+          .from('batches')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', user.organization.id)
+          .eq('stage', 'harvest'),
+      ])
+      setBatchBadges({ active: activeCount || 0, harvest: harvestCount || 0 })
+    }
+
+    loadCounts()
+  }, [user.organization?.id])
 
   const navItems: NavItem[] = [
     {
@@ -70,20 +95,28 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         {
           title: 'Active Batches',
           href: '/dashboard/batches/active',
-          icon: <Sprout className="h-4 w-4" />,
-          permission: 'batch:view'
+          icon: <Sprout className="h-4 w-4" />, 
+          permission: 'batch:view',
+          badge: batchBadges.active ? String(batchBadges.active) : undefined,
         },
         {
           title: 'Planning',
           href: '/dashboard/batches/planning',
-          icon: <ClipboardList className="h-4 w-4" />,
+          icon: <ClipboardList className="h-4 w-4" />, 
           permission: 'batch:create'
         },
         {
           title: 'Harvest Queue',
           href: '/dashboard/batches/harvest',
           icon: <Package className="h-4 w-4" />,
-          permission: 'batch:stage_change'
+          permission: 'batch:stage_change',
+          badge: batchBadges.harvest ? String(batchBadges.harvest) : undefined,
+        },
+        {
+          title: 'Cultivars',
+          href: '/dashboard/cultivars',
+          icon: <Beaker className="h-4 w-4" />,
+          permission: 'cultivar:view',
         }
       ]
     },
@@ -163,27 +196,21 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     },
     {
       title: 'Tasks & Workflows',
-      href: '/dashboard/tasks',
+      href: '/dashboard/workflows',
       icon: <ClipboardList className="h-4 w-4" />,
       permission: 'task:view',
       children: [
         {
           title: 'My Tasks',
-          href: '/dashboard/tasks/assigned',
+          href: '/dashboard/workflows',
           icon: <ClipboardList className="h-4 w-4" />,
           permission: 'task:view'
         },
         {
-          title: 'SOPs',
-          href: '/dashboard/tasks/sops',
+          title: 'Templates',
+          href: '/dashboard/workflows/templates',
           icon: <FileText className="h-4 w-4" />,
           permission: 'task:view'
-        },
-        {
-          title: 'Schedule',
-          href: '/dashboard/tasks/schedule',
-          icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'task:assign'
         }
       ]
     },

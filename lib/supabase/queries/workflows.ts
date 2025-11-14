@@ -41,7 +41,7 @@ export async function getTemplates(
   pagination?: PaginationParams
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     let query = supabase
       .from('sop_templates')
       .select('*', { count: 'exact' });
@@ -108,7 +108,7 @@ export async function getTemplates(
  */
 export async function getTemplateById(templateId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('sop_templates')
       .select('*')
@@ -129,7 +129,7 @@ export async function getTemplateById(templateId: string) {
  */
 export async function getPublishedTemplates() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('sop_templates')
       .select('*')
@@ -152,7 +152,7 @@ export async function getPublishedTemplates() {
  */
 export async function getMyDraftTemplates() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -182,7 +182,7 @@ export async function getMyDraftTemplates() {
  */
 export async function createTemplate(input: CreateTemplateInput) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -229,7 +229,7 @@ export async function createTemplate(input: CreateTemplateInput) {
  */
 export async function updateTemplate(input: UpdateTemplateInput) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -288,7 +288,7 @@ export async function publishTemplate(
   templateId: string
 ): Promise<PublishTemplateResult> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -323,7 +323,7 @@ export async function publishTemplate(
  */
 export async function archiveTemplate(templateId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('sop_templates')
@@ -346,7 +346,7 @@ export async function archiveTemplate(templateId: string) {
  */
 export async function duplicateTemplate(templateId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -409,7 +409,7 @@ export async function getTasks(
   pagination?: PaginationParams
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     let query = supabase
       .from('tasks')
       .select('*, sop_templates!left(name, version)', { count: 'exact' });
@@ -500,7 +500,7 @@ export async function getTasks(
  */
 export async function getTaskById(taskId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('tasks')
       .select(
@@ -531,7 +531,7 @@ export async function getTaskById(taskId: string) {
  */
 export async function getMyTasks() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -561,7 +561,7 @@ export async function getMyTasks() {
  */
 export async function createTask(input: CreateTaskInput) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -630,7 +630,7 @@ export async function createTask(input: CreateTaskInput) {
  */
 export async function updateTask(input: UpdateTaskInput) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { id, ...updates } = input;
 
     const { data, error } = await supabase
@@ -654,7 +654,7 @@ export async function updateTask(input: UpdateTaskInput) {
  */
 export async function deleteTask(taskId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { error } = await supabase.from('tasks').delete().eq('id', taskId);
 
@@ -672,7 +672,7 @@ export async function deleteTask(taskId: string) {
  */
 export async function startTask(taskId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -709,7 +709,7 @@ export async function completeTask(
   actualDurationMinutes?: number
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -751,7 +751,7 @@ export async function getTaskHierarchy(
   rootTaskId: string
 ): Promise<{ data: TaskHierarchyTree | null; error: any }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Use database function to get hierarchy
     const { data, error } = await supabase.rpc('get_task_hierarchy', {
@@ -841,7 +841,7 @@ function buildHierarchyTree(flatData: any[]): TaskHierarchyTree | null {
  */
 export async function getRootTasks(siteId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('tasks')
@@ -864,7 +864,7 @@ export async function getRootTasks(siteId: string) {
  */
 export async function getChildTasks(parentTaskId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('tasks')
@@ -894,7 +894,7 @@ export async function addTaskDependency(
   dependencyType: 'blocking' | 'suggested' = 'blocking'
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('task_dependencies')
@@ -920,7 +920,7 @@ export async function addTaskDependency(
  */
 export async function removeTaskDependency(dependencyId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { error } = await supabase
       .from('task_dependencies')
@@ -943,7 +943,7 @@ export async function checkPrerequisites(
   taskId: string
 ): Promise<{ data: PrerequisiteCheck | null; error: any }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Use database function
     const { data: allCompleted, error: checkError } = await supabase.rpc(
@@ -1000,7 +1000,7 @@ export async function checkPrerequisites(
  */
 export async function getTaskDependencies(taskId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from('task_dependencies')

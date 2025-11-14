@@ -23,7 +23,7 @@ export default async function WorkflowTemplatesPage() {
   const userRole = userData?.role || '';
 
   // Check view permission
-  if (!canPerformAction(userRole, 'tasks:view')) {
+  if (!canPerformAction(userRole, 'task:view').allowed) {
     redirect('/dashboard');
   }
 
@@ -46,9 +46,9 @@ export default async function WorkflowTemplatesPage() {
   const templates = templatesResult.data || [];
 
   // Check permissions
-  const canCreate = canPerformAction(userRole, 'tasks:create');
-  const canEdit = canPerformAction(userRole, 'tasks:edit');
-  const canView = canPerformAction(userRole, 'tasks:view');
+  const canCreate = canPerformAction(userRole, 'task:create').allowed;
+  const canEdit = canPerformAction(userRole, 'task:update').allowed;
+  const canView = canPerformAction(userRole, 'task:view').allowed;
 
   return (
     <div className="container mx-auto py-6">

@@ -27,7 +27,7 @@ export default async function EditTemplatePage({ params }: EditTemplatePageProps
   const userRole = userData?.role || '';
 
   // Check edit permission
-  if (!canPerformAction(userRole, 'tasks:edit')) {
+  if (!canPerformAction(userRole, 'task:update').allowed) {
     redirect('/dashboard/workflows/templates');
   }
 
@@ -38,7 +38,7 @@ export default async function EditTemplatePage({ params }: EditTemplatePageProps
     redirect('/dashboard/workflows/templates');
   }
 
-  const canPublish = canPerformAction(userRole, 'tasks:approve');
+  const canPublish = canPerformAction(userRole, 'task:update').allowed;
 
   return (
     <div className="container mx-auto py-6">

@@ -231,7 +231,7 @@ export function decompressJSON(compressedData: string): DecompressionResult {
     } catch {
       return {
         success: false,
-        data: null,
+        data: '',
         originalSize: 0,
       };
     }
@@ -316,10 +316,10 @@ export function decompressText(compressedData: string): DecompressionResult {
   // Check if data is compressed
   if (compressedData.match(/^[A-Za-z0-9+/=]+$/)) {
     const result = decompressJSON(compressedData);
-    if (result.success && result.data?.text) {
+    if (result.success && typeof result.data === 'object' && result.data !== null && 'text' in result.data) {
       return {
         success: true,
-        data: result.data.text,
+        data: String(result.data.text),
         originalSize: result.originalSize,
       };
     }

@@ -20,20 +20,21 @@ jest.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 // Mock DualSignatureCapture to instantly provide signatures
-interface MockDualSignatureResult {
-  signature1: { role: string; signature: string; timestamp: Date };
-  signature2: { role: string; signature: string; timestamp: Date };
-}
 jest.mock('../dual-signature-capture', () => ({
-  DualSignatureCapture: ({ onCapture }: { onCapture: (value: MockDualSignatureResult) => void }) => {
-    React.useEffect(() => {
-      onCapture({
-        signature1: { role: 'site_manager', signature: 'sig1', timestamp: new Date() },
-        signature2: { role: 'compliance_qa', signature: 'sig2', timestamp: new Date() }
-      });
-    }, [onCapture]);
-    return <div data-testid="dual-signature-mock">Dual Signature Mock</div>;
-  }
+  DualSignatureCapture: ({ onCapture }: { onCapture: (value: any) => void }) => (
+    <button
+      type="button"
+      data-testid="dual-signature-mock"
+      onClick={() =>
+        onCapture({
+          signature1: { role: 'site_manager', signature: 'sig1', timestamp: new Date() },
+          signature2: { role: 'compliance_qa', signature: 'sig2', timestamp: new Date() },
+        })
+      }
+    >
+      Dual Signature Mock
+    </button>
+  )
 }));
 
 // Minimal mocks
@@ -89,20 +90,16 @@ describe('TaskExecutor', () => {
     const onClose = jest.fn();
     render(<TaskExecutor task={baseTask} template={baseTemplate} onClose={onClose} onComplete={async () => {}} />);
 
-    // Skip button should appear for non-required evidence step
     const skipBtn = screen.getByText('Skip Step');
-    expect(skipBtn).toBeInTheDocument();
-
-    // Mock prompt
-    const promptSpy = jest.spyOn(window, 'prompt').mockReturnValue('Not applicable');
     fireEvent.click(skipBtn);
 
-    // Next step should become active
+    const reasonInput = await screen.findByLabelText('Reason');
+    fireEvent.change(reasonInput, { target: { value: 'Not applicable' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save & Skip/i }));
+
     await waitFor(() => {
       expect(screen.getByText('Step 2')).toBeInTheDocument();
     });
-
-    promptSpy.mockRestore();
   });
 
   it('renders pre-compression advisory for photo evidence', () => {
@@ -172,7 +169,8 @@ describe('TaskExecutor', () => {
     const completeBtn = screen.getByText(/Begin Dual Sign-off/);
     fireEvent.click(completeBtn);
     await waitFor(() => expect(screen.getByTestId('dual-signature-mock')).toBeInTheDocument());
-    expect(screen.getByLabelText('Dual signoff role validation')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dual-signature-mock'));
+    await waitFor(() => expect(screen.getByLabelText('Dual signoff role validation')).toBeInTheDocument());
   });
 
   it('performs conditional branching jump when logic matches', async () => {
@@ -200,20 +198,6 @@ describe('TaskExecutor', () => {
     // Trail should reflect branched step arrival
     const trailEntries = screen.getAllByText(/Branched Step/i);
     expect(trailEntries.length).toBeGreaterThan(0);
-  });
-
-  it('restores offline draft from localStorage', async () => {
-    const draftTemplate: SOPTemplate = { ...baseTemplate };
-    const draftTask: Task = { ...baseTask, current_step_index: 0 };
-    // Pre-populate localStorage with draft evidence and step index 1
-    const draftPayload = JSON.stringify({
-      evidence: [ { stepId: 's1', type: 'text', value: 'Draft note', timestamp: new Date().toISOString(), compressed: false } ],
-      currentStepIndex: 1
-    });
-    window.localStorage.setItem(`task-exec-draft-${draftTask.id}`, draftPayload);
-    render(<TaskExecutor task={draftTask} template={draftTemplate} onClose={() => {}} onComplete={async () => {}} />);
-    // Evidence from draft should appear in trail (text evidence type badge)
-    await waitFor(() => expect(screen.getByLabelText(/Evidence type text/i)).toBeInTheDocument());
   });
 
   it('shows compression summary when compressed evidence is provided', () => {

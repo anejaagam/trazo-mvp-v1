@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDistanceToNow } from 'date-fns';
 
 interface TaskExecutorProps {
   task: Task;
@@ -35,6 +36,14 @@ interface TaskExecutorProps {
   onSaveDraft?: (evidence: TaskEvidence[], currentStepIndex: number) => Promise<void>;
   userRole?: RoleKey | null;
   additionalPermissions?: string[];
+}
+
+interface StepTimelineEntry {
+  stepId: string;
+  fromStepId?: string;
+  event: 'visited' | 'branched' | 'skipped';
+  timestamp: string;
+  note?: string;
 }
 
 export function TaskExecutor({ 
@@ -58,7 +67,7 @@ export function TaskExecutor({
   const [isSaving, setIsSaving] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [blockingInfo, setBlockingInfo] = useState<{ blocked: boolean; incomplete: { id: string; title: string; status: string }[] } | null>(null);
-  const [stepTrail, setStepTrail] = useState<Array<{ stepId: string; fromStepId?: string }>>([]);
+  const [stepTrail, setStepTrail] = useState<StepTimelineEntry[]>([]);
   interface CapturedDualSignature {
     signature1?: { userId: string; userName: string; role: string; signature: string; timestamp: Date };
     signature2?: { userId: string; userName: string; role: string; signature: string; timestamp: Date };
@@ -279,7 +288,15 @@ export function TaskExecutor({
       if (nextStepId) {
         const nextIndex = template.steps.findIndex(s => s.id === nextStepId);
         if (nextIndex !== -1) {
-          setStepTrail(prev => [...prev, { stepId: nextStepId, fromStepId: currentStep.id }]);
+          setStepTrail((prev) => [
+            ...prev,
+            {
+              stepId: nextStepId,
+              fromStepId: currentStep.id,
+              event: 'branched',
+              timestamp: new Date().toISOString(),
+            },
+          ]);
           setTimeout(() => {
             setCurrentStepIndex(nextIndex);
           }, 500);
@@ -303,7 +320,15 @@ export function TaskExecutor({
     }
     const nextIndex = Math.min(currentStepIndex + 1, template.steps.length - 1);
     if (nextIndex !== currentStepIndex) {
-      setStepTrail(prev => [...prev, { stepId: template.steps[nextIndex].id, fromStepId: template.steps[currentStepIndex].id }]);
+      setStepTrail((prev) => [
+        ...prev,
+        {
+          stepId: template.steps[nextIndex].id,
+          fromStepId: template.steps[currentStepIndex].id,
+          event: 'visited',
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     }
     setCurrentStepIndex(nextIndex);
   };
@@ -341,6 +366,16 @@ export function TaskExecutor({
       ...prev,
       [pendingSkipStep.id]: skipReasonDraft.trim(),
     }));
+    setStepTrail((prev) => [
+      ...prev,
+      {
+        stepId: pendingSkipStep.id,
+        fromStepId: currentStep?.id,
+        event: 'skipped',
+        timestamp: new Date().toISOString(),
+        note: skipReasonDraft.trim(),
+      },
+    ]);
 
     toast({
       title: 'Step skipped',
@@ -544,7 +579,13 @@ export function TaskExecutor({
 
   // Initialize trail with first step
   useEffect(() => {
-    setStepTrail([{ stepId: template.steps[initialStepIndex].id }]);
+    setStepTrail([
+      {
+        stepId: template.steps[initialStepIndex].id,
+        event: 'visited',
+        timestamp: new Date().toISOString(),
+      },
+    ]);
   }, [template.steps, initialStepIndex]);
 
   if (!currentStep) {
@@ -767,46 +808,60 @@ export function TaskExecutor({
           {/* Step History */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Step Trail</CardTitle>
+              <CardTitle className="text-base">Execution Timeline</CardTitle>
+              <CardDescription>Logs visits, branching, and skips with timestamps.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {stepTrail.map((trailItem, idx) => {
-                  const stepMeta = template.steps.find(s => s.id === trailItem.stepId);
-                  if (!stepMeta) return null;
-                  const stepEvidence = evidence.find(e => e.stepId === stepMeta.id);
-                  const branched = trailItem.fromStepId && trailItem.fromStepId !== template.steps[idx - 1]?.id;
-                  const skipped = Boolean(skippedSteps[stepMeta.id]);
-                  return (
-                    <div
-                      key={trailItem.stepId}
-                      className="flex items-center gap-2 text-sm px-2 py-1 rounded border bg-white"
-                      aria-label={`Trail item ${idx + 1}: ${stepMeta.title}${branched ? ' (branched jump)' : ''}${skipped ? ' (skipped)' : ''}`}
-                    >
-                      {skipped ? (
-                        <SkipForward className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden="true" />
+              {stepTrail.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">Trail initializing...</p>
+              ) : (
+                <div className="space-y-4">
+                  {stepTrail.map((trailItem, idx) => {
+                    const stepMeta = template.steps.find((s) => s.id === trailItem.stepId);
+                    if (!stepMeta) return null;
+                    const stepEvidence = evidence.find((e) => e.stepId === stepMeta.id);
+                    const timestampLabel = formatDistanceToNow(new Date(trailItem.timestamp), { addSuffix: true });
+                    const icon =
+                      trailItem.event === 'skipped' ? (
+                        <SkipForward className="h-4 w-4 text-amber-600" />
+                      ) : trailItem.event === 'branched' ? (
+                        <GitBranch className="h-4 w-4 text-blue-600" />
                       ) : (
-                        <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" aria-hidden="true" />
-                      )}
-                      <span className={skipped ? 'line-through text-slate-500' : ''}>{idx + 1}. {stepMeta.title}</span>
-                      {branched && (
-                        <Badge variant="secondary" className="ml-1 flex items-center gap-1" aria-label="Branched jump">
-                          <GitBranch className="w-3 h-3" /> Jump
-                        </Badge>
-                      )}
-                      {skipped && skippedSteps[stepMeta.id] && (
-                        <Badge variant="destructive" className="ml-1" aria-label={`Skipped reason: ${skippedSteps[stepMeta.id]}`}>Skipped</Badge>
-                      )}
-                      {stepEvidence && !skipped && (
-                        <Badge variant="outline" className="ml-auto" aria-label={`Evidence type ${stepEvidence.type}`}>{stepEvidence.type}</Badge>
-                      )}
-                    </div>
-                  );
-                })}
-                {stepTrail.length === 0 && (
-                  <p className="text-sm text-slate-500 text-center py-4">Trail initializing...</p>
-                )}
-              </div>
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      );
+
+                    return (
+                      <div key={`${trailItem.stepId}-${idx}`} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <span className="rounded-full border border-slate-200 bg-white p-1">{icon}</span>
+                          {idx !== stepTrail.length - 1 && <span className="mt-1 h-full w-px bg-slate-200" />}
+                        </div>
+                        <div className="flex-1 rounded border bg-white/80 p-3">
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span>{timestampLabel}</span>
+                            <Badge variant="outline">{trailItem.event}</Badge>
+                          </div>
+                          <p className="font-medium text-slate-900">{stepMeta.title}</p>
+                          {trailItem.event === 'branched' && trailItem.fromStepId && (
+                            <p className="text-xs text-slate-500">
+                              Branched from{' '}
+                              {template.steps.find((s) => s.id === trailItem.fromStepId)?.title || 'previous step'}
+                            </p>
+                          )}
+                          {trailItem.event === 'skipped' && trailItem.note && (
+                            <p className="text-xs text-amber-700 mt-1">Reason: {trailItem.note}</p>
+                          )}
+                          {stepEvidence && (
+                            <Badge variant="secondary" className="mt-2 text-[10px]">
+                              Evidence: {stepEvidence.type}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import type { Task, TaskStatus } from '@/types/workflow';
 import { TaskBoard } from '@/components/features/workflows/task-board';
 import { TaskList } from '@/components/features/workflows/task-list';
@@ -18,12 +18,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/use-toast';
+import { createClient as createBrowserSupabase } from '@/lib/supabase/client';
+import { TaskDetailsPanel } from '@/components/features/workflows/task-details-panel';
 
 interface WorkflowsDashboardClientProps {
   myTasks: Task[];
   allTasks: Task[];
   userId: string;
   canCreateTask?: boolean;
+  canManageTaskStatus?: boolean;
 }
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
@@ -39,20 +43,45 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
 
 const DEFAULT_STATUSES = STATUS_OPTIONS.map((option) => option.value);
 
+type DependencyLink = { id: string; title: string; status: string };
+type TaskDependencySummary = {
+  blocking: DependencyLink[];
+  suggested: DependencyLink[];
+  blockers: DependencyLink[];
+  dependents: DependencyLink[];
+};
+
 export function WorkflowsDashboardClient({
   myTasks,
   allTasks,
   userId: _userId,
   canCreateTask = false,
+  canManageTaskStatus = false,
 }: WorkflowsDashboardClientProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [view, setView] = useState<'board' | 'list'>('board');
   const [visibleStatuses, setVisibleStatuses] = useState<TaskStatus[]>(DEFAULT_STATUSES);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [dependencySummary, setDependencySummary] = useState<Record<string, TaskDependencySummary>>({});
 
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
-    if (updates.status) {
-      await updateTaskStatusAction(taskId, updates.status);
-      router.refresh();
+    try {
+      if (updates.status) {
+        await updateTaskStatusAction(taskId, updates.status);
+        router.refresh();
+        toast({
+          title: 'Status updated',
+          description: `Task moved to ${updates.status.replace('_', ' ')}`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update task', error);
+      toast({
+        title: 'Unable to update task',
+        description: error instanceof Error ? error.message : 'Unexpected error occurred',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -82,6 +111,17 @@ export function WorkflowsDashboardClient({
 
   const selectAllStatuses = () => setVisibleStatuses(DEFAULT_STATUSES);
   const selectActiveStatuses = () => setVisibleStatuses(['to_do', 'in_progress', 'blocked']);
+  const handleStatusDrop = async (taskId: string, status: TaskStatus) => {
+    if (!canManageTaskStatus) {
+      toast({
+        title: 'Cannot move task',
+        description: 'You do not have permission to modify workflow statuses.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await handleTaskUpdate(taskId, { status });
+  };
 
   const filterTasks = useCallback(
     (tasks: Task[]) => {
@@ -94,11 +134,149 @@ export function WorkflowsDashboardClient({
 
   const filteredMyTasks = useMemo(() => filterTasks(myTasks), [filterTasks, myTasks]);
   const filteredAllTasks = useMemo(() => filterTasks(allTasks), [filterTasks, allTasks]);
+  const taskIndex = useMemo(() => {
+    const map = new Map<string, Task>();
+    [...allTasks, ...myTasks].forEach((task) => map.set(task.id, task));
+    return map;
+  }, [allTasks, myTasks]);
+
+  useEffect(() => {
+    const ids = Array.from(new Set([...allTasks, ...myTasks].map((task) => task.id)));
+    if (!ids.length) {
+      setDependencySummary({});
+      return;
+    }
+
+    let isMounted = true;
+    const supabase = createBrowserSupabase();
+
+    const fetchDependencies = async () => {
+      try {
+        const [prereqResponse, dependentResponse] = await Promise.all([
+          supabase
+            .from('task_dependencies')
+            .select(
+              `
+              id,
+              task_id,
+              depends_on_task_id,
+              dependency_type,
+              depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id, title, status)
+            `
+            )
+            .in('task_id', ids),
+          supabase
+            .from('task_dependencies')
+            .select(
+              `
+              id,
+              task_id,
+              depends_on_task_id,
+              dependency_type,
+              task:tasks!task_dependencies_task_id_fkey(id, title, status)
+            `
+            )
+            .in('depends_on_task_id', ids),
+        ]);
+
+        if (!isMounted) return;
+        if (prereqResponse.error) throw prereqResponse.error;
+        if (dependentResponse.error) throw dependentResponse.error;
+
+        const summary: Record<string, TaskDependencySummary> = {};
+        ids.forEach((id) => {
+          summary[id] = { blocking: [], suggested: [], blockers: [], dependents: [] };
+        });
+
+        (prereqResponse.data || []).forEach((row: any) => {
+          if (!row.depends_on) return;
+          if (!summary[row.task_id]) {
+            summary[row.task_id] = { blocking: [], suggested: [], blockers: [], dependents: [] };
+          }
+          const entry = {
+            id: row.depends_on.id,
+            title: row.depends_on.title,
+            status: row.depends_on.status,
+          };
+          if (row.dependency_type === 'blocking') {
+            summary[row.task_id].blocking.push(entry);
+            if (row.depends_on.status !== 'done' && row.depends_on.status !== 'approved') {
+              summary[row.task_id].blockers.push(entry);
+            }
+          } else {
+            summary[row.task_id].suggested.push(entry);
+          }
+        });
+
+        (dependentResponse.data || []).forEach((row: any) => {
+          if (!row.task) return;
+          if (!summary[row.depends_on_task_id]) {
+            summary[row.depends_on_task_id] = { blocking: [], suggested: [], blockers: [], dependents: [] };
+          }
+          summary[row.depends_on_task_id].dependents.push({
+            id: row.task.id,
+            title: row.task.title,
+            status: row.task.status,
+          });
+        });
+
+        setDependencySummary(summary);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Failed to load dependencies', error);
+        toast({
+          title: 'Unable to load dependencies',
+          description: error instanceof Error ? error.message : 'Unexpected error occurred',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchDependencies();
+    const interval = setInterval(fetchDependencies, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [allTasks, myTasks, toast]);
+
+  const blockedTasks = useMemo(() => {
+    const map: Record<string, { blocked: boolean; blockers: DependencyLink[] }> = {};
+    Object.entries(dependencySummary).forEach(([taskId, meta]) => {
+      map[taskId] = { blocked: meta.blockers.length > 0, blockers: meta.blockers };
+    });
+    return map;
+  }, [dependencySummary]);
+
+  useEffect(() => {
+    if (activeTaskId && !taskIndex.has(activeTaskId)) {
+      setActiveTaskId(null);
+    }
+  }, [activeTaskId, taskIndex]);
+
+  const resolveRootTaskId = useCallback(
+    (taskId: string) => {
+      let current = taskIndex.get(taskId);
+      const visited = new Set<string>();
+      while (current?.parent_task_id) {
+        if (visited.has(current.parent_task_id)) break;
+        visited.add(current.parent_task_id);
+        const parent = taskIndex.get(current.parent_task_id);
+        if (!parent) break;
+        current = parent;
+      }
+      return current?.id ?? taskId;
+    },
+    [taskIndex]
+  );
 
   const statusButtonLabel =
     visibleStatuses.length === STATUS_OPTIONS.length
       ? 'All statuses'
       : `${visibleStatuses.length} selected`;
+  const activeTask = activeTaskId ? taskIndex.get(activeTaskId) : undefined;
+  const activeDependencyMeta = activeTask ? dependencySummary[activeTask.id] : undefined;
+  const hierarchyRootId = activeTask ? resolveRootTaskId(activeTask.id) : undefined;
 
   return (
     <div className="space-y-4">
@@ -178,9 +356,20 @@ export function WorkflowsDashboardClient({
               tasks={filteredMyTasks}
               onTaskUpdate={handleTaskUpdate}
               onTaskExecute={handleTaskExecute}
+              selectedTaskId={activeTaskId}
+              onSelectTask={setActiveTaskId}
+              blockedTasks={blockedTasks}
+              canManageTaskStatus={canManageTaskStatus}
+              onStatusDrop={handleStatusDrop}
             />
           ) : (
-            <TaskList tasks={filteredMyTasks} onTaskExecute={handleTaskExecute} />
+            <TaskList
+              tasks={filteredMyTasks}
+              onTaskExecute={handleTaskExecute}
+              selectedTaskId={activeTaskId}
+              onSelectTask={setActiveTaskId}
+              blockedTasks={blockedTasks}
+            />
           )}
         </TabsContent>
 
@@ -190,12 +379,37 @@ export function WorkflowsDashboardClient({
               tasks={filteredAllTasks}
               onTaskUpdate={handleTaskUpdate}
               onTaskExecute={handleTaskExecute}
+              selectedTaskId={activeTaskId}
+              onSelectTask={setActiveTaskId}
+              blockedTasks={blockedTasks}
+              canManageTaskStatus={canManageTaskStatus}
+              onStatusDrop={handleStatusDrop}
             />
           ) : (
-            <TaskList tasks={filteredAllTasks} onTaskExecute={handleTaskExecute} />
+            <TaskList
+              tasks={filteredAllTasks}
+              onTaskExecute={handleTaskExecute}
+              selectedTaskId={activeTaskId}
+              onSelectTask={setActiveTaskId}
+              blockedTasks={blockedTasks}
+            />
           )}
         </TabsContent>
       </Tabs>
+
+      <TaskDetailsPanel
+        task={activeTask}
+        open={Boolean(activeTask)}
+        onOpenChange={(open) => {
+          if (!open) setActiveTaskId(null);
+        }}
+        dependencyMeta={activeDependencyMeta}
+        dependencyMap={blockedTasks}
+        onNavigateTask={setActiveTaskId}
+        onExecuteTask={handleTaskExecute}
+        hierarchyRootId={hierarchyRootId}
+        canEditHierarchy={canManageTaskStatus}
+      />
     </div>
   );
 }

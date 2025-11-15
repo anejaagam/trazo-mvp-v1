@@ -20,7 +20,6 @@ import {
   UpdateTaskInput,
   TaskWithTemplate,
   TaskHierarchyTree,
-  TaskHierarchyNode,
   PrerequisiteCheck,
   TaskFilters,
   TemplateFilters,
@@ -33,7 +32,8 @@ import {
 import { decompressEvidence } from '@/lib/utils/evidence-compression';
 import { wouldCreateDependencyCycle } from '@/lib/utils/dependency-graph';
 import { generateNextRecurrenceInstances } from '@/lib/utils/recurrence';
-import { PostgrestSingleResponse } from '@supabase/supabase-js';
+import { buildHierarchyTree, collectDescendantIds } from '@/lib/workflows/hierarchy';
+import { PostgrestSingleResponse, SupabaseClient } from '@supabase/supabase-js';
 
 function normalizeTaskRows(rows: any[] | null): TaskWithTemplate[] {
   if (!rows) return [];
@@ -977,72 +977,6 @@ export async function getTaskHierarchy(
 }
 
 /**
- * Helper function to build tree from flat hierarchy data
- */
-function buildHierarchyTree(flatData: any[]): TaskHierarchyTree | null {
-  if (!flatData || flatData.length === 0) return null;
-
-  const nodeMap = new Map<string, TaskHierarchyNode>();
-
-  // Create nodes
-  flatData.forEach((item) => {
-    nodeMap.set(item.task_id, {
-      task_id: item.task_id,
-      parent_id: item.parent_id,
-      title: item.title,
-      status: item.status,
-      hierarchy_level: item.hierarchy_level,
-      sequence_order: item.sequence_order,
-      path: item.path,
-      children: [],
-    });
-  });
-
-  // Build parent-child relationships
-  let root: TaskHierarchyNode | null = null;
-  let maxDepth = 0;
-  let completedCount = 0;
-  let blockedCount = 0;
-
-  nodeMap.forEach((node) => {
-    if (node.status === 'done' || node.status === 'approved') {
-      completedCount++;
-    }
-    if (node.status === 'blocked') {
-      blockedCount++;
-    }
-    maxDepth = Math.max(maxDepth, node.hierarchy_level);
-
-    if (node.parent_id) {
-      const parent = nodeMap.get(node.parent_id);
-      if (parent) {
-        parent.children = parent.children || [];
-        parent.children.push(node);
-      }
-    } else {
-      root = node;
-    }
-  });
-
-  // Sort children by sequence_order
-  nodeMap.forEach((node) => {
-    if (node.children) {
-      node.children.sort((a, b) => a.sequence_order - b.sequence_order);
-    }
-  });
-
-  if (!root) return null;
-
-  return {
-    root,
-    totalTasks: flatData.length,
-    maxDepth,
-    completedTasks: completedCount,
-    blockedTasks: blockedCount,
-  };
-}
-
-/**
  * Get root tasks (no parent) for a site
  */
 export async function getRootTasks(siteId: string) {
@@ -1400,6 +1334,164 @@ export async function getBlockingStatus(taskId: string) {
     };
   } catch (error) {
     console.error('Error in getBlockingStatus:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Fetch dependency rows for many tasks at once, including related task metadata.
+ */
+export async function getTaskDependenciesBulk(taskIds: string[]) {
+  if (!taskIds?.length) {
+    return { data: [], error: null };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('task_dependencies')
+      .select(
+        `
+        id,
+        task_id,
+        depends_on_task_id,
+        dependency_type,
+        depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id, title, status, priority, hierarchy_level),
+        task:tasks!task_dependencies_task_id_fkey(id, title, status, priority, hierarchy_level)
+      `
+      )
+      .in('task_id', taskIds);
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in getTaskDependenciesBulk:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Fetch downstream tasks that depend on the provided task.
+ */
+export async function getTaskDependents(taskId: string) {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('task_dependencies')
+      .select(
+        `
+        id,
+        task_id,
+        depends_on_task_id,
+        dependency_type,
+        task:tasks!task_dependencies_task_id_fkey(id, title, status, priority, hierarchy_level)
+      `
+      )
+      .eq('depends_on_task_id', taskId);
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error in getTaskDependents:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Move a task under a new parent while enforcing hierarchy constraints.
+ */
+export async function moveTaskUnderParent(
+  taskId: string,
+  parentTaskId: string | null,
+  options?: { supabase?: SupabaseClient }
+) {
+  try {
+    const supabase = options?.supabase ?? (await createClient());
+    const { data: task, error: taskError } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+    if (taskError) throw taskError;
+    if (!task) {
+      return { data: null, error: new Error('Task not found') };
+    }
+
+    if (parentTaskId === task.parent_task_id) {
+      return { data: task as Task, error: null };
+    }
+
+    let newLevel = 0;
+    let parentTask: Task | null = null;
+
+    if (parentTaskId) {
+      if (parentTaskId === taskId) {
+        return { data: null, error: new Error('Task cannot be its own parent') };
+      }
+
+      const { data: fetchedParent, error: parentError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', parentTaskId)
+        .single();
+      if (parentError) throw parentError;
+      parentTask = fetchedParent as Task;
+      if (!parentTask) {
+        return { data: null, error: new Error('Parent task not found') };
+      }
+      newLevel = (parentTask.hierarchy_level ?? 0) + 1;
+      if (newLevel > MAX_TASK_HIERARCHY_LEVEL) {
+        return {
+          data: null,
+          error: new Error(`Hierarchy depth cannot exceed ${MAX_TASK_HIERARCHY_LEVEL + 1} levels`),
+        };
+      }
+    }
+
+    const { data: flatHierarchy, error: hierarchyError } = await supabase
+      .rpc('get_task_hierarchy', { root_task_id: taskId });
+    if (hierarchyError) throw hierarchyError;
+    const tree = buildHierarchyTree(flatHierarchy || []);
+    if (parentTaskId && tree) {
+      const descendants = collectDescendantIds(tree.root);
+      if (descendants.has(parentTaskId)) {
+        return { data: null, error: new Error('Cannot move a task beneath its own descendant') };
+      }
+    }
+
+    const delta = newLevel - (task.hierarchy_level ?? 0);
+    const descendantRows: Array<{ task_id: string; hierarchy_level: number }> = (flatHierarchy || [])
+      .filter((row: any) => row.task_id !== taskId)
+      .map((row: any) => ({ task_id: row.task_id, hierarchy_level: row.hierarchy_level }));
+
+    if (delta !== 0 && descendantRows.length) {
+      const proposedLevels = descendantRows.map((row) => ({
+        id: row.task_id,
+        level: row.hierarchy_level + delta,
+      }));
+      const invalid = proposedLevels.find((entry) => entry.level > MAX_TASK_HIERARCHY_LEVEL || entry.level < 0);
+      if (invalid) {
+        return {
+          data: null,
+          error: new Error('Move would push at least one descendant beyond the allowed hierarchy depth'),
+        };
+      }
+      await Promise.all(
+        proposedLevels.map((entry) =>
+          supabase.from('tasks').update({ hierarchy_level: entry.level }).eq('id', entry.id)
+        )
+      );
+    }
+
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('tasks')
+      .update({
+        parent_task_id: parentTaskId,
+        hierarchy_level: newLevel,
+      })
+      .eq('id', taskId)
+      .select()
+      .single();
+    if (updateError) throw updateError;
+
+    return { data: updatedTask as Task, error: null };
+  } catch (error) {
+    console.error('Error in moveTaskUnderParent:', error);
     return { data: null, error };
   }
 }

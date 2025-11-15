@@ -10,6 +10,19 @@ import { EvidenceType, DualSignature } from '@/types/workflow';
 import { Camera, QrCode, PenTool, Upload, Check, X } from 'lucide-react';
 import { DualSignatureCapture } from './dual-signature-capture';
 import { useToast } from '@/components/ui/use-toast';
+import { MAX_EVIDENCE_BYTES_BEFORE_COMPRESSION, isEvidenceWithinSizeLimit } from '@/lib/utils/evidence-compression';
+
+const formatBytes = (bytes: number) => {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  return `${unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+};
 
 interface EvidenceCaptureProps {
   type: EvidenceType;
@@ -94,6 +107,14 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!isEvidenceWithinSizeLimit(file.size)) {
+        toast({
+          title: 'File too large',
+          description: `Please upload evidence smaller than ${formatBytes(MAX_EVIDENCE_BYTES_BEFORE_COMPRESSION)}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setValue(reader.result as string);

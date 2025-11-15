@@ -320,6 +320,8 @@ export interface RecurringConfig {
   daysOfWeek?: string[]; // e.g. ['Mon','Wed'] for weekly pattern
   dayOfMonth?: number; // 1-31 for monthly pattern
   customRule?: string; // placeholder for advanced RRULE-like expressions
+  seedTaskId?: string; // internal helper to link generated tasks to a seed
+  lastGeneratedAt?: string; // ISO timestamp of the most recent generated instance
 }
 
 export interface Task {

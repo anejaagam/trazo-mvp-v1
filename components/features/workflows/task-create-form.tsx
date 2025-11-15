@@ -36,6 +36,7 @@ import {
 } from '@/types/workflow';
 import { Loader2, Info, Layers, Link2, GitBranch } from 'lucide-react';
 import { ROLES } from '@/lib/rbac/roles';
+import { useToast } from '@/components/ui/use-toast';
 
 type TaskCreateBatch = {
   id: string;
@@ -89,6 +90,7 @@ export default function TaskCreateForm({
   batches,
 }: TaskCreateFormProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [templateId, setTemplateId] = useState<string | undefined>();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -224,6 +226,11 @@ export default function TaskCreateForm({
     if (!taskId) return;
     setDependencySelection((prev) => {
       if (prev.blocking.includes(taskId) || prev.suggested.includes(taskId)) {
+        toast({
+          title: 'Dependency already added',
+          description: 'Select a different prerequisite.',
+          variant: 'destructive',
+        });
         return prev;
       }
       if (type === 'blocking') {
@@ -321,6 +328,11 @@ export default function TaskCreateForm({
 
     if (validationIssues.length) {
       setFormErrors(validationIssues);
+      toast({
+        title: 'Cannot create task',
+        description: validationIssues[0],
+        variant: 'destructive',
+      });
       setSubmitting(false);
       return;
     }
@@ -387,7 +399,16 @@ export default function TaskCreateForm({
       if (!result || result.error || !result.data) {
         const message = typeof result?.error === 'string' ? result.error : 'Failed to create task';
         setError(message);
+        toast({
+          title: 'Unable to create task',
+          description: message,
+          variant: 'destructive',
+        });
       } else if (result.data) {
+        toast({
+          title: 'Task created',
+          description: 'Redirecting to the new task…',
+        });
         setSuccessId(result.data.id);
         setTimeout(() => {
           router.push(`/dashboard/workflows/tasks/${result.data!.id}`);
@@ -396,6 +417,11 @@ export default function TaskCreateForm({
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       setError(message);
+      toast({
+        title: 'Unable to create task',
+        description: message,
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }

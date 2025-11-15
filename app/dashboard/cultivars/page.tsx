@@ -54,12 +54,16 @@ const MOCK_CULTIVARS: Cultivar[] = [
 export default async function CultivarsPage() {
   let userRole: string
   let cultivars: Cultivar[]
+  let organizationId: string
+  let plantType: 'cannabis' | 'produce' = 'produce'
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
     logDevMode('Cultivars Page')
     userRole = DEV_MOCK_USER.role
     cultivars = MOCK_CULTIVARS
+    organizationId = DEV_MOCK_USER.organization_id
+    plantType = 'produce'
   } else {
     // PRODUCTION MODE: Get actual user data
     const supabase = await createClient()
@@ -85,6 +89,13 @@ export default async function CultivarsPage() {
       redirect('/dashboard')
     }
 
+    // Get organization to determine plant type
+    const { data: orgData } = await supabase
+      .from('organizations')
+      .select('plant_type')
+      .eq('id', userData.organization_id)
+      .single()
+
     // Fetch cultivars
     const { data: cultivarsData, error: cultivarsError } = await supabase
       .from('cultivars')
@@ -94,21 +105,17 @@ export default async function CultivarsPage() {
 
     userRole = userData.role
     cultivars = (cultivarsData || []) as Cultivar[]
+    organizationId = userData.organization_id
+    plantType = (orgData?.plant_type as 'cannabis' | 'produce') || 'produce'
   }
 
   return (
     <div className="space-y-6">
       <CultivarList
         cultivars={cultivars}
-        onCreateClick={() => {
-          // TODO: Implement create modal
-          alert('Create cultivar modal not yet implemented')
-        }}
-        onEditClick={(cultivar) => {
-          // TODO: Implement edit modal
-          alert(`Edit cultivar ${cultivar.name} not yet implemented`)
-        }}
         userRole={userRole}
+        organizationId={organizationId}
+        plantType={plantType}
       />
     </div>
   )

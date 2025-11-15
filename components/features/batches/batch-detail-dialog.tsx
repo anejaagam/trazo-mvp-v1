@@ -146,12 +146,22 @@ export function BatchDetailDialog({
 
         {!loading && (
           <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="assignments">Pods & telemetry</TabsTrigger>
-            <TabsTrigger value="quality">Quality</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsList className="grid h-11 w-full grid-cols-5 items-center rounded-lg bg-muted p-1 text-muted-foreground">
+            <TabsTrigger value="overview" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Pods & telemetry
+            </TabsTrigger>
+            <TabsTrigger value="quality" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Quality
+            </TabsTrigger>
+            <TabsTrigger value="history" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              History
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Inventory
+            </TabsTrigger>
           </TabsList>
 
             <TabsContent value="overview" className="space-y-4">

@@ -595,7 +595,7 @@ export async function getBatchDetail(batchId: string): Promise<{
       .select(
         `
           *,
-          cultivar:cultivars(id, name, common_name, strain_type),
+          cultivar:cultivars(id, name, strain_type),
           pod_assignments:batch_pod_assignments(
             id,
             batch_id,
@@ -616,9 +616,9 @@ export async function getBatchDetail(batchId: string): Promise<{
             id,
             stage,
             started_at,
-            ended_at:completed_at,
+            ended_at,
             notes,
-            transitioned_by_user:users!transitioned_by(id, full_name)
+            transitioned_by
           ),
           quality_metrics:batch_quality_metrics(
             id,
@@ -636,14 +636,22 @@ export async function getBatchDetail(batchId: string): Promise<{
             to_value,
             timestamp,
             notes,
-            user:users!user_id(id, full_name, email)
+            user_id
           )
         `
       )
       .eq('id', batchId)
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase query error in getBatchDetail:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      throw error
+    }
 
     const batch = data as BatchDetail
 
@@ -677,7 +685,14 @@ export async function getBatchDetail(batchId: string): Promise<{
 
     return { data: batch, error: null }
   } catch (error) {
-     logSupabaseError('Error in getBatchDetail:', error)
+    console.error('Error in getBatchDetail:', {
+      batchId,
+      error,
+      errorType: error?.constructor?.name,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined
+    })
+    logSupabaseError('Error in getBatchDetail:', error)
     return { data: null, error }
   }
 }
@@ -816,7 +831,7 @@ async function fetchTelemetrySnapshots(batch: BatchListItem) {
   }
 }
 
-function logSupabaseError(context: string, error: unknown) {
+function logSupabaseError(context: string, error: unknown): void {
   if (!error || typeof error !== 'object') {
     console.error(context, error)
     return
@@ -833,7 +848,17 @@ function logSupabaseError(context: string, error: unknown) {
     }
   })
 
-  console.error(context, Object.keys(payload).length ? payload : err)
+  // Enhanced logging - show full error object structure if payload is empty
+  if (Object.keys(payload).length === 0) {
+    console.error(context, {
+      errorType: error.constructor.name,
+      errorKeys: Object.keys(err),
+      fullError: err,
+      stringified: JSON.stringify(err, null, 2)
+    })
+  } else {
+    console.error(context, payload)
+  }
 }
 
 function supabaseErrorIncludes(error: unknown, search: string): boolean {
@@ -941,7 +966,7 @@ function buildBatchSelect(options: {
   includePodNotes: boolean
   includePodAssignments: boolean
 }) {
-  const fields = ['*', 'cultivar:cultivars(id, name, common_name, strain_type)']
+  const fields = ['*', 'cultivar:cultivars(id, name, strain_type, genetics)']
 
   if (options.includePodAssignments) {
     const podAssignmentFields = ['id', 'batch_id', 'pod_id', 'plant_count', 'assigned_at', 'removed_at']

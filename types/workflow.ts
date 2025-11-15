@@ -219,6 +219,9 @@ export interface SOPTemplate {
   is_active: boolean;
   is_template: boolean;
   
+  // Batch integration
+  batch_id?: string | null; // Optional batch reference for batch-specific SOPs
+  
   // Audit
   created_by: string;
   created_at: string;
@@ -459,6 +462,9 @@ export interface TaskStep {
   notes?: string;
   skipped: boolean;
   skip_reason?: string;
+  
+  // Batch integration
+  batch_id?: string | null; // Optional batch reference for batch-specific task steps
 }
 
 export interface CreateTaskInput {

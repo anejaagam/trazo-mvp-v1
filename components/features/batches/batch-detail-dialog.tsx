@@ -8,13 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Sprout, MapPin, AlertTriangle, Activity, Beaker } from 'lucide-react'
+import { Sprout, MapPin, AlertTriangle, Activity, Beaker, FileText, Loader2 } from 'lucide-react'
 import { BatchModal } from './batch-modal'
 import { StageTransitionDialog } from './stage-transition-dialog'
 import { HarvestWorkflow } from './harvest-workflow'
 import { QualityMetricsPanel } from './quality-metrics-panel'
+import { BatchTasksPanel } from './batch-tasks-panel'
+import { LinkTemplateDialog } from './link-template-dialog'
 import type { BatchListItem, BatchDetail } from '@/lib/supabase/queries/batches-client'
 import { getBatchDetail, quarantineBatch, releaseFromQuarantine } from '@/lib/supabase/queries/batches-client'
+import { getBatchPacketDataAction } from '@/app/actions/batch-tasks'
+import { generateBatchPacketPDF } from '@/lib/utils/batch-packet-generator'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import type { BatchStageHistory, BatchEvent } from '@/types/batch'
 import { toast } from 'sonner'
@@ -51,6 +55,9 @@ export function BatchDetailDialog({
   const [showHarvestDialog, setShowHarvestDialog] = useState(false)
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
+  const [showLinkTemplate, setShowLinkTemplate] = useState(false)
+  const [showCreateTask, setShowCreateTask] = useState(false)
+  const [generatingPacket, setGeneratingPacket] = useState(false)
 
   const loadDetail = async () => {
     setLoading(true)
@@ -97,6 +104,39 @@ export function BatchDetailDialog({
     }
   }
 
+  const handleGeneratePacket = async () => {
+    setGeneratingPacket(true)
+    try {
+      // Fetch batch data via server action (with permission check)
+      const dataResult = await getBatchPacketDataAction(batch.id)
+
+      if (dataResult.error || !dataResult.data) {
+        toast.error(dataResult.error || 'Failed to fetch batch data')
+        return
+      }
+
+      // Generate PDF client-side
+      const pdfResult = await generateBatchPacketPDF(dataResult.data, {
+        packetType: 'full',
+        includesTasks: true,
+        includesRecipe: true,
+        includesInventory: true,
+        includesCompliance: true,
+      })
+
+      if (pdfResult.error || !pdfResult.success) {
+        toast.error(pdfResult.error || 'Failed to generate PDF')
+      } else {
+        toast.success(`Batch packet downloaded: ${pdfResult.filename}`)
+      }
+    } catch (error) {
+      console.error('Error generating packet:', error)
+      toast.error('Failed to generate batch packet')
+    } finally {
+      setGeneratingPacket(false)
+    }
+  }
+
   const renderedDetail = detail || (batch as BatchDetail)
 
   return (
@@ -123,6 +163,24 @@ export function BatchDetailDialog({
           <Button variant="outline" size="sm" onClick={() => setShowApplyRecipe(true)}>
             Apply recipe
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleGeneratePacket}
+            disabled={generatingPacket}
+          >
+            {generatingPacket ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Packet
+              </>
+            )}
+          </Button>
           <Button
             variant={renderedDetail.status === 'quarantined' ? 'default' : 'destructive'}
             size="sm"
@@ -146,9 +204,10 @@ export function BatchDetailDialog({
 
         {!loading && (
           <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="assignments">Pods & telemetry</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks & SOPs</TabsTrigger>
             <TabsTrigger value="quality">Quality</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
@@ -298,6 +357,14 @@ export function BatchDetailDialog({
               </Card>
             </TabsContent>
 
+            <TabsContent value="tasks" className="space-y-4">
+              <BatchTasksPanel 
+                batchId={batch.id}
+                onLinkTemplate={() => setShowLinkTemplate(true)}
+                onCreateTask={() => setShowCreateTask(true)}
+              />
+            </TabsContent>
+
             <TabsContent value="inventory" className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -389,6 +456,18 @@ export function BatchDetailDialog({
           batchNumber={batch.batch_number}
           userId={userId}
           onApplied={() => {
+            loadDetail()
+            onRefresh()
+          }}
+        />
+
+        <LinkTemplateDialog
+          batchId={batch.id}
+          currentStage={renderedDetail.stage}
+          isOpen={showLinkTemplate}
+          onClose={() => setShowLinkTemplate(false)}
+          onSuccess={() => {
+            setShowLinkTemplate(false)
             loadDetail()
             onRefresh()
           }}

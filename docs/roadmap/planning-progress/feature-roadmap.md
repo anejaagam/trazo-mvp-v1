@@ -359,17 +359,37 @@ Dashboard Auto-Refresh (30s)
 - [x] Added dev mode support with mock data
 - [x] TypeScript errors resolved
 
-**Phase 4: Module Integration (1-2 days) ⏳ READY**
+**Phase 4: Task/SOP Integration ✅ COMPLETE (Nov 14, 2025)**
+- ✅ Database migration: `20251114020000_batch_task_integration.sql`
+- ✅ Added batch_id to sop_templates, task_steps, batch_events.task_id
+- ✅ Created batch_sop_links table (template associations)
+- ✅ Created batch_packets table (document generation tracking)
+- ✅ Auto-task trigger function: create_batch_stage_tasks()
+- ✅ Backend queries: `/lib/supabase/queries/batch-tasks.ts` (8 functions, 450+ lines)
+- ✅ Server actions: `/app/actions/batch-tasks.ts` (4 actions with RBAC)
+- ✅ Packet generator: `/lib/utils/batch-packet-generator.ts` (HTML/PDF generation, 380+ lines)
+- ✅ UI components:
+  - `batch-tasks-panel.tsx` (Tasks & SOPs tab, 350+ lines)
+  - `link-template-dialog.tsx` (Template linking, 250+ lines)
+- ✅ Updated batch-detail-dialog.tsx with 6th tab
+- ✅ RBAC permissions: batch:tasks_link, batch:packet_generate
+- ✅ Unit tests: batch-tasks.test.ts, batch-packet-generator.test.ts
+- ✅ E2E tests: batch-task-integration.spec.ts (7 scenarios)
+- ✅ Total: 9 new files, 6 modified files, ~2,000 LOC
+
+**Evidence:** `/BATCH_TASK_INTEGRATION_COMPLETE.md`
+
+**Phase 5: Additional Module Integration (1-2 days) ⏳ READY**
 - Link to Inventory (seed consumption → harvest addition)
 - Link to Recipe (activation triggers)
 - Link to Monitoring (environmental adherence scoring)
 
-**Phase 5-7: Testing, Documentation, Deployment (3-4 days)**
-- Unit tests (95%+ coverage, maintain 94.8% pass rate)
-- Integration tests for workflows
-- E2E scenarios (cannabis + produce)
-- Update documentation
-- Deploy to production
+**Phase 6-7: Advanced Testing & Production Deployment (2-3 days)**
+- Integration tests for task workflows
+- E2E scenarios (cannabis + produce batches)
+- Migration deployment to Canada region
+- Production PDF generation (Puppeteer integration)
+- Advanced documentation updates
 
 ### Core Features
 

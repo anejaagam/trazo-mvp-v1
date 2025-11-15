@@ -52,6 +52,8 @@ export type PermissionKey =
   | 'batch:quarantine'
   | 'batch:harvest'
   | 'batch:assign_pod'
+  | 'batch:tasks_link'
+  | 'batch:packet_generate'
   
   // Cultivar permissions
   | 'cultivar:view'

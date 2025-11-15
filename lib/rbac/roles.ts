@@ -33,6 +33,8 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:quarantine',
       'batch:harvest',
       'batch:assign_pod',
+      'batch:tasks_link',
+      'batch:packet_generate',
       
       // Full cultivar management
       'cultivar:view',
@@ -108,6 +110,8 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:quarantine',
       'batch:harvest',
       'batch:assign_pod',
+      'batch:tasks_link',
+      'batch:packet_generate',
       
       // Cultivar management (full)
       'cultivar:view',
@@ -222,6 +226,7 @@ export const ROLES: Record<RoleKey, Role> = {
       // Viewing access to operations
       'batch:view',
       'batch:quarantine', // Can quarantine batches for QA issues
+      'batch:packet_generate', // Can generate batch packets for compliance
       'cultivar:view',
       'inventory:view',
       'task:view',

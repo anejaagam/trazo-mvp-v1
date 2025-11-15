@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
 import { 
@@ -297,7 +296,7 @@ export async function archiveTemplateAction(templateId: string) {
 /**
  * Duplicate a template
  */
-export async function duplicateTemplateAction(templateId: string, newName: string) {
+export async function duplicateTemplateAction(templateId: string) {
   const supabase = await createClient();
   
   // Check authentication

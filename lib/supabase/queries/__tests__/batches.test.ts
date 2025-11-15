@@ -2,6 +2,7 @@
  * Tests for batch query functions
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import {
   getBatches,
   getBatchById,

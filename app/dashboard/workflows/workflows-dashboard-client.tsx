@@ -42,7 +42,6 @@ const DEFAULT_STATUSES = STATUS_OPTIONS.map((option) => option.value);
 export function WorkflowsDashboardClient({
   myTasks,
   allTasks,
-  userId: _userId,
   canCreateTask = false,
 }: WorkflowsDashboardClientProps) {
   const router = useRouter();

@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import { Plus, Search, Filter, Edit, Archive } from 'lucide-react'
+import { Plus, Search, Edit, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/table'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { Cultivar } from '@/types/batch'
+import type { RoleKey } from '@/lib/rbac/types'
 import { CultivarModal } from './cultivar-modal'
 import { createCultivarClient, updateCultivarClient, getCultivarsClient } from '@/lib/supabase/queries/cultivars-client'
 import { createClient } from '@/lib/supabase/client'
@@ -36,22 +37,19 @@ interface CultivarListProps {
 }
 
 export function CultivarList({ cultivars: initialCultivars, userRole, organizationId, plantType }: CultivarListProps) {
-  const { can } = usePermissions(userRole as any, [])
+  const { can } = usePermissions(userRole as RoleKey, [])
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedCultivar, setSelectedCultivar] = useState<Cultivar | undefined>()
   const [cultivars, setCultivars] = useState(initialCultivars)
-  const [loading, setLoading] = useState(false)
   
   // Refresh cultivars list
   const refreshCultivars = async () => {
-    setLoading(true)
     const { data, error } = await getCultivarsClient(organizationId)
     if (data && !error) {
       setCultivars(data)
     }
-    setLoading(false)
     router.refresh()
   }
   
@@ -85,11 +83,11 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
         }
 
         const { error } = await createCultivarClient({
-          ...data,
+          name: data.name || '',
           organization_id: organizationId,
           created_by: user.id,
-          is_active: true,
-        } as any)
+          ...data,
+        })
         if (error) throw error
         toast.success('Cultivar created successfully')
       }

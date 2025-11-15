@@ -30,8 +30,17 @@ export async function POST(request: NextRequest) {
     )
 
     if (error) {
-      console.error('Failed to activate recipe', error)
-      return NextResponse.json({ error: 'Failed to activate recipe' }, { status: 500 })
+      console.error('Failed to activate recipe:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        recipeId,
+        scopeType,
+        scopeId
+      })
+      return NextResponse.json({ 
+        error: 'Failed to activate recipe',
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

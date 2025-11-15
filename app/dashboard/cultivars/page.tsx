@@ -97,7 +97,7 @@ export default async function CultivarsPage() {
       .single()
 
     // Fetch cultivars
-    const { data: cultivarsData, error: cultivarsError } = await supabase
+    const { data: cultivarsData } = await supabase
       .from('cultivars')
       .select('*')
       .eq('organization_id', userData.organization_id)

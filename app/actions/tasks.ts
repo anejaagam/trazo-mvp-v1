@@ -11,7 +11,7 @@ import {
   addTaskDependency,
   deleteTask,
 } from '@/lib/supabase/queries/workflows';
-import { Task, TaskEvidence, CreateTaskRequest, UpdateTaskInput, TaskStatus } from '@/types/workflow';
+import { TaskEvidence, CreateTaskRequest, UpdateTaskInput, TaskStatus } from '@/types/workflow';
 
 /**
  * Create a new task from a template

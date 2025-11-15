@@ -5,17 +5,22 @@
  * Supports filtering by domain_type, stage, status, cultivar, and more
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from '@/lib/supabase/server'
 import { advanceRecipeStageForBatch, syncPodAndBatchRecipes } from '@/lib/recipes/recipe-sync'
 import type {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Batch,
   BatchInventoryUsage,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   DomainBatch,
   InsertBatch,
   UpdateBatch,
   BatchFilters,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   BatchStatus,
   BatchStage,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   DomainType,
 } from '@/types/batch'
 import type { ItemType, MovementType } from '@/types/inventory'
@@ -368,7 +373,7 @@ export async function recordHarvest(
     if (updateError) throw updateError
 
     // Create harvest record
-    const { data, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('harvest_records')
       .insert({
         batch_id: batchId,

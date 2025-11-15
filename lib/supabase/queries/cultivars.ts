@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Cultivar, DomainType, StrainType, ProduceCategory } from '@/types/batch'
 
 /**

@@ -267,7 +267,7 @@ export function BatchForm({
 
     const domainType = plantType
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       organization_id: organizationId,
       site_id: siteId,
       domain_type: domainType,

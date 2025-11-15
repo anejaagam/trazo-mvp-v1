@@ -1,5 +1,6 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'

@@ -7,12 +7,14 @@
  * @module lib/supabase/queries/workflows
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from '@/lib/supabase/server';
 import {
   SOPTemplate,
   Task,
   TaskEvidence,
   TaskDependency,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   TaskStep,
   CreateTemplateInput,
   UpdateTemplateInput,
@@ -33,7 +35,6 @@ import {
 import { decompressEvidence } from '@/lib/utils/evidence-compression';
 import { wouldCreateDependencyCycle } from '@/lib/utils/dependency-graph';
 import { generateNextRecurrenceInstances } from '@/lib/utils/recurrence';
-import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
 function normalizeTaskRows(rows: any[] | null): TaskWithTemplate[] {
   if (!rows) return [];

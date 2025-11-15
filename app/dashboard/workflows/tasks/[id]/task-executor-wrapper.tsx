@@ -17,7 +17,7 @@ interface TaskExecutorWrapperProps {
   additionalPermissions?: string[];
 }
 
-export function TaskExecutorWrapper({ task, template, userId, userRole, additionalPermissions = [] }: TaskExecutorWrapperProps) {
+export function TaskExecutorWrapper({ task, template, userRole, additionalPermissions = [] }: TaskExecutorWrapperProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);

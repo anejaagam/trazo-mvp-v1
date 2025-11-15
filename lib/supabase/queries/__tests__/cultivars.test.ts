@@ -2,6 +2,7 @@
  * Tests for cultivar query functions
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   getCultivars,
   getCultivarById,

@@ -103,9 +103,18 @@ export function BatchDetailDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-3">
             <Sprout className="h-5 w-5" />
             Batch {batch.batch_number}
+            <Button
+              variant={renderedDetail.status === 'quarantined' ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleQuarantineToggle}
+              className={renderedDetail.status === 'quarantined' ? '' : 'text-destructive hover:text-destructive'}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              {renderedDetail.status === 'quarantined' ? 'Release' : 'Quarantine'}
+            </Button>
           </DialogTitle>
           <DialogDescription>{batch.cultivar?.name || batch.cultivar_id || 'Unknown cultivar'}</DialogDescription>
         </DialogHeader>
@@ -122,13 +131,6 @@ export function BatchDetailDialog({
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowApplyRecipe(true)}>
             Apply recipe
-          </Button>
-          <Button
-            variant={renderedDetail.status === 'quarantined' ? 'default' : 'destructive'}
-            size="sm"
-            onClick={handleQuarantineToggle}
-          >
-            {renderedDetail.status === 'quarantined' ? 'Release quarantine' : 'Quarantine'}
           </Button>
         </div>
 
@@ -151,7 +153,7 @@ export function BatchDetailDialog({
               Overview
             </TabsTrigger>
             <TabsTrigger value="assignments" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Pods & telemetry
+              Pods
             </TabsTrigger>
             <TabsTrigger value="quality" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Quality
@@ -164,7 +166,7 @@ export function BatchDetailDialog({
             </TabsTrigger>
           </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
+            <TabsContent value="overview" className="space-y-4 min-h-[500px]">
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -226,7 +228,7 @@ export function BatchDetailDialog({
               />
             </TabsContent>
 
-            <TabsContent value="assignments" className="space-y-4">
+            <TabsContent value="assignments" className="space-y-4 min-h-[500px]">
               <Card>
                 <CardHeader>
                   <CardTitle>Active pods ({activeAssignments.length})</CardTitle>
@@ -268,7 +270,7 @@ export function BatchDetailDialog({
               )}
             </TabsContent>
 
-            <TabsContent value="quality" className="space-y-4">
+            <TabsContent value="quality" className="space-y-4 min-h-[500px]">
               <QualityMetricsPanel
                 batchId={batch.id}
                 metrics={renderedDetail.quality_metrics}
@@ -279,7 +281,7 @@ export function BatchDetailDialog({
               />
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
+            <TabsContent value="history" className="space-y-4 min-h-[500px]">
               <Card>
                 <CardHeader>
                   <CardTitle>Stage history</CardTitle>
@@ -308,7 +310,7 @@ export function BatchDetailDialog({
               </Card>
             </TabsContent>
 
-            <TabsContent value="inventory" className="space-y-4">
+            <TabsContent value="inventory" className="space-y-4 min-h-[500px]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Track inventory movements attributed to this batch.</p>

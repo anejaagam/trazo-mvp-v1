@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MoreVertical, Eye, Edit, Trash2, Beaker, Leaf, ChefHat } from 'lucide-react'
 import {
   Table,
@@ -48,6 +49,7 @@ export function BatchTable({
   jurisdictionId,
   plantType,
 }: BatchTableProps) {
+  const router = useRouter()
   const { can } = usePermissions(userRole as RoleKey, [])
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
   const [selectedBatch, setSelectedBatch] = useState<BatchListItem | null>(null)
@@ -144,8 +146,14 @@ export function BatchTable({
                 const cultivarLabel = batch.cultivar?.name || batch.cultivar_id || 'Unknown cultivar'
                 const keyMetric = getKeyMetric(batch)
                 return (
-                  <TableRow key={batch.id} className="hover:bg-muted/50">
-                    <TableCell>
+                  <TableRow 
+                    key={batch.id} 
+                    className="hover:bg-muted/50 cursor-pointer"
+                    onClick={() => {
+                      router.push(`/dashboard/batches/${batch.id}`)
+                    }}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={Boolean(selectedRows[batch.id])}
                         onCheckedChange={(checked) => handleRowSelection(batch.id, Boolean(checked))}
@@ -207,7 +215,7 @@ export function BatchTable({
                         <Badge variant="outline">{batch.status}</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -219,8 +227,7 @@ export function BatchTable({
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem
                             onClick={() => {
-                              setSelectedBatch(batch)
-                              setShowDetailDialog(true)
+                              router.push(`/dashboard/batches/${batch.id}`)
                             }}
                           >
                             <Eye className="mr-2 h-4 w-4" />

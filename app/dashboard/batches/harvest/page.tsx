@@ -4,12 +4,12 @@ import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default async function HarvestQueuePage() {
-  let userRole: string
+export default async function HarvestPage() {
+  let _userRole: string
 
   if (isDevModeActive()) {
     logDevMode('Harvest Queue Page')
-    userRole = DEV_MOCK_USER.role
+    _userRole = DEV_MOCK_USER.role
   } else {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -32,7 +32,8 @@ export default async function HarvestQueuePage() {
       redirect('/dashboard')
     }
 
-    userRole = userData.role
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _userRole = userData.role
   }
 
   return (

@@ -528,6 +528,60 @@ export async function activateRecipe(
 
     if (activationError) throw activationError
 
+    // If activating for a batch, also apply to all active pods assigned to the batch
+    if (scopeType === 'batch') {
+      try {
+        const { data: podAssignments } = await supabase
+          .from('batch_pod_assignments')
+          .select('pod_id, pod:pods(name)')
+          .eq('batch_id', scopeId)
+          .is('removed_at', null)
+
+        if (podAssignments && podAssignments.length > 0) {
+          // Deactivate any existing pod recipes and activate the batch recipe on all pods
+          for (const assignment of podAssignments) {
+            if (!assignment.pod_id) continue
+            
+            // Deactivate existing active recipes for this pod
+            const { data: existingActivations } = await supabase
+              .from('recipe_activations')
+              .select('id')
+              .eq('scope_type', 'pod')
+              .eq('scope_id', assignment.pod_id)
+              .eq('is_active', true)
+
+            if (existingActivations && existingActivations.length > 0) {
+              for (const existing of existingActivations) {
+                await supabase.rpc('deactivate_recipe', {
+                  p_activation_id: existing.id,
+                  p_deactivated_by: userId,
+                  p_reason: 'Replaced by batch recipe',
+                })
+              }
+            }
+
+            // Activate the recipe for this pod
+            const podName = (assignment.pod as { name?: string })?.name || assignment.pod_id
+            await supabase.rpc('activate_recipe', {
+              p_recipe_id: recipeId,
+              p_recipe_version_id: versionId,
+              p_scope_type: 'pod',
+              p_scope_id: assignment.pod_id,
+              p_scope_name: podName,
+              p_activated_by: userId,
+              p_scheduled_start: scheduledStart,
+              p_scheduled_end: scheduledEnd,
+            })
+          }
+          
+          console.log(`Applied batch recipe to ${podAssignments.length} pods`)
+        }
+      } catch (podError) {
+        console.error('Error applying recipe to pods:', podError)
+        // Don't fail the whole operation if pod application fails
+      }
+    }
+
     await recordRecipeAuditEvent({
       userId,
       recipeId,
@@ -673,7 +727,7 @@ export async function getActiveRecipeForScope(
       .eq('scope_type', scopeType)
       .eq('scope_id', scopeId)
       .eq('status', 'active')
-      .order('priority_level', { ascending: false })
+      .order('precedence_level', { ascending: false })
 
     if (overridesError) throw overridesError
 

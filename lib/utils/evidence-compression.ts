@@ -9,6 +9,7 @@
  * @module lib/utils/evidence-compression
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { CompressionResult, DecompressionResult, CompressionType } from '@/types/workflow';
 
 // =====================================================

@@ -20,6 +20,7 @@ import {
   getBatchesByStage,
   getBatchesByCultivar,
   getActiveBatches,
+  getBatchInventoryUsage,
 } from '../batches';
 import { createClient } from '@/lib/supabase/server';
 import { MockQueryBuilder } from './test-helpers';
@@ -364,6 +365,64 @@ describe('Batch Queries', () => {
       const result = await getActiveBatches('org-1', 'site-1');
 
       expect(result.data).toEqual(mockBatches);
+      expect(result.error).toBeNull();
+    });
+  });
+
+  describe('getBatchInventoryUsage', () => {
+    it('returns aggregated inventory usage when movements exist', async () => {
+      const mockMovements = [
+        {
+          id: 'move-1',
+          movement_type: 'consume',
+          quantity: 5,
+          lot_id: 'lot-1',
+          timestamp: '2025-11-14T10:00:00Z',
+          item: {
+            id: 'item-1',
+            name: 'Propagation cubes',
+            item_type: 'growing_medium',
+            unit_of_measure: 'tray',
+          },
+        },
+        {
+          id: 'move-2',
+          movement_type: 'receive',
+          quantity: 20,
+          lot_id: null,
+          timestamp: '2025-11-14T11:00:00Z',
+          item: {
+            id: 'item-2',
+            name: 'Harvest biomass',
+            item_type: 'other',
+            unit_of_measure: 'kg',
+          },
+        },
+      ];
+
+      const mockQuery = new MockQueryBuilder(mockMovements);
+      mockCreateClient.mockResolvedValue({
+        from: jest.fn().mockReturnValue(mockQuery),
+      } as any);
+
+      const result = await getBatchInventoryUsage('batch-1');
+
+      expect(result.error).toBeNull();
+      expect(result.data).not.toBeNull();
+      expect(result.data?.entries).toHaveLength(2);
+      expect(result.data?.summary.consumed_by_type.growing_medium).toBe(5);
+      expect(result.data?.summary.received_by_type.other).toBe(20);
+    });
+
+    it('returns null data when no movements found', async () => {
+      const mockQuery = new MockQueryBuilder([]);
+      mockCreateClient.mockResolvedValue({
+        from: jest.fn().mockReturnValue(mockQuery),
+      } as any);
+
+      const result = await getBatchInventoryUsage('batch-1');
+
+      expect(result.data).toBeNull();
       expect(result.error).toBeNull();
     });
   });

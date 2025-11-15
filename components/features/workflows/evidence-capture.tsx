@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { EvidenceType, DualSignature } from '@/types/workflow';
 import { Camera, QrCode, PenTool, Upload, Check, X } from 'lucide-react';
 import { DualSignatureCapture } from './dual-signature-capture';
+import { useToast } from '@/components/ui/use-toast';
 
 interface EvidenceCaptureProps {
   type: EvidenceType;
@@ -37,22 +38,35 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
   const [qrScanning, setQrScanning] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleNumericSubmit = () => {
     const numValue = parseFloat(value);
     
     if (isNaN(numValue)) {
-      alert('Please enter a valid number');
+      toast({
+        title: 'Invalid number',
+        description: 'Please enter a valid numeric value.',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (config?.minValue !== undefined && numValue < config.minValue) {
-      alert(`Value must be at least ${config.minValue} ${config.unit || ''}`);
+      toast({
+        title: 'Value too low',
+        description: `Value must be at least ${config.minValue} ${config.unit || ''}`,
+        variant: 'destructive',
+      });
       return;
     }
 
     if (config?.maxValue !== undefined && numValue > config.maxValue) {
-      alert(`Value must be at most ${config.maxValue} ${config.unit || ''}`);
+      toast({
+        title: 'Value too high',
+        description: `Value must be at most ${config.maxValue} ${config.unit || ''}`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -61,7 +75,11 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
 
   const handleCheckboxSubmit = () => {
     if (checkedOptions.length === 0) {
-      alert('Please select at least one option');
+      toast({
+        title: 'Selection required',
+        description: 'Please select at least one option.',
+        variant: 'destructive',
+      });
       return;
     }
     onCapture(checkedOptions);
@@ -86,7 +104,11 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
 
   const handlePhotoSubmit = () => {
     if (!value) {
-      alert('Please capture or upload a photo');
+      toast({
+        title: 'Photo required',
+        description: 'Capture or upload a photo before submitting.',
+        variant: 'destructive',
+      });
       return;
     }
     onCapture(value);
@@ -162,17 +184,29 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
 
   const handleTextSubmit = () => {
     if (!value) {
-      alert('Please enter text');
+      toast({
+        title: 'Text required',
+        description: 'Please enter a response.',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (config?.minLength && value.length < config.minLength) {
-      alert(`Text must be at least ${config.minLength} characters`);
+      toast({
+        title: 'Response too short',
+        description: `Text must be at least ${config.minLength} characters.`,
+        variant: 'destructive',
+      });
       return;
     }
 
     if (config?.maxLength && value.length > config.maxLength) {
-      alert(`Text must be at most ${config.maxLength} characters`);
+      toast({
+        title: 'Response too long',
+        description: `Text must be at most ${config.maxLength} characters.`,
+        variant: 'destructive',
+      });
       return;
     }
 

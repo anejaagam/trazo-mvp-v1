@@ -6,6 +6,8 @@ import { Task, SOPTemplate, TaskEvidence } from '@/types/workflow';
 import { completeTaskAction, saveTaskProgressAction, startTaskAction } from '@/app/actions/tasks';
 import { useState, useEffect } from 'react';
 import type { RoleKey } from '@/lib/rbac/types';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/components/ui/use-toast';
 
 interface TaskExecutorWrapperProps {
   task: Task;
@@ -18,6 +20,8 @@ interface TaskExecutorWrapperProps {
 export function TaskExecutorWrapper({ task, template, userId, userRole, additionalPermissions = [] }: TaskExecutorWrapperProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Auto-start task if not started
   useEffect(() => {
@@ -25,9 +29,24 @@ export function TaskExecutorWrapper({ task, template, userId, userRole, addition
       if (task.status === 'to_do' && !isStarting) {
         setIsStarting(true);
         try {
-          await startTaskAction(task.id);
+          const result = await startTaskAction(task.id);
+          if (result?.error) {
+            const message = typeof result.error === 'string' ? result.error : 'Failed to start task';
+            setStartError(message);
+            toast({
+              title: 'Unable to start task',
+              description: message,
+              variant: 'destructive',
+            });
+          }
         } catch (error) {
           console.error('Error auto-starting task:', error);
+          setStartError('Unable to move task into progress.');
+          toast({
+            title: 'Unable to start task',
+            description: 'An unexpected error occurred while starting the task.',
+            variant: 'destructive',
+          });
         } finally {
           setIsStarting(false);
         }
@@ -35,7 +54,7 @@ export function TaskExecutorWrapper({ task, template, userId, userRole, addition
     };
 
     autoStart();
-  }, [task.id, task.status, isStarting]);
+  }, [task.id, task.status, isStarting, toast]);
 
   const handleComplete = async (evidence: TaskEvidence[]) => {
     const result = await completeTaskAction(task.id, evidence);
@@ -72,14 +91,23 @@ export function TaskExecutorWrapper({ task, template, userId, userRole, addition
   }
 
   return (
-    <TaskExecutor
-      task={task}
-      template={template}
-      onComplete={handleComplete}
-      onSaveDraft={handleSaveDraft}
-      onClose={handleClose}
-      userRole={userRole}
-      additionalPermissions={additionalPermissions}
-    />
+    <>
+      {startError && (
+        <div className="mb-4">
+          <Alert variant="destructive">
+            <AlertDescription>{startError}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+      <TaskExecutor
+        task={task}
+        template={template}
+        onComplete={handleComplete}
+        onSaveDraft={handleSaveDraft}
+        onClose={handleClose}
+        userRole={userRole}
+        additionalPermissions={additionalPermissions}
+      />
+    </>
   );
 }

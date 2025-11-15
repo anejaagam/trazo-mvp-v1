@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,13 +9,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Task, SOPTemplate, SOPStep, TaskEvidence } from '@/types/workflow';
 import { createClient as createBrowserSupabase } from '@/lib/supabase/client';
 import { DualSignatureCapture } from './dual-signature-capture';
-import { X, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, Save, GitBranch, SkipForward } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle, Save, GitBranch, SkipForward, RefreshCw } from 'lucide-react';
 import type { RoleKey } from '@/lib/rbac/types';
 import { usePermissions } from '@/hooks/use-permissions';
 import { EvidenceCapture } from './evidence-capture';
 import { compressEvidence } from '@/lib/utils/evidence-compression';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface TaskExecutorProps {
   task: Task;
@@ -58,14 +68,27 @@ export function TaskExecutor({
   // Track skipped steps separately (reason map) instead of overloading TaskEvidence type
   const [skippedSteps, setSkippedSteps] = useState<Record<string, string>>({});
   const [retainOriginalEvidence, setRetainOriginalEvidence] = useState(false);
+  const [skipDialogOpen, setSkipDialogOpen] = useState(false);
+  const [skipReasonDraft, setSkipReasonDraft] = useState('');
+  const [pendingSkipStep, setPendingSkipStep] = useState<SOPStep | null>(null);
+  const [refreshingBlocking, setRefreshingBlocking] = useState(false);
   const { can } = usePermissions(userRole ?? null, additionalPermissions);
   const canRetainOriginalEvidence = can('task:retain_original_evidence');
+  const { toast } = useToast();
+  const draftStorageKey = useMemo(() => `task-exec-draft-${task.id}`, [task.id]);
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch {
+      // ignore storage errors
+    }
+  };
   
   // Offline draft persistence (localStorage)
   useEffect(() => {
     // Load draft if exists
     try {
-      const raw = localStorage.getItem(`task-exec-draft-${task.id}`);
+      const raw = localStorage.getItem(draftStorageKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.evidence)) {
@@ -94,13 +117,13 @@ export function TaskExecutor({
     const to = setTimeout(() => {
       try {
         const payload = JSON.stringify({ evidence, currentStepIndex, retainOriginalEvidence });
-        localStorage.setItem(`task-exec-draft-${task.id}`, payload);
+        localStorage.setItem(draftStorageKey, payload);
       } catch {
         // ignore
       }
     }, 400);
     return () => clearTimeout(to);
-  }, [evidence, currentStepIndex, retainOriginalEvidence, task.id]);
+  }, [draftStorageKey, evidence, currentStepIndex, retainOriginalEvidence]);
   // Compression summary derived data
   const compressionSummary = (() => {
     const compressedItems = evidence.filter(e => e.compressed && typeof e.originalSize === 'number' && typeof e.compressedSize === 'number');
@@ -121,7 +144,7 @@ export function TaskExecutor({
   const progress = Math.round(((currentStepIndex + 1) / template.steps.length) * 100);
   const isLastStep = currentStepIndex === template.steps.length - 1;
   const hasEvidence = currentStep ? evidence.some(e => e.stepId === currentStep.id) : false;
-  const requiresTemplateDualSignoff = template.requires_dual_signoff && !completionDualSignature; // Permission checks omitted
+  const needsDualSignoffCompletion = template.requires_dual_signoff && !completionDualSignature; // Permission checks omitted
 
   // Derive dual sign-off roles (simple heuristic)
   const deriveDualConfig = (): { role1: string; role2: string; description: string; requiredRoles: string[] } => {
@@ -289,14 +312,42 @@ export function TaskExecutor({
     setCurrentStepIndex(prev => Math.max(prev - 1, 0));
   };
 
+  const closeSkipDialog = () => {
+    setSkipDialogOpen(false);
+    setSkipReasonDraft('');
+    setPendingSkipStep(null);
+  };
+
   // Skip current step with reason (stores synthetic evidence record for audit)
   const handleSkipStep = () => {
     if (!currentStep) return;
-    const reason = window.prompt(`Enter reason to skip step: "${currentStep.title}"`);
-    if (!reason) return; // require explicit reason
-    // Record skip without mutating evidence to invalid type shape
-    setSkippedSteps(prev => ({ ...prev, [currentStep.id]: reason }));
-    // Advance to next step
+    setPendingSkipStep(currentStep);
+    setSkipReasonDraft('');
+    setSkipDialogOpen(true);
+  };
+
+  const confirmSkipStep = () => {
+    if (!pendingSkipStep) return;
+    if (!skipReasonDraft.trim()) {
+      toast({
+        title: 'Reason required',
+        description: 'Please describe why this step is being skipped.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSkippedSteps((prev) => ({
+      ...prev,
+      [pendingSkipStep.id]: skipReasonDraft.trim(),
+    }));
+
+    toast({
+      title: 'Step skipped',
+      description: `${pendingSkipStep.title} marked as skipped.`,
+    });
+
+    closeSkipDialog();
     handleNext();
   };
 
@@ -308,10 +359,30 @@ export function TaskExecutor({
       await onSaveDraft(evidence, currentStepIndex);
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert('Failed to save draft. Please try again.');
+      toast({
+        title: 'Save failed',
+        description: 'Failed to save draft. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleBlockingRefresh = async () => {
+    setRefreshingBlocking(true);
+    const snapshot = await fetchBlockingSnapshot();
+    if (snapshot) {
+      setBlockingInfo(snapshot);
+      toast({
+        title: snapshot.blocked ? 'Prerequisites still pending' : 'Task unblocked',
+        description: snapshot.blocked
+          ? 'Complete the listed prerequisites to continue.'
+          : 'All blocking tasks are complete. You can resume this task.',
+        variant: snapshot.blocked ? 'default' : 'success',
+      });
+    }
+    setRefreshingBlocking(false);
   };
 
   const handleComplete = async () => {
@@ -321,17 +392,24 @@ export function TaskExecutor({
       .filter(step => !evidence.some(e => e.stepId === step.id));
 
     if (missingEvidence.length > 0) {
-      alert(`Please complete all required evidence. Missing: ${missingEvidence.map(s => s.title).join(', ')}`);
+      toast({
+        title: 'Evidence required',
+        description: `Missing: ${missingEvidence.map(s => s.title).join(', ')}`,
+        variant: 'destructive',
+      });
       return;
     }
 
     // Simulate offline sync
     if (isOffline) {
-      alert('Task will sync when connection is restored');
+      toast({
+        title: 'Offline mode',
+        description: 'Task will sync when connection is restored.',
+      });
     }
 
     // If template-level dual signoff required and not yet captured, open panel instead of completing
-    if (requiresTemplateDualSignoff) {
+    if (needsDualSignoffCompletion) {
       setShowDualSignoffPanel(true);
       return;
     }
@@ -339,9 +417,14 @@ export function TaskExecutor({
     setIsCompleting(true);
     try {
       await onComplete(evidence);
+      clearDraft();
     } catch (error) {
       console.error('Error completing task:', error);
-      alert('Failed to complete task. Please try again.');
+      toast({
+        title: 'Completion failed',
+        description: 'Failed to complete task. Please try again.',
+        variant: 'destructive',
+      });
       setIsCompleting(false);
     }
   };
@@ -354,7 +437,11 @@ export function TaskExecutor({
     const sig2Role = (completionDualSignature as { signature2?: { role?: string } })?.signature2?.role;
     const rolesDistinct = sig1Role && sig2Role && sig1Role !== sig2Role;
     if (!rolesDistinct) {
-      alert('Dual sign-off requires two distinct authorized roles.');
+      toast({
+        title: 'Dual sign-off blocked',
+        description: 'Dual sign-off requires two distinct authorized roles.',
+        variant: 'destructive',
+      });
       return;
     }
     setIsCompleting(true);
@@ -389,13 +476,16 @@ export function TaskExecutor({
       };
       const updated = [...evidence, dualEvidence];
       await onComplete(updated);
+      clearDraft();
     } catch (err) {
       console.error('Dual signoff completion error:', err);
-      alert('Failed during dual sign-off completion.');
+      toast({
+        title: 'Completion failed',
+        description: 'Failed during dual sign-off completion.',
+        variant: 'destructive',
+      });
       setIsCompleting(false);
     }
-    // Clear draft upon successful completion
-    try { localStorage.removeItem(`task-exec-draft-${task.id}`); } catch {}
   };
 
   // Simulate offline detection
@@ -412,31 +502,45 @@ export function TaskExecutor({
     };
   }, []);
 
-  // Fetch blocking prerequisite status once on mount (client-side approximation)
+  const fetchBlockingSnapshot = useCallback(async () => {
+    try {
+      const supabase = createBrowserSupabase();
+      const { data, error } = await supabase
+        .from('task_dependencies')
+        .select('depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id,title,status)')
+        .eq('task_id', task.id)
+        .eq('dependency_type', 'blocking');
+      if (error) throw error;
+      const incomplete = ((data || []) as Array<{ depends_on: { id: string; title: string; status: string } }>)
+        .filter((entry) => entry.depends_on.status !== 'done' && entry.depends_on.status !== 'approved')
+        .map((entry) => ({
+          id: entry.depends_on.id,
+          title: entry.depends_on.title,
+          status: entry.depends_on.status,
+        }));
+      return { blocked: incomplete.length > 0, incomplete };
+    } catch (err) {
+      console.error('Error fetching blocking prerequisites:', err);
+      return null;
+    }
+  }, [task.id]);
+
+  // Fetch blocking prerequisite status on mount and poll periodically
   useEffect(() => {
-    let ignore = false;
-    const fetchBlocking = async () => {
-      try {
-        const supabase = createBrowserSupabase();
-        const { data, error } = await supabase
-          .from('task_dependencies')
-          .select('depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id,title,status)')
-          .eq('task_id', task.id)
-          .eq('dependency_type', 'blocking');
-        if (error) return;
-        const incomplete = ((data || []) as unknown as Array<{ depends_on: { id: string; title: string; status: string } }>)
-          .filter(d => d.depends_on.status !== 'done' && d.depends_on.status !== 'approved')
-          .map(d => ({ id: d.depends_on.id, title: d.depends_on.title, status: d.depends_on.status }));
-        if (!ignore) {
-          setBlockingInfo({ blocked: incomplete.length > 0, incomplete });
-        }
-      } catch {
-        // silent
+    let active = true;
+    const run = async () => {
+      const snapshot = await fetchBlockingSnapshot();
+      if (active && snapshot) {
+        setBlockingInfo(snapshot);
       }
     };
-    fetchBlocking();
-    return () => { ignore = true; };
-  }, [task.id]);
+    run();
+    const interval = setInterval(run, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [fetchBlockingSnapshot]);
 
   // Initialize trail with first step
   useEffect(() => {
@@ -520,16 +624,40 @@ export function TaskExecutor({
           {/* Blocking prerequisites banner */}
           {blockingInfo?.blocked && task.status === 'blocked' && (
             <Alert className="border-red-200 bg-red-50">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-900">
-                <p className="font-medium mb-2">Task Blocked by Prerequisites</p>
-                <p className="text-sm mb-2">Complete the following tasks to unblock execution:</p>
-                <ul className="text-sm list-disc ml-5 space-y-1">
-                  {blockingInfo.incomplete.map(pr => (
-                    <li key={pr.id}>{pr.title} <Badge variant="outline" className="ml-1">{pr.status}</Badge></li>
-                  ))}
-                </ul>
-              </AlertDescription>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-red-600 mt-1" />
+                <AlertDescription className="text-red-900 flex-1">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-medium">Task blocked by prerequisites</p>
+                      <p className="text-sm text-red-800">
+                        Complete the following tasks to continue execution.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={handleBlockingRefresh}
+                      disabled={refreshingBlocking}
+                    >
+                      <RefreshCw
+                        className={`mr-1 h-3 w-3 ${refreshingBlocking ? 'animate-spin' : ''}`}
+                      />
+                      {refreshingBlocking ? 'Refreshing...' : 'Refresh'}
+                    </Button>
+                  </div>
+                  <ul className="mt-3 text-sm list-disc ml-5 space-y-1">
+                    {blockingInfo.incomplete.map((pr) => (
+                      <li key={pr.id}>
+                        {pr.title}{' '}
+                        <Badge variant="outline" className="ml-1">
+                          {pr.status}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </div>
             </Alert>
           )}
 
@@ -729,15 +857,55 @@ export function TaskExecutor({
               className="bg-green-600 hover:bg-green-700"
             >
               <CheckCircle2 className="w-4 h-4 mr-2" />
-              {requiresTemplateDualSignoff ? 'Begin Dual Sign-off' : (isCompleting ? 'Completing...' : 'Complete Task')}
+              {needsDualSignoffCompletion ? 'Begin Dual Sign-off' : (isCompleting ? 'Completing...' : 'Complete Task')}
             </Button>
           )}
         </div>
       </div>
     </div>
 
+    {/* Skip Step Reason Dialog */}
+    <Dialog
+      open={skipDialogOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeSkipDialog();
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Skip Step</DialogTitle>
+          <DialogDescription>
+            Provide a short explanation so the audit trail captures why this step is being skipped.
+            {pendingSkipStep && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Current step: {pendingSkipStep.title}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="skip-reason">Reason</Label>
+          <Textarea
+            id="skip-reason"
+            value={skipReasonDraft}
+            onChange={(event) => setSkipReasonDraft(event.target.value)}
+            placeholder="Explain why this step is not applicable right now..."
+            rows={3}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={closeSkipDialog}>
+            Cancel
+          </Button>
+          <Button onClick={confirmSkipStep}>Save &amp; Skip</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     {/* Template-level Dual Sign-off Modal */}
-    {showDualSignoffPanel && requiresTemplateDualSignoff && (
+    {showDualSignoffPanel && template.requires_dual_signoff && (
       <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4">
         <div className="w-full max-w-3xl bg-white rounded-lg shadow-xl p-6 space-y-6">
           <div className="flex items-center justify-between">

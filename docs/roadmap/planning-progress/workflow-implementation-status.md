@@ -23,6 +23,12 @@ Phases 1–5 are complete. Phase 6 remains partially delivered (compression back
 
 Minor UX polish items (keyboard shortcuts, loading skeleton) deferred to Phase 7 quality pass.
 
+## Recent Enhancements – May 2026
+- **Status-aware dashboard filters** – Added multi-select status filtering, count badges, and expanded board/list coverage (`app/dashboard/workflows/workflows-dashboard-client.tsx`, `components/features/workflows/task-board.tsx`, `components/features/workflows/task-list.tsx`). Operators can now drill into approval/exception states without leaving the workflows hub.
+- **Richer task payloads** – Supabase queries now hydrate template metadata and step counts for every task fetch, powering the new progress indicators and status filters (`lib/supabase/queries/workflows.ts`, `types/workflow.ts`).
+- **Execution UX polishing** – TaskExecutor gained a skip-step dialog with required reason capture, auto-refresh for blocking prerequisites, and toast-based error messaging (`components/features/workflows/task-executor.tsx`, `components/features/workflows/__tests__/task-executor.test.tsx`).
+- **Evidence validation feedback** – Evidence capture inputs surface inline toast guidance instead of blocking alerts, improving mobile ergonomics (`components/features/workflows/evidence-capture.tsx`).
+
 ## Completed Phases
 
 ### Phase 1: Database Schema – COMPLETE

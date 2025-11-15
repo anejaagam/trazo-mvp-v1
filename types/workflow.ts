@@ -331,6 +331,7 @@ export interface Task {
   sop_template_id?: string;
   template_name?: string;
   template_version?: string;
+  template_step_count?: number;
   
   // Basic info
   title: string;

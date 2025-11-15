@@ -71,4 +71,49 @@ describe('WorkflowsDashboardClient', () => {
 
     expect(screen.queryByRole('button', { name: /New Task/i })).not.toBeInTheDocument();
   });
+
+  it('switches between board and list views', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <WorkflowsDashboardClient
+        myTasks={[baseTask]}
+        allTasks={[baseTask]}
+        userId="user-1"
+        canCreateTask
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /List/i }));
+    expect(screen.getByPlaceholderText('Search tasks...')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Board/i }));
+    expect(screen.getByText('To Do')).toBeInTheDocument();
+  });
+
+  it('filters tasks via the status dropdown', async () => {
+    const user = userEvent.setup();
+    const doneTask: Task = {
+      ...baseTask,
+      id: 'task-2',
+      title: 'Calibrate Sensors',
+      status: 'done',
+    };
+
+    render(
+      <WorkflowsDashboardClient
+        myTasks={[baseTask, doneTask]}
+        allTasks={[baseTask, doneTask]}
+        userId="user-1"
+        canCreateTask
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /List/i }));
+    await user.click(screen.getByRole('button', { name: /All statuses/i }));
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /To Do/i }));
+
+    expect(await screen.findByText('Calibrate Sensors')).toBeInTheDocument();
+    expect(screen.queryByText('Inspect Irrigation')).not.toBeInTheDocument();
+  });
 });

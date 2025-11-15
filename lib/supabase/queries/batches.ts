@@ -6,8 +6,10 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
+import { advanceRecipeStageForBatch, syncPodAndBatchRecipes } from '@/lib/recipes/recipe-sync'
 import type {
   Batch,
+  BatchInventoryUsage,
   DomainBatch,
   InsertBatch,
   UpdateBatch,
@@ -16,6 +18,7 @@ import type {
   BatchStage,
   DomainType,
 } from '@/types/batch'
+import type { ItemType, MovementType } from '@/types/inventory'
 
 /**
  * Get all batches for an organization/site with optional filtering
@@ -264,6 +267,12 @@ export async function transitionBatchStage(
 
     if (error) throw error
 
+    await advanceRecipeStageForBatch({
+      supabase,
+      batchId,
+      userId,
+    })
+
     // Get updated batch
     return await getBatchById(batchId)
   } catch (error) {
@@ -391,6 +400,112 @@ export async function recordHarvest(
 }
 
 /**
+ * Get aggregated inventory usage for a batch
+ */
+export async function getBatchInventoryUsage(batchId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('inventory_movements')
+      .select(
+        `
+        id,
+        movement_type,
+        quantity,
+        lot_id,
+        timestamp,
+        item:inventory_items!inner(
+          id,
+          name,
+          item_type,
+          unit_of_measure
+        )
+      `
+      )
+      .eq('batch_id', batchId)
+      .order('timestamp', { ascending: false })
+
+    if (error) throw error
+    if (!data || data.length === 0) {
+      return { data: null, error: null }
+    }
+
+    const usage = buildInventoryUsageFromRows(data as InventoryMovementRow[])
+    return { data: usage, error: null }
+  } catch (error) {
+    console.error('Error in getBatchInventoryUsage:', error)
+    return { data: null, error }
+  }
+}
+
+type InventoryMovementRow = {
+  id: string
+  movement_type: string
+  quantity: number
+  lot_id: string | null
+  timestamp: string
+  item:
+    | {
+        id: string
+        name: string
+        item_type: string
+        unit_of_measure?: string | null
+      }
+    | null
+}
+
+function buildInventoryUsageFromRows(rows: InventoryMovementRow[]): BatchInventoryUsage {
+  const entriesMap = new Map<string, BatchInventoryUsage['entries'][number]>()
+  const consumedSummary: Record<string, number> = {}
+  const receivedSummary: Record<string, number> = {}
+
+  rows.forEach((row) => {
+    if (!row.item?.id) {
+      return
+    }
+
+    const movementType = row.movement_type as MovementType
+    const key = `${row.item.id}-${movementType}`
+    const quantity = Number(row.quantity) || 0
+    const existing = entriesMap.get(key)
+
+    if (existing) {
+      existing.total_quantity += quantity
+      if (new Date(row.timestamp) > new Date(existing.last_movement_at)) {
+        existing.last_movement_at = row.timestamp
+      }
+      if (row.lot_id) {
+        existing.lot_count += 1
+      }
+    } else {
+      entriesMap.set(key, {
+        item_id: row.item.id,
+        item_name: row.item.name,
+        item_type: row.item.item_type as ItemType,
+        movement_type: movementType,
+        total_quantity: quantity,
+        unit_of_measure: row.item.unit_of_measure || null,
+        last_movement_at: row.timestamp,
+        lot_count: row.lot_id ? 1 : 0,
+      })
+    }
+
+    const bucket = movementType === 'receive' ? receivedSummary : consumedSummary
+    bucket[row.item.item_type] = (bucket[row.item.item_type] || 0) + quantity
+  })
+
+  return {
+    entries: Array.from(entriesMap.values()).sort(
+      (a, b) => new Date(b.last_movement_at).getTime() - new Date(a.last_movement_at).getTime()
+    ),
+    summary: {
+      consumed_by_type: consumedSummary,
+      received_by_type: receivedSummary,
+    },
+  }
+}
+
+/**
  * Update plant count for a batch
  */
 export async function updatePlantCount(
@@ -474,6 +589,13 @@ export async function assignBatchToPod(
     await createBatchEvent(batchId, 'pod_assignment', userId, {
       pod_id: podId,
       plant_count: plantCount,
+    })
+
+    await syncPodAndBatchRecipes({
+      supabase,
+      batchId,
+      podId,
+      userId,
     })
 
     return { data: { batch_id: batchId, pod_id: podId }, error: null }

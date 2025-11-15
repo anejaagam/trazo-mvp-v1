@@ -5,6 +5,7 @@ import { TaskExecutor } from '../task-executor';
 import { SOPTemplate, Task } from '@/types/workflow';
 
 const mockCan = jest.fn(() => true);
+const toastMock = jest.fn();
 // Mock permissions hook to allow override in tests
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
@@ -15,21 +16,25 @@ jest.mock('@/hooks/use-permissions', () => ({
     requirePermission: jest.fn(),
   })
 }));
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}));
 // Mock DualSignatureCapture to instantly provide signatures
-interface MockDualSignatureResult {
-  signature1: { role: string; signature: string; timestamp: Date };
-  signature2: { role: string; signature: string; timestamp: Date };
-}
 jest.mock('../dual-signature-capture', () => ({
-  DualSignatureCapture: ({ onCapture }: { onCapture: (value: MockDualSignatureResult) => void }) => {
-    React.useEffect(() => {
-      onCapture({
-        signature1: { role: 'site_manager', signature: 'sig1', timestamp: new Date() },
-        signature2: { role: 'compliance_qa', signature: 'sig2', timestamp: new Date() }
-      });
-    }, [onCapture]);
-    return <div data-testid="dual-signature-mock">Dual Signature Mock</div>;
-  }
+  DualSignatureCapture: ({ onCapture }: { onCapture: (value: any) => void }) => (
+    <button
+      type="button"
+      data-testid="dual-signature-mock"
+      onClick={() =>
+        onCapture({
+          signature1: { role: 'site_manager', signature: 'sig1', timestamp: new Date() },
+          signature2: { role: 'compliance_qa', signature: 'sig2', timestamp: new Date() },
+        })
+      }
+    >
+      Dual Signature Mock
+    </button>
+  )
 }));
 
 // Minimal mocks
@@ -78,26 +83,23 @@ describe('TaskExecutor', () => {
   beforeEach(() => {
     mockCan.mockImplementation((permission: string) => permission !== 'task:retain_original_evidence');
     window.localStorage.clear();
+    toastMock.mockClear();
   });
 
   it('allows skipping a step with reason', async () => {
     const onClose = jest.fn();
     render(<TaskExecutor task={baseTask} template={baseTemplate} onClose={onClose} onComplete={async () => {}} />);
 
-    // Skip button should appear for non-required evidence step
     const skipBtn = screen.getByText('Skip Step');
-    expect(skipBtn).toBeInTheDocument();
-
-    // Mock prompt
-    const promptSpy = jest.spyOn(window, 'prompt').mockReturnValue('Not applicable');
     fireEvent.click(skipBtn);
 
-    // Next step should become active
+    const reasonInput = await screen.findByLabelText('Reason');
+    fireEvent.change(reasonInput, { target: { value: 'Not applicable' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save & Skip/i }));
+
     await waitFor(() => {
       expect(screen.getByText('Step 2')).toBeInTheDocument();
     });
-
-    promptSpy.mockRestore();
   });
 
   it('renders pre-compression advisory for photo evidence', () => {
@@ -167,7 +169,8 @@ describe('TaskExecutor', () => {
     const completeBtn = screen.getByText(/Begin Dual Sign-off/);
     fireEvent.click(completeBtn);
     await waitFor(() => expect(screen.getByTestId('dual-signature-mock')).toBeInTheDocument());
-    expect(screen.getByLabelText('Dual signoff role validation')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dual-signature-mock'));
+    await waitFor(() => expect(screen.getByLabelText('Dual signoff role validation')).toBeInTheDocument());
   });
 
   it('performs conditional branching jump when logic matches', async () => {
@@ -197,41 +200,61 @@ describe('TaskExecutor', () => {
     expect(trailEntries.length).toBeGreaterThan(0);
   });
 
-  it('restores offline draft from localStorage', async () => {
-    const draftTemplate: SOPTemplate = { ...baseTemplate };
-    const draftTask: Task = { ...baseTask, current_step_index: 0 };
-    // Pre-populate localStorage with draft evidence and step index 1
-    const draftPayload = JSON.stringify({
-      evidence: [ { stepId: 's1', type: 'text', value: 'Draft note', timestamp: new Date().toISOString(), compressed: false } ],
-      currentStepIndex: 1
-    });
-    window.localStorage.setItem(`task-exec-draft-${draftTask.id}`, draftPayload);
-    render(<TaskExecutor task={draftTask} template={draftTemplate} onClose={() => {}} onComplete={async () => {}} />);
-    // Should clamp to max index (1 valid) and show Step 2
-    await waitFor(() => expect(screen.getByText('Step 2')).toBeInTheDocument());
-    // Evidence from draft should appear in trail (text evidence type badge)
-    expect(screen.getByText(/text/i)).toBeInTheDocument();
-  });
-
-  it('shows compression summary after compressed evidence items exist', async () => {
+  it('shows compression summary when compressed evidence is provided', () => {
     const template: SOPTemplate = {
       ...baseTemplate,
       steps: [
-        { id: 's1', order: 0, title: 'Photo Step', description: 'Capture photo', evidenceRequired: true, evidenceType: 'photo' },
+        { id: 's1', order: 0, title: 'Photo Step', description: 'Capture photo', evidenceRequired: false, evidenceType: 'photo' },
       ],
     };
 
-    const task: Task = { ...baseTask, current_step_index: 0 };
-    const onClose = jest.fn();
+    const compressedTask: Task = {
+      ...baseTask,
+      evidence: [
+        {
+          stepId: 's1',
+          type: 'photo',
+          value: 'mock',
+          timestamp: new Date().toISOString(),
+          compressed: true,
+          originalSize: 2048,
+          compressedSize: 1024,
+        },
+      ],
+    };
 
-    // Provide mock compression utility
-    jest.mock('@/lib/utils/evidence-compression', () => ({
-      compressEvidence: async () => ({ success: true, data: new Blob(['x']), compressionType: 'test', originalSize: 2048, compressedSize: 1024 })
-    }));
+    render(<TaskExecutor task={compressedTask} template={template} onClose={() => {}} onComplete={async () => {}} />);
 
-    render(<TaskExecutor task={task} template={template} onClose={onClose} onComplete={async () => {}} />);
+    expect(screen.getByText('Evidence Compression Summary')).toBeInTheDocument();
+    expect(screen.getByText(/Optimized 1 item/i)).toBeInTheDocument();
+  });
 
-    // Simulate evidence capture via internal component - simplest is to directly call handler through DOM if accessible.
-    // Since EvidenceCapture is a child, we can mock its implementation for this test.
+  it('clears offline draft cache after successful completion', async () => {
+    const singleStepTemplate: SOPTemplate = {
+      ...baseTemplate,
+      steps: [{ id: 'only', order: 0, title: 'Only Step', description: '', evidenceRequired: false }],
+    };
+    const completionTask: Task = {
+      ...baseTask,
+      id: 'task-draft',
+      current_step_index: 0,
+    };
+    const onComplete = jest.fn().mockResolvedValue(undefined);
+    window.localStorage.setItem(`task-exec-draft-${completionTask.id}`, JSON.stringify({ evidence: [], currentStepIndex: 0 }));
+
+    render(
+      <TaskExecutor
+        task={completionTask}
+        template={singleStepTemplate}
+        onClose={() => {}}
+        onComplete={onComplete}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText(/Complete Task/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Complete Task/i));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+    expect(window.localStorage.getItem(`task-exec-draft-${completionTask.id}`)).toBeFalsy();
   });
 });

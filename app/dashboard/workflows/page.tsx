@@ -47,6 +47,7 @@ export default async function WorkflowsDashboardPage() {
   }
 
   const canCreateTask = canPerformAction(userData.role, 'task:create').allowed;
+  const canViewTasks = permissionCheck.allowed;
 
   // Get user's tasks (with error handling)
   let myTasks: Task[] = [];
@@ -57,8 +58,11 @@ export default async function WorkflowsDashboardPage() {
     myTasks = myTasksResult.data || [];
 
     // Get all tasks for the site (if user has permission and has a site)
-    if (canPerformAction(userData.role, 'task:view').allowed && site_id) {
-      const allTasksResult = await getTasks({ site_id });
+    if (canViewTasks && site_id) {
+      const allTasksResult = await getTasks(
+        { site_id },
+        { page: 1, pageSize: 200, sortBy: 'due_date', sortOrder: 'asc' }
+      );
       allTasks = allTasksResult.data || [];
     } else {
       allTasks = myTasks;

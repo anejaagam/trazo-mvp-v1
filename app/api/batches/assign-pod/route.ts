@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { syncPodAndBatchRecipes } from '@/lib/recipes/recipe-sync'
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,39 +50,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: releaseError.message }, { status: 500 })
     }
 
-    const { data: activeRecipe } = await supabase
-      .from('recipe_activations')
-      .select(
-        `
-        id,
-        recipe_id,
-        recipe_version_id,
-        recipe:recipes(id, name),
-        recipe_version:recipe_versions(id)
-      `
-      )
-      .eq('scope_type', 'batch')
-      .eq('scope_id', batchId)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (activeRecipe?.recipe_id && activeRecipe?.recipe_version_id) {
-      const { data: pod } = await supabase
+    const [{ data: batch }, { data: pod }] = await Promise.all([
+      supabase
+        .from('batches')
+        .select('batch_number')
+        .eq('id', batchId)
+        .maybeSingle(),
+      supabase
         .from('pods')
         .select('name')
         .eq('id', podId)
-        .maybeSingle()
+        .maybeSingle(),
+    ])
 
-      await supabase.rpc('activate_recipe', {
-        p_recipe_id: activeRecipe.recipe_id,
-        p_recipe_version_id: activeRecipe.recipe_version_id,
-        p_scope_type: 'pod',
-        p_scope_id: podId,
-        p_scope_name: pod?.name || podId,
-        p_activated_by: userId,
-        p_scheduled_start: new Date().toISOString(),
-      })
-    }
+    await syncPodAndBatchRecipes({
+      supabase,
+      batchId,
+      podId,
+      userId,
+      batchNumber: batch?.batch_number ?? null,
+      podName: pod?.name ?? null,
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

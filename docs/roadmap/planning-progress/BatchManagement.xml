@@ -729,17 +729,32 @@
   </seed-data>
 
   <integration-with-modules status="in-progress">
-    <step id="4.1" checkpoint="true" status="in-progress">
+    <step id="4.1" checkpoint="true" status="complete" completed-date="2025-11-16">
       <action>Integrate with Inventory Module</action>
       <tasks>
-        <task status="pending">Link batch creation to inventory consumption (seeds, clones)</task>
-        <task status="pending">Link harvest to inventory addition (harvested product)</task>
-        <task status="pending">Track nutrient/chemical usage per batch</task>
+        <task status="complete">Link batch creation to inventory consumption (seeds, clones)</task>
+        <task status="complete">Link harvest to inventory addition (harvested product)</task>
+        <task status="complete">Track nutrient/chemical usage per batch</task>
         <task status="complete">Add batch_id field to inventory_movements table</task>
-        <task status="pending">Create getBatchInventoryUsage(batchId) query</task>
-        <task status="pending">Display inventory usage in batch detail view</task>
+        <task status="complete">Create getBatchInventoryUsage(batchId) query</task>
+        <task status="complete">Display inventory usage in batch detail view</task>
       </tasks>
-      <note>Only schema prerequisite (batch_id on inventory_movements) is in place; no application wiring yet.</note>
+      <note>Inventory workflows now round-trip: `/components/features/batches/batch-modal.tsx` issues propagation inventory via `issueInventoryForBatch`, `harvest-workflow.tsx` receives finished goods, and `/lib/supabase/queries/batches.ts#getBatchInventoryUsage` aggregates `inventory_movements` for both server/client detail views (covered by `lib/supabase/queries/__tests__/batches.test.ts`).</note>
+      <implementation-plan>
+        <phase label="Backend">
+          <item>Create `getBatchInventoryUsage(batchId)` in `/lib/supabase/queries/batches.ts` that aggregates consumption, production, and waste movements grouped by item category.</item>
+          <item>Extend `/app/api/inventory/issue` and `/components/features/batches/batch-modal` save flow to call `issueInventoryForBatch` helper (new) so seed/clone usage writes a movement with `batch_id`.</item>
+          <item>Update harvest workflow (`harvest-workflow.tsx`) to call `/app/api/inventory/receive` with finished-goods line item tied to `batch_id`.</item>
+        </phase>
+        <phase label="Frontend">
+          <item>Add an “Inventory” tab within `batch-detail-dialog.tsx` showing consumed vs produced inventory, lots, and estimated cost.</item>
+          <item>Surface warnings (e.g., nutrients exceeding recipe allowances) with RBAC-aware badges.</item>
+        </phase>
+        <phase label="Validation & Documentation">
+          <item>Add unit tests for the new helper + movement writes (seed & harvest cases).</item>
+          <item>Document the workflow inside `/docs/current/2-features/feature-batch-management.md` once live.</item>
+        </phase>
+      </implementation-plan>
     </step>
 
     <step id="4.2" status="in-progress">
@@ -747,23 +762,51 @@
       <tasks>
         <task status="complete">Link batches to active recipes via recipe_activations</task>
         <task status="complete">Display active recipe in batch detail view</task>
-        <task status="pending">Show environmental targets vs. actuals</task>
-        <task status="pending">Add "Apply Recipe" button in batch detail</task>
-        <task status="pending">Trigger recipe activation when batch assigned to pod</task>
+        <task status="complete">Show environmental targets vs. actuals</task>
+        <task status="complete">Add "Apply Recipe" button in batch detail</task>
+        <task status="complete">Trigger recipe activation when batch assigned to pod</task>
       </tasks>
       <note>Recipe hydration is live (list + detail views), but user actions/telemetry comparisons remain outstanding.</note>
+      <implementation-plan>
+        <phase label="Application Flows">
+          <item>Add “Apply Recipe” CTA in `batch-detail-dialog.tsx` that opens `assign-recipe-dialog` scoped to `batch` and talks to `assignRecipeToScope`. ✅ Live via `ApplyRecipeDialog`.</item>
+          <item>When `assignBatchToPod` is invoked, optionally auto-activate the recipe tied to the pod/batch pair and log a batch event. ✅ Implemented with `syncPodAndBatchRecipes` helper + `/app/api/batches/assign-pod`.</item>
+          <item>Advance recipe stage when a batch stage transition occurs (hook inside `transitionBatchStage`). ✅ Covered via `/app/api/recipes/advance-stage` + helper wiring.</item>
+        </phase>
+        <phase label="Telemetry Comparisons">
+          <item>Reuse `getActiveRecipeForScope` to fetch setpoints, then compute variance vs telemetry snapshots and render in batch detail + monitoring dashboards.</item>
+          <item>Persist variance summaries for use by alarms.</item>
+        </phase>
+        <phase label="Testing & Docs">
+          <item>Integration tests covering apply/remove recipe flows, plus docs update in `RECIPE_INTEGRATION_STATUS.md`.</item>
+        </phase>
+      </implementation-plan>
     </step>
 
-    <step id="4.3" status="pending">
+    <step id="4.3" status="in-progress">
       <action>Integrate with Monitoring Module</action>
       <tasks>
-        <task status="pending">Display batch information in pod detail view</task>
-        <task status="pending">Show batch environmental adherence metrics</task>
+        <task status="complete">Display batch information in pod detail view</task>
+        <task status="complete">Show batch environmental adherence metrics</task>
         <task status="pending">Link batch stage to alarm thresholds</task>
-        <task status="pending">Add batch timeline to monitoring dashboard</task>
-        <task status="pending">Create batch health score based on environmental data</task>
+        <task status="complete">Add batch timeline to monitoring dashboard</task>
+        <task status="complete">Create batch health score based on environmental data</task>
       </tasks>
-      <note>Pending implementation in Phase 4.</note>
+      <note>`/components/features/monitoring/pod-detail.tsx` now renders active batch summaries, recipe adherence metrics, stage timelines, and a computed health score sourced from telemetry setpoint variance. Alarm-threshold wiring remains outstanding.</note>
+      <implementation-plan>
+        <phase label="Data Layer">
+          <item>Expose `current_batch` info via `getPodSnapshots` by joining latest active batch assignment per pod.</item>
+          <item>Add telemetry RPC that returns stage-aligned metrics (temperature, humidity, CO₂) with min/max vs recipe setpoints.</item>
+        </phase>
+        <phase label="UI">
+          <item>Update `PodDetail` header to display assigned batch, cultivar, stage, and a color-coded health badge.</item>
+          <item>Introduce “Batch timeline” visualization showing stage history and alarms overlay.</item>
+        </phase>
+        <phase label="Alarms & Health Score">
+          <item>Define a health score formula (e.g., 0-100) derived from time in-range and outstanding alarms; store on batch record daily.</item>
+          <item>Ensure alarm notifications reference batch ID/stage.</item>
+        </phase>
+      </implementation-plan>
     </step>
 
     <step id="4.4" status="in-progress">
@@ -774,6 +817,16 @@
         <task status="pending">Prepare SOP linking for harvest workflows</task>
       </tasks>
       <note>Schema support exists for task linkage, but documentation and SOP automation work are still pending.</note>
+      <implementation-plan>
+        <phase label="Automation Design">
+          <item>Create a `generateBatchTasks` service (placeholder) that listens to batch stage events and enqueues SOP tasks using templates.</item>
+          <item>Map stage → SOP template IDs within `/docs/roadmap/planning-progress/workflow-implementation-status.md`.</item>
+        </phase>
+        <phase label="Documentation & Handoff">
+          <item>Write trigger tables (stage transitions, harvest start, quarantine) in `workflow-implementation-status.md`.</item>
+          <item>Outline QA scenarios ensuring generated tasks respect RBAC and jurisdiction.</item>
+        </phase>
+      </implementation-plan>
     </step>
   </integration-with-modules>
 

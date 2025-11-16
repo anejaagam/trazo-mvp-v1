@@ -2,6 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { Task, RecurringConfig } from '@/types/workflow';
 import { generateNextRecurrenceInstances, validateRecurringConfig } from '@/lib/utils/recurrence';
 
+type SeedRecurringConfig = RecurringConfig & {
+  seedTaskId?: string;
+  lastGeneratedAt?: string;
+};
+
 export interface RecurringJobSummary {
   seedsChecked: number;
   created: number;
@@ -13,9 +18,11 @@ export interface RecurringJobOptions {
   lookAhead?: number;
 }
 
-function normalizeRecurringConfig(config: any): (RecurringConfig & { seedTaskId?: string; lastGeneratedAt?: string }) | null {
-  if (!config || typeof config !== 'object') return null;
-  return config as RecurringConfig & { seedTaskId?: string; lastGeneratedAt?: string };
+function normalizeRecurringConfig(config: unknown): SeedRecurringConfig | null {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    return null;
+  }
+  return config as SeedRecurringConfig;
 }
 
 export async function runRecurringGenerationJob(

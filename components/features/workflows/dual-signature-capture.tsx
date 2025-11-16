@@ -2,17 +2,36 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 import { useState, useRef } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { DualSignature } from '@/types/workflow';
+import { DualSignature, type TaskEvidence } from '@/types/workflow';
 import { PenTool, X, Check, Shield, Users } from 'lucide-react';
+
+type DualSignatureValue = NonNullable<TaskEvidence['dualSignatures']>;
+
+const SignaturePreview = ({ src, alt }: { src?: string | null; alt: string }) => {
+  if (!src) {
+    return <span className="text-sm text-muted-foreground">No signature</span>;
+  }
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={400}
+      height={200}
+      className="h-auto w-full"
+      unoptimized
+    />
+  );
+};
 
 interface DualSignatureCaptureProps {
   config: DualSignature;
-  onCapture: (signatures: any) => void;
-  existingValue?: any;
+  onCapture: (signatures: DualSignatureValue) => void;
+  existingValue?: DualSignatureValue | null;
 }
 
 export function DualSignatureCapture({ config, onCapture, existingValue }: DualSignatureCaptureProps) {
@@ -93,20 +112,20 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
   const submitBothSignatures = () => {
     if (!signature1 || !signature2) return;
 
-    const result = {
+    const result: DualSignatureValue = {
       signature1: {
         userId: 'user-' + Math.random().toString(36).substr(2, 9),
         userName: `${config.role1.replace('_', ' ')} User`,
         role: config.role1,
         signature: signature1,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       },
       signature2: {
         userId: 'user-' + Math.random().toString(36).substr(2, 9),
         userName: `${config.role2.replace('_', ' ')} User`,
         role: config.role2,
         signature: signature2,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       }
     };
 
@@ -136,7 +155,7 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
             <div className="space-y-2">
               <Badge variant="default">{getRoleLabel(config.role1)}</Badge>
               <div className="border-2 border-green-300 rounded-lg p-2 bg-white">
-                <img src={existingValue.signature1?.signature} alt="Signature 1" className="w-full" />
+                <SignaturePreview src={existingValue.signature1?.signature} alt="Signature 1" />
               </div>
               <p className="text-sm text-green-700">
                 Signed at {new Date(existingValue.signature1?.timestamp).toLocaleString()}
@@ -145,7 +164,7 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
             <div className="space-y-2">
               <Badge variant="default">{getRoleLabel(config.role2)}</Badge>
               <div className="border-2 border-green-300 rounded-lg p-2 bg-white">
-                <img src={existingValue.signature2?.signature} alt="Signature 2" className="w-full" />
+                <SignaturePreview src={existingValue.signature2?.signature} alt="Signature 2" />
               </div>
               <p className="text-sm text-green-700">
                 Signed at {new Date(existingValue.signature2?.timestamp).toLocaleString()}
@@ -189,7 +208,7 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
             {signature1 ? (
               <div className="space-y-3">
                 <div className="border-2 border-green-500 rounded-lg p-2 bg-white">
-                  <img src={signature1} alt="Signature 1" className="w-full" />
+                  <SignaturePreview src={signature1} alt="Signature 1" />
                 </div>
                 <Button 
                   variant="outline" 
@@ -232,7 +251,7 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
             {signature2 ? (
               <div className="space-y-3">
                 <div className="border-2 border-green-500 rounded-lg p-2 bg-white">
-                  <img src={signature2} alt="Signature 2" className="w-full" />
+                  <SignaturePreview src={signature2} alt="Signature 2" />
                 </div>
                 <Button 
                   variant="outline" 

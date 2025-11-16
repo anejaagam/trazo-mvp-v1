@@ -31,13 +31,13 @@ import { useRouter } from 'next/navigation'
 
 interface CultivarListProps {
   cultivars: Cultivar[]
-  userRole: string
+  userRole: RoleKey | null
   organizationId: string
   plantType: 'cannabis' | 'produce'
 }
 
 export function CultivarList({ cultivars: initialCultivars, userRole, organizationId, plantType }: CultivarListProps) {
-  const { can } = usePermissions(userRole as RoleKey, [])
+  const { can } = usePermissions(userRole, [])
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [modalOpen, setModalOpen] = useState(false)

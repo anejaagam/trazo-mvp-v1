@@ -1,6 +1,29 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-type GenericDatabase = Record<string, unknown>
+type GenericFunctionDefinition = {
+  Args: Record<string, unknown>
+  Returns: unknown
+}
+
+type GenericTableDefinition = {
+  Row: Record<string, unknown>
+  Insert: Record<string, unknown>
+  Update: Record<string, unknown>
+  Relationships: never[]
+}
+
+type GenericSchema = {
+  Tables: Record<string, GenericTableDefinition>
+  Views: Record<string, GenericTableDefinition>
+  Functions: Record<string, GenericFunctionDefinition>
+  Enums: Record<string, unknown>
+  CompositeTypes: Record<string, unknown>
+}
+
+type GenericDatabase = {
+  public: GenericSchema
+}
+
 export type AnySupabaseClient = SupabaseClient<GenericDatabase>
 
 interface RecipeActivationRow {
@@ -137,7 +160,7 @@ async function activateRecipeOnScope(
   params: ActivateParams
 ): Promise<boolean> {
   try {
-    const { error } = await supabase.rpc('activate_recipe', {
+    const rpcArgs = {
       p_recipe_id: params.recipeId,
       p_recipe_version_id: params.recipeVersionId,
       p_scope_type: params.scopeType,
@@ -145,7 +168,10 @@ async function activateRecipeOnScope(
       p_scope_name: params.scopeName,
       p_activated_by: params.userId,
       p_scheduled_start: new Date().toISOString(),
-    })
+    } as const
+
+    // Supabase client here is schema-agnostic, so cast args to satisfy the rpc signature.
+    const { error } = await supabase.rpc('activate_recipe', rpcArgs as never)
 
     if (error) throw error
     return true
@@ -227,10 +253,13 @@ export async function advanceRecipeStageForBatch({
       return { advanced: false }
     }
 
-    const { error: advanceError } = await supabase.rpc('advance_recipe_stage', {
+    const advanceRpcArgs = {
       p_activation_id: data.id,
       p_user_id: userId,
-    })
+    } as const
+
+    // Supabase client here is schema-agnostic, so cast args to satisfy the rpc signature.
+    const { error: advanceError } = await supabase.rpc('advance_recipe_stage', advanceRpcArgs as never)
 
     if (advanceError) throw advanceError
     return { advanced: true }

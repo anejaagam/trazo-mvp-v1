@@ -30,7 +30,7 @@ import type { RoleKey } from '@/lib/rbac/types'
 interface BatchDetailPageProps {
   batch: BatchDetail
   userId: string
-  userRole: string
+  userRole: RoleKey
   jurisdictionId?: JurisdictionId | null
   plantType: PlantType
 }

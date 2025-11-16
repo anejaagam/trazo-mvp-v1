@@ -13,7 +13,6 @@ import type {
   ProduceStage,
   BatchStage,
   InsertBatch,
-  UpdateBatch,
   ValidationResult,
   StageTransitionValidation,
 } from '@/types/batch';
@@ -154,9 +153,9 @@ export function validateStageTransition(
 
   // Domain-specific transition requirements
   if (domainType === 'cannabis') {
-    validateCannabisTransition(currentStage as CannabisStage, newStage as CannabisStage, requiredFields, requiredChecks, warnings);
+    validateCannabisTransition(currentStage as CannabisStage, newStage as CannabisStage, requiredFields, requiredChecks);
   } else if (domainType === 'produce') {
-    validateProduceTransition(currentStage as ProduceStage, newStage as ProduceStage, requiredFields, requiredChecks, warnings);
+    validateProduceTransition(currentStage as ProduceStage, newStage as ProduceStage, requiredFields, requiredChecks);
   }
 
   return {
@@ -214,11 +213,10 @@ function getAllowedNextStages(stage: BatchStage, domainType: DomainType): BatchS
  * Validate cannabis stage transitions
  */
 function validateCannabisTransition(
-  from: CannabisStage,
+  _from: CannabisStage,
   to: CannabisStage,
   requiredFields: string[],
-  requiredChecks: string[],
-  warnings: string[]
+  requiredChecks: string[]
 ): void {
   switch (to) {
     case 'flowering':
@@ -256,11 +254,10 @@ function validateCannabisTransition(
  * Validate produce stage transitions
  */
 function validateProduceTransition(
-  from: ProduceStage,
+  _from: ProduceStage,
   to: ProduceStage,
   requiredFields: string[],
-  requiredChecks: string[],
-  warnings: string[]
+  requiredChecks: string[]
 ): void {
   switch (to) {
     case 'harvest_ready':
@@ -378,7 +375,7 @@ export function validateHarvestData(
     if (daysDiff > 7) {
       warnings.push('Harvest date is more than 7 days old - ensure this is correct');
     }
-  } catch (error) {
+  } catch {
     errors.push('Invalid harvest date format');
   }
 

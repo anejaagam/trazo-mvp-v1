@@ -452,7 +452,12 @@ export type BatchEventType =
   | 'harvest'
   | 'destruction'
   | 'note_added'
-  | 'recipe_applied';
+  | 'recipe_applied'
+  | 'task_linked'
+  | 'task_completed'
+  | 'task_cancelled'
+  | 'sop_template_linked'
+  | 'packet_generated';
 
 /**
  * Batch event record
@@ -573,6 +578,7 @@ export interface UpdateBatch {
   yield_units?: number;
   waste_weight_g?: number;
   notes?: string;
+  source_type?: SourceType;
   
   // Cannabis-specific
   lighting_schedule?: string;
@@ -679,27 +685,6 @@ export interface BatchPacket {
     [key: string]: any;
   };
 }
-
-/**
- * Extended batch event type including task-related events
- */
-export type BatchEventType = 
-  | 'created'
-  | 'stage_change'
-  | 'plant_count_update'
-  | 'pod_assignment'
-  | 'pod_removal'
-  | 'quarantine'
-  | 'quarantine_release'
-  | 'harvest'
-  | 'destruction'
-  | 'note_added'
-  | 'recipe_applied'
-  | 'task_linked'
-  | 'task_completed'
-  | 'task_cancelled'
-  | 'sop_template_linked'
-  | 'packet_generated';
 
 /**
  * Extended batch event with task_id

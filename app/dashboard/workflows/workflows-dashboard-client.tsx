@@ -25,7 +25,6 @@ import { TaskDetailsPanel } from '@/components/features/workflows/task-details-p
 interface WorkflowsDashboardClientProps {
   myTasks: Task[];
   allTasks: Task[];
-  userId: string;
   canCreateTask?: boolean;
   canManageTaskStatus?: boolean;
 }
@@ -50,6 +49,39 @@ type TaskDependencySummary = {
   blockers: DependencyLink[];
   dependents: DependencyLink[];
 };
+
+type TaskDependencyRow = {
+  id: string;
+  task_id: string;
+  depends_on_task_id: string;
+  dependency_type: 'blocking' | 'suggested';
+  depends_on?: Pick<Task, 'id' | 'title' | 'status'>;
+  task?: Pick<Task, 'id' | 'title' | 'status'>;
+};
+
+type TaskDependencyQueryRow = Omit<TaskDependencyRow, 'depends_on' | 'task'> & {
+  depends_on?: TaskDependencyRow['depends_on'] | TaskDependencyRow['depends_on'][] | null;
+  task?: TaskDependencyRow['task'] | TaskDependencyRow['task'][] | null;
+};
+
+function normalizeDependencyRows(
+  rows: TaskDependencyQueryRow[] | null | undefined
+): TaskDependencyRow[] {
+  if (!rows?.length) {
+    return [];
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    task_id: row.task_id,
+    depends_on_task_id: row.depends_on_task_id,
+    dependency_type: row.dependency_type,
+    depends_on: Array.isArray(row.depends_on)
+      ? row.depends_on[0]
+      : row.depends_on ?? undefined,
+    task: Array.isArray(row.task) ? row.task[0] : row.task ?? undefined,
+  }));
+}
 
 export function WorkflowsDashboardClient({
   myTasks,
@@ -187,7 +219,8 @@ export function WorkflowsDashboardClient({
           summary[id] = { blocking: [], suggested: [], blockers: [], dependents: [] };
         });
 
-        (prereqResponse.data || []).forEach((row: any) => {
+        const prerequisiteRows = normalizeDependencyRows(prereqResponse.data);
+        prerequisiteRows.forEach((row) => {
           if (!row.depends_on) return;
           if (!summary[row.task_id]) {
             summary[row.task_id] = { blocking: [], suggested: [], blockers: [], dependents: [] };
@@ -207,7 +240,8 @@ export function WorkflowsDashboardClient({
           }
         });
 
-        (dependentResponse.data || []).forEach((row: any) => {
+        const dependentRows = normalizeDependencyRows(dependentResponse.data);
+        dependentRows.forEach((row) => {
           if (!row.task) return;
           if (!summary[row.depends_on_task_id]) {
             summary[row.depends_on_task_id] = { blocking: [], suggested: [], blockers: [], dependents: [] };

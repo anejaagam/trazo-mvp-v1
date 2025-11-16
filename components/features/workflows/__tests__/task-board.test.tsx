@@ -35,7 +35,6 @@ const createDataTransfer = () => {
 describe('TaskBoard drag-and-drop', () => {
   it('highlights blocked tasks and triggers status drop callback', async () => {
     const onStatusDrop = jest.fn();
-    const user = userEvent.setup();
 
     render(
       <TaskBoard

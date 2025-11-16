@@ -61,7 +61,6 @@ describe('WorkflowsDashboardClient', () => {
       <WorkflowsDashboardClient
         myTasks={[baseTask]}
         allTasks={[baseTask]}
-        userId="user-1"
         canCreateTask
       />
     );
@@ -76,7 +75,6 @@ describe('WorkflowsDashboardClient', () => {
       <WorkflowsDashboardClient
         myTasks={[baseTask]}
         allTasks={[baseTask]}
-        userId="user-1"
         canCreateTask={false}
       />
     );
@@ -91,7 +89,6 @@ describe('WorkflowsDashboardClient', () => {
       <WorkflowsDashboardClient
         myTasks={[baseTask]}
         allTasks={[baseTask]}
-        userId="user-1"
         canCreateTask
       />
     );
@@ -116,7 +113,6 @@ describe('WorkflowsDashboardClient', () => {
       <WorkflowsDashboardClient
         myTasks={[baseTask, doneTask]}
         allTasks={[baseTask, doneTask]}
-        userId="user-1"
         canCreateTask
       />
     );

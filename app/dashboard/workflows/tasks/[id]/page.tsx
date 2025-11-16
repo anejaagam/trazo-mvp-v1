@@ -69,7 +69,6 @@ export default async function TaskExecutionPage(props: {
     <TaskExecutorWrapper 
       task={task} 
       template={template}
-      userId={user.id}
       userRole={userData.role as RoleKey}
       additionalPermissions={userData.additional_permissions || []}
     />

@@ -322,7 +322,7 @@ export async function duplicateTemplateAction(templateId: string) {
   }
 
   try {
-    const result = await duplicateTemplate(templateId);
+    const result = await duplicateTemplate(templateId, newName);
 
     if (result.error) {
       return { error: result.error };

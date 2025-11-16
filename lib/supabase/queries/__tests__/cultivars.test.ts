@@ -20,6 +20,10 @@ jest.mock('@/lib/supabase/server', () => ({
 }));
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+const resolveClient = (client: Partial<SupabaseServerClient>) => {
+  mockCreateClient.mockResolvedValue(client as SupabaseServerClient);
+};
 
 describe('Cultivar Queries', () => {
   beforeEach(() => {
@@ -46,9 +50,9 @@ describe('Cultivar Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockCultivars);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivars('org-1');
 
@@ -66,9 +70,9 @@ describe('Cultivar Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockCultivars);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivars('org-1', { strain_type: 'hybrid' });
 
@@ -86,9 +90,9 @@ describe('Cultivar Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockCultivars);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivars('org-1', { category: 'vegetable' });
 
@@ -106,9 +110,9 @@ describe('Cultivar Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockCultivars);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivars('org-1', { search: 'Blue' });
 
@@ -123,9 +127,9 @@ describe('Cultivar Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockCultivars);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivars('org-1', { is_active: false });
 
@@ -137,9 +141,9 @@ describe('Cultivar Queries', () => {
       const mockError = new Error('Database error');
       const mockQuery = new MockQueryBuilder(null, mockError);
       
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivars('org-1');
 
@@ -159,9 +163,9 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockCultivar);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivarById('cultivar-1');
 
@@ -173,9 +177,9 @@ describe('Cultivar Queries', () => {
       const mockError = new Error('Cultivar not found');
       const mockQuery = new MockQueryBuilder(null, mockError);
       
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getCultivarById('nonexistent');
 
@@ -199,12 +203,12 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockCultivar);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
         },
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await createCultivar({
         organization_id: 'org-1',
@@ -233,12 +237,12 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockCultivar);
-      mockCreateClient.mockResolvedValue({
-        auth: {
-          getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
-        },
-        from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+        resolveClient({
+          auth: {
+            getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
+          },
+          from: jest.fn().mockReturnValue(mockQuery),
+        });
 
       const result = await createCultivar({
         organization_id: 'org-1',
@@ -254,11 +258,11 @@ describe('Cultivar Queries', () => {
     });
 
     it('should handle unauthenticated user', async () => {
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: null } }),
         },
-      } as any);
+      });
 
       const result = await createCultivar({
         organization_id: 'org-1',
@@ -281,9 +285,9 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockUpdated);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await updateCultivar('cultivar-1', {
         name: 'Blue Dream v2',
@@ -304,9 +308,9 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockDeleted);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await deleteCultivar('cultivar-1');
 
@@ -327,13 +331,13 @@ describe('Cultivar Queries', () => {
       const mockCompletedQuery = new MockQueryBuilder(null, null, 5);
       const mockRecentQuery = new MockQueryBuilder(mockRecentBatches);
 
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn()
           .mockReturnValueOnce(mockTotalQuery) // total batches
           .mockReturnValueOnce(mockActiveQuery) // active batches
           .mockReturnValueOnce(mockCompletedQuery) // completed batches
           .mockReturnValueOnce(mockRecentQuery), // recent batches
-      } as any);
+      });
 
       const result = await getCultivarUsageStats('cultivar-1');
 
@@ -350,13 +354,13 @@ describe('Cultivar Queries', () => {
       const mockEmptyQuery = new MockQueryBuilder(null, null, 0);
       const mockRecentQuery = new MockQueryBuilder([]);
 
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn()
           .mockReturnValueOnce(mockEmptyQuery) // total batches
           .mockReturnValueOnce(mockEmptyQuery) // active batches
           .mockReturnValueOnce(mockEmptyQuery) // completed batches
           .mockReturnValueOnce(mockRecentQuery), // recent batches
-      } as any);
+      });
 
       const result = await getCultivarUsageStats('cultivar-1');
 

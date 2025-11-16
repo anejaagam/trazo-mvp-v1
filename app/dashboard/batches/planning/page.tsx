@@ -4,12 +4,12 @@ import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default async function PlanningPage() {
-  let _userRole: string
-
+export default async function BatchPlanningPage() {
   if (isDevModeActive()) {
     logDevMode('Batch Planning Page')
-    _userRole = DEV_MOCK_USER.role
+    if (!canPerformAction(DEV_MOCK_USER.role, 'batch:create')) {
+      redirect('/dashboard')
+    }
   } else {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -31,9 +31,6 @@ export default async function PlanningPage() {
     if (!canPerformAction(userData.role, 'batch:create')) {
       redirect('/dashboard')
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _userRole = userData.role
   }
 
   return (

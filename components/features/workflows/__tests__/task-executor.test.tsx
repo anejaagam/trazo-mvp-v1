@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TaskExecutor } from '../task-executor';
-import { SOPTemplate, Task } from '@/types/workflow';
+import { SOPTemplate, Task, type TaskEvidence } from '@/types/workflow';
 
 const mockCan = jest.fn(() => true);
 const toastMock = jest.fn();
@@ -21,8 +21,10 @@ jest.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({ toast: toastMock }),
 }));
 // Mock DualSignatureCapture to instantly provide signatures
+type DualSignatureValue = NonNullable<TaskEvidence['dualSignatures']>;
+
 jest.mock('../dual-signature-capture', () => ({
-  DualSignatureCapture: ({ onCapture }: { onCapture: (value: any) => void }) => (
+  DualSignatureCapture: ({ onCapture }: { onCapture: (value: DualSignatureValue) => void }) => (
     <button
       type="button"
       data-testid="dual-signature-mock"

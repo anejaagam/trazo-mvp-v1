@@ -139,7 +139,7 @@ export async function compressImage(
  * Compress JSON data using gzip
  * Note: This is a simplified version. In production, use pako or similar library
  */
-export function compressJSON(data: any): CompressionResult {
+export function compressJSON(data: unknown): CompressionResult {
   try {
     const jsonString = JSON.stringify(data);
     const originalSize = new Blob([jsonString]).size;
@@ -264,8 +264,6 @@ function decompressUint8Array(data: Uint8Array): Uint8Array {
 export function compressSignature(signatureDataUrl: string): CompressionResult {
   try {
     const originalSize = new Blob([signatureDataUrl]).size;
-    // Downsample signature by drawing to a smaller canvas if possible
-    const img = new Image();
     return {
       success: true,
       originalSize,
@@ -337,28 +335,66 @@ export function decompressText(compressedData: string): DecompressionResult {
 /**
  * Auto-detect compression type and compress accordingly
  */
+function buildFailureResult(data: unknown): CompressionResult {
+  if (data instanceof Blob) {
+    return {
+      success: false,
+      originalSize: data.size,
+      compressedSize: data.size,
+      compressionRatio: 1,
+      compressionType: 'none',
+      data,
+    };
+  }
+
+  const serialized = (() => {
+    if (typeof data === 'string') {
+      return data;
+    }
+    try {
+      const json = JSON.stringify(data ?? null);
+      return json ?? '';
+    } catch {
+      return String(data ?? '');
+    }
+  })();
+
+  const size = serialized ? new Blob([serialized]).size : 0;
+
+  return {
+    success: false,
+    originalSize: size,
+    compressedSize: size,
+    compressionRatio: 1,
+    compressionType: 'none',
+    data: serialized,
+  };
+}
+
 export async function compressEvidence(
-  data: any,
+  data: unknown,
   type: 'photo' | 'signature' | 'json' | 'text'
 ): Promise<CompressionResult> {
   switch (type) {
     case 'photo':
-      return await compressImage(data);
+      if (typeof data === 'string' || data instanceof Blob) {
+        return await compressImage(data);
+      }
+      return buildFailureResult(data);
     case 'signature':
-      return compressSignature(data);
+      if (typeof data === 'string') {
+        return compressSignature(data);
+      }
+      return buildFailureResult(data);
     case 'json':
       return compressJSON(data);
     case 'text':
-      return compressText(data);
+      if (typeof data === 'string') {
+        return compressText(data);
+      }
+      return compressText(String(data ?? ''));
     default:
-      return {
-        success: false,
-        originalSize: 0,
-        compressedSize: 0,
-        compressionRatio: 1,
-        compressionType: 'none',
-        data,
-      };
+      return buildFailureResult(data);
   }
 }
 
@@ -366,20 +402,30 @@ export async function compressEvidence(
  * Auto-detect compression type and decompress accordingly
  */
 export function decompressEvidence(
-  compressedData: any,
+  compressedData: unknown,
   compressionType: CompressionType
 ): DecompressionResult {
   switch (compressionType) {
     case 'gzip':
     case 'brotli':
-      return decompressJSON(compressedData);
+      if (typeof compressedData === 'string') {
+        return decompressJSON(compressedData);
+      }
+      return {
+        success: false,
+        data: null,
+        originalSize: 0,
+      } satisfies DecompressionResult;
     case 'none':
       return {
         success: true,
         data: compressedData,
-        originalSize: typeof compressedData === 'string' 
-          ? new Blob([compressedData]).size 
-          : 0,
+        originalSize:
+          typeof compressedData === 'string'
+            ? new Blob([compressedData]).size
+            : compressedData instanceof Blob
+              ? compressedData.size
+              : 0,
       };
     default:
       return {
@@ -394,7 +440,7 @@ export function decompressEvidence(
  * Estimate compression benefit for given data
  */
 export function estimateCompressionBenefit(
-  data: any,
+  data: unknown,
   type: 'photo' | 'signature' | 'json' | 'text'
 ): {
   worthCompressing: boolean;

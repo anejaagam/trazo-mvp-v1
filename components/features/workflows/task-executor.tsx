@@ -46,6 +46,8 @@ interface StepTimelineEntry {
   note?: string;
 }
 
+type DualSignatureValue = NonNullable<TaskEvidence['dualSignatures']>;
+
 export function TaskExecutor({ 
   task, 
   template, 
@@ -68,14 +70,10 @@ export function TaskExecutor({
   const [isCompleting, setIsCompleting] = useState(false);
   const [blockingInfo, setBlockingInfo] = useState<{ blocked: boolean; incomplete: { id: string; title: string; status: string }[] } | null>(null);
   const [stepTrail, setStepTrail] = useState<StepTimelineEntry[]>([]);
-  interface CapturedDualSignature {
-    signature1?: { userId: string; userName: string; role: string; signature: string; timestamp: Date };
-    signature2?: { userId: string; userName: string; role: string; signature: string; timestamp: Date };
-  }
-  const [completionDualSignature, setCompletionDualSignature] = useState<CapturedDualSignature | null>(null);
+  const [completionDualSignature, setCompletionDualSignature] = useState<DualSignatureValue | null>(null);
   const [showDualSignoffPanel, setShowDualSignoffPanel] = useState(false);
   // Track skipped steps separately (reason map) instead of overloading TaskEvidence type
-  const [skippedSteps, setSkippedSteps] = useState<Record<string, string>>({});
+  const [, setSkippedSteps] = useState<Record<string, string>>({});
   const [retainOriginalEvidence, setRetainOriginalEvidence] = useState(false);
   const [skipDialogOpen, setSkipDialogOpen] = useState(false);
   const [skipReasonDraft, setSkipReasonDraft] = useState('');
@@ -119,7 +117,7 @@ export function TaskExecutor({
     } catch {
       // ignore
     }
-  }, [task.id, template.steps.length]);
+  }, [draftStorageKey, task.id, template.steps.length]);
 
   useEffect(() => {
     // Persist draft whenever evidence or step changes (throttled by timeout)
@@ -467,10 +465,9 @@ export function TaskExecutor({
   // After dual signatures captured, proceed to completion
   const finalizeWithDualSignoff = async () => {
     if (!completionDualSignature) return;
+    const { signature1, signature2 } = completionDualSignature;
     // Basic role validation: ensure distinct roles unless override permission
-    const sig1Role = (completionDualSignature as { signature1?: { role?: string } })?.signature1?.role;
-    const sig2Role = (completionDualSignature as { signature2?: { role?: string } })?.signature2?.role;
-    const rolesDistinct = sig1Role && sig2Role && sig1Role !== sig2Role;
+    const rolesDistinct = Boolean(signature1.role && signature2.role && signature1.role !== signature2.role);
     if (!rolesDistinct) {
       toast({
         title: 'Dual sign-off blocked',
@@ -482,10 +479,6 @@ export function TaskExecutor({
     setIsCompleting(true);
     try {
       // Append dual signature evidence item
-      const sig = completionDualSignature as {
-        signature1?: { userId?: string; userName?: string; role?: string; signature?: string; timestamp?: Date | string };
-        signature2?: { userId?: string; userName?: string; role?: string; signature?: string; timestamp?: Date | string };
-      };
       const dualEvidence: TaskEvidence = {
         stepId: 'task-final-dual-signoff',
         type: 'dual_signature',
@@ -494,18 +487,18 @@ export function TaskExecutor({
         compressed: false,
         dualSignatures: {
           signature1: {
-            userId: sig.signature1?.userId || '',
-            userName: sig.signature1?.userName || '',
-            role: sig.signature1?.role || '',
-            signature: sig.signature1?.signature || '',
-            timestamp: sig.signature1?.timestamp instanceof Date ? sig.signature1.timestamp.toISOString() : (sig.signature1?.timestamp || new Date().toISOString())
+            userId: signature1.userId || '',
+            userName: signature1.userName || '',
+            role: signature1.role || '',
+            signature: signature1.signature || '',
+            timestamp: signature1.timestamp || new Date().toISOString()
           },
           signature2: {
-            userId: sig.signature2?.userId || '',
-            userName: sig.signature2?.userName || '',
-            role: sig.signature2?.role || '',
-            signature: sig.signature2?.signature || '',
-            timestamp: sig.signature2?.timestamp instanceof Date ? sig.signature2.timestamp.toISOString() : (sig.signature2?.timestamp || new Date().toISOString())
+            userId: signature2.userId || '',
+            userName: signature2.userName || '',
+            role: signature2.role || '',
+            signature: signature2.signature || '',
+            timestamp: signature2.timestamp || new Date().toISOString()
           }
         }
       };
@@ -546,13 +539,29 @@ export function TaskExecutor({
         .eq('task_id', task.id)
         .eq('dependency_type', 'blocking');
       if (error) throw error;
-      const incomplete = ((data || []) as Array<{ depends_on: { id: string; title: string; status: string } }>)
-        .filter((entry) => entry.depends_on.status !== 'done' && entry.depends_on.status !== 'approved')
-        .map((entry) => ({
-          id: entry.depends_on.id,
-          title: entry.depends_on.title,
-          status: entry.depends_on.status,
-        }));
+      type DependsOnRecord = {
+        id: string | number | null;
+        title: string | null;
+        status: string | null;
+      } | null;
+      type DependencyRow = { depends_on?: DependsOnRecord | DependsOnRecord[] };
+      // Supabase join may return the relation as either an object or an array; normalize to a single record.
+      const normalizedDeps = (data || [])
+        .map((entry: DependencyRow) => {
+          const raw = entry.depends_on;
+          const record = Array.isArray(raw) ? raw[0] : raw;
+          if (!record || !record.id || !record.title || !record.status) {
+            return null;
+          }
+          return {
+            id: String(record.id),
+            title: String(record.title),
+            status: String(record.status),
+          };
+        })
+        .filter((dep): dep is { id: string; title: string; status: string } => Boolean(dep));
+      const incomplete = normalizedDeps
+        .filter((dep) => dep.status !== 'done' && dep.status !== 'approved');
       return { blocked: incomplete.length > 0, incomplete };
     } catch (err) {
       console.error('Error fetching blocking prerequisites:', err);
@@ -677,7 +686,7 @@ export function TaskExecutor({
                     </div>
                     <Button
                       variant="outline"
-                      size="xs"
+                      size="sm"
                       onClick={handleBlockingRefresh}
                       disabled={refreshingBlocking}
                     >
@@ -975,11 +984,11 @@ export function TaskExecutor({
           />
           {completionDualSignature && (
             <div className="text-xs text-slate-600 border border-slate-200 rounded p-2" aria-label="Dual signoff role validation">
-              <p>Primary Role: {(completionDualSignature as { signature1?: { role?: string } })?.signature1?.role || '—'} | Secondary Role: {(completionDualSignature as { signature2?: { role?: string } })?.signature2?.role || '—'}</p>
-              {(completionDualSignature as { signature1?: { role?: string }; signature2?: { role?: string } })?.signature1?.role === (completionDualSignature as { signature1?: { role?: string }; signature2?: { role?: string } })?.signature2?.role && (
+              <p>Primary Role: {completionDualSignature.signature1.role || '—'} | Secondary Role: {completionDualSignature.signature2.role || '—'}</p>
+              {completionDualSignature.signature1.role === completionDualSignature.signature2.role && (
                 <p className="text-amber-600 mt-1">Roles identical – cannot proceed.</p>
               )}
-              {(completionDualSignature as { signature1?: { role?: string }; signature2?: { role?: string } })?.signature1?.role && (completionDualSignature as { signature1?: { role?: string }; signature2?: { role?: string } })?.signature2?.role && (completionDualSignature as { signature1?: { role?: string }; signature2?: { role?: string } })?.signature1?.role !== (completionDualSignature as { signature1?: { role?: string }; signature2?: { role?: string } })?.signature2?.role && (
+              {completionDualSignature.signature1.role && completionDualSignature.signature2.role && completionDualSignature.signature1.role !== completionDualSignature.signature2.role && (
                 <p className="text-green-600 mt-1">Distinct roles captured.</p>
               )}
             </div>

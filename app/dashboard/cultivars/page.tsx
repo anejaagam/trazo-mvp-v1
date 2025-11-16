@@ -4,6 +4,7 @@ import { CultivarList } from '@/components/features/cultivars/cultivar-list'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import type { Cultivar } from '@/types/batch'
+import type { RoleKey } from '@/lib/rbac/types'
 
 // Mock cultivars for development mode
 const MOCK_CULTIVARS: Cultivar[] = [
@@ -52,7 +53,7 @@ const MOCK_CULTIVARS: Cultivar[] = [
 ]
 
 export default async function CultivarsPage() {
-  let userRole: string
+  let userRole: RoleKey | null = null
   let cultivars: Cultivar[]
   let organizationId: string
   let plantType: 'cannabis' | 'produce' = 'produce'
@@ -60,7 +61,7 @@ export default async function CultivarsPage() {
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
     logDevMode('Cultivars Page')
-    userRole = DEV_MOCK_USER.role
+    userRole = DEV_MOCK_USER.role as RoleKey
     cultivars = MOCK_CULTIVARS
     organizationId = DEV_MOCK_USER.organization_id
     plantType = 'produce'
@@ -97,16 +98,22 @@ export default async function CultivarsPage() {
       .single()
 
     // Fetch cultivars
-    const { data: cultivarsData } = await supabase
+    const { data: cultivarsData, error: cultivarsError } = await supabase
       .from('cultivars')
       .select('*')
       .eq('organization_id', userData.organization_id)
       .order('name', { ascending: true })
 
-    userRole = userData.role
-    cultivars = (cultivarsData || []) as Cultivar[]
+    userRole = userData.role as RoleKey
     organizationId = userData.organization_id
     plantType = (orgData?.plant_type as 'cannabis' | 'produce') || 'produce'
+    
+    if (cultivarsError) {
+      console.error('Failed to fetch cultivars', cultivarsError)
+      cultivars = []
+    } else {
+      cultivars = (cultivarsData || []) as Cultivar[]
+    }
   }
 
   return (

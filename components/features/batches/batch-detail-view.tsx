@@ -19,7 +19,6 @@ import { formatDate } from '@/lib/utils'
 interface BatchDetailViewProps {
   batch: DomainBatch
   onBack?: () => void
-  userRole: string
 }
 
 const stageColors: Record<string, string> = {

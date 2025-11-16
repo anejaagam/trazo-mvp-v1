@@ -296,7 +296,7 @@ export function BatchTable({
           }}
           onRefresh={onRefresh}
           userId={userId}
-          userRole={userRole}
+          userRole={userRole as RoleKey}
           jurisdictionId={jurisdictionId}
           plantType={plantType}
         />

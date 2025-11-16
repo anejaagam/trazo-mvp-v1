@@ -12,7 +12,6 @@ import { useToast } from '@/components/ui/use-toast';
 interface TaskExecutorWrapperProps {
   task: Task;
   template: SOPTemplate;
-  userId: string;
   userRole: RoleKey;
   additionalPermissions?: string[];
 }

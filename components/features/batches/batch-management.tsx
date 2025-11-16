@@ -138,7 +138,15 @@ export function BatchManagement({
     [batches]
   )
   const totalPlants = useMemo(
-    () => batches.reduce((sum, batch) => sum + (batch.plant_count || 0), 0),
+    () => batches.reduce((sum, batch) => {
+      // Sum up plant counts from active pod assignments
+      const assignmentTotal = (batch.pod_assignments || [])
+        .filter((assignment) => !assignment.removed_at)
+        .reduce((assignmentSum, assignment) => assignmentSum + (assignment.plant_count || 0), 0)
+      // If there are assignments, use their total; otherwise fall back to batch.plant_count
+      const batchTotal = assignmentTotal > 0 ? assignmentTotal : (batch.plant_count || 0)
+      return sum + batchTotal
+    }, 0),
     [batches]
   )
   const recipesWithCoverage = useMemo(

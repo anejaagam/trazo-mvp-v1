@@ -145,6 +145,9 @@ export function BatchTable({
                 const activeAssignments = (batch.pod_assignments || []).filter((assignment) => !assignment.removed_at)
                 const cultivarLabel = batch.cultivar?.name || batch.cultivar_id || 'Unknown cultivar'
                 const keyMetric = getKeyMetric(batch)
+                // Calculate total plant count from assignments, or fall back to batch.plant_count
+                const assignmentTotal = activeAssignments.reduce((sum, assignment) => sum + (assignment.plant_count || 0), 0)
+                const totalPlants = assignmentTotal > 0 ? assignmentTotal : (batch.plant_count || 0)
                 return (
                   <TableRow 
                     key={batch.id} 
@@ -169,8 +172,8 @@ export function BatchTable({
                             {batch.domain_type === 'cannabis' ? <Leaf className="h-3 w-3" /> : <ChefHat className="h-3 w-3" />}
                             {batch.domain_type === 'cannabis' ? 'Cannabis' : 'Produce'}
                           </Badge>
-                          {batch.plant_count !== undefined && (
-                            <Badge variant="secondary">{batch.plant_count?.toLocaleString()} units</Badge>
+                          {totalPlants > 0 && (
+                            <Badge variant="secondary">{totalPlants.toLocaleString()} units</Badge>
                           )}
                         </div>
                       </div>

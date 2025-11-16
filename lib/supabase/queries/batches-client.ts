@@ -487,6 +487,31 @@ export async function assignBatchToPod(
   }
 }
 
+export async function removeBatchFromPods(
+  batchId: string,
+  userId: string
+) {
+  try {
+    const supabase = createClient()
+    const timestamp = new Date().toISOString()
+    
+    const { error } = await supabase
+      .from('batch_pod_assignments')
+      .update({
+        removed_at: timestamp,
+        removed_by: userId,
+      })
+      .eq('batch_id', batchId)
+      .is('removed_at', null)
+
+    if (error) throw error
+    return { error: null }
+  } catch (error) {
+    logSupabaseError('Error removing batch from pods:', error)
+    return { error }
+  }
+}
+
 export async function addQualityMetric(
   batchId: string,
   metricData: {
@@ -532,12 +557,12 @@ export async function getActiveBatchesForPod(
       .select(
         `
         batch_id,
+        plant_count,
         batch:batches(
           id,
           batch_number,
           stage,
           status,
-          plant_count,
           start_date,
           organization_id,
           site_id
@@ -552,18 +577,17 @@ export async function getActiveBatchesForPod(
 
     const summaries =
       data
-        ?.map((row: any) => row.batch)
-        .filter(Boolean)
+        ?.filter((row: any) => row.batch)
         .map(
-          (batch: any): PodBatchSummary => ({
-            id: batch.id,
-            batch_number: batch.batch_number,
-            stage: batch.stage,
-            status: batch.status,
-            plant_count: batch.plant_count,
-            start_date: batch.start_date,
-            organization_id: batch.organization_id,
-            site_id: batch.site_id,
+          (row: any): PodBatchSummary => ({
+            id: row.batch.id,
+            batch_number: row.batch.batch_number,
+            stage: row.batch.stage,
+            status: row.batch.status,
+            plant_count: row.plant_count, // Use plant_count from assignment, not batch
+            start_date: row.batch.start_date,
+            organization_id: row.batch.organization_id,
+            site_id: row.batch.site_id,
           })
         ) || []
 

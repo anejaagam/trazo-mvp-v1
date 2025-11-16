@@ -21,8 +21,11 @@ import { toast } from 'sonner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LogInventoryUsageDialog } from './log-inventory-usage-dialog'
 import { ApplyRecipeDialog } from './apply-recipe-dialog'
+import { AssignPodDialog } from './assign-pod-dialog'
 import type { ActiveRecipeDetails } from '@/types/recipe'
 import type { TelemetryReading } from '@/types/telemetry'
+import { usePermissions } from '@/hooks/use-permissions'
+import type { RoleKey } from '@/lib/rbac/types'
 
 interface BatchDetailPageProps {
   batch: BatchDetail
@@ -35,10 +38,12 @@ interface BatchDetailPageProps {
 export function BatchDetailPage({
   batch: initialBatch,
   userId,
+  userRole,
   jurisdictionId,
   plantType,
 }: BatchDetailPageProps) {
   const router = useRouter()
+  const { can } = usePermissions(userRole as RoleKey, [])
   const [detail, setDetail] = useState<BatchDetail>(initialBatch)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -46,6 +51,7 @@ export function BatchDetailPage({
   const [showHarvestDialog, setShowHarvestDialog] = useState(false)
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
+  const [showAssignPod, setShowAssignPod] = useState(false)
 
   const loadDetail = async () => {
     setLoading(true)
@@ -62,6 +68,12 @@ export function BatchDetailPage({
     () => detail.pod_assignments?.filter((assignment) => !assignment.removed_at) || [],
     [detail]
   )
+
+  const totalPlantCount = useMemo(() => {
+    const assignmentTotal = activeAssignments.reduce((sum, assignment) => sum + (assignment.plant_count || 0), 0)
+    // If there are assignments, use their total; otherwise fall back to batch.plant_count
+    return assignmentTotal > 0 ? assignmentTotal : (detail.plant_count || 0)
+  }, [activeAssignments, detail.plant_count])
 
   const handleQuarantineToggle = async () => {
     try {
@@ -101,10 +113,10 @@ export function BatchDetailPage({
             <Sprout className="h-6 w-6" />
             <h1 className="text-3xl font-bold">Batch {detail.batch_number}</h1>
             <Button
-              variant={detail.status === 'quarantined' ? 'default' : 'outline'}
+              variant={detail.status === 'quarantined' ? 'default' : 'destructive'}
               size="sm"
               onClick={handleQuarantineToggle}
-              className={detail.status === 'quarantined' ? '' : 'text-destructive hover:text-destructive'}
+              className={detail.status === 'quarantined' ? 'bg-amber-600 hover:bg-amber-700' : ''}
             >
               <AlertTriangle className="h-4 w-4 mr-2" />
               {detail.status === 'quarantined' ? 'Release' : 'Quarantine'}
@@ -152,7 +164,7 @@ export function BatchDetailPage({
               Overview
             </TabsTrigger>
             <TabsTrigger value="assignments" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Pods
+              Pods & Telemetry
             </TabsTrigger>
             <TabsTrigger value="quality" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
               Quality
@@ -178,7 +190,7 @@ export function BatchDetailPage({
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Plant count</span>
-                    <span className="text-lg font-semibold">{detail.plant_count?.toLocaleString()}</span>
+                    <span className="text-lg font-semibold">{totalPlantCount.toLocaleString()}</span>
                   </div>
                   {detail.active_recipe && (
                     <div className="flex items-center gap-2 rounded-md border p-2 text-sm">
@@ -229,8 +241,16 @@ export function BatchDetailPage({
 
           <TabsContent value="assignments" className="space-y-4 mt-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle>Active pods ({activeAssignments.length})</CardTitle>
+                {can('batch:assign_pod') && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowAssignPod(true)}
+                  >
+                    Assign Pod
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-2">
                 {activeAssignments.map((assignment) => (
@@ -397,6 +417,18 @@ export function BatchDetailPage({
         batchNumber={detail.batch_number}
         userId={userId}
         onApplied={() => {
+          loadDetail()
+        }}
+      />
+      <AssignPodDialog
+        open={showAssignPod}
+        onOpenChange={setShowAssignPod}
+        batchId={detail.id}
+        batchNumber={detail.batch_number}
+        siteId={detail.site_id}
+        currentPlantCount={detail.plant_count || 0}
+        userId={userId}
+        onAssigned={() => {
           loadDetail()
         }}
       />

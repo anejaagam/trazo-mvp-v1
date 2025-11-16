@@ -5,7 +5,6 @@
  * Supports filtering by domain_type, stage, status, cultivar, and more
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from '@/lib/supabase/server'
 import { advanceRecipeStageForBatch, syncPodAndBatchRecipes } from '@/lib/recipes/recipe-sync'
 import type {

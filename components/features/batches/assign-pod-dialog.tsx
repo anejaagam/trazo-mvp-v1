@@ -120,13 +120,19 @@ export function AssignPodDialog({
         }
 
         // Transform the data to match our Pod interface
-        const transformedPods = (podsData || []).map((pod: any) => ({
+        const transformedPods = (podsData || []).map((pod: { 
+          id: string; 
+          name: string; 
+          max_plant_count: number; 
+          status: string; 
+          room: Array<{ id: string; name: string; site_id: string }> 
+        }) => ({
           id: pod.id,
           name: pod.name,
           max_plant_count: pod.max_plant_count,
           status: pod.status,
-          room: pod.room && typeof pod.room === 'object' && !Array.isArray(pod.room)
-            ? { id: pod.room.id, name: pod.room.name }
+          room: Array.isArray(pod.room) && pod.room.length > 0
+            ? { id: pod.room[0].id, name: pod.room[0].name }
             : null,
         }))
 

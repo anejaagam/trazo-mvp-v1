@@ -6,6 +6,7 @@ import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { BatchDetailPage } from '@/components/features/batches/batch-detail-page'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import type { BatchDetail } from '@/lib/supabase/queries/batches-client'
+import type { RoleKey } from '@/lib/rbac/types'
 
 interface BatchPageProps {
   params: Promise<{
@@ -23,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function BatchPage(props: BatchPageProps) {
   const params = await props.params
   const { batchId } = params
-  let userRole: string
+  let userRole: RoleKey
   let userId: string
   let jurisdictionId: JurisdictionId | null = null
   const plantType: PlantType = 'cannabis'
@@ -31,7 +32,7 @@ export default async function BatchPage(props: BatchPageProps) {
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
     logDevMode('Using dev mode for batch detail page')
-    userRole = DEV_MOCK_USER.role
+    userRole = DEV_MOCK_USER.role as RoleKey
     userId = DEV_MOCK_USER.id
   } else {
     // PRODUCTION MODE: Get actual user data

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Sprout, MapPin, AlertTriangle, Activity, Beaker, FileText, Loader2 } from 'lucide-react'
+import { Sprout, MapPin, AlertTriangle, Activity, Beaker } from 'lucide-react'
 import { BatchModal } from './batch-modal'
 import { StageTransitionDialog } from './stage-transition-dialog'
 import { HarvestWorkflow } from './harvest-workflow'
@@ -18,8 +18,6 @@ import { BatchTasksPanel } from './batch-tasks-panel'
 import { LinkTemplateDialog } from './link-template-dialog'
 import type { BatchListItem, BatchDetail } from '@/lib/supabase/queries/batches-client'
 import { getBatchDetail, quarantineBatch, releaseFromQuarantine } from '@/lib/supabase/queries/batches-client'
-import { getBatchPacketDataAction } from '@/app/actions/batch-tasks'
-import { generateBatchPacketPDF } from '@/lib/utils/batch-packet-generator'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import type { BatchStageHistory, BatchEvent } from '@/types/batch'
 import type { RoleKey } from '@/lib/rbac/types'
@@ -60,7 +58,6 @@ export function BatchDetailDialog({
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
   const [showLinkTemplate, setShowLinkTemplate] = useState(false)
-  const [generatingPacket, setGeneratingPacket] = useState(false)
 
   const loadDetail = useCallback(async () => {
     setLoading(true)
@@ -104,39 +101,6 @@ export function BatchDetailDialog({
     } catch (error) {
       console.error(error)
       toast.error('Unable to update quarantine state')
-    }
-  }
-
-  const handleGeneratePacket = async () => {
-    setGeneratingPacket(true)
-    try {
-      // Fetch batch data via server action (with permission check)
-      const dataResult = await getBatchPacketDataAction(batch.id)
-
-      if (dataResult.error || !dataResult.data) {
-        toast.error(dataResult.error || 'Failed to fetch batch data')
-        return
-      }
-
-      // Generate PDF client-side
-      const pdfResult = await generateBatchPacketPDF(dataResult.data, {
-        packetType: 'full',
-        includesTasks: true,
-        includesRecipe: true,
-        includesInventory: true,
-        includesCompliance: true,
-      })
-
-      if (pdfResult.error || !pdfResult.success) {
-        toast.error(pdfResult.error || 'Failed to generate PDF')
-      } else {
-        toast.success(`Batch packet downloaded: ${pdfResult.filename}`)
-      }
-    } catch (error) {
-      console.error('Error generating packet:', error)
-      toast.error('Failed to generate batch packet')
-    } finally {
-      setGeneratingPacket(false)
     }
   }
 

@@ -7,7 +7,6 @@
  * @module lib/supabase/queries/workflows
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from '@/lib/supabase/server';
 import {
   SOPTemplate,

@@ -48,6 +48,7 @@ export default async function WorkflowsDashboardPage() {
 
   const canCreateTask = canPerformAction(userData.role, 'task:create').allowed;
   const canViewTasks = permissionCheck.allowed;
+  const canManageTaskStatus = canPerformAction(userData.role, 'task:update').allowed;
 
   // Get user's tasks (with error handling)
   let myTasks: Task[] = [];
@@ -107,6 +108,7 @@ export default async function WorkflowsDashboardPage() {
           allTasks={allTasks}
           userId={user.id}
           canCreateTask={canCreateTask}
+          canManageTaskStatus={canManageTaskStatus}
         />
       )}
     </div>

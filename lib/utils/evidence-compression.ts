@@ -12,6 +12,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { CompressionResult, DecompressionResult, CompressionType } from '@/types/workflow';
 
+export const MAX_EVIDENCE_BYTES_BEFORE_COMPRESSION = 10 * 1024 * 1024; // 10 MB
+
+export function isEvidenceWithinSizeLimit(
+  size: number,
+  limit: number = MAX_EVIDENCE_BYTES_BEFORE_COMPRESSION
+): boolean {
+  return size <= limit;
+}
+
 // =====================================================
 // COMPRESSION UTILITIES
 // =====================================================

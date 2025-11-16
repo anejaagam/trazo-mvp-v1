@@ -99,7 +99,9 @@ describe('TaskExecutor', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save & Skip/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Step 2')).toBeInTheDocument();
+      expect(screen.getAllByText('Step 2').length).toBeGreaterThan(0);
+      expect(screen.getByText(/Execution Timeline/i)).toBeInTheDocument();
+      expect(screen.getByText(/Reason: Not applicable/i)).toBeInTheDocument();
     });
   });
 

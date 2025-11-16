@@ -12,13 +12,24 @@ import {
   ChevronRight,
   Calendar,
   User,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+
+interface BlockedInfo {
+  blocked: boolean;
+  blockers: Array<{ id: string; title: string; status: string }>;
+}
 
 interface TaskListProps {
   tasks: Task[];
   onTaskExecute?: (taskId: string) => void;
+  selectedTaskId?: string | null;
+  onSelectTask?: (taskId: string) => void;
+  blockedTasks?: Record<string, BlockedInfo>;
 }
 
 function getPriorityColor(priority: TaskPriority): 'default' | 'destructive' | 'secondary' | 'outline' {
@@ -60,7 +71,7 @@ function getActionLabel(status: TaskStatus): string {
   return 'Start';
 }
 
-export function TaskList({ tasks, onTaskExecute }: TaskListProps) {
+export function TaskList({ tasks, onTaskExecute, selectedTaskId, onSelectTask, blockedTasks }: TaskListProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
@@ -162,14 +173,17 @@ export function TaskList({ tasks, onTaskExecute }: TaskListProps) {
           <div className="space-y-2">
             {filteredTasks.map(task => {
               const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+              const blockedInfo = blockedTasks?.[task.id];
 
               return (
                 <div
                   key={task.id}
-                  className={`flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${
-                    isOverdue ? 'border-red-200 bg-red-50/50' : ''
-                  }`}
-                  onClick={() => handleExecuteTask(task.id)}
+                  className={cn(
+                    'flex items-center justify-between p-4 border rounded-lg transition-colors hover:bg-slate-50 cursor-pointer',
+                    isOverdue && 'border-red-200 bg-red-50/50',
+                    selectedTaskId === task.id && 'border-blue-500 bg-blue-50'
+                  )}
+                  onClick={() => onSelectTask?.(task.id)}
                 >
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
@@ -178,6 +192,25 @@ export function TaskList({ tasks, onTaskExecute }: TaskListProps) {
                       </h4>
                       {isOverdue && (
                         <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                      )}
+                      {blockedInfo?.blocked && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="destructive" className="text-[10px]">
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Blocked
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-xs">
+                              <p className="font-semibold mb-1">Prerequisites outstanding</p>
+                              {blockedInfo.blockers.length === 0 && <p>No blocker data available.</p>}
+                              {blockedInfo.blockers.map((blocker) => (
+                                <p key={blocker.id}>{blocker.title} ({blocker.status})</p>
+                              ))}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
 

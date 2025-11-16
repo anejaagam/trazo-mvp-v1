@@ -638,3 +638,81 @@ export interface BatchInventoryUsage {
     received_by_type: Partial<Record<ItemType, number>>;
   };
 }
+
+// =====================================================
+// BATCH-TASK INTEGRATION TYPES
+// =====================================================
+
+/**
+ * Batch-SOP template link for automated task generation
+ */
+export interface BatchSOPLink {
+  id: string;
+  batch_id: string;
+  sop_template_id: string;
+  stage?: BatchStage | null; // Optional stage trigger
+  auto_create: boolean; // Auto-create tasks on stage transition
+  created_by: string;
+  created_at: string;
+}
+
+/**
+ * Batch packet metadata for generated documents
+ */
+export interface BatchPacket {
+  id: string;
+  batch_id: string;
+  packet_type: 'full' | 'summary' | 'compliance' | 'harvest';
+  file_url: string;
+  file_size_bytes?: number;
+  generated_by: string;
+  generated_at: string;
+  includes_tasks: boolean;
+  includes_recipe: boolean;
+  includes_inventory: boolean;
+  includes_compliance: boolean;
+  metadata?: {
+    date_range_start?: string;
+    date_range_end?: string;
+    filters_applied?: Record<string, any>;
+    total_pages?: number;
+    [key: string]: any;
+  };
+}
+
+/**
+ * Extended batch event type including task-related events
+ */
+export type BatchEventType = 
+  | 'created'
+  | 'stage_change'
+  | 'plant_count_update'
+  | 'pod_assignment'
+  | 'pod_removal'
+  | 'quarantine'
+  | 'quarantine_release'
+  | 'harvest'
+  | 'destruction'
+  | 'note_added'
+  | 'recipe_applied'
+  | 'task_linked'
+  | 'task_completed'
+  | 'task_cancelled'
+  | 'sop_template_linked'
+  | 'packet_generated';
+
+/**
+ * Extended batch event with task_id
+ */
+export interface BatchEventWithTask {
+  id: string;
+  batch_id: string;
+  event_type: BatchEventType;
+  from_value?: any;
+  to_value?: any;
+  user_id: string;
+  timestamp: string;
+  notes?: string;
+  evidence_urls?: string[];
+  task_id?: string | null; // New field for task reference
+}

@@ -219,6 +219,9 @@ export interface SOPTemplate {
   is_active: boolean;
   is_template: boolean;
   
+  // Batch integration
+  batch_id?: string | null; // Optional batch reference for batch-specific SOPs
+  
   // Audit
   created_by: string;
   created_at: string;
@@ -320,6 +323,8 @@ export interface RecurringConfig {
   daysOfWeek?: string[]; // e.g. ['Mon','Wed'] for weekly pattern
   dayOfMonth?: number; // 1-31 for monthly pattern
   customRule?: string; // placeholder for advanced RRULE-like expressions
+  seedTaskId?: string; // internal helper to link generated tasks to a seed
+  lastGeneratedAt?: string; // ISO timestamp of the most recent generated instance
 }
 
 export interface Task {
@@ -457,6 +462,9 @@ export interface TaskStep {
   notes?: string;
   skipped: boolean;
   skip_reason?: string;
+  
+  // Batch integration
+  batch_id?: string | null; // Optional batch reference for batch-specific task steps
 }
 
 export interface CreateTaskInput {

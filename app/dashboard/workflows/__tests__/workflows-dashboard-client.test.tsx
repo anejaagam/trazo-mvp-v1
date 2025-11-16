@@ -18,6 +18,17 @@ jest.mock('@/app/actions/tasks', () => ({
   updateTaskStatusAction: jest.fn(),
 }));
 
+const mockIn = jest.fn().mockResolvedValue({ data: [], error: null });
+jest.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    from: () => ({
+      select: () => ({
+        in: mockIn,
+      }),
+    }),
+  }),
+}));
+
 describe('WorkflowsDashboardClient', () => {
   const baseTask: Task = {
     id: 'task-1',
@@ -40,6 +51,7 @@ describe('WorkflowsDashboardClient', () => {
   beforeEach(() => {
     pushMock.mockClear();
     refreshMock.mockClear();
+    mockIn.mockClear();
   });
 
   it('navigates to task creation when user can create tasks', async () => {

@@ -67,6 +67,20 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     resource: 'batch',
     action: 'assign_pod'
   },
+  'batch:tasks_link': {
+    key: 'batch:tasks_link',
+    name: 'Link Tasks to Batch',
+    description: 'Link SOP templates and tasks to batches for automated workflow management',
+    resource: 'batch',
+    action: 'tasks_link'
+  },
+  'batch:packet_generate': {
+    key: 'batch:packet_generate',
+    name: 'Generate Batch Packet',
+    description: 'Generate comprehensive batch documentation packets (PDF/HTML) for compliance and reporting',
+    resource: 'batch',
+    action: 'packet_generate'
+  },
 
   // Cultivar permissions
   'cultivar:view': {

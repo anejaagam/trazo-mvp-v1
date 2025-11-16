@@ -8,18 +8,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Calendar, MapPin, Users, TrendingUp, FileText, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Calendar, Users, TrendingUp, FileText, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { DomainBatch, BatchStage } from '@/types/batch'
+import type { DomainBatch } from '@/types/batch'
 import { formatDate } from '@/lib/utils'
 
 interface BatchDetailViewProps {
   batch: DomainBatch
   onBack?: () => void
-  userRole: string
 }
 
 const stageColors: Record<string, string> = {
@@ -57,7 +56,7 @@ const statusColors: Record<string, string> = {
   destroyed: 'bg-black text-white',
 }
 
-export function BatchDetailView({ batch, onBack, userRole }: BatchDetailViewProps) {
+export function BatchDetailView({ batch, onBack }: BatchDetailViewProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const router = useRouter()
 

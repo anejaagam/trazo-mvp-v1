@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import { Plus, Search, Filter, Edit, Archive } from 'lucide-react'
+import { Plus, Search, Edit, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,16 +22,17 @@ import {
 } from '@/components/ui/table'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { Cultivar } from '@/types/batch'
+import type { RoleKey } from '@/lib/rbac/types'
 
 interface CultivarListProps {
   cultivars: Cultivar[]
   onCreateClick: () => void
   onEditClick: (cultivar: Cultivar) => void
-  userRole: string
+  userRole: RoleKey | null
 }
 
 export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }: CultivarListProps) {
-  const { can } = usePermissions(userRole as any, [])
+  const { can } = usePermissions(userRole, [])
   const [searchTerm, setSearchTerm] = useState('')
 
   const filteredCultivars = cultivars.filter((cultivar) => {

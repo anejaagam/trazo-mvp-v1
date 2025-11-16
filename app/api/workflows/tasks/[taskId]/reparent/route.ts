@@ -5,8 +5,9 @@ import { moveTaskUnderParent } from '@/lib/supabase/queries/workflows';
 
 export async function POST(
   request: Request,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
+  const { taskId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,7 +30,7 @@ export async function POST(
   const body = await request.json().catch(() => ({}));
   const parentTaskId = typeof body?.parentTaskId === 'string' ? body.parentTaskId : null;
 
-  const result = await moveTaskUnderParent(params.taskId, parentTaskId);
+  const result = await moveTaskUnderParent(taskId, parentTaskId);
   if (result.error) {
     const message = result.error instanceof Error ? result.error.message : 'Unable to move task';
     return NextResponse.json({ error: message }, { status: 400 });

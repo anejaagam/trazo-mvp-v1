@@ -242,7 +242,8 @@ export async function getBatches(
       const { data, error } = await runQuery(options)
 
       if (!error) {
-        const batches = (data || []) as BatchListItem[]
+        const rawData = (data ?? []) as unknown
+        const batches = rawData as BatchListItem[]
         const enriched = await attachActiveRecipes(batches)
         return { data: enriched, error: null }
       }
@@ -898,7 +899,9 @@ async function fetchBatchInventoryUsage(batchId: string): Promise<BatchInventory
     const consumedSummary: Record<string, number> = {}
     const receivedSummary: Record<string, number> = {}
 
-    ;(data as MovementRow[]).forEach((row) => {
+    const movementRows = (data ?? []) as unknown as MovementRow[]
+
+    movementRows.forEach((row) => {
       if (!row.item?.id) {
         return
       }

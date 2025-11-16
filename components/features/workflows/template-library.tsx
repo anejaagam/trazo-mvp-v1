@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SOPTemplate, TemplateStatus, TemplateCategory } from '@/types/workflow';
+import { SOPTemplate, TemplateStatus, SOPStep } from '@/types/workflow';
 import { Clock, FileText, Search, Plus, Edit, Copy, GitBranch, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface TemplateLibraryProps {
@@ -65,6 +65,16 @@ export function TemplateLibrary({
         return 'secondary';
     }
   };
+
+  if (!canView) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-slate-600">You don&apos;t have permission to view workflow templates</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -147,10 +157,12 @@ export function TemplateLibrary({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTemplates.map(template => {
-            const hasConditionalSteps = template.steps?.some((s: any) => s.is_conditional || s.isConditional);
-            const evidenceSteps = template.steps?.filter((s: any) => s.evidence_required || s.evidenceRequired).length || 0;
-            const approvalSteps = template.steps?.filter((s: any) => s.requiresApproval).length || 0;
-            const totalSteps = template.steps?.length || 0;
+            type StepLike = SOPStep & { is_conditional?: boolean; evidence_required?: boolean };
+            const steps = (template.steps || []) as StepLike[];
+            const hasConditionalSteps = steps.some((step) => Boolean(step.isConditional ?? step.is_conditional));
+            const evidenceSteps = steps.filter((step) => Boolean(step.evidenceRequired ?? step.evidence_required)).length;
+            const approvalSteps = steps.filter((step) => step.requiresApproval).length;
+            const totalSteps = steps.length;
 
             return (
               <Card key={template.id} className="hover:shadow-lg transition-shadow">

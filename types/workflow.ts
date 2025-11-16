@@ -378,6 +378,7 @@ export interface Task {
   
   // Approval
   requires_approval?: boolean;
+  approval_role?: string;
   approval_status?: 'pending' | 'approved' | 'rejected';
   approved_at?: string;
   approved_by?: string;
@@ -398,9 +399,6 @@ export interface Task {
   estimated_duration_minutes?: number;
   actual_duration_minutes?: number;
   
-  // Batch association (for batch release gating)
-  batch_id?: string;
-  
   // Notes
   notes?: string;
   
@@ -411,7 +409,7 @@ export interface Task {
 }
 
 // Aggregated compression/evidence metrics
-export interface EvidenceAggregation {
+export interface EvidenceAggregation extends Record<string, unknown> {
   totalItems: number;
   originalBytes: number;
   compressedBytes: number;
@@ -628,7 +626,7 @@ export interface CompressionResult {
 
 export interface DecompressionResult {
   success: boolean;
-  data: string | Blob;
+  data: unknown;
   originalSize: number;
 }
 

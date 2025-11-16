@@ -5,11 +5,11 @@ import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default async function HarvestQueuePage() {
-  let userRole: string
-
   if (isDevModeActive()) {
     logDevMode('Harvest Queue Page')
-    userRole = DEV_MOCK_USER.role
+    if (!canPerformAction(DEV_MOCK_USER.role, 'batch:stage_change')) {
+      redirect('/dashboard')
+    }
   } else {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -31,8 +31,6 @@ export default async function HarvestQueuePage() {
     if (!canPerformAction(userData.role, 'batch:stage_change')) {
       redirect('/dashboard')
     }
-
-    userRole = userData.role
   }
 
   return (

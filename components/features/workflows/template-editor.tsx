@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,13 +24,13 @@ import { ROLES } from '@/lib/rbac/roles';
 import { 
   Plus, 
   Trash2, 
-  GripVertical, 
   Save, 
   X, 
   AlertTriangle, 
   GitBranch,
-  CheckCircle2,
-  Upload
+  Upload,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 interface TemplateEditorProps {
@@ -40,6 +40,18 @@ interface TemplateEditorProps {
   onSave?: (template: Partial<SOPTemplate>) => Promise<void>;
   onCancel?: () => void;
   canPublish?: boolean;
+}
+
+type RecurrencePattern = 'none' | 'daily' | 'weekly' | 'monthly';
+
+interface TemplateDraftPayload extends Partial<SOPTemplate> {
+  recurring_pattern?: RecurrencePattern;
+  recurring_config?: {
+    interval: number;
+    daysOfWeek: string[];
+    dayOfMonth: number;
+    startDate?: string;
+  };
 }
 
 const EVIDENCE_TYPES: { value: EvidenceType; label: string }[] = [
@@ -96,7 +108,7 @@ export function TemplateEditor({
     template?.is_exception_scenario || false
   );
   // Recurrence (template-level scheduling metadata - not yet persisted to DB)
-  const [recurringPattern, setRecurringPattern] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
+  const [recurringPattern, setRecurringPattern] = useState<RecurrencePattern>('none');
   const [recurringInterval, setRecurringInterval] = useState('1');
   const [recurringDaysOfWeek, setRecurringDaysOfWeek] = useState<string[]>([]);
   const [recurringDayOfMonth, setRecurringDayOfMonth] = useState('1');
@@ -184,7 +196,7 @@ export function TemplateEditor({
     setIsSaving(true);
 
     try {
-      const templateData: Partial<SOPTemplate> = {
+      const templateData: TemplateDraftPayload = {
         name: name.trim(),
         category,
         description: description.trim() || undefined,
@@ -198,11 +210,11 @@ export function TemplateEditor({
 
       // Attach recurrence metadata to steps root (will be utilized in task creation phase)
       if (recurringPattern !== 'none') {
-        (templateData as any).recurring_pattern = recurringPattern;
-        (templateData as any).recurring_config = {
-          interval: parseInt(recurringInterval) || 1,
-          daysOfWeek: recurringPattern === 'weekly' ? recurringDaysOfWeek : undefined,
-          dayOfMonth: recurringPattern === 'monthly' ? parseInt(recurringDayOfMonth) : undefined,
+        templateData.recurring_pattern = recurringPattern;
+        templateData.recurring_config = {
+          interval: parseInt(recurringInterval, 10) || 1,
+          daysOfWeek: recurringPattern === 'weekly' ? recurringDaysOfWeek : [],
+          dayOfMonth: recurringPattern === 'monthly' ? parseInt(recurringDayOfMonth, 10) || 1 : 1,
           startDate: new Date().toISOString().split('T')[0],
         };
       }
@@ -351,7 +363,7 @@ export function TemplateEditor({
           <div className="space-y-4">
             <div className="space-y-1">
               <Label>Recurrence Pattern</Label>
-              <Select value={recurringPattern} onValueChange={(v) => setRecurringPattern(v as any)}>
+              <Select value={recurringPattern} onValueChange={(v) => setRecurringPattern(v as RecurrencePattern)}>
                 <SelectTrigger>
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
@@ -473,7 +485,7 @@ export function TemplateEditor({
           {steps.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-              <p>No steps added yet. Click "Add Step" to get started.</p>
+              <p>No steps added yet. Click &quot;Add Step&quot; to get started.</p>
             </div>
           )}
         </CardContent>
@@ -517,7 +529,16 @@ function StepEditor({
               disabled={!onMoveUp}
               className="h-6 w-6 p-0"
             >
-              <GripVertical className="w-4 h-4" />
+              <ChevronUp className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onMoveDown}
+              disabled={!onMoveDown}
+              className="h-6 w-6 p-0"
+            >
+              <ChevronDown className="w-4 h-4" />
             </Button>
           </div>
           
@@ -739,9 +760,6 @@ function VersionHistoryViewer({ template }: { template?: SOPTemplate | null }) {
   const lastTwo = history.slice(-2);
   let diff: { added: number; removed: number; changed: number } | null = null;
   if (lastTwo.length === 2) {
-    const prevVersion = lastTwo[0];
-    const currentVersion = lastTwo[1];
-    // Simple diff heuristic using step titles length (actual step snapshots not stored in history yet)
     const prevCount = (template.steps || []).length; // placeholder (ideally stored per version)
     const currCount = prevCount; // no historical snapshot available
     diff = { added: Math.max(0, currCount - prevCount), removed: Math.max(0, prevCount - currCount), changed: 0 };

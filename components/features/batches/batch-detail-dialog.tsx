@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +22,7 @@ import { getBatchPacketDataAction } from '@/app/actions/batch-tasks'
 import { generateBatchPacketPDF } from '@/lib/utils/batch-packet-generator'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import type { BatchStageHistory, BatchEvent } from '@/types/batch'
+import type { RoleKey } from '@/lib/rbac/types'
 import { toast } from 'sonner'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LogInventoryUsageDialog } from './log-inventory-usage-dialog'
@@ -34,7 +36,7 @@ interface BatchDetailDialogProps {
   onClose: () => void
   onRefresh: () => void
   userId: string
-  userRole: string
+  userRole: RoleKey
   jurisdictionId?: JurisdictionId | null
   plantType: PlantType
 }
@@ -45,9 +47,11 @@ export function BatchDetailDialog({
   onClose,
   onRefresh,
   userId,
+  userRole,
   jurisdictionId,
   plantType,
 }: BatchDetailDialogProps) {
+  const router = useRouter()
   const [detail, setDetail] = useState<BatchDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -56,10 +60,9 @@ export function BatchDetailDialog({
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
   const [showLinkTemplate, setShowLinkTemplate] = useState(false)
-  const [showCreateTask, setShowCreateTask] = useState(false)
   const [generatingPacket, setGeneratingPacket] = useState(false)
 
-  const loadDetail = async () => {
+  const loadDetail = useCallback(async () => {
     setLoading(true)
     const { data, error } = await getBatchDetail(batch.id)
     if (error) {
@@ -68,7 +71,7 @@ export function BatchDetailDialog({
       setDetail(data)
     }
     setLoading(false)
-  }
+  }, [batch.id])
 
   useEffect(() => {
     if (isOpen) {
@@ -76,7 +79,7 @@ export function BatchDetailDialog({
     } else {
       setDetail(null)
     }
-  }, [isOpen, batch.id])
+  }, [isOpen, loadDetail])
 
   const activeAssignments = useMemo(
     () => detail?.pod_assignments?.filter((assignment) => !assignment.removed_at) || [],
@@ -360,8 +363,9 @@ export function BatchDetailDialog({
             <TabsContent value="tasks" className="space-y-4">
               <BatchTasksPanel 
                 batchId={batch.id}
+                userRole={userRole}
                 onLinkTemplate={() => setShowLinkTemplate(true)}
-                onCreateTask={() => setShowCreateTask(true)}
+                onCreateTask={() => router.push(`/dashboard/workflows/tasks/new?batchId=${batch.id}`)}
               />
             </TabsContent>
 

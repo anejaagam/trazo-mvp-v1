@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
 import { BatchDetailDialog } from './batch-detail-dialog'
+import type { RoleKey } from '@/lib/rbac/types'
 
 interface BatchDetailPageProps {
   batch: BatchListItem
   userId: string
-  userRole: string
+  userRole: RoleKey
   jurisdictionId?: JurisdictionId | null
   plantType: PlantType
 }

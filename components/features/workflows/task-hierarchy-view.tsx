@@ -10,14 +10,13 @@ import {
 } from '@/types/workflow';
 import { buildHierarchyTree } from '@/lib/workflows/hierarchy';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import {
-  AlertTriangle,
   ChevronDown,
   ChevronRight,
   GitBranch,
@@ -40,7 +39,7 @@ interface TaskHierarchyViewProps {
   canEditHierarchy?: boolean;
 }
 
-const statusVariant: Record<TaskStatus, string> = {
+const statusVariant: Record<TaskStatus, NonNullable<BadgeProps['variant']>> = {
   to_do: 'outline',
   in_progress: 'default',
   blocked: 'destructive',
@@ -133,7 +132,7 @@ export function TaskHierarchyView({
     });
   };
 
-  const handleDrop = async (targetId: string | null) => {
+  const handleDrop = useCallback(async (targetId: string | null) => {
     if (!draggingId || draggingId === targetId) return;
     if (!tree) return;
 
@@ -190,7 +189,7 @@ export function TaskHierarchyView({
       setDraggingId(null);
       setRootDropActive(false);
     }
-  };
+  }, [draggingId, fetchHierarchy, toast, tree]);
 
   const renderNode = useCallback(
     (node: TaskHierarchyNode) => {

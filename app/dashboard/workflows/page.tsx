@@ -106,7 +106,6 @@ export default async function WorkflowsDashboardPage() {
         <WorkflowsDashboardClient 
           myTasks={myTasks}
           allTasks={allTasks}
-          userId={user.id}
           canCreateTask={canCreateTask}
           canManageTaskStatus={canManageTaskStatus}
         />

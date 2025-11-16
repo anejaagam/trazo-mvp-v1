@@ -8,13 +8,7 @@ import {
   createBatch,
   updateBatch,
   deleteBatch,
-  transitionBatchStage,
-  quarantineBatch,
-  releaseFromQuarantine,
-  recordHarvest,
   updatePlantCount,
-  assignBatchToPod,
-  getBatchGenealogy,
   getBatchQualityHistory,
   addQualityMetric,
   getBatchesByStage,
@@ -31,6 +25,10 @@ jest.mock('@/lib/supabase/server', () => ({
 }));
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+const resolveClient = (client: Partial<SupabaseServerClient>) => {
+  mockCreateClient.mockResolvedValue(client as SupabaseServerClient);
+};
 
 describe('Batch Queries', () => {
   beforeEach(() => {
@@ -59,9 +57,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatches('org-1', 'site-1');
 
@@ -75,9 +73,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatches('org-1', 'site-1', { 
         domain_type: 'cannabis' 
@@ -94,9 +92,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatches('org-1', 'site-1', {
         stage: ['vegetative', 'flowering'],
@@ -112,9 +110,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatches('org-1', 'site-1', {
         quarantine_status: 'quarantined',
@@ -130,9 +128,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatches('org-1', 'site-1', {
         search: 'CB-001',
@@ -146,9 +144,9 @@ describe('Batch Queries', () => {
       const mockError = new Error('Database error');
       const mockQuery = new MockQueryBuilder(null, mockError);
       
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatches('org-1', 'site-1');
 
@@ -168,9 +166,9 @@ describe('Batch Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockBatch);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchById('batch-1');
 
@@ -182,9 +180,9 @@ describe('Batch Queries', () => {
       const mockError = new Error('Batch not found');
       const mockQuery = new MockQueryBuilder(null, mockError);
       
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchById('nonexistent');
 
@@ -213,7 +211,7 @@ describe('Batch Queries', () => {
       const mockEventQuery = new MockQueryBuilder({ success: true });
       const mockHistoryQuery = new MockQueryBuilder({ success: true });
 
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
         },
@@ -221,7 +219,7 @@ describe('Batch Queries', () => {
           .mockReturnValueOnce(mockQuery) // For insert
           .mockReturnValueOnce(mockEventQuery) // For event
           .mockReturnValueOnce(mockHistoryQuery), // For stage history
-      } as any);
+      });
 
       const result = await createBatch({
         organization_id: 'org-1',
@@ -238,11 +236,11 @@ describe('Batch Queries', () => {
     });
 
     it('should handle unauthenticated user', async () => {
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: null } }),
         },
-      } as any);
+      });
 
       const result = await createBatch({
         organization_id: 'org-1',
@@ -269,9 +267,9 @@ describe('Batch Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockUpdated);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await updateBatch('batch-1', {
         plant_count: 100,
@@ -294,14 +292,14 @@ describe('Batch Queries', () => {
       const mockQuery = new MockQueryBuilder(mockDeleted);
       const mockEventQuery = new MockQueryBuilder({ success: true });
 
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
         },
         from: jest.fn()
           .mockReturnValueOnce(mockQuery) // For update
           .mockReturnValueOnce(mockEventQuery), // For event
-      } as any);
+      });
 
       const result = await deleteBatch('batch-1');
 
@@ -318,9 +316,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchesByStage('vegetative', 'org-1', 'site-1');
 
@@ -335,9 +333,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchesByStage(
         ['vegetative', 'flowering'],
@@ -358,9 +356,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getActiveBatches('org-1', 'site-1');
 
@@ -401,9 +399,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockMovements);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchInventoryUsage('batch-1');
 
@@ -416,9 +414,9 @@ describe('Batch Queries', () => {
 
     it('returns null data when no movements found', async () => {
       const mockQuery = new MockQueryBuilder([]);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchInventoryUsage('batch-1');
 
@@ -435,9 +433,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockBatches);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchesByCultivar('cultivar-1', 'org-1');
 
@@ -459,9 +457,9 @@ describe('Batch Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockMetric);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await addQualityMetric(
         'batch-1',
@@ -501,9 +499,9 @@ describe('Batch Queries', () => {
       ];
 
       const mockQuery = new MockQueryBuilder(mockHistory);
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn().mockReturnValue(mockQuery),
-      } as any);
+      });
 
       const result = await getBatchQualityHistory('batch-1');
 
@@ -531,13 +529,13 @@ describe('Batch Queries', () => {
       const mockDetailQuery = new MockQueryBuilder(mockBatch);
       const mockDetailQuery2 = new MockQueryBuilder(mockUpdated);
 
-      mockCreateClient.mockResolvedValue({
+      resolveClient({
         from: jest.fn()
           .mockReturnValueOnce(mockDetailQuery) // For getBatchById (current count)
           .mockReturnValueOnce(mockQuery) // For update
           .mockReturnValueOnce(mockEventQuery) // For event
           .mockReturnValueOnce(mockDetailQuery2), // For final getBatchById
-      } as any);
+      });
 
       const result = await updatePlantCount('batch-1', 45, 'user-1', 'Plant loss');
 

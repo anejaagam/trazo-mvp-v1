@@ -6,10 +6,11 @@ import { TemplateEditorWrapper } from '@/components/features/workflows/template-
 import { SOPTemplate } from '@/types/workflow';
 
 interface NewTemplatePageProps {
-  searchParams: { copy?: string };
+  searchParams: Promise<{ copy?: string }>;
 }
 
 export default async function NewTemplatePage({ searchParams }: NewTemplatePageProps) {
+  const params = await searchParams;
   const supabase = await createClient();
   
   // Check authentication
@@ -34,8 +35,8 @@ export default async function NewTemplatePage({ searchParams }: NewTemplatePageP
 
   // If copying, fetch the source template
   let sourceTemplate: SOPTemplate | null = null;
-  if (searchParams.copy) {
-    const result = await getTemplateById(searchParams.copy);
+  if (params.copy) {
+    const result = await getTemplateById(params.copy);
     sourceTemplate = result.data;
   }
 
@@ -45,8 +46,8 @@ export default async function NewTemplatePage({ searchParams }: NewTemplatePageP
     <div className="container mx-auto py-6">
       <TemplateEditorWrapper
         template={sourceTemplate}
-        isNew={!searchParams.copy}
-        isCopy={!!searchParams.copy}
+        isNew={!params.copy}
+        isCopy={!!params.copy}
         canPublish={canPublish}
       />
     </div>

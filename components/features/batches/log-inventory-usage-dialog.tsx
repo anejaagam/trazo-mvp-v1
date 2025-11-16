@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
@@ -48,7 +48,7 @@ export function LogInventoryUsageDialog({
   onLogged,
 }: LogInventoryUsageDialogProps) {
   const form = useForm<LogInventoryFormValues>({
-    resolver: zodResolver(logInventorySchema),
+    resolver: zodResolver(logInventorySchema) as Resolver<LogInventoryFormValues>,
     defaultValues: {
       allocationMethod: 'FIFO',
       quantity: 0,
@@ -60,17 +60,15 @@ export function LogInventoryUsageDialog({
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
   const [lotOptions, setLotOptions] = useState<Array<{ id: string; label: string }>>([])
-  const selectedItem = useMemo(
-    () => items.find((item) => item.id === form.watch('itemId')),
-    [items, form.watch('itemId')]
-  )
+  const watchedItemId = form.watch('itemId')
+  const selectedItem = useMemo(() => items.find((item) => item.id === watchedItemId), [items, watchedItemId])
 
   useEffect(() => {
     if (!isOpen) return
     let isMounted = true
     const loadItems = async () => {
       try {
-        const { data } = await getInventoryItems(siteId, {})
+        const { data } = await getInventoryItems(siteId)
         if (!isMounted) return
         setItems(
           (data || []).filter((item) => ALLOWED_ITEM_TYPES.includes(item.item_type || 'other'))
@@ -89,8 +87,7 @@ export function LogInventoryUsageDialog({
   }, [isOpen, siteId])
 
   useEffect(() => {
-    const itemId = form.watch('itemId')
-    if (!itemId) {
+    if (!watchedItemId) {
       setLotOptions([])
       form.setValue('lotId', null)
       return
@@ -99,7 +96,7 @@ export function LogInventoryUsageDialog({
     let isMounted = true
     const loadLots = async () => {
       try {
-        const { data } = await getLotsByItem(itemId)
+        const { data } = await getLotsByItem(watchedItemId)
         if (!isMounted) return
         setLotOptions(
           (data || []).map((lot) => ({
@@ -116,7 +113,7 @@ export function LogInventoryUsageDialog({
     return () => {
       isMounted = false
     }
-  }, [form.watch('itemId')])
+  }, [watchedItemId, form])
 
   const handleSubmit = async (values: LogInventoryFormValues) => {
     if (!selectedItem) {
@@ -271,7 +268,14 @@ export function LogInventoryUsageDialog({
                 <FormItem>
                   <FormLabel>Reason</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Propagation or recipe step" {...field} />
+                    <Input
+                      placeholder="e.g. Propagation or recipe step"
+                      value={field.value ?? ''}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -285,7 +289,15 @@ export function LogInventoryUsageDialog({
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea rows={3} placeholder="Optional notes" {...field} />
+                    <Textarea
+                      rows={3}
+                      placeholder="Optional notes"
+                      value={field.value ?? ''}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

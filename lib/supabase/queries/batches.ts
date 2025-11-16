@@ -8,15 +8,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { advanceRecipeStageForBatch, syncPodAndBatchRecipes } from '@/lib/recipes/recipe-sync'
 import type {
-  Batch,
   BatchInventoryUsage,
-  DomainBatch,
   InsertBatch,
   UpdateBatch,
   BatchFilters,
-  BatchStatus,
   BatchStage,
-  DomainType,
 } from '@/types/batch'
 import type { ItemType, MovementType } from '@/types/inventory'
 
@@ -368,7 +364,7 @@ export async function recordHarvest(
     if (updateError) throw updateError
 
     // Create harvest record
-    const { data, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('harvest_records')
       .insert({
         batch_id: batchId,
@@ -380,8 +376,6 @@ export async function recordHarvest(
         location: harvestData.location,
         notes: harvestData.notes,
       })
-      .select()
-      .single()
 
     if (insertError) throw insertError
 
@@ -430,7 +424,8 @@ export async function getBatchInventoryUsage(batchId: string) {
       return { data: null, error: null }
     }
 
-    const usage = buildInventoryUsageFromRows(data as InventoryMovementRow[])
+    const movementRows = (data ?? []) as unknown as InventoryMovementRow[]
+    const usage = buildInventoryUsageFromRows(movementRows)
     return { data: usage, error: null }
   } catch (error) {
     console.error('Error in getBatchInventoryUsage:', error)
@@ -780,7 +775,7 @@ async function createBatchEvent(
   batchId: string,
   eventType: string,
   userId: string,
-  data?: any
+  data?: Record<string, unknown>
 ) {
   try {
     const supabase = await createClient()

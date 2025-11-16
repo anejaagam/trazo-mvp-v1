@@ -13,7 +13,6 @@ import {
   Task,
   TaskEvidence,
   TaskDependency,
-  TaskStep,
   CreateTemplateInput,
   UpdateTemplateInput,
   CreateTaskInput,
@@ -24,7 +23,6 @@ import {
   TaskFilters,
   TemplateFilters,
   PaginationParams,
-  PaginatedResult,
   PublishTemplateResult,
   MAX_TASK_HIERARCHY_LEVEL,
   EvidenceAggregation,
@@ -33,25 +31,49 @@ import { decompressEvidence } from '@/lib/utils/evidence-compression';
 import { wouldCreateDependencyCycle } from '@/lib/utils/dependency-graph';
 import { generateNextRecurrenceInstances } from '@/lib/utils/recurrence';
 import { buildHierarchyTree, collectDescendantIds } from '@/lib/workflows/hierarchy';
-import { PostgrestSingleResponse, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-function normalizeTaskRows(rows: any[] | null): TaskWithTemplate[] {
-  if (!rows) return [];
+type TaskQueryRow = Partial<TaskWithTemplate> & {
+  sop_templates?: SOPTemplate | null;
+  template_step_count?: number | null;
+  template_name?: string | null;
+  template_version?: string | null;
+};
+
+type SequenceOrderRow = { sequence_order: number | null };
+
+type DependencyWithTask = {
+  depends_on: Pick<Task, 'id' | 'title' | 'status'>;
+};
+
+type HierarchyRpcRow = {
+  task_id: string;
+  parent_id: string | null;
+  title: string;
+  status: Task['status'];
+  hierarchy_level: number;
+  sequence_order: number;
+  path: string | null;
+};
+
+function normalizeTaskRows(rows: TaskQueryRow[] | null): TaskWithTemplate[] {
+  if (!rows?.length) return [];
 
   return rows.map((row) => {
     const { sop_templates, ...rest } = row ?? {};
-    const template = sop_templates as SOPTemplate | undefined;
+    const template = sop_templates ?? undefined;
     const templateStepCount =
       rest.template_step_count ??
       (Array.isArray(template?.steps) ? template.steps.length : undefined);
+    const baseTask = rest as TaskWithTemplate;
 
     return {
-      ...rest,
-      template: template || undefined,
-      template_name: rest.template_name ?? template?.name ?? undefined,
-      template_version: rest.template_version ?? template?.version ?? undefined,
+      ...baseTask,
+      template,
+      template_name: baseTask.template_name ?? template?.name ?? undefined,
+      template_version: baseTask.template_version ?? template?.version ?? undefined,
       template_step_count: templateStepCount,
-    } as TaskWithTemplate;
+    };
   });
 }
 
@@ -370,7 +392,7 @@ export async function archiveTemplate(templateId: string) {
 /**
  * Duplicate a template (creates new draft from published template)
  */
-export async function duplicateTemplate(templateId: string) {
+export async function duplicateTemplate(templateId: string, overrideName?: string) {
   try {
     const supabase = await createClient();
     const {
@@ -392,20 +414,26 @@ export async function duplicateTemplate(templateId: string) {
 
     // Create duplicate as draft
     const {
-      id,
-      created_at,
-      updated_at,
-      published_at,
-      published_by,
-      version_history,
+      id: _id,
+      created_at: _createdAt,
+      updated_at: _updatedAt,
+      published_at: _publishedAt,
+      published_by: _publishedBy,
+      version_history: _versionHistory,
       ...templateData
     } = sourceTemplate;
+    void _id;
+    void _createdAt;
+    void _updatedAt;
+    void _publishedAt;
+    void _publishedBy;
+    void _versionHistory;
 
     const { data, error } = await supabase
       .from('sop_templates')
       .insert({
         ...templateData,
-        name: `${templateData.name} (Copy)`,
+        name: overrideName?.trim() || `${templateData.name} (Copy)`,
         status: 'draft',
         version: '1.0',
         created_by: user.id,
@@ -493,10 +521,28 @@ export async function revertTemplateVersion(originalTemplateId: string, targetVe
       .single();
     if (fetchError) throw fetchError;
     if (!target) throw new Error('Target version not found');
+    const templateVersion = target as SOPTemplate;
     const {
-      id, created_at, updated_at, published_at, published_by, version_history, parent_template_id, version, status,
+      id: _id,
+      created_at: _createdAt,
+      updated_at: _updatedAt,
+      published_at: _publishedAt,
+      published_by: _publishedBy,
+      version_history: _versionHistory,
+      parent_template_id: _parentTemplateId,
+      version: _version,
+      status: _status,
       ...rest
-    } = target as any;
+    } = templateVersion;
+    void _id;
+    void _createdAt;
+    void _updatedAt;
+    void _publishedAt;
+    void _publishedBy;
+    void _versionHistory;
+    void _parentTemplateId;
+    void _version;
+    void _status;
     const { data: inserted, error: insertError } = await supabase
       .from('sop_templates')
       .insert({
@@ -595,7 +641,7 @@ export async function getTasks(
     if (error) throw error;
 
     return {
-      data: normalizeTaskRows(data as any[]),
+      data: normalizeTaskRows((data ?? null) as TaskQueryRow[] | null),
       error: null,
       total: count || 0,
       page,
@@ -669,7 +715,7 @@ export async function getMyTasks() {
 
     if (error) throw error;
 
-    return { data: normalizeTaskRows(data as any[]), error: null };
+    return { data: normalizeTaskRows((data ?? null) as TaskQueryRow[] | null), error: null };
   } catch (error) {
     console.error('Error in getMyTasks:', error);
     return { data: null, error };
@@ -728,8 +774,9 @@ export async function createTask(input: CreateTaskInput) {
         .from('tasks')
         .select('sequence_order')
         .eq('parent_task_id', input.parent_task_id || null);
-      const maxOrder = (siblings || []).reduce(
-        (max: number, row: any) => Math.max(max, row.sequence_order || 0),
+      const siblingRows = (siblings ?? []) as SequenceOrderRow[];
+      const maxOrder = siblingRows.reduce(
+        (max, row) => Math.max(max, row.sequence_order ?? 0),
         0
       );
       sequence_order = maxOrder + 1;
@@ -854,7 +901,7 @@ export async function completeTask(
       return { data: null, error: new Error('Not authenticated') };
     }
 
-    const updateData: any = {
+    const updateData: Partial<Task> & { evidence_metadata?: EvidenceAggregation } = {
       status: 'done',
       completed_at: new Date().toISOString(),
       completed_by: user.id,
@@ -931,8 +978,9 @@ async function cascadeUnlockDependentTasks(completedTaskId: string) {
         .select('depends_on:tasks!task_dependencies_depends_on_task_id_fkey(status)')
         .eq('task_id', dep.task_id)
         .eq('dependency_type', 'blocking');
-      const stillBlocked = (remaining || []).some(
-        (r: any) => r.depends_on.status !== 'done' && r.depends_on.status !== 'approved'
+      const dependencyStatus = (remaining ?? []) as unknown as DependencyWithTask[];
+      const stillBlocked = dependencyStatus.some(
+        (r) => r.depends_on.status !== 'done' && r.depends_on.status !== 'approved'
       );
       if (!stillBlocked) {
         await supabase
@@ -955,7 +1003,7 @@ async function cascadeUnlockDependentTasks(completedTaskId: string) {
  */
 export async function getTaskHierarchy(
   rootTaskId: string
-): Promise<{ data: TaskHierarchyTree | null; error: any }> {
+): Promise<{ data: TaskHierarchyTree | null; error: unknown }> {
   try {
     const supabase = await createClient();
 
@@ -967,7 +1015,8 @@ export async function getTaskHierarchy(
     if (error) throw error;
 
     // Build tree structure from flat list
-    const tree = buildHierarchyTree(data);
+    const hierarchyRows = (data ?? []) as HierarchyRpcRow[];
+    const tree = buildHierarchyTree(hierarchyRows);
 
     return { data: tree, error: null };
   } catch (error) {
@@ -1044,8 +1093,9 @@ export async function addTaskDependency(
       .select('*');
     if (depsErr) throw depsErr;
 
-    const duplicate = allDeps?.find(
-      (d: any) =>
+    const dependencyRows = (allDeps ?? []) as TaskDependency[];
+    const duplicate = dependencyRows.find(
+      (d) =>
         d.task_id === taskId &&
         d.depends_on_task_id === dependsOnTaskId &&
         d.dependency_type === dependencyType
@@ -1054,7 +1104,7 @@ export async function addTaskDependency(
       return { data: null, error: new Error('Duplicate dependency exists') };
     }
 
-    if (wouldCreateDependencyCycle(taskId, dependsOnTaskId, allDeps || [])) {
+    if (wouldCreateDependencyCycle(taskId, dependsOnTaskId, dependencyRows)) {
       return { data: null, error: new Error('Adding this dependency would create a cycle') };
     }
 
@@ -1103,7 +1153,7 @@ export async function removeTaskDependency(dependencyId: string) {
  */
 export async function checkPrerequisites(
   taskId: string
-): Promise<{ data: PrerequisiteCheck | null; error: any }> {
+): Promise<{ data: PrerequisiteCheck | null; error: unknown }> {
   try {
     const supabase = await createClient();
 
@@ -1131,13 +1181,14 @@ export async function checkPrerequisites(
 
     if (depsError) throw depsError;
 
-    const incompletePrerequisites = (dependencies || [])
+    const dependencyRows = (dependencies ?? []) as unknown as DependencyWithTask[];
+    const incompletePrerequisites = dependencyRows
       .filter(
-        (dep: any) =>
+        (dep) =>
           dep.depends_on?.status !== 'done' &&
           dep.depends_on?.status !== 'approved'
       )
-      .map((dep: any) => ({
+      .map((dep) => ({
         id: dep.depends_on.id,
         title: dep.depends_on.title,
         status: dep.depends_on.status,
@@ -1317,14 +1368,15 @@ export async function getBlockingStatus(taskId: string) {
       .eq('task_id', taskId)
       .eq('dependency_type', 'blocking');
     if (error) throw error;
-    const incomplete = (data || []).filter(
-      (d: any) => d.depends_on?.status !== 'done' && d.depends_on?.status !== 'approved'
+    const dependencyRows = (data ?? []) as DependencyWithTask[];
+    const incomplete = dependencyRows.filter(
+      (d) => d.depends_on?.status !== 'done' && d.depends_on?.status !== 'approved'
     );
     return {
       data: {
         task_id: taskId,
         blocked: incomplete.length > 0,
-        incomplete_prerequisites: incomplete.map((d: any) => ({
+        incomplete_prerequisites: incomplete.map((d) => ({
           id: d.depends_on.id,
           title: d.depends_on.title,
           status: d.depends_on.status,
@@ -1446,7 +1498,8 @@ export async function moveTaskUnderParent(
     const { data: flatHierarchy, error: hierarchyError } = await supabase
       .rpc('get_task_hierarchy', { root_task_id: taskId });
     if (hierarchyError) throw hierarchyError;
-    const tree = buildHierarchyTree(flatHierarchy || []);
+    const hierarchyRows = (flatHierarchy ?? []) as HierarchyRpcRow[];
+    const tree = buildHierarchyTree(hierarchyRows);
     if (parentTaskId && tree) {
       const descendants = collectDescendantIds(tree.root);
       if (descendants.has(parentTaskId)) {
@@ -1455,9 +1508,9 @@ export async function moveTaskUnderParent(
     }
 
     const delta = newLevel - (task.hierarchy_level ?? 0);
-    const descendantRows: Array<{ task_id: string; hierarchy_level: number }> = (flatHierarchy || [])
-      .filter((row: any) => row.task_id !== taskId)
-      .map((row: any) => ({ task_id: row.task_id, hierarchy_level: row.hierarchy_level }));
+    const descendantRows: Array<{ task_id: string; hierarchy_level: number }> = hierarchyRows
+      .filter((row) => row.task_id !== taskId)
+      .map((row) => ({ task_id: row.task_id, hierarchy_level: row.hierarchy_level }));
 
     if (delta !== 0 && descendantRows.length) {
       const proposedLevels = descendantRows.map((row) => ({

@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Task, TaskStatus, TaskPriority } from '@/types/workflow';
-import { 
-  AlertCircle, 
-  CheckCircle2, 
+import {
+  CheckCircle2,
   Clock, 
   PlayCircle, 
   Ban, 
@@ -207,7 +206,6 @@ export function TaskBoard({
   };
 
   const renderTaskCard = (task: Task) => {
-    const Icon = AlertCircle;
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
     const totalSteps = task.template_step_count && task.template_step_count > 0 ? task.template_step_count : null;
     const completedSteps = totalSteps ? Math.min(task.current_step_index + 1, totalSteps) : null;

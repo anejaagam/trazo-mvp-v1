@@ -6,7 +6,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
-import type { Cultivar, DomainType, StrainType, ProduceCategory } from '@/types/batch'
+import type { DomainType, StrainType, ProduceCategory } from '@/types/batch'
 
 /**
  * Filters for cultivar queries

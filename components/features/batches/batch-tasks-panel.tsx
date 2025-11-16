@@ -20,6 +20,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/use-permissions'
+import type { RoleKey } from '@/lib/rbac/types'
 
 interface Task {
   id: string
@@ -51,8 +52,41 @@ interface SOPLink {
   } | null
 }
 
+type TaskQueryRow = Omit<Task, 'assigned_user' | 'sop_template'> & {
+  assigned_user?: Task['assigned_user'] | Task['assigned_user'][] | null
+  sop_template?: Task['sop_template'] | Task['sop_template'][] | null
+}
+
+type SopLinkQueryRow = Omit<SOPLink, 'sop_template'> & {
+  sop_template?: SOPLink['sop_template'] | SOPLink['sop_template'][] | null
+}
+
+const normalizeTaskRows = (rows: TaskQueryRow[] | null | undefined): Task[] => {
+  if (!rows?.length) return []
+  return rows.map((row) => ({
+    ...row,
+    assigned_user: Array.isArray(row.assigned_user)
+      ? row.assigned_user[0] ?? null
+      : row.assigned_user ?? null,
+    sop_template: Array.isArray(row.sop_template)
+      ? row.sop_template[0] ?? null
+      : row.sop_template ?? null,
+  }))
+}
+
+const normalizeSopLinkRows = (rows: SopLinkQueryRow[] | null | undefined): SOPLink[] => {
+  if (!rows?.length) return []
+  return rows.map((row) => ({
+    ...row,
+    sop_template: Array.isArray(row.sop_template)
+      ? row.sop_template[0] ?? null
+      : row.sop_template ?? null,
+  }))
+}
+
 interface BatchTasksPanelProps {
   batchId: string
+  userRole: RoleKey | null
   onLinkTemplate?: () => void
   onCreateTask?: () => void
 }
@@ -73,8 +107,8 @@ const PRIORITY_CONFIG = {
   critical: { color: 'text-red-600', bg: 'bg-red-100' },
 }
 
-export function BatchTasksPanel({ batchId, onLinkTemplate, onCreateTask }: BatchTasksPanelProps) {
-  const { can } = usePermissions()
+export function BatchTasksPanel({ batchId, userRole, onLinkTemplate, onCreateTask }: BatchTasksPanelProps) {
+  const { can } = usePermissions(userRole, [])
   const [tasks, setTasks] = useState<Task[]>([])
   const [sopLinks, setSopLinks] = useState<SOPLink[]>([])
   const [loading, setLoading] = useState(true)
@@ -111,7 +145,7 @@ export function BatchTasksPanel({ batchId, onLinkTemplate, onCreateTask }: Batch
         .order('created_at', { ascending: false })
 
       if (tasksError) throw tasksError
-      setTasks(tasksData || [])
+      setTasks(normalizeTaskRows(tasksData as TaskQueryRow[] | null))
 
       // Load SOP links
       const { data: linksData, error: linksError } = await supabase
@@ -130,7 +164,7 @@ export function BatchTasksPanel({ batchId, onLinkTemplate, onCreateTask }: Batch
         .eq('batch_id', batchId)
 
       if (linksError) throw linksError
-      setSopLinks(linksData || [])
+      setSopLinks(normalizeSopLinkRows(linksData as SopLinkQueryRow[] | null))
     } catch (error) {
       console.error('Error loading batch tasks:', error)
       toast.error('Failed to load batch tasks and SOPs')

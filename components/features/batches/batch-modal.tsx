@@ -12,7 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
-import type { DomainBatch, DomainType, CannabisBatch, ProduceBatch, BatchStatus } from '@/types/batch'
+import type {
+  DomainBatch,
+  DomainType,
+  CannabisBatch,
+  ProduceBatch,
+  BatchStatus,
+  InsertBatch,
+  UpdateBatch,
+  BatchStage,
+  ProduceGrade,
+  ProduceRipeness,
+} from '@/types/batch'
 import {
   createBatch,
   updateBatch,
@@ -83,10 +94,40 @@ const asProduceBatch = (batch: EditableBatch): ProduceBatch | undefined => {
   return undefined
 }
 
+const buildDomainSpecificFields = (domain: DomainType, values: FormValues): Partial<UpdateBatch> => {
+  if (domain === 'cannabis') {
+    return {
+      lighting_schedule: values.lightingSchedule || undefined,
+      thc_content: values.thcContent ? Number(values.thcContent) : undefined,
+      cbd_content: values.cbdContent ? Number(values.cbdContent) : undefined,
+    }
+  }
+
+  return {
+    grade: toProduceGrade(values.grade),
+    ripeness: toProduceRipeness(values.ripeness),
+  }
+}
+
 const NO_POD_VALUE = '__no_pod__'
 const NOT_TRACKED_VALUE = '__not_tracked__'
 const AUTO_LOT_VALUE = '__auto_lot__'
 const NO_GRADE_VALUE = '__no_grade__'
+
+const PRODUCE_GRADES: readonly ProduceGrade[] = ['A', 'B', 'C', 'culled']
+const PRODUCE_RIPENESS_LEVELS: readonly ProduceRipeness[] = ['unripe', 'turning', 'ripe', 'overripe']
+
+const toProduceGrade = (value?: string | null): ProduceGrade | undefined => {
+  if (!value) return undefined
+  return PRODUCE_GRADES.includes(value as ProduceGrade) ? (value as ProduceGrade) : undefined
+}
+
+const toProduceRipeness = (value?: string | null): ProduceRipeness | undefined => {
+  if (!value) return undefined
+  return PRODUCE_RIPENESS_LEVELS.includes(value as ProduceRipeness)
+    ? (value as ProduceRipeness)
+    : undefined
+}
 
 interface BatchModalProps {
   isOpen: boolean
@@ -267,38 +308,39 @@ export function BatchForm({
 
     const domainType = plantType
 
-    const payload: any = {
-      organization_id: organizationId,
-      site_id: siteId,
-      domain_type: domainType,
-      batch_number: values.batchNumber.trim(),
-      cultivar_id: values.cultivarId,
-      stage: values.stage,
-      plant_count: values.plantCount,
-      status: (batch?.status as BatchStatus) || 'active',
-      start_date: values.startDate,
-      expected_harvest_date: values.expectedHarvestDate || null,
-      notes: values.notes || null,
-      source_type: values.sourceType || null,
-    }
-
-    if (domainType === 'cannabis') {
-      payload.lighting_schedule = values.lightingSchedule || null
-      payload.thc_content = values.thcContent ? Number(values.thcContent) : null
-      payload.cbd_content = values.cbdContent ? Number(values.cbdContent) : null
-    } else {
-      payload.grade = values.grade || null
-      payload.ripeness = values.ripeness || null
-    }
-
     try {
       setLoading(true)
       let response
+      const domainSpecificFields = buildDomainSpecificFields(domainType, values)
       if (batch) {
-        response = await updateBatch(batch.id, payload)
+          const updatePayload: UpdateBatch = {
+            cultivar_id: values.cultivarId,
+            stage: values.stage as BatchStage,
+            plant_count: values.plantCount,
+            expected_harvest_date: values.expectedHarvestDate || undefined,
+            status: (batch.status as BatchStatus) || 'active',
+            notes: values.notes || undefined,
+            source_type: values.sourceType || undefined,
+            ...domainSpecificFields,
+          }
+        response = await updateBatch(batch.id, updatePayload)
       } else {
-        payload.created_by = userId
-        response = await createBatch(payload)
+        const insertPayload: InsertBatch & Partial<UpdateBatch> = {
+          organization_id: organizationId,
+          site_id: siteId,
+          domain_type: domainType,
+          batch_number: values.batchNumber.trim(),
+          cultivar_id: values.cultivarId,
+          stage: values.stage as BatchStage,
+          plant_count: values.plantCount,
+          start_date: values.startDate,
+          expected_harvest_date: values.expectedHarvestDate || undefined,
+          notes: values.notes || undefined,
+          source_type: values.sourceType || undefined,
+          created_by: userId,
+          ...domainSpecificFields,
+        }
+        response = await createBatch(insertPayload)
       }
 
       if (response.error) throw response.error
@@ -312,14 +354,14 @@ export function BatchForm({
       }
 
       const isPropagationSource = values.sourceType === 'seed' || values.sourceType === 'clone'
-      const shouldLogPropagationUsage =
+
+      if (
         !batch &&
         createdBatch &&
         isPropagationSource &&
-        values.sourceInventoryItemId &&
-        values.sourceInventoryQuantity
-
-      if (shouldLogPropagationUsage && createdBatch) {
+        typeof values.sourceInventoryItemId === 'string' &&
+        typeof values.sourceInventoryQuantity === 'number'
+      ) {
         try {
           await issueInventoryForBatch({
             itemId: values.sourceInventoryItemId,
@@ -541,7 +583,23 @@ export function BatchForm({
                   <FormItem>
                     <FormLabel>Quantity used</FormLabel>
                     <FormControl>
-                      <Input type="number" min="0" step="1" {...field} />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={field.value ?? ''}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+                          if (nextValue === '') {
+                            field.onChange(null)
+                            return
+                          }
+                          field.onChange(Number(nextValue))
+                        }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
                     </FormControl>
                     {selectedPropagationItem?.unit_of_measure && (
                       <FormDescription>

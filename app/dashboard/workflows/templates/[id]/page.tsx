@@ -5,10 +5,11 @@ import { getTemplateById } from '@/lib/supabase/queries/workflows';
 import { TemplateEditorWrapper } from '@/components/features/workflows/template-editor-wrapper';
 
 interface EditTemplatePageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function EditTemplatePage({ params }: EditTemplatePageProps) {
+  const { id } = await params;
   const supabase = await createClient();
   
   // Check authentication
@@ -32,7 +33,7 @@ export default async function EditTemplatePage({ params }: EditTemplatePageProps
   }
 
   // Fetch template
-  const result = await getTemplateById(params.id);
+  const result = await getTemplateById(id);
   
   if (!result.data) {
     redirect('/dashboard/workflows/templates');

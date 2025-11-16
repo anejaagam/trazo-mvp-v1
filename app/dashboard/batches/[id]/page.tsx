@@ -2,13 +2,15 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
+import type { RoleKey } from '@/lib/rbac/types'
 import { BatchDetailPage } from '@/components/features/batches/batch-detail-page'
 
 interface Params {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function BatchDetailRoute({ params }: Params) {
+  const { id } = await params
   const supabase = await createClient()
 
   const {
@@ -54,7 +56,7 @@ export default async function BatchDetailRoute({ params }: Params) {
         )
       `
     )
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!batch || error) {
@@ -65,7 +67,7 @@ export default async function BatchDetailRoute({ params }: Params) {
     <BatchDetailPage
       batch={batch}
       userId={user.id}
-      userRole={userRecord.role}
+      userRole={userRecord.role as RoleKey}
       jurisdictionId={jurisdictionId}
       plantType={plantType}
     />

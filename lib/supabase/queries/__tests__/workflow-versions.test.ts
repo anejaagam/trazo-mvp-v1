@@ -1,6 +1,8 @@
 import { diffTemplateVersions } from '../workflows';
 import * as SupabaseServer from '@/lib/supabase/server';
 
+type SupabaseServerClient = Awaited<ReturnType<typeof SupabaseServer.createClient>>;
+
 describe('workflow template version diff', () => {
   const mockSelect = jest.fn();
   const mockEq = jest.fn();
@@ -12,22 +14,29 @@ describe('workflow template version diff', () => {
       from: (table: string) => {
         mockFrom(table);
         return {
-          select: () => ({
-            eq: (col: string, val: string) => ({
-              single: async () => {
-                if (val === 'A') {
-                  return { data: { id: 'A', steps: [{ title: 'Step 1' }, { title: 'Step 2' }] }, error: null };
-                }
-                if (val === 'B') {
-                  return { data: { id: 'B', steps: [{ title: 'Step 1' }, { title: 'Step 3' }] }, error: null };
-                }
-                return { data: null, error: new Error('Not found') };
+          select: (columns?: string) => {
+            mockSelect(columns);
+            return {
+              eq: (col: string, val: string) => {
+                mockEq(col, val);
+                return {
+                  single: async () => {
+                    mockSingle();
+                    if (val === 'A') {
+                      return { data: { id: 'A', steps: [{ title: 'Step 1' }, { title: 'Step 2' }] }, error: null };
+                    }
+                    if (val === 'B') {
+                      return { data: { id: 'B', steps: [{ title: 'Step 1' }, { title: 'Step 3' }] }, error: null };
+                    }
+                    return { data: null, error: new Error('Not found') };
+                  }
+                };
               }
-            })
-          })
+            };
+          }
         };
       }
-    } as any);
+    } as SupabaseServerClient);
   });
 
   afterEach(() => {

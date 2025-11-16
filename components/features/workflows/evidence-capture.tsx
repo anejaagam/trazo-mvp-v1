@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { EvidenceType, DualSignature } from '@/types/workflow';
+import { EvidenceType, DualSignature, type TaskEvidence } from '@/types/workflow';
 import { Camera, QrCode, PenTool, Upload, Check, X } from 'lucide-react';
 import { DualSignatureCapture } from './dual-signature-capture';
 import { useToast } from '@/components/ui/use-toast';
 import { MAX_EVIDENCE_BYTES_BEFORE_COMPRESSION, isEvidenceWithinSizeLimit } from '@/lib/utils/evidence-compression';
+
+type DualSignatureValue = NonNullable<TaskEvidence['dualSignatures']>;
 
 const formatBytes = (bytes: number) => {
   if (!bytes) return '0 B';
@@ -38,20 +41,32 @@ interface EvidenceCaptureProps {
     requireLocation?: boolean;
     maxPhotos?: number;
   };
-  onCapture: (value: any) => void;
-  existingValue?: any;
+  onCapture: (value: unknown) => void;
+  existingValue?: unknown;
 }
 
 export function EvidenceCapture({ type, config, onCapture, existingValue }: EvidenceCaptureProps) {
-  const [value, setValue] = useState(existingValue || '');
+  const [value, setValue] = useState<string>(() => {
+    if (typeof existingValue === 'string' || typeof existingValue === 'number') {
+      return String(existingValue);
+    }
+    return '';
+  });
   const [checkedOptions, setCheckedOptions] = useState<string[]>(
     Array.isArray(existingValue) ? existingValue : []
   );
-  const [isDrawing, setIsDrawing] = useState(false);
   const [qrScanning, setQrScanning] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const hasExistingValue =
+    existingValue !== null &&
+    existingValue !== undefined &&
+    !(typeof existingValue === 'string' && existingValue.length === 0);
+  const existingValueDisplay =
+    typeof existingValue === 'string' || typeof existingValue === 'number'
+      ? String(existingValue)
+      : null;
 
   const handleNumericSubmit = () => {
     const numValue = parseFloat(value);
@@ -136,7 +151,6 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
   };
 
   const startSignature = () => {
-    setIsDrawing(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -259,10 +273,10 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
               Submit
             </Button>
           </div>
-          {existingValue && (
+          {existingValueDisplay !== null && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-900">
-                Recorded: {existingValue} {config?.unit}
+                Recorded: {existingValueDisplay} {config?.unit}
               </p>
             </div>
           )}
@@ -296,7 +310,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
             <Check className="w-4 h-4 mr-2" />
             Submit ({checkedOptions.length} selected)
           </Button>
-          {existingValue && (
+          {hasExistingValue && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-900">Completed checklist</p>
             </div>
@@ -308,7 +322,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
       return (
         <div className="space-y-4">
           {/* Pre-compression advisory */}
-          {!existingValue && (
+          {!hasExistingValue && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded" aria-label="Compression advisory">
               <p className="text-xs text-blue-900">Photos larger than 500KB are automatically optimized (est. up to 60% size reduction) to preserve storage and speed.</p>
             </div>
@@ -325,7 +339,14 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
             {value ? (
               <div className="space-y-4">
-                <img src={value} alt="Captured" className="max-h-64 mx-auto rounded" />
+                  <Image
+                    src={value}
+                    alt="Captured"
+                    width={400}
+                    height={300}
+                    className="mx-auto h-auto max-h-64 rounded"
+                    unoptimized
+                  />
                 <div className="flex gap-2 justify-center">
                   <Button variant="outline" onClick={() => setValue('')}>
                     <X className="w-4 h-4 mr-2" />
@@ -357,7 +378,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
             )}
           </div>
           
-          {existingValue && (
+          {hasExistingValue && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-900">Photo evidence captured</p>
             </div>
@@ -368,7 +389,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
     case 'signature':
       return (
         <div className="space-y-4">
-          {!existingValue && (
+          {!hasExistingValue && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded" aria-label="Compression advisory">
               <p className="text-xs text-blue-900">Large signatures (&gt;50KB) may be reduced ~30% for efficiency. Small signatures are stored as-is.</p>
             </div>
@@ -399,7 +420,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
             Sign above to approve this step
           </p>
 
-          {existingValue && (
+          {hasExistingValue && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-900">Signature captured</p>
             </div>
@@ -445,9 +466,11 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
             )}
           </div>
 
-          {existingValue && (
+          {hasExistingValue && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-900">QR code scanned: {existingValue}</p>
+              <p className="text-sm text-green-900">
+                QR code scanned: {existingValueDisplay ?? 'Complete'}
+              </p>
             </div>
           )}
         </div>
@@ -476,7 +499,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
             <Check className="w-4 h-4 mr-2" />
             Submit Notes
           </Button>
-          {existingValue && (
+          {hasExistingValue && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-900">Notes recorded</p>
             </div>
@@ -492,7 +515,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
         <DualSignatureCapture
           config={config.dualSignature}
           onCapture={onCapture}
-          existingValue={existingValue}
+          existingValue={(existingValue as DualSignatureValue) || null}
         />
       );
 

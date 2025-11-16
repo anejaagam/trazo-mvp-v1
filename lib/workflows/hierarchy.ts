@@ -1,10 +1,20 @@
-import type { TaskHierarchyNode, TaskHierarchyTree } from '@/types/workflow';
+import type { TaskHierarchyNode, TaskHierarchyTree, TaskStatus } from '@/types/workflow';
+
+interface TaskHierarchyFlatRow {
+  task_id: string;
+  parent_id: string | null;
+  title: string;
+  status: TaskStatus;
+  hierarchy_level: number;
+  sequence_order: number;
+  path: string | null;
+}
 
 /**
  * Build a hierarchy tree from the flat payload returned by the `get_task_hierarchy` RPC.
  * This utility is shared between server queries and client-side visualizations.
  */
-export function buildHierarchyTree(flatData: any[]): TaskHierarchyTree | null {
+export function buildHierarchyTree(flatData: TaskHierarchyFlatRow[]): TaskHierarchyTree | null {
   if (!flatData || flatData.length === 0) return null;
 
   const nodeMap = new Map<string, TaskHierarchyNode>();
@@ -12,12 +22,12 @@ export function buildHierarchyTree(flatData: any[]): TaskHierarchyTree | null {
   flatData.forEach((item) => {
     nodeMap.set(item.task_id, {
       task_id: item.task_id,
-      parent_id: item.parent_id,
+      parent_id: item.parent_id ?? undefined,
       title: item.title,
       status: item.status,
       hierarchy_level: item.hierarchy_level,
       sequence_order: item.sequence_order,
-      path: item.path,
+      path: typeof item.path === 'string' ? item.path.split('.') : [],
       children: [],
     });
   });

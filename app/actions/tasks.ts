@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
-import { 
+import {
   createTask,
   startTask,
   completeTask,
@@ -12,6 +12,7 @@ import {
   deleteTask,
 } from '@/lib/supabase/queries/workflows';
 import { TaskEvidence, CreateTaskRequest, UpdateTaskInput, TaskStatus } from '@/types/workflow';
+import { notifyTaskAssignment } from './notifications';
 
 /**
  * Create a new task from a template
@@ -287,7 +288,7 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
  */
 export async function assignTaskAction(taskId: string, assignedTo: string) {
   const supabase = await createClient();
-  
+
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -297,7 +298,7 @@ export async function assignTaskAction(taskId: string, assignedTo: string) {
   // Get user role
   const { data: userData } = await supabase
     .from('users')
-    .select('role')
+    .select('role, organization_id')
     .eq('id', user.id)
     .single();
 
@@ -311,6 +312,13 @@ export async function assignTaskAction(taskId: string, assignedTo: string) {
   }
 
   try {
+    // Fetch task details to get title and due date
+    const { data: taskData } = await supabase
+      .from('tasks')
+      .select('title, due_date')
+      .eq('id', taskId)
+      .single();
+
     const updateInput: UpdateTaskInput = {
       id: taskId,
       assigned_to: assignedTo
@@ -320,6 +328,18 @@ export async function assignTaskAction(taskId: string, assignedTo: string) {
 
     if (result.error) {
       return { error: result.error };
+    }
+
+    // Send notification to assigned user
+    if (taskData) {
+      await notifyTaskAssignment({
+        userId: assignedTo,
+        organizationId: userData.organization_id,
+        taskTitle: taskData.title,
+        dueDate: taskData.due_date,
+        taskId,
+        urgency: 'medium',
+      });
     }
 
     revalidatePath('/dashboard/workflows');

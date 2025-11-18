@@ -7,11 +7,11 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { RoleKey, PermissionKey } from '@/lib/rbac/types'
-import { 
-  Building2, 
-  BarChart3, 
-  Package, 
-  Sprout, 
+import {
+  Building2,
+  BarChart3,
+  Package,
+  Sprout,
   Thermometer,
   ClipboardList,
   AlertTriangle,
@@ -20,7 +20,8 @@ import {
   Trash2,
   Users,
   Shield,
-  Beaker
+  Beaker,
+  Bell
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -56,12 +57,27 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const { can } = usePermissions(user.role as RoleKey, user.additional_permissions || [])
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [batchBadges, setBatchBadges] = useState<{ active: number; harvest: number }>({ active: 0, harvest: 0 })
+  const [lowStockCount, setLowStockCount] = useState<number>(0)
+  const [alarmCount, setAlarmCount] = useState<number>(0)
+  const [notificationCount, setNotificationCount] = useState<number>(0)
 
   useEffect(() => {
     const loadCounts = async () => {
-      if (typeof window === 'undefined' || !user.organization?.id) return
+      if (typeof window === 'undefined' || !user.organization?.id || !user.id) return
       const supabase = createClient()
-      const [{ count: activeCount }, { count: harvestCount }] = await Promise.all([
+      
+      // Get user's site assignment
+      const { data: siteAssignment } = await supabase
+        .from('user_site_assignments')
+        .select('site_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .single()
+      
+      const siteId = siteAssignment?.site_id
+      
+      const queries = [
         supabase
           .from('batches')
           .select('*', { count: 'exact', head: true })
@@ -72,12 +88,48 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           .select('*', { count: 'exact', head: true })
           .eq('organization_id', user.organization.id)
           .eq('stage', 'harvest'),
-      ])
+      ]
+      
+      // Add inventory alerts query if user has a site
+      if (siteId) {
+        queries.push(
+          supabase
+            .from('inventory_stock_balances')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteId)
+            .in('stock_status', ['below_par', 'reorder', 'out_of_stock'])
+        )
+      }
+      
+      const results = await Promise.all(queries)
+      const [{ count: activeCount }, { count: harvestCount }, lowStockResult] = results
+
       setBatchBadges({ active: activeCount || 0, harvest: harvestCount || 0 })
+      if (lowStockResult) {
+        setLowStockCount(lowStockResult.count || 0)
+      }
+
+      // Get active alarms count
+      const { count: activeAlarms } = await supabase
+        .from('alarms')
+        .select('*', { count: 'exact', head: true })
+        .is('acknowledged_at', null)
+        .is('resolved_at', null)
+
+      setAlarmCount(activeAlarms || 0)
+
+      // Get unread notifications count
+      const { count: unreadNotifs } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .is('read_at', null)
+
+      setNotificationCount(unreadNotifs || 0)
     }
 
     loadCounts()
-  }, [user.organization?.id])
+  }, [user.organization?.id, user.id])
 
   const navItems: NavItem[] = [
     {
@@ -85,6 +137,13 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       href: '/dashboard',
       icon: <BarChart3 className="h-4 w-4" />,
       permission: 'dashboard:view'
+    },
+    {
+      title: 'Alarms & Notifications',
+      href: '/dashboard/alarms',
+      icon: <Bell className="h-4 w-4" />,
+      permission: 'alarm:view',
+      badge: (alarmCount + notificationCount) > 0 ? String(alarmCount + notificationCount) : undefined,
     },
     {
       title: 'Batch Management',
@@ -149,7 +208,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/inventory/alerts',
           icon: <AlertTriangle className="h-4 w-4" />,
           permission: 'inventory:view',
-          badge: '3' // TODO: Get actual count from real data
+          badge: lowStockCount > 0 ? String(lowStockCount) : undefined,
         },
         {
           title: 'Waste Tracking',
@@ -170,13 +229,6 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/monitoring',
           icon: <BarChart3 className="h-4 w-4" />,
           permission: 'monitoring:view'
-        },
-        {
-          title: 'Alarms',
-          href: '/dashboard/monitoring/alarms',
-          icon: <AlertTriangle className="h-4 w-4" />,
-          permission: 'alarm:view',
-          badge: '2' // TODO: Get actual count from useAlarmSummary
         }
       ]
     },

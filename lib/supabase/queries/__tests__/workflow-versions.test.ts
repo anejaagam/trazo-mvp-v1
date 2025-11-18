@@ -37,7 +37,7 @@ describe('workflow template version diff', () => {
           }
         };
       }
-    } as SupabaseServerClient);
+    } as any as SupabaseServerClient);
   });
 
   afterEach(() => {

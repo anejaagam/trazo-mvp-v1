@@ -23,6 +23,7 @@
 import { NextResponse } from 'next/server'
 import { TagoIOPollingService } from '@/lib/tagoio/polling-service'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { evaluateAllPods } from '@/lib/monitoring/alarm-evaluator'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -81,6 +82,17 @@ export async function GET(request: Request) {
       console.error('Polling errors:', result.errors)
     }
 
+    // Evaluate alarms after successful telemetry insert
+    let alarmResult;
+    if (result.totalInserted > 0) {
+      console.log('Evaluating alarms for updated pods...');
+      alarmResult = await evaluateAllPods(2); // Look back 2 minutes
+      console.log(
+        `Alarm evaluation: ${alarmResult.alarmsCreated} created, ` +
+        `${alarmResult.alarmsResolved} resolved`
+      );
+    }
+
     // Return summary
     return NextResponse.json({
       success: result.failedPolls === 0,
@@ -92,6 +104,8 @@ export async function GET(request: Request) {
         dataPointsReceived: result.totalDataPoints,
         readingsTransformed: result.totalReadings,
         readingsInserted: result.totalInserted,
+        alarmsCreated: alarmResult?.alarmsCreated || 0,
+        alarmsResolved: alarmResult?.alarmsResolved || 0,
       },
       duration: result.duration,
       errors: result.errors.length > 0 ? result.errors : undefined,

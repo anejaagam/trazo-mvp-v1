@@ -343,7 +343,9 @@ export type AlarmType =
   | 'power_failure'
   | 'water_leak'
   | 'security_breach'
-  | 'door_open';
+  | 'door_open'
+  | 'task_overdue'
+  | 'alarm_flood';
 
 export type AlarmSeverity = 'critical' | 'warning' | 'info';
 
@@ -380,6 +382,13 @@ export interface Alarm {
   ack_note: string | null;
   resolution_note: string | null;
   root_cause: string | null;
+
+  // Shelving (ISA-18.2 Section 10.4)
+  shelved_at: string | null;
+  shelved_by: string | null;
+  shelved_reason: string | null;
+  shelved_until: string | null;
+  auto_unshelve: boolean;
 }
 
 /**
@@ -458,6 +467,16 @@ export interface AlarmPolicy {
   created_by: string;
   created_at: string;
   updated_at: string;
+
+  // ISA-18.2 Enhancements
+  priority: number | null; // 1=Emergency, 2=Abnormal, 3=Advisory, 4=Info
+  expected_response_seconds: number; // Expected time to acknowledge/respond
+  deadband_value: number | null; // Hysteresis to prevent chattering
+  rationalization_status: 'pending' | 'documented' | 'approved' | 'under_review';
+  rationalized_by: string | null;
+  rationalized_at: string | null;
+  consequence_if_ignored: string | null; // What happens if ignored
+  corrective_action: string | null; // What operator should do
 }
 
 export interface InsertAlarmPolicy {
@@ -473,6 +492,14 @@ export interface InsertAlarmPolicy {
   suppression_duration_minutes?: number;
   is_active?: boolean;
   created_by: string;
+
+  // ISA-18.2 Enhancements
+  priority?: number | null;
+  expected_response_seconds?: number;
+  deadband_value?: number | null;
+  rationalization_status?: 'pending' | 'documented' | 'approved' | 'under_review';
+  consequence_if_ignored?: string | null;
+  corrective_action?: string | null;
 }
 
 export interface UpdateAlarmPolicy {
@@ -484,6 +511,16 @@ export interface UpdateAlarmPolicy {
   applies_to_pod_types?: string[] | null;
   suppression_duration_minutes?: number;
   is_active?: boolean;
+
+  // ISA-18.2 Enhancements
+  priority?: number | null;
+  expected_response_seconds?: number;
+  deadband_value?: number | null;
+  rationalization_status?: 'pending' | 'documented' | 'approved' | 'under_review';
+  rationalized_by?: string | null;
+  rationalized_at?: string | null;
+  consequence_if_ignored?: string | null;
+  corrective_action?: string | null;
 }
 
 // =====================================================
@@ -492,13 +529,19 @@ export interface UpdateAlarmPolicy {
 
 export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'push';
 export type NotificationStatus = 'sent' | 'delivered' | 'failed' | 'read';
+export type NotificationCategory = 'inventory' | 'batch' | 'task' | 'system';
+export type NotificationUrgency = 'low' | 'medium' | 'high';
 
 export interface Notification {
   id: string;
   alarm_id: string | null;
   user_id: string | null;
+  organization_id: string | null;
   channel: NotificationChannel;
   message: string;
+  category: NotificationCategory;
+  urgency: NotificationUrgency;
+  link_url: string | null;
   sent_at: string;
   delivered_at: string | null;
   read_at: string | null;
@@ -508,8 +551,12 @@ export interface Notification {
 export interface InsertNotification {
   alarm_id?: string | null;
   user_id?: string | null;
+  organization_id?: string | null;
   channel: NotificationChannel;
   message: string;
+  category: NotificationCategory;
+  urgency?: NotificationUrgency;
+  link_url?: string | null;
   status?: NotificationStatus;
 }
 
@@ -749,9 +796,12 @@ export interface AlarmFilters {
 
 export interface NotificationFilters {
   user_id?: string;
+  organization_id?: string;
   alarm_id?: string;
   channel?: NotificationChannel;
   status?: NotificationStatus;
+  category?: NotificationCategory;
+  urgency?: NotificationUrgency;
   unread_only?: boolean;
   limit?: number;
   offset?: number;

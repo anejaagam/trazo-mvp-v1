@@ -673,7 +673,7 @@ export async function getTaskById(taskId: string) {
         `
         *,
         template:sop_templates(*),
-        dependencies:task_dependencies(
+        dependencies:task_dependencies!task_dependencies_task_id_fkey(
           *,
           depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id, title, status)
         ),

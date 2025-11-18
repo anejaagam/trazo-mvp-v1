@@ -360,13 +360,6 @@ export function WorkflowsDashboardClient({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {canCreateTask && (
-            <Button onClick={handleCreateTask} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              New Task
-            </Button>
-          )}
         </div>
       </div>
 

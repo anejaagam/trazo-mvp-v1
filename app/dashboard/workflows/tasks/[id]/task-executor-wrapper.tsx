@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { TaskExecutor } from '@/components/features/workflows/task-executor';
+import { AdHocTaskExecutor } from '@/components/features/workflows/ad-hoc-task-executor';
 import { Task, SOPTemplate, TaskEvidence } from '@/types/workflow';
 import { completeTaskAction, saveTaskProgressAction, startTaskAction } from '@/app/actions/tasks';
 import { useState, useEffect } from 'react';
@@ -11,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface TaskExecutorWrapperProps {
   task: Task;
-  template: SOPTemplate;
+  template: SOPTemplate | null;
   userRole: RoleKey;
   additionalPermissions?: string[];
 }
@@ -86,6 +87,27 @@ export function TaskExecutorWrapper({ task, template, userRole, additionalPermis
           <p className="text-slate-600">Starting task...</p>
         </div>
       </div>
+    );
+  }
+
+  // Use different executor based on whether task has a template
+  if (!template) {
+    return (
+      <>
+        {startError && (
+          <div className="mb-4">
+            <Alert variant="destructive">
+              <AlertDescription>{startError}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+        <AdHocTaskExecutor
+          task={task}
+          onComplete={handleComplete}
+          onSaveDraft={handleSaveDraft}
+          onClose={handleClose}
+        />
+      </>
     );
   }
 

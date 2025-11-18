@@ -30,7 +30,7 @@ export async function getBatches(
       .from('batches')
       .select(`
         *,
-        cultivar:cultivars(id, name, common_name)
+        cultivar:cultivars(id, name)
       `)
       .eq('organization_id', orgId)
       .eq('site_id', siteId)
@@ -118,7 +118,7 @@ export async function getBatchById(batchId: string) {
       .from('batches')
       .select(`
         *,
-        cultivar:cultivars(id, name, common_name, description),
+        cultivar:cultivars(id, name, description),
         parent_batch:batches!parent_batch_id(id, batch_number, stage),
         created_by_user:users!created_by(id, full_name, email)
       `)
@@ -753,7 +753,7 @@ export async function getActiveBatches(
       .from('batches')
       .select(`
         *,
-        cultivar:cultivars(id, name, common_name)
+        cultivar:cultivars(id, name)
       `)
       .eq('organization_id', orgId)
       .eq('site_id', siteId)

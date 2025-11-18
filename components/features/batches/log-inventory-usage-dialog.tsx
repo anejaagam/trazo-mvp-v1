@@ -70,9 +70,14 @@ export function LogInventoryUsageDialog({
       try {
         const { data } = await getInventoryItems(siteId)
         if (!isMounted) return
-        setItems(
-          (data || []).filter((item) => ALLOWED_ITEM_TYPES.includes(item.item_type || 'other'))
-        )
+        
+        // Filter by allowed item types only
+        // Note: Stock validation happens at submission time via the allocation function
+        const filteredItems = (data || []).filter((item: any) => {
+          return ALLOWED_ITEM_TYPES.includes(item.item_type || 'other')
+        })
+        
+        setItems(filteredItems)
       } catch (error) {
         console.error('Failed to load inventory items', error)
         if (isMounted) {

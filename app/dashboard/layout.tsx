@@ -5,6 +5,7 @@ import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DashboardBreadcrumbs } from '@/components/dashboard/breadcrumbs'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from 'sonner'
 import { isDevModeActive, DEV_MOCK_USER, DEV_MODE_BANNER, logDevMode } from '@/lib/dev-mode'
 
 interface DashboardLayoutProps {
@@ -50,6 +51,7 @@ export default async function DashboardLayout({
         
         {/* Global toast notifications */}
         <Toaster />
+        <SonnerToaster position="top-right" />
       </div>
     )
   }
@@ -113,6 +115,7 @@ export default async function DashboardLayout({
       
       {/* Global toast notifications */}
       <Toaster />
+      <SonnerToaster position="top-right" />
     </div>
   )
 }

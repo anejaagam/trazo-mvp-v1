@@ -275,6 +275,35 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
   }
 
   try {
+    // Get current task to check workflow enforcement
+    const { data: currentTask } = await supabase
+      .from('tasks')
+      .select('status, requires_execution')
+      .eq('id', taskId)
+      .single();
+
+    if (!currentTask) {
+      return { error: 'Task not found' };
+    }
+
+    // Enforce workflow if task requires execution
+    if (currentTask.requires_execution) {
+      // Cannot move to in_progress without executing first
+      if (status === 'in_progress' && currentTask.status === 'to_do') {
+        return { error: 'This task must be executed before starting. Click "Execute Task" first.' };
+      }
+      
+      // Cannot move to done without being in progress
+      if (status === 'done' && currentTask.status !== 'in_progress') {
+        return { error: 'Task must be in progress before completing. Start the task first.' };
+      }
+      
+      // Cannot move to blocked from to_do (must start first)
+      if (status === 'blocked' && currentTask.status === 'to_do') {
+        return { error: 'Task must be started before it can be blocked.' };
+      }
+    }
+
     const updateInput: UpdateTaskInput = {
       id: taskId,
       status

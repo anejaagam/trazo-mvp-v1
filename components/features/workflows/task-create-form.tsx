@@ -127,6 +127,7 @@ export default function TaskCreateForm({
   const [customTagsText, setCustomTagsText] = useState('');
   const [slaHours, setSlaHours] = useState<string>('');
   const [estimatedDuration, setEstimatedDuration] = useState<string>('');
+  const [requiresExecution, setRequiresExecution] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
@@ -383,6 +384,7 @@ export default function TaskCreateForm({
       schedule_mode: scheduleMode,
       recurring_pattern: scheduleMode === 'recurring' ? recurringPattern : undefined,
       recurring_config: recurringConfig,
+      requires_execution: requiresExecution || undefined,
       requires_approval: requiresApproval || undefined,
       approval_role: requiresApproval ? approvalRole : undefined,
       batch_id: batchId || undefined,
@@ -866,6 +868,16 @@ export default function TaskCreateForm({
           <CardDescription>Configure elevated checks for high-risk workflows.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-6">
+            <div className="space-y-1">
+              <Label htmlFor="requires_execution_switch">Enforce Workflow (Execute → Start → Complete)</Label>
+              <p className="text-xs text-slate-500">
+                Task must be executed before starting, and must be in progress before completing.
+              </p>
+            </div>
+            <Switch id="requires_execution_switch" checked={requiresExecution} onCheckedChange={setRequiresExecution} />
+          </div>
+
           <div className="flex items-start justify-between gap-6">
             <div className="space-y-1">
               <Label htmlFor="requires_approval_switch">Requires Approval</Label>

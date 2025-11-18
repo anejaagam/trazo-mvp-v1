@@ -487,9 +487,43 @@ export function BatchForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Current stage</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="vegetative" />
-                </FormControl>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select stage" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {plantType === 'cannabis' ? (
+                      <>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="germination">Germination</SelectItem>
+                        <SelectItem value="clone">Clone</SelectItem>
+                        <SelectItem value="vegetative">Vegetative</SelectItem>
+                        <SelectItem value="flowering">Flowering</SelectItem>
+                        <SelectItem value="harvest">Harvest</SelectItem>
+                        <SelectItem value="drying">Drying</SelectItem>
+                        <SelectItem value="curing">Curing</SelectItem>
+                        <SelectItem value="packaging">Packaging</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="germination">Germination</SelectItem>
+                        <SelectItem value="transplant">Transplant</SelectItem>
+                        <SelectItem value="growing">Growing</SelectItem>
+                        <SelectItem value="harvest_ready">Harvest Ready</SelectItem>
+                        <SelectItem value="harvesting">Harvesting</SelectItem>
+                        <SelectItem value="washing">Washing</SelectItem>
+                        <SelectItem value="grading">Grading</SelectItem>
+                        <SelectItem value="packing">Packing</SelectItem>
+                        <SelectItem value="storage">Storage</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

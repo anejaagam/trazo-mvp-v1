@@ -208,11 +208,58 @@ export async function getRecipeById(
 
     if (activationsError) throw activationsError
 
+    // Filter out pod-level activations where the pod is in a batch with an active recipe
+    let filteredActivations = activations || []
+    if (activations && activations.length > 0) {
+      // Get all pod IDs from pod-type activations
+      const podActivations = activations.filter(a => a.scope_type === 'pod')
+      if (podActivations.length > 0) {
+        const podIds = podActivations.map(a => a.scope_id)
+        
+        // Check which pods are in batches with active recipes
+        const { data: podsInBatches } = await supabase
+          .from('batch_pod_assignments')
+          .select(`
+            pod_id,
+            batch_id,
+            batches!inner(
+              id,
+              recipe_activations!inner(
+                id,
+                is_active
+              )
+            )
+          `)
+          .in('pod_id', podIds)
+          .is('removed_at', null)
+
+        // Create a set of pod IDs that are in batches with active recipes
+        const podsToExclude = new Set<string>()
+        if (podsInBatches) {
+          for (const assignment of podsInBatches) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const batch = (assignment as any).batches
+            if (batch?.recipe_activations?.some((ra: { is_active: boolean }) => ra.is_active)) {
+              podsToExclude.add(assignment.pod_id)
+            }
+          }
+        }
+
+        // Filter out pod activations for pods in batches with active recipes
+        filteredActivations = activations.filter(activation => {
+          if (activation.scope_type === 'pod' && podsToExclude.has(activation.scope_id)) {
+            return false
+          }
+          return true
+        })
+      }
+    }
+
     const recipeWithVersions: RecipeWithVersions = {
       ...recipe,
       versions: versions || [],
       latest_version: versions?.[0],
-      active_activations: activations || [],
+      active_activations: filteredActivations,
     }
 
     return { data: recipeWithVersions, error: null }
@@ -528,9 +575,26 @@ export async function activateRecipe(
 
     if (activationError) throw activationError
 
-    // If activating for a batch, also apply to all active pods assigned to the batch
+    // If activating for a batch, update batch stage and apply to all active pods
     if (scopeType === 'batch') {
       try {
+        // Get the first stage of the recipe to update batch stage
+        const { data: firstStage } = await supabase
+          .from('recipe_stages')
+          .select('stage_type')
+          .eq('recipe_version_id', versionId)
+          .order('order_index', { ascending: true })
+          .limit(1)
+          .single()
+
+        // Update batch stage to match the recipe's first stage
+        if (firstStage?.stage_type) {
+          await supabase
+            .from('batches')
+            .update({ stage: firstStage.stage_type })
+            .eq('id', scopeId)
+        }
+
         const { data: podAssignments } = await supabase
           .from('batch_pod_assignments')
           .select('pod_id, pod:pods(name)')
@@ -538,7 +602,8 @@ export async function activateRecipe(
           .is('removed_at', null)
 
         if (podAssignments && podAssignments.length > 0) {
-          // Deactivate any existing pod recipes and activate the batch recipe on all pods
+          // Deactivate any existing pod-level recipes for pods in this batch
+          // The batch recipe will take precedence
           for (const assignment of podAssignments) {
             if (!assignment.pod_id) continue
             
@@ -555,26 +620,13 @@ export async function activateRecipe(
                 await supabase.rpc('deactivate_recipe', {
                   p_activation_id: existing.id,
                   p_deactivated_by: userId,
-                  p_reason: 'Replaced by batch recipe',
+                  p_reason: `Superseded by batch recipe for batch ${scopeName}`,
                 })
               }
             }
-
-            // Activate the recipe for this pod
-            const podName = (assignment.pod as { name?: string })?.name || assignment.pod_id
-            await supabase.rpc('activate_recipe', {
-              p_recipe_id: recipeId,
-              p_recipe_version_id: versionId,
-              p_scope_type: 'pod',
-              p_scope_id: assignment.pod_id,
-              p_scope_name: podName,
-              p_activated_by: userId,
-              p_scheduled_start: scheduledStart,
-              p_scheduled_end: scheduledEnd,
-            })
           }
           
-          console.log(`Applied batch recipe to ${podAssignments.length} pods`)
+          console.log(`Deactivated pod-level recipes for ${podAssignments.length} pods in batch`)
         }
       } catch (podError) {
         console.error('Error applying recipe to pods:', podError)

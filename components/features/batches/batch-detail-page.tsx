@@ -52,6 +52,7 @@ export function BatchDetailPage({
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
   const [showAssignPod, setShowAssignPod] = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
 
   const loadDetail = async () => {
     setLoading(true)
@@ -92,6 +93,37 @@ export function BatchDetailPage({
     } catch (error) {
       console.error(error)
       toast.error('Unable to update quarantine state')
+    }
+  }
+
+  const handleDeactivateRecipe = async () => {
+    if (!detail.active_recipe_detail?.activation?.id) return
+    
+    const confirmed = window.confirm('Are you sure you want to deactivate this recipe from the batch?')
+    if (!confirmed) return
+
+    setDeactivating(true)
+    try {
+      const { deactivateRecipe } = await import('@/app/actions/recipes')
+      const { error } = await deactivateRecipe(
+        detail.active_recipe_detail.activation.id,
+        userId,
+        `Deactivated from batch ${detail.batch_number}`
+      )
+      
+      if (error) {
+        console.error('Error deactivating recipe:', error)
+        toast.error('Failed to deactivate recipe')
+        return
+      }
+
+      toast.success('Recipe deactivated successfully')
+      await loadDetail()
+    } catch (error) {
+      console.error('Error deactivating recipe:', error)
+      toast.error('Failed to deactivate recipe')
+    } finally {
+      setDeactivating(false)
     }
   }
 
@@ -236,6 +268,7 @@ export function BatchDetailPage({
             <RecipeDetailCard
               recipe={detail.active_recipe_detail}
               telemetry={(detail.telemetry_snapshots || [])[0] || null}
+              onDeactivate={can('control:recipe_apply') && !deactivating ? handleDeactivateRecipe : undefined}
             />
           </TabsContent>
 
@@ -546,9 +579,11 @@ function InventoryUsageTable({ usage }: { usage: NonNullable<BatchDetail['invent
 function RecipeDetailCard({
   recipe,
   telemetry,
+  onDeactivate,
 }: {
   recipe?: ActiveRecipeDetails | null
   telemetry: TelemetryReading | null
+  onDeactivate?: () => void
 }) {
   if (!recipe) {
     return (
@@ -589,10 +624,19 @@ function RecipeDetailCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recipe: {recipe.activation.recipe?.name || 'Active recipe'}</CardTitle>
-        <CardDescription>
-          {stage?.name || 'No stage'} · Day {recipe.activation.current_stage_day ?? 1}
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle>Recipe: {recipe.activation.recipe?.name || 'Active recipe'}</CardTitle>
+            <CardDescription>
+              {stage?.name || 'No stage'} · Day {recipe.activation.current_stage_day ?? 1}
+            </CardDescription>
+          </div>
+          {onDeactivate && (
+            <Button variant="outline" size="sm" onClick={onDeactivate}>
+              Deactivate Recipe
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-4 md:grid-cols-3">

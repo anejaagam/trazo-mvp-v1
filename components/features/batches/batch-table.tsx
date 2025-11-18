@@ -26,9 +26,11 @@ import { usePermissions } from '@/hooks/use-permissions'
 import type { RoleKey } from '@/lib/rbac/types'
 import { BatchModal } from './batch-modal'
 import { BatchDetailDialog } from './batch-detail-dialog'
+import { DeleteBatchDialog } from './delete-batch-dialog'
 import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
-import { deleteBatch } from '@/lib/supabase/queries/batches-client'
+import { deleteBatchAction } from '@/app/actions/batches'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
+import { useToast } from '@/components/ui/use-toast'
 
 interface BatchTableProps {
   batches: BatchListItem[]
@@ -50,12 +52,13 @@ export function BatchTable({
   plantType,
 }: BatchTableProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const { can } = usePermissions(userRole as RoleKey, [])
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
   const [selectedBatch, setSelectedBatch] = useState<BatchListItem | null>(null)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [editingBatch, setEditingBatch] = useState<BatchListItem | null>(null)
-  const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null)
+  const [deletingBatch, setDeletingBatch] = useState<BatchListItem | null>(null)
 
   const allSelected = useMemo(() => {
     if (!batches.length) return false
@@ -86,19 +89,38 @@ export function BatchTable({
     })
   }
 
-  const handleDeleteBatch = async (batchId: string) => {
-    if (!can('batch:delete')) return
-    if (!window.confirm('Delete this batch? This action cannot be undone.')) return
+  const handleDeleteBatch = async (reason: string) => {
+    if (!deletingBatch) return
+    
     try {
-      setDeletingBatchId(batchId)
-      const { error } = await deleteBatch(batchId)
-      if (error) throw error
+      const result = await deleteBatchAction({
+        batchId: deletingBatch.id,
+        reason,
+      })
+
+      if (!result.success) {
+        toast({
+          title: 'Deletion Failed',
+          description: result.error || 'Unable to delete batch',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({
+        title: 'Batch Deleted',
+        description: `Batch ${deletingBatch.batch_number} has been marked as destroyed`,
+      })
+      
+      setDeletingBatch(null)
       onRefresh()
     } catch (error) {
-      console.error('Failed to delete batch', error)
-      alert('Unable to delete batch. Please try again.')
-    } finally {
-      setDeletingBatchId(null)
+      console.error('Failed to delete batch:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -148,11 +170,12 @@ export function BatchTable({
                 // Calculate total plant count from assignments, or fall back to batch.plant_count
                 const assignmentTotal = activeAssignments.reduce((sum, assignment) => sum + (assignment.plant_count || 0), 0)
                 const totalPlants = assignmentTotal > 0 ? assignmentTotal : (batch.plant_count || 0)
+                const isDestroyed = batch.status === 'destroyed'
                 return (
                   <TableRow 
                     key={batch.id} 
-                    className="hover:bg-muted/50 cursor-pointer"
-                    onClick={() => {
+                    className={`${isDestroyed ? 'opacity-50 bg-muted/20' : 'hover:bg-muted/50 cursor-pointer'}`}
+                    onClick={isDestroyed ? undefined : () => {
                       router.push(`/dashboard/batches/${batch.id}`)
                     }}
                   >
@@ -214,53 +237,58 @@ export function BatchTable({
                     <TableCell>
                       {batch.status === 'quarantined' ? (
                         <Badge variant="destructive">Quarantined</Badge>
+                      ) : batch.status === 'destroyed' ? (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive">Destroyed</Badge>
                       ) : (
                         <Badge variant="outline">{batch.status}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              router.push(`/dashboard/batches/${batch.id}`)
-                            }}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          {can('batch:update') && (
+                      {isDestroyed ? (
+                        <Badge variant="outline" className="text-xs">Archived</Badge>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem
                               onClick={() => {
-                                setEditingBatch(batch)
+                                router.push(`/dashboard/batches/${batch.id}`)
                               }}
                             >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
                             </DropdownMenuItem>
-                          )}
-                          {can('batch:delete') && (
-                            <>
-                              <DropdownMenuSeparator />
+                            {can('batch:update') && (
                               <DropdownMenuItem
-                                onClick={() => handleDeleteBatch(batch.id)}
-                                className="text-destructive"
-                                disabled={deletingBatchId === batch.id}
+                                onClick={() => {
+                                  setEditingBatch(batch)
+                                }}
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                {deletingBatchId === batch.id ? 'Deleting…' : 'Delete'}
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
                               </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            )}
+                            {can('batch:delete') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeletingBatch(batch)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 )
@@ -299,6 +327,16 @@ export function BatchTable({
           userRole={userRole as RoleKey}
           jurisdictionId={jurisdictionId}
           plantType={plantType}
+        />
+      )}
+
+      {deletingBatch && (
+        <DeleteBatchDialog
+          batch={deletingBatch}
+          isOpen={Boolean(deletingBatch)}
+          onClose={() => setDeletingBatch(null)}
+          onConfirm={handleDeleteBatch}
+          jurisdictionId={jurisdictionId}
         />
       )}
     </>

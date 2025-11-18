@@ -192,6 +192,11 @@ export async function getBatches(
         query = query.or(`batch_number.ilike.%${filters.search}%`)
       }
 
+      // Exclude destroyed batches by default
+      if (filters?.exclude_destroyed) {
+        query = query.neq('status', 'destroyed')
+      }
+
       return query
     }
 

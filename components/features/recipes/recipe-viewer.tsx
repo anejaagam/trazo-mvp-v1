@@ -83,6 +83,8 @@ export function RecipeViewer({
   const [isDeprecating, setIsDeprecating] = useState(false)
   const [isRestoring, setIsRestoring] = useState(false)
   const [showDeprecateConfirm, setShowDeprecateConfirm] = useState(false)
+  const [allActivations, setAllActivations] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
 
   // Fetch user and organization info for assignment
   useEffect(() => {
@@ -180,6 +182,33 @@ export function RecipeViewer({
       fetchUserNames()
     }
   }, [currentVersion, recipe.versions])
+
+  // Fetch all activations (both active and inactive) for history
+  useEffect(() => {
+    async function fetchAllActivations() {
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from('recipe_activations')
+          .select('*')
+          .eq('recipe_id', recipe.id)
+          .order('activated_at', { ascending: false })
+        
+        if (error) {
+          console.error('Error fetching activation history:', error)
+          return
+        }
+        
+        setAllActivations(data || [])
+      } catch (error) {
+        console.error('Error in fetchAllActivations:', error)
+      } finally {
+        setLoadingHistory(false)
+      }
+    }
+    
+    fetchAllActivations()
+  }, [recipe.id])
 
   // Set initial selected stage
   useEffect(() => {
@@ -622,6 +651,49 @@ export function RecipeViewer({
           </CardContent>
         </Card>
       )}
+
+      {/* Application History */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Application History</CardTitle>
+          <CardDescription>
+            {loadingHistory ? 'Loading...' : `${allActivations.length} total application(s)`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingHistory ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">Loading history...</p>
+          ) : allActivations.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">No applications yet</p>
+          ) : (
+            <div className="space-y-3">
+              {allActivations.map((activation) => (
+                <div key={activation.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-slate-900 dark:text-slate-100 capitalize">
+                        {activation.scope_type}: {activation.scope_name || activation.scope_id}
+                      </p>
+                      <Badge variant={activation.is_active ? 'default' : 'secondary'} className="text-xs">
+                        {activation.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                      <p>Started: {formatDate(activation.activated_at)}</p>
+                      {activation.deactivated_at && (
+                        <p>Ended: {formatDate(activation.deactivated_at)}</p>
+                      )}
+                      {activation.deactivation_reason && (
+                        <p className="mt-1 italic">Reason: {activation.deactivation_reason}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -631,13 +703,19 @@ function StageDetails({ stage }: { stage: RecipeStageWithDetails }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
         <div>
           <p className="text-sm text-slate-600 dark:text-slate-400">Stage Duration</p>
           <div className="flex items-center gap-2 mt-1">
             <Clock className="w-4 h-4 text-slate-400" />
             <p className="font-medium text-slate-900 dark:text-slate-100">{stage.duration_days} days</p>
           </div>
+        </div>
+        <div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Stage Type</p>
+          <p className="font-medium text-slate-900 dark:text-slate-100 capitalize">
+            {stage.stage_type ? stage.stage_type.replace(/_/g, ' ') : 'Not specified'}
+          </p>
         </div>
         <div>
           <p className="text-sm text-slate-600 dark:text-slate-400">Order</p>

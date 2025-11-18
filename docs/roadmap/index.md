@@ -76,10 +76,15 @@ This roadmap is split into focused sections for better readability:
 - **[Cleanup Tracking](./planning-progress/cleanup-tracking.md)** - Repository cleanup phases (1-2)
 - **[Recipe Backend Progress](./planning-progress/recipe-backend-progress.md)** - Backend implementation details
 - **[Recipe Session Report](./planning-progress/recipe-session-report.md)** - Complete session status (Dec 2024)
+- **[Compliance Engine Summary](./planning-progress/COMPLIANCE_ENGINE_SUMMARY.md)** - ✨ Executive overview of compliance integration
+- **[Compliance Implementation Plan](./planning-progress/COMPLIANCE_ENGINE_IMPLEMENTATION_PLAN.md)** - ✨ Detailed technical implementation
+- **[🤖 Compliance Agent Prompt](../../COMPLIANCE_ENGINE_AGENT_PROMPT.md)** - ✨ **READY TO BUILD** - Complete agent instructions
+- **[🆕 Sandbox Integration Update](../../COMPLIANCE_SANDBOX_UPDATE.md)** - ✨ **NEW:** Metrc sandbox environment guide
 
 ### **Reference**
 - **[Quick Reference](./reference/quick-reference.md)** - File locations, hooks, patterns, project metrics
 - **[Key Documentation](./reference/key-documentation.md)** - Links to all essential docs
+- **[Metrc API Alignment](./reference/METRC_API_ALIGNMENT.md)** - ✨ Metrc integration data mapping + sandbox setup
 
 ---
 

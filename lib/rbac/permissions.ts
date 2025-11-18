@@ -163,6 +163,50 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     action: 'transfer'
   },
 
+  // Waste permissions
+  'waste:view': {
+    key: 'waste:view',
+    name: 'View Waste Logs',
+    description: 'View waste disposal records and compliance documentation',
+    resource: 'waste',
+    action: 'view'
+  },
+  'waste:create': {
+    key: 'waste:create',
+    name: 'Record Waste',
+    description: 'Create waste disposal records with compliance documentation',
+    resource: 'waste',
+    action: 'create'
+  },
+  'waste:update': {
+    key: 'waste:update',
+    name: 'Update Waste Logs',
+    description: 'Edit waste records within 24-hour compliance window',
+    resource: 'waste',
+    action: 'update'
+  },
+  'waste:witness': {
+    key: 'waste:witness',
+    name: 'Witness Waste Disposal',
+    description: 'Act as licensed witness for waste disposal activities',
+    resource: 'waste',
+    action: 'witness'
+  },
+  'waste:export': {
+    key: 'waste:export',
+    name: 'Export Waste Reports',
+    description: 'Export waste data and compliance packets for regulatory reporting',
+    resource: 'waste',
+    action: 'export'
+  },
+  'waste:delete': {
+    key: 'waste:delete',
+    name: 'Delete Waste Logs',
+    description: 'Delete waste records within 24-hour window (before Metrc sync)',
+    resource: 'waste',
+    action: 'delete'
+  },
+
   // Task permissions
   'task:view': {
     key: 'task:view',
@@ -344,6 +388,13 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     description: 'Generate new compliance reports',
     resource: 'compliance',
     action: 'report_create'
+  },
+  'compliance:sync': {
+    key: 'compliance:sync',
+    name: 'Sync Compliance Data',
+    description: 'Trigger manual sync operations with Metrc and other compliance systems',
+    resource: 'compliance',
+    action: 'sync'
   },
   'evidence:upload': {
     key: 'evidence:upload',

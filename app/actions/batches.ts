@@ -3,15 +3,23 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
+import { createWasteLog } from './waste'
 
 interface DeleteBatchInput {
   batchId: string
   reason: string
+  createWasteLog?: boolean // Optional flag to create waste log
+  wasteDetails?: {
+    disposal_method?: string
+    rendering_method?: string
+    witness_name?: string
+  }
 }
 
 interface DeleteBatchResult {
   success: boolean
   error?: string
+  wasteLogId?: string
 }
 
 /**
@@ -46,10 +54,18 @@ export async function deleteBatchAction(
       return { success: false, error: 'You do not have permission to delete batches' }
     }
 
-    // Verify batch belongs to user's organization
+    // Verify batch belongs to user's organization and get details
     const { data: batch, error: batchError } = await supabase
       .from('batches')
-      .select('id, organization_id, batch_number')
+      .select(`
+        id,
+        organization_id,
+        site_id,
+        batch_number,
+        plant_count,
+        stage,
+        cultivar:cultivars(name)
+      `)
       .eq('id', input.batchId)
       .single()
 
@@ -129,12 +145,52 @@ export async function deleteBatchAction(
       // Don't fail the operation if logging fails
     }
 
+    // Create waste log if requested (for compliance tracking)
+    let wasteLogId: string | undefined
+    if (input.createWasteLog && (batch.plant_count || 0) > 0) {
+      const wasteResult = await createWasteLog({
+        organization_id: batch.organization_id,
+        site_id: batch.site_id,
+        performed_by: user.id,
+
+        // Source
+        source_type: 'batch',
+        source_id: batch.id,
+        batch_id: batch.id,
+
+        // Waste details
+        waste_type: 'plant_material',
+        reason: `Batch destruction: ${input.reason}`,
+        quantity: batch.plant_count || 0,
+        unit_of_measure: 'units',
+        disposal_method: input.wasteDetails?.disposal_method as any || 'landfill',
+        disposed_at: new Date().toISOString(),
+
+        // Compliance (if provided)
+        rendering_method: input.wasteDetails?.rendering_method as any,
+        rendered_unusable: !!input.wasteDetails?.rendering_method,
+        witness_name: input.wasteDetails?.witness_name || undefined,
+
+        // Notes
+        notes: `Automatic waste log created from batch ${batch.batch_number} destruction. ${Array.isArray(batch.cultivar) && batch.cultivar[0]?.name ? `Cultivar: ${batch.cultivar[0].name}` : ''}`,
+      })
+
+      if (wasteResult.success) {
+        wasteLogId = wasteResult.wasteLogId
+        console.log(`Created waste log ${wasteLogId} for batch ${batch.batch_number}`)
+      } else {
+        console.error('Failed to create waste log:', wasteResult.error)
+        // Don't fail batch deletion if waste log creation fails
+      }
+    }
+
     // Revalidate relevant paths
     revalidatePath('/dashboard/batches')
     revalidatePath('/dashboard/batches/active')
     revalidatePath('/dashboard/batches/all')
+    revalidatePath('/dashboard/waste')
 
-    return { success: true }
+    return { success: true, wasteLogId }
   } catch (error) {
     console.error('Error in deleteBatchAction:', error)
     return {

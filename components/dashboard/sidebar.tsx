@@ -209,12 +209,6 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           icon: <AlertTriangle className="h-4 w-4" />,
           permission: 'inventory:view',
           badge: lowStockCount > 0 ? String(lowStockCount) : undefined,
-        },
-        {
-          title: 'Waste Tracking',
-          href: '/dashboard/inventory/waste',
-          icon: <Trash2 className="h-4 w-4" />,
-          permission: 'inventory:waste'
         }
       ]
     },
@@ -270,45 +264,33 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       title: 'Waste Management',
       href: '/dashboard/waste',
       icon: <Trash2 className="h-4 w-4" />,
-      permission: 'inventory:waste',
+      permission: 'waste:view',
       children: [
         {
-          title: 'Disposal Log',
-          href: '/dashboard/waste/disposal',
-          icon: <Trash2 className="h-4 w-4" />,
-          permission: 'inventory:waste'
+          title: 'Disposal Logs',
+          href: '/dashboard/waste',
+          icon: <ClipboardList className="h-4 w-4" />,
+          permission: 'waste:view'
         },
         {
-          title: 'Schedule Disposal',
-          href: '/dashboard/waste/schedule',
-          icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'inventory:waste'
+          title: 'Record Disposal',
+          href: '/dashboard/waste/record',
+          icon: <Trash2 className="h-4 w-4" />,
+          permission: 'waste:create'
         }
       ]
     },
     {
       title: 'Compliance',
-      href: '/dashboard/compliance',
+      href: '/dashboard/compliance/sync',
       icon: <Shield className="h-4 w-4" />,
       permission: 'compliance:view',
       children: [
         {
-          title: 'Reports',
-          href: '/dashboard/compliance/reports',
-          icon: <FileText className="h-4 w-4" />,
-          permission: 'compliance:view'
-        },
-        {
-          title: 'Evidence Vault',
-          href: '/dashboard/compliance/evidence',
+          title: 'Metrc Sync',
+          href: '/dashboard/compliance/sync',
           icon: <Shield className="h-4 w-4" />,
-          permission: 'compliance:view'
-        },
-        {
-          title: 'Audit Trail',
-          href: '/dashboard/compliance/audit',
-          icon: <FileText className="h-4 w-4" />,
-          permission: 'audit:view'
+          permission: 'compliance:sync'
         }
       ]
     }
@@ -357,6 +339,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/admin/audit',
           icon: <FileText className="h-4 w-4" />,
           permission: 'audit:view'
+        },
+        {
+          title: 'Compliance API Keys',
+          href: '/dashboard/admin/compliance',
+          icon: <Shield className="h-4 w-4" />,
+          permission: 'compliance:sync'
         },
         {
           title: 'Pod Device Tokens',

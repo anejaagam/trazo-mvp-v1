@@ -62,20 +62,24 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const [notificationCount, setNotificationCount] = useState<number>(0)
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !user.organization?.id || !user.id) return
+    
+    const supabase = createClient()
+    let siteIdCache: string | null = null
+
     const loadCounts = async () => {
-      if (typeof window === 'undefined' || !user.organization?.id || !user.id) return
-      const supabase = createClient()
-      
-      // Get user's site assignment
-      const { data: siteAssignment } = await supabase
-        .from('user_site_assignments')
-        .select('site_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .single()
-      
-      const siteId = siteAssignment?.site_id
+      // Get user's site assignment (cache it to avoid repeated queries)
+      if (!siteIdCache) {
+        const { data: siteAssignment } = await supabase
+          .from('user_site_assignments')
+          .select('site_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1)
+          .single()
+        
+        siteIdCache = siteAssignment?.site_id || null
+      }
       
       const queries = [
         supabase
@@ -91,12 +95,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       ]
       
       // Add inventory alerts query if user has a site
-      if (siteId) {
+      if (siteIdCache) {
         queries.push(
           supabase
             .from('inventory_stock_balances')
             .select('*', { count: 'exact', head: true })
-            .eq('site_id', siteId)
+            .eq('site_id', siteIdCache)
             .in('stock_status', ['below_par', 'reorder', 'out_of_stock'])
         )
       }
@@ -128,7 +132,70 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       setNotificationCount(unreadNotifs || 0)
     }
 
+    // Initial load
     loadCounts()
+
+    // Set up realtime subscriptions for inventory changes
+    const inventoryChannel = supabase
+      .channel('sidebar-inventory-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'inventory_items' },
+        (payload) => {
+          console.log('Inventory ITEMS change detected:', payload)
+          loadCounts()
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory_movements' },
+        (payload) => {
+          console.log('Inventory MOVEMENTS change detected:', payload)
+          loadCounts()
+        }
+      )
+      .subscribe((status) => {
+        console.log('Inventory channel subscription status:', status)
+      })
+
+    // Set up realtime subscriptions for batch changes
+    const batchChannel = supabase
+      .channel('sidebar-batch-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'batches' },
+        () => {
+          loadCounts()
+        }
+      )
+      .subscribe()
+
+    // Set up realtime subscriptions for alarm changes
+    const alarmChannel = supabase
+      .channel('sidebar-alarm-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'alarms' },
+        () => {
+          loadCounts()
+        }
+      )
+      .subscribe()
+
+    // Set up realtime subscriptions for notification changes
+    const notificationChannel = supabase
+      .channel('sidebar-notification-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => {
+          loadCounts()
+        }
+      )
+      .subscribe()
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(inventoryChannel)
+      supabase.removeChannel(batchChannel)
+      supabase.removeChannel(alarmChannel)
+      supabase.removeChannel(notificationChannel)
+    }
   }, [user.organization?.id, user.id])
 
   const navItems: NavItem[] = [

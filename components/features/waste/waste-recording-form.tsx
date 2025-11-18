@@ -13,10 +13,11 @@
  * Supports jurisdiction-specific validation (Metrc, CTLS, PrimusGFS)
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
+import SignatureCanvas from 'react-signature-canvas'
 import {
   Form,
   FormControl,
@@ -56,7 +57,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { uploadWastePhoto, uploadWitnessSignature } from '@/lib/supabase/queries/waste-client'
-import { createWasteLog } from '@/app/actions/waste'
+import { createWasteLog, updateWasteLog } from '@/app/actions/waste'
 import type { CreateWasteLogInput, WasteType, DisposalMethod, RenderingMethod, WasteUnit, WasteLog } from '@/types/waste'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { JurisdictionId } from '@/lib/jurisdiction/types'
@@ -108,6 +109,8 @@ interface WasteRecordingFormProps {
   availableUsers?: { id: string; name: string; role: string }[]
   availableBatches?: { id: string; name: string }[]
   availableInventoryItems?: { id: string; name: string }[]
+  existingWasteLog?: any
+  isEditing?: boolean
 }
 
 export function WasteRecordingForm({
@@ -122,18 +125,42 @@ export function WasteRecordingForm({
   availableUsers = [],
   availableBatches = [],
   availableInventoryItems = [],
+  existingWasteLog,
+  isEditing = false,
 }: WasteRecordingFormProps) {
   const { can } = usePermissions(userRole as RoleKey)
   const { jurisdiction, getWasteReasons, getDisposalMethods, requiresWitness, isCannabiJurisdiction } = useJurisdiction(jurisdictionId)
 
   const [step, setStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([])
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>(existingWasteLog?.photo_urls || [])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(existingWasteLog?.witness_signature_url || null)
+  const signatureRef = useRef<SignatureCanvas>(null)
 
   const form = useForm<CreateWasteLogInput>({
-    defaultValues: {
+    defaultValues: isEditing && existingWasteLog ? {
+      organization_id: existingWasteLog.organization_id,
+      site_id: existingWasteLog.site_id,
+      performed_by: existingWasteLog.performed_by,
+      source_type: existingWasteLog.source_type,
+      batch_id: existingWasteLog.batch_id,
+      inventory_item_id: existingWasteLog.inventory_item_id,
+      waste_type: existingWasteLog.waste_type,
+      disposal_method: existingWasteLog.disposal_method,
+      unit_of_measure: existingWasteLog.unit_of_measure,
+      quantity: existingWasteLog.quantity,
+      disposed_at: new Date(existingWasteLog.disposed_at).toISOString().split('T')[0],
+      reason: existingWasteLog.reason,
+      notes: existingWasteLog.notes,
+      rendered_unusable: existingWasteLog.rendered_unusable,
+      rendering_method: existingWasteLog.rendering_method,
+      waste_material_mixed: existingWasteLog.waste_material_mixed,
+      mix_ratio: existingWasteLog.mix_ratio,
+      witnessed_by: existingWasteLog.witnessed_by,
+      witness_id_verified: existingWasteLog.witness_id_verified,
+      photo_urls: existingWasteLog.photo_urls || [],
+    } : {
       organization_id: organizationId,
       site_id: siteId,
       performed_by: userId,
@@ -142,7 +169,13 @@ export function WasteRecordingForm({
       disposal_method: 'landfill',
       unit_of_measure: 'kg',
       quantity: 0,
-      disposed_at: new Date().toISOString().split('T')[0],
+      disposed_at: (() => {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const day = String(now.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      })(),
       rendered_unusable: false,
       photo_urls: [],
       ...prefillData,
@@ -157,6 +190,13 @@ export function WasteRecordingForm({
 
   // Check if this is cannabis waste (requires special handling)
   const isCannabisWaste = wasteType === 'plant_material' || wasteType === 'trim' || false
+
+  // Auto-skip step 3 if not cannabis waste or not in cannabis jurisdiction
+  useEffect(() => {
+    if (step === 3 && (!isCannabisWaste || !isCannabiJurisdiction)) {
+      setStep(4)
+    }
+  }, [step, isCannabisWaste, isCannabiJurisdiction])
 
   // Check permissions
   if (!can('waste:create')) {
@@ -181,6 +221,20 @@ export function WasteRecordingForm({
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
 
+        // Validate file type
+        const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if (!validImageTypes.includes(file.type)) {
+          toast.error(`${file.name} is not a valid image file. Please upload JPG, PNG, or WebP images.`)
+          continue
+        }
+
+        // Validate file size (10MB max)
+        const maxSize = 10 * 1024 * 1024 // 10MB
+        if (file.size > maxSize) {
+          toast.error(`${file.name} is too large. Maximum file size is 10MB.`)
+          continue
+        }
+
         // Create temp waste log ID (will be replaced with actual ID after creation)
         const tempWasteLogId = `temp-${Date.now()}`
         const label = uploadedPhotos.length === 0 ? 'before' : uploadedPhotos.length === 1 ? 'after' : 'process'
@@ -188,7 +242,7 @@ export function WasteRecordingForm({
         const result = await uploadWastePhoto(file, tempWasteLogId, label)
 
         if (result.error) {
-          toast.error(`Failed to upload photo: ${result.error.message}`)
+          toast.error(`Failed to upload ${file.name}: ${result.error.message}`)
           continue
         }
 
@@ -208,6 +262,8 @@ export function WasteRecordingForm({
       toast.error('Failed to upload photos')
     } finally {
       setUploadingPhoto(false)
+      // Reset the input so the same file can be selected again
+      e.target.value = ''
     }
   }
 
@@ -307,7 +363,12 @@ export function WasteRecordingForm({
   }
 
   const handleBack = () => {
-    setStep(step - 1)
+    // If going back from step 4 and step 3 should be skipped, go to step 2
+    if (step === 4 && (!isCannabisWaste || !isCannabiJurisdiction)) {
+      setStep(2)
+    } else {
+      setStep(step - 1)
+    }
   }
 
   const handleSubmit = async (data: CreateWasteLogInput) => {
@@ -316,8 +377,8 @@ export function WasteRecordingForm({
     setIsSubmitting(true)
     try {
       // Upload witness signature if provided
-      if (signatureDataUrl && data.witnessed_by) {
-        const tempWasteLogId = `temp-${Date.now()}`
+      if (signatureDataUrl && data.witnessed_by && !existingWasteLog?.witness_signature_url) {
+        const tempWasteLogId = isEditing ? existingWasteLog.id : `temp-${Date.now()}`
         const signatureResult = await uploadWitnessSignature(signatureDataUrl, tempWasteLogId)
 
         if (signatureResult.data) {
@@ -325,25 +386,44 @@ export function WasteRecordingForm({
         }
       }
 
-      // Add site_id and organization_id to the data
-      const wasteLogData = {
-        ...data,
-        site_id: siteId,
-        organization_id: organizationId,
+      if (isEditing && existingWasteLog) {
+        // Update existing waste log
+        const updateData = {
+          id: existingWasteLog.id,
+          ...data,
+        }
+
+        const result = await updateWasteLog(updateData)
+
+        if (!result.success) {
+          toast.error(result.error || 'Failed to update waste log')
+          return
+        }
+
+        toast.success('Waste log updated successfully')
+
+        // Redirect to waste detail page
+        window.location.href = `/dashboard/waste/${existingWasteLog.id}`
+      } else {
+        // Create new waste log
+        const wasteLogData = {
+          ...data,
+          site_id: siteId,
+          organization_id: organizationId,
+        }
+
+        const result = await createWasteLog(wasteLogData)
+
+        if (!result.success) {
+          toast.error(result.error || 'Failed to create waste log')
+          return
+        }
+
+        toast.success('Waste log created successfully')
+
+        // Redirect to waste management page
+        window.location.href = '/dashboard/waste'
       }
-
-      // Create waste log using server action
-      const result = await createWasteLog(wasteLogData)
-
-      if (!result.success) {
-        toast.error(result.error || 'Failed to create waste log')
-        return
-      }
-
-      toast.success('Waste log created successfully')
-
-      // Redirect to waste management page
-      window.location.href = '/dashboard/waste'
     } catch (error) {
       console.error('Submit error:', error)
       toast.error('An unexpected error occurred')
@@ -354,12 +434,14 @@ export function WasteRecordingForm({
 
   const renderStepIndicator = () => {
     const totalSteps = isCannabisWaste && isCannabiJurisdiction ? 5 : 4
-    const progress = (step / totalSteps) * 100
+    // Adjust displayed step if step 3 is skipped
+    const displayStep = (!isCannabisWaste || !isCannabiJurisdiction) && step > 3 ? step - 1 : step
+    const progress = (displayStep / totalSteps) * 100
 
     return (
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium">Step {step} of {totalSteps}</span>
+          <span className="text-sm font-medium">Step {displayStep} of {totalSteps}</span>
           <span className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</span>
         </div>
         <Progress value={progress} className="h-2" />
@@ -676,10 +758,7 @@ export function WasteRecordingForm({
   const renderStep3 = () => {
     // Only show rendering step for cannabis waste in Metrc jurisdictions
     if (!isCannabisWaste || !isCannabiJurisdiction) {
-      // Skip to next step automatically
-      useEffect(() => {
-        handleNext()
-      }, [])
+      // Step will be auto-skipped by useEffect
       return null
     }
 
@@ -937,7 +1016,7 @@ export function WasteRecordingForm({
                     </FormControl>
                     <SelectContent>
                       {availableUsers
-                        .filter(u => can('waste:witness'))
+                        .filter(u => u.id !== userId && can('waste:witness'))
                         .map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.name} ({user.role})
@@ -976,34 +1055,63 @@ export function WasteRecordingForm({
 
             <div>
               <FormLabel>Witness Signature</FormLabel>
-              <div className="mt-2 border rounded-md p-4">
+              <div className="mt-2 border rounded-md p-4 bg-white">
                 {signatureDataUrl ? (
                   <div className="space-y-2">
-                    <img src={signatureDataUrl} alt="Witness signature" className="border rounded" />
+                    <img src={signatureDataUrl} alt="Witness signature" className="border rounded max-h-40" />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setSignatureDataUrl(null)}
+                      onClick={() => {
+                        setSignatureDataUrl(null)
+                        signatureRef.current?.clear()
+                      }}
                     >
                       Clear Signature
                     </Button>
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <p>Signature pad will be implemented with signature canvas library</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-2"
-                      onClick={() => {
-                        // Placeholder: In real implementation, this would open signature canvas
-                        setSignatureDataUrl('data:image/png;base64,placeholder')
-                        toast.info('Signature captured (placeholder)')
-                      }}
-                    >
-                      Add Signature (Placeholder)
-                    </Button>
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Please sign below to verify witness presence
+                    </p>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                      <SignatureCanvas
+                        ref={signatureRef}
+                        canvasProps={{
+                          className: 'w-full h-40 cursor-crosshair',
+                        }}
+                        backgroundColor="rgb(249, 250, 251)"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => signatureRef.current?.clear()}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          if (signatureRef.current?.isEmpty()) {
+                            toast.error('Please provide a signature')
+                            return
+                          }
+                          const dataUrl = signatureRef.current?.toDataURL()
+                          if (dataUrl) {
+                            setSignatureDataUrl(dataUrl)
+                            toast.success('Signature captured')
+                          }
+                        }}
+                      >
+                        Save Signature
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

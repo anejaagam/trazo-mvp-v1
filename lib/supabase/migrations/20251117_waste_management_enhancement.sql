@@ -177,7 +177,20 @@ USING (
 );
 
 -- ============================================================================
--- 4. TRIGGERS
+-- 4. EXTEND batch_events TO SUPPORT WASTE DISPOSAL
+-- ============================================================================
+
+-- Add 'waste_disposal' to the batch_events event_type constraint
+ALTER TABLE batch_events DROP CONSTRAINT IF EXISTS batch_events_event_type_check;
+ALTER TABLE batch_events ADD CONSTRAINT batch_events_event_type_check 
+CHECK (event_type IN (
+  'created', 'stage_change', 'plant_count_update', 'pod_assignment', 
+  'pod_removal', 'quarantine', 'quarantine_release', 'harvest', 
+  'destruction', 'note_added', 'recipe_applied', 'waste_disposal'
+));
+
+-- ============================================================================
+-- 5. TRIGGERS
 -- ============================================================================
 
 -- Trigger: Auto-update updated_at timestamp
@@ -204,14 +217,13 @@ BEGIN
     INSERT INTO batch_events (
       batch_id,
       event_type,
-      event_timestamp,
-      performed_by,
-      details,
-      created_at
+      user_id,
+      to_value,
+      notes,
+      timestamp
     ) VALUES (
       NEW.batch_id,
       'waste_disposal',
-      NEW.disposed_at,
       NEW.performed_by,
       jsonb_build_object(
         'waste_log_id', NEW.id,
@@ -223,7 +235,8 @@ BEGIN
         'rendered_unusable', NEW.rendered_unusable,
         'witnessed_by', NEW.witnessed_by
       ),
-      NOW()
+      'Waste disposal recorded',
+      NEW.disposed_at
     );
   END IF;
   

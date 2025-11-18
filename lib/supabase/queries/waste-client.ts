@@ -81,6 +81,41 @@ export async function updateWasteLogClient(
 }
 
 /**
+ * Mark cannabis waste as rendered unusable
+ */
+export async function markAsRendered(
+  id: string,
+  renderingMethod: string,
+  wasteMaterialMixed?: string,
+  mixRatio?: string
+): Promise<QueryResult<WasteLog>> {
+  try {
+    const supabase = createClient()
+    
+    const updates: Partial<WasteLog> = {
+      rendered_unusable: true,
+      rendering_method: renderingMethod as any,
+    }
+
+    if (wasteMaterialMixed) updates.waste_material_mixed = wasteMaterialMixed
+    if (mixRatio) updates.mix_ratio = mixRatio
+    
+    const { data, error } = await supabase
+      .from('waste_logs')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return { data: data as WasteLog, error: null }
+  } catch (error) {
+    console.error('Error in markAsRendered:', error)
+    return { data: null, error: error as Error }
+  }
+}
+
+/**
  * Acknowledge/view a waste log (marks as seen by user)
  */
 export async function acknowledgeWasteLog(id: string): Promise<QueryResult<void>> {
@@ -214,7 +249,7 @@ export function useWasteLog(id: string) {
             witness:users!waste_logs_witnessed_by_fkey(id, full_name, email),
             batch:batches(id, batch_number, cultivar:cultivars(name)),
             inventory_item:inventory_items(id, name, sku),
-            inventory_lot:inventory_lots(id, lot_number)
+            inventory_lot:inventory_lots(id, lot_code)
           `)
           .eq('id', id)
           .single()
@@ -422,17 +457,54 @@ export async function uploadWastePhoto(
     const supabase = createClient()
     
     // Generate unique filename
-    const fileExt = file.name.split('.').pop()
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
     const fileName = `${wasteLogId}/${label}-${Date.now()}.${fileExt}`
     
-    const { error } = await supabase.storage
-      .from('waste-photos')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false,
-      })
-
-    if (error) throw error
+    // Ensure we have a valid image MIME type
+    let contentType = file.type
+    
+    if (!contentType || contentType === 'application/json' || !contentType.startsWith('image/')) {
+      // Fallback to extension-based MIME type
+      const mimeMap: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp'
+      }
+      contentType = mimeMap[fileExt] || 'image/jpeg'
+    }
+    
+    console.log('Uploading file:', file.name, 'Type:', contentType, 'Size:', file.size, 'bytes')
+    
+    // Get auth token and project URL
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      throw new Error('No active session')
+    }
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!supabaseUrl) {
+      throw new Error('Supabase URL not configured')
+    }
+    
+    // Use direct HTTP upload bypassing the Supabase client
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/waste-photos/${fileName}`
+    
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': contentType,
+        'x-upsert': 'false',
+        'cache-control': 'max-age=3600'
+      },
+      body: file
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: response.statusText }))
+      throw new Error(errorData.message || `Upload failed with status ${response.status}`)
+    }
     
     // Get public URL
     const { data: urlData } = supabase.storage
@@ -462,15 +534,35 @@ export async function uploadWitnessSignature(
     
     const fileName = `${wasteLogId}/signature-${Date.now()}.png`
     
-    const { error } = await supabase.storage
-      .from('waste-signatures')
-      .upload(fileName, blob, {
-        contentType: 'image/png',
-        cacheControl: '3600',
-        upsert: false,
-      })
-
-    if (error) throw error
+    // Get auth token and project URL
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      throw new Error('No active session')
+    }
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!supabaseUrl) {
+      throw new Error('Supabase URL not configured')
+    }
+    
+    // Use direct HTTP upload bypassing the Supabase client
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/waste-signatures/${fileName}`
+    
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'image/png',
+        'x-upsert': 'false',
+        'cache-control': 'max-age=3600'
+      },
+      body: blob
+    })
+    
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json().catch(() => ({ message: uploadResponse.statusText }))
+      throw new Error(errorData.message || `Upload failed with status ${uploadResponse.status}`)
+    }
     
     // Get public URL
     const { data: urlData } = supabase.storage

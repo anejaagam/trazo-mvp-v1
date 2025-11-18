@@ -204,7 +204,7 @@ export interface WasteLogWithRelations extends WasteLog {
   } | null
   inventory_lot?: {
     id: string
-    lot_number: string
+    lot_code: string
   } | null
 }
 

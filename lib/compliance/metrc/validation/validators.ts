@@ -56,7 +56,7 @@ export function validateRequired(
       result,
       field,
       `${fieldName || field} is required`,
-      'REQUIRED_FIELD_MISSING'
+      'REQUIRED'
     )
     return false
   }
@@ -115,7 +115,7 @@ export function validatePositiveNumber(
       result,
       field,
       `${fieldName || field} must be a positive number`,
-      'INVALID_NUMBER'
+      'NOT_POSITIVE'
     )
     return false
   }
@@ -260,7 +260,7 @@ export function validateDateNotInFuture(
       result,
       field,
       `${fieldName || field} cannot be in the future`,
-      'FUTURE_DATE'
+      'DATE_IN_FUTURE'
     )
     return false
   }

@@ -248,10 +248,15 @@ export async function transitionBatchStage(
   batchId: string,
   newStage: BatchStage,
   userId: string,
-  notes?: string
+  notes?: string,
+  newLocation?: string
 ) {
   try {
     const supabase = await createClient()
+
+    // Get current batch stage before transition
+    const { data: batch } = await getBatchById(batchId)
+    const currentStage = batch?.stage
 
     // Use the database function for proper validation and event logging
     const { error } = await supabase.rpc('transition_batch_stage', {
@@ -268,6 +273,30 @@ export async function transitionBatchStage(
       batchId,
       userId,
     })
+
+    // 🆕 AUTO-SYNC TO METRC (non-blocking)
+    // Only sync if:
+    // 1. Batch is cannabis (produce batches don't sync to Metrc)
+    // 2. Stage transition requires Metrc phase change
+    if (batch?.domain_type === 'cannabis' && currentStage) {
+      // Import dynamically to avoid circular dependencies
+      const { syncBatchPhaseTransitionToMetrc } = await import(
+        '@/lib/compliance/metrc/sync/batch-phase-sync'
+      )
+
+      // Run async - don't await, don't block TRAZO update
+      syncBatchPhaseTransitionToMetrc(
+        batchId,
+        currentStage,
+        newStage,
+        userId,
+        newLocation,
+        notes
+      ).catch((error) => {
+        console.error('Metrc phase transition sync failed (non-blocking):', error)
+        // Error is logged but doesn't prevent TRAZO update
+      })
+    }
 
     // Get updated batch
     return await getBatchById(batchId)

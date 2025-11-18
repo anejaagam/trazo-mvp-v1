@@ -416,3 +416,49 @@ export interface MetrcPaginationOptions {
   limit?: number
   offset?: number
 }
+
+// =====================================================
+// LOCATIONS
+// =====================================================
+
+/**
+ * Metrc location type
+ * Types returned from /locations/v2/types endpoint
+ */
+export interface MetrcLocationType {
+  Id: number
+  Name: string
+  ForPlantBatches: boolean
+  ForPlants: boolean
+  ForHarvests: boolean
+  ForPackages: boolean
+}
+
+/**
+ * Metrc location structure
+ */
+export interface MetrcLocation {
+  Id: number
+  Name: string
+  LocationTypeId: number
+  LocationTypeName: string
+  FacilityLicenseNumber?: string
+  FacilityName?: string
+}
+
+/**
+ * Location creation payload
+ */
+export interface MetrcLocationCreate {
+  Name: string
+  LocationTypeId: number
+}
+
+/**
+ * Location update payload
+ */
+export interface MetrcLocationUpdate {
+  Id: number
+  Name: string
+  LocationTypeId: number
+}

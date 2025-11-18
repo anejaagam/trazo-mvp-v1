@@ -10,6 +10,7 @@ import { MetrcApiError, MetrcTimeoutError } from './errors'
 import type { MetrcClientConfig, MetrcRequestOptions } from './types'
 import {
   FacilitiesEndpoint,
+  LocationsEndpoint,
   PackagesEndpoint,
   PlantsEndpoint,
   PlantBatchesEndpoint,
@@ -56,6 +57,7 @@ export class MetrcClient {
 
   // Endpoint groups
   public readonly facilities: FacilitiesEndpoint
+  public readonly locations: LocationsEndpoint
   public readonly packages: PackagesEndpoint
   public readonly plants: PlantsEndpoint
   public readonly plantBatches: PlantBatchesEndpoint
@@ -76,6 +78,7 @@ export class MetrcClient {
 
     // Initialize endpoint groups
     this.facilities = new FacilitiesEndpoint(this)
+    this.locations = new LocationsEndpoint(this)
     this.packages = new PackagesEndpoint(this)
     this.plants = new PlantsEndpoint(this)
     this.plantBatches = new PlantBatchesEndpoint(this)

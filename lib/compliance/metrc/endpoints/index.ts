@@ -5,6 +5,7 @@
  */
 
 export { FacilitiesEndpoint } from './facilities'
+export { LocationsEndpoint } from './locations'
 export { PackagesEndpoint } from './packages'
 export { PlantsEndpoint } from './plants'
 export { PlantBatchesEndpoint } from './plant-batches'

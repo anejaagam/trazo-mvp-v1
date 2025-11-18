@@ -535,6 +535,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             alt="Trazo Logo"
             width={40}
             height={40}
+            style={{ height: 'auto' }}
             className="object-contain dark:hidden"
           />
           <Image
@@ -542,6 +543,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             alt="Trazo Logo"
             width={40}
             height={40}
+            style={{ height: 'auto' }}
             className="object-contain hidden dark:block"
           />
             <span className="font-helvetica text-[#E5F4EA] tracking-[0.09em] text-xl md:text-2xl">TRAZO</span>

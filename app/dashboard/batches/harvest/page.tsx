@@ -2,25 +2,34 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { HarvestClient } from './harvest-client'
 
 export default async function HarvestQueuePage() {
+  let userId: string
+  let organizationId: string
+  let siteId: string
+
   if (isDevModeActive()) {
     logDevMode('Harvest Queue Page')
     if (!canPerformAction(DEV_MOCK_USER.role, 'batch:stage_change')) {
       redirect('/dashboard')
     }
+    userId = DEV_MOCK_USER.id
+    organizationId = DEV_MOCK_USER.organization_id
+    siteId = DEV_MOCK_USER.site_assignments[0].site_id
   } else {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
       redirect('/auth/login')
     }
 
+    // Get user data
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, organization_id')
       .eq('id', user.id)
       .single()
 
@@ -28,8 +37,28 @@ export default async function HarvestQueuePage() {
       redirect('/auth/login')
     }
 
+    // Check permission
     if (!canPerformAction(userData.role, 'batch:stage_change')) {
       redirect('/dashboard')
+    }
+
+    // Get site assignments
+    const { data: siteAssignments } = await supabase
+      .from('user_site_assignments')
+      .select('site_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+
+    userId = user.id
+    organizationId = userData.organization_id
+
+    // Get site_id from user_site_assignments or get/create default site
+    if (siteAssignments?.[0]?.site_id) {
+      siteId = siteAssignments[0].site_id
+    } else {
+      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+      siteId = defaultSiteId || organizationId
     }
   }
 
@@ -42,19 +71,11 @@ export default async function HarvestQueuePage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Coming Soon</CardTitle>
-          <CardDescription>
-            Harvest workflow features are under development
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            This page will include harvest queue management, yield tracking, and post-harvest workflows.
-          </p>
-        </CardContent>
-      </Card>
+      <HarvestClient
+        userId={userId}
+        organizationId={organizationId}
+        siteId={siteId}
+      />
     </div>
   )
 }

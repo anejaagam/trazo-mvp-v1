@@ -578,7 +578,15 @@ export async function getTasks(
     const supabase = await createClient();
     let query = supabase
       .from('tasks')
-      .select('*, sop_templates!left(name, version, steps)', { count: 'exact' });
+      .select(
+        `
+        *,
+        sop_templates!left(name, version, steps),
+        assignee:users!tasks_assigned_to_fkey(id, email, full_name, role),
+        created_by_user:users!tasks_created_by_fkey(id, email, full_name)
+        `,
+        { count: 'exact' }
+      );
 
     // Apply filters
     if (filters?.status?.length) {
@@ -673,6 +681,8 @@ export async function getTaskById(taskId: string) {
         `
         *,
         template:sop_templates(*),
+        assignee:users!tasks_assigned_to_fkey(id, email, full_name, role),
+        created_by_user:users!tasks_created_by_fkey(id, email, full_name),
         dependencies:task_dependencies!task_dependencies_task_id_fkey(
           *,
           depends_on:tasks!task_dependencies_depends_on_task_id_fkey(id, title, status)
@@ -708,7 +718,11 @@ export async function getMyTasks() {
 
     const { data, error } = await supabase
       .from('tasks')
-      .select('*, sop_templates!left(name, version, steps)')
+      .select(`
+        *,
+        sop_templates!left(name, version, steps),
+        assignee:users!tasks_assigned_to_fkey(id, email, full_name, role)
+      `)
       .eq('assigned_to', user.id)
       .in('status', ['to_do', 'in_progress', 'blocked', 'awaiting_approval', 'approved', 'done'])
       .order('due_date', { ascending: true, nullsFirst: false });

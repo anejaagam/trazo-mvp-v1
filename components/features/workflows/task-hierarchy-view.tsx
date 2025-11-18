@@ -93,6 +93,12 @@ export function TaskHierarchyView({
         root_task_id: rootTaskId,
       });
       if (error) {
+        // If RPC function doesn't exist, just show empty hierarchy
+        if (error.code === 'PGRST202' || error.message?.includes('not found')) {
+          setTree(null);
+          setLoading(false);
+          return;
+        }
         throw error;
       }
       const built = buildHierarchyTree(data || []);
@@ -100,11 +106,15 @@ export function TaskHierarchyView({
       setCollapsedNodes(new Set());
     } catch (error) {
       console.error('Failed to load task hierarchy', error);
-      toast({
-        title: 'Unable to load hierarchy',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: 'destructive',
-      });
+      // Don't show toast for missing RPC function
+      if (!(error instanceof Error && error.message?.includes('not found'))) {
+        toast({
+          title: 'Unable to load hierarchy',
+          description: error instanceof Error ? error.message : 'Unknown error occurred',
+          variant: 'destructive',
+        });
+      }
+      setTree(null);
     } finally {
       setLoading(false);
     }

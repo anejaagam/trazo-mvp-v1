@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -119,10 +119,24 @@ export function TaskDetailsPanel({
                   <p className="font-semibold text-slate-900">{format(new Date(task.due_date), 'MMM d, yyyy')}</p>
                 </div>
               )}
-              {task.assigned_to && (
+              {((task as any).assignee || task.assigned_to) && (
                 <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Assigned To</p>
-                  <p className="font-semibold text-slate-900">{task.assigned_to}</p>
+                  <p className="font-semibold text-slate-900">
+                    {(task as any).assignee?.full_name || (task as any).assignee?.email || (task as any).assignee?.id || task.assigned_to}
+                  </p>
+                </div>
+              )}
+              {(task as any).created_by_user && (
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Created By</p>
+                  <p className="font-semibold text-slate-900">{(task as any).created_by_user.full_name || (task as any).created_by_user.email}</p>
+                </div>
+              )}
+              {task.created_at && (
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Created</p>
+                  <p className="font-semibold text-slate-900">{format(new Date(task.created_at), 'MMM d, yyyy h:mm a')}</p>
                 </div>
               )}
             </div>

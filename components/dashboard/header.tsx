@@ -177,24 +177,64 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 </DropdownMenuItem>
               )}
 
-              {notifications.slice(0, 3).map((notification) => (
-                <DropdownMenuItem key={notification.id} asChild>
-                  <Link
-                    href={notification.link_url || '/dashboard/alarms'}
-                    className="flex flex-col items-start gap-1 py-3 cursor-pointer"
-                  >
-                    <div className="font-medium">{notification.message}</div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {notification.category}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(notification.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </Link>
-                </DropdownMenuItem>
-              ))}
+              {notifications.slice(0, 3).map((notification) => {
+                const isHighUrgency = notification.urgency === 'high' || notification.severity === 'critical';
+                const isMediumUrgency = notification.urgency === 'medium' || notification.severity === 'warning';
+                
+                return (
+                  <DropdownMenuItem key={notification.id} asChild>
+                    <Link
+                      href={notification.link_url || '/dashboard/alarms'}
+                      className={`flex flex-col items-start gap-2 py-3 px-3 cursor-pointer relative overflow-hidden ${
+                        !notification.read_at && isHighUrgency
+                          ? 'bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500'
+                          : !notification.read_at && isMediumUrgency
+                            ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-500'
+                            : !notification.read_at
+                              ? 'bg-blue-50/50 border-l-4 border-blue-500'
+                              : ''
+                      }`}
+                    >
+                      <div className={`font-semibold text-sm ${
+                        !notification.read_at && isHighUrgency ? 'text-red-900' :
+                        !notification.read_at && isMediumUrgency ? 'text-yellow-900' :
+                        'text-foreground'
+                      }`}>
+                        {notification.message.split('\n')[0]}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge 
+                          variant={isHighUrgency ? 'destructive' : 'outline'} 
+                          className={`text-xs capitalize ${
+                            isHighUrgency 
+                              ? 'bg-red-600 text-white border-red-700' 
+                              : isMediumUrgency
+                                ? 'bg-yellow-100 text-yellow-900 border-yellow-400'
+                                : ''
+                          }`}
+                        >
+                          {notification.category}
+                        </Badge>
+                        {(notification.urgency || notification.severity) && (
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs uppercase font-semibold ${
+                              isHighUrgency ? 'bg-red-100 text-red-800' :
+                              isMediumUrgency ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}
+                          >
+                            {notification.urgency || notification.severity}
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(notification.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
 
               {totalCount === 0 && (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">

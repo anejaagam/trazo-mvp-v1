@@ -13,6 +13,7 @@ import {
 } from '@/lib/supabase/queries/workflows';
 import { TaskEvidence, CreateTaskRequest, UpdateTaskInput, TaskStatus } from '@/types/workflow';
 import { notifyTaskAssignment } from './notifications';
+import { createTaskNotification } from './task-notifications';
 
 /**
  * Create a new task from a template
@@ -81,6 +82,17 @@ export async function createTaskAction(taskData: CreateTaskRequest) {
         await deleteTask(newTask.id);
         return { error: dependencyErrors[0] };
       }
+    }
+
+    // Create notification if task is assigned
+    if (newTask && taskPayload.assigned_to) {
+      await createTaskNotification(
+        taskPayload.assigned_to,
+        newTask.id,
+        `New task assigned: "${newTask.title}"`,
+        'task',
+        taskPayload.priority === 'critical' || taskPayload.priority === 'high' ? 'high' : 'medium'
+      );
     }
 
     revalidatePath('/dashboard/workflows');
@@ -272,6 +284,16 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
 
     if (result.error) {
       return { error: result.error };
+    }
+
+    // If task is marked as done or cancelled, mark related notifications as read
+    if (status === 'done' || status === 'cancelled') {
+      await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('category', 'task')
+        .contains('metadata', JSON.stringify({ task_id: taskId }))
+        .is('read_at', null);
     }
 
     revalidatePath('/dashboard/workflows');

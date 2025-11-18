@@ -26,6 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useTaskCount } from '@/hooks/use-task-count'
 import { createClient } from '@/lib/supabase/client'
 
 interface DashboardSidebarProps {
@@ -60,6 +61,9 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const [lowStockCount, setLowStockCount] = useState<number>(0)
   const [alarmCount, setAlarmCount] = useState<number>(0)
   const [notificationCount, setNotificationCount] = useState<number>(0)
+  
+  // Use the task count hook for real-time updates
+  const { count: myTaskCount } = useTaskCount({ userId: user.id, realtime: true })
 
   useEffect(() => {
     if (typeof window === 'undefined' || !user.organization?.id || !user.id) return
@@ -323,7 +327,8 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           title: 'My Tasks',
           href: '/dashboard/workflows',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'task:view'
+          permission: 'task:view',
+          badge: myTaskCount > 0 ? String(myTaskCount) : undefined
         },
         {
           title: 'Templates',

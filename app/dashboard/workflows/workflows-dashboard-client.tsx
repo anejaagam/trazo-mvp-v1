@@ -105,6 +105,8 @@ export function WorkflowsDashboardClient({
           title: 'Status updated',
           description: `Task moved to ${updates.status.replace('_', ' ')}`,
         });
+        // Dispatch custom event for sidebar to update task count
+        window.dispatchEvent(new CustomEvent('taskUpdated'));
       }
     } catch (error) {
       console.error('Failed to update task', error);
@@ -165,6 +167,7 @@ export function WorkflowsDashboardClient({
 
   const filteredMyTasks = useMemo(() => filterTasks(myTasks), [filterTasks, myTasks]);
   const filteredAllTasks = useMemo(() => filterTasks(allTasks), [filterTasks, allTasks]);
+  const incompleteMyTasksCount = useMemo(() => myTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length, [myTasks]);
   const taskIndex = useMemo(() => {
     const map = new Map<string, Task>();
     [...allTasks, ...myTasks].forEach((task) => map.set(task.id, task));
@@ -368,7 +371,7 @@ export function WorkflowsDashboardClient({
         <TabsList className="flex flex-wrap">
           <TabsTrigger value="my-tasks" className="flex items-center gap-2">
             My Tasks
-            <Badge variant="secondary">{filteredMyTasks.length}</Badge>
+            <Badge variant="secondary">{incompleteMyTasksCount}</Badge>
           </TabsTrigger>
           <TabsTrigger value="all-tasks" className="flex items-center gap-2">
             All Tasks

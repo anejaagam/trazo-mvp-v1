@@ -10,7 +10,6 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { notifyTaskOverdue } from '@/app/actions/notifications';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 seconds max
@@ -68,7 +67,60 @@ export async function GET(request: Request) {
 
     let alarmsCreated = 0;
     let notificationsSent = 0;
+    let dueSoonNotificationsSent = 0;
     const errors: string[] = [];
+
+    // Check for tasks due soon (within 24 hours)
+    const tomorrow = new Date();
+    tomorrow.setHours(tomorrow.getHours() + 24);
+    
+    const { data: dueSoonTasks } = await supabase
+      .from('tasks')
+      .select('id, title, due_date, assigned_to, users!tasks_assigned_to_fkey(organization_id)')
+      .not('status', 'in', '(done,cancelled)')
+      .not('assigned_to', 'is', null)
+      .gte('due_date', now)
+      .lte('due_date', tomorrow.toISOString()) as any;
+    
+    // Send notifications for tasks due soon
+    for (const task of dueSoonTasks || []) {
+      try {
+        // Check if notification already sent today
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const { data: existingNotif } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', task.assigned_to)
+          .eq('category', 'task')
+          .contains('message', task.title)
+          .gte('created_at', todayStart.toISOString())
+          .single();
+        
+        if (!existingNotif) {
+          const organizationId = Array.isArray(task.users) 
+            ? task.users[0]?.organization_id 
+            : task.users?.organization_id;
+            
+          if (organizationId) {
+            await supabase.from('notifications').insert({
+              user_id: task.assigned_to,
+              organization_id: organizationId,
+              channel: 'in-app',
+              message: `Task "${task.title}" is due soon`,
+              status: 'sent',
+              category: 'task',
+              urgency: 'medium',
+              metadata: { task_id: task.id },
+            });
+            dueSoonNotificationsSent++;
+          }
+        }
+      } catch (err) {
+        errors.push(`Failed to send due-soon notification for task ${task.id}`);
+      }
+    }
 
     for (const task of overdueTasks || []) {
       try {
@@ -116,17 +168,36 @@ export async function GET(request: Request) {
 
         // Send notification to assigned user if available
         if (task.assigned_to && organizationId) {
-          const notifyResult = await notifyTaskOverdue({
-            userId: task.assigned_to,
-            organizationId,
-            taskTitle: task.title,
-            taskId: task.id,
-          });
+          // Check if notification already sent today for this task
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          
+          const { data: existingNotif } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', task.assigned_to)
+            .eq('category', 'task')
+            .contains('message', task.title)
+            .gte('created_at', todayStart.toISOString())
+            .single();
+          
+          if (!existingNotif) {
+            const { error: notifError } = await supabase.from('notifications').insert({
+              user_id: task.assigned_to,
+              organization_id: organizationId,
+              channel: 'in-app',
+              message: `Task "${task.title}" is overdue`,
+              status: 'sent',
+              category: 'task',
+              urgency: 'high',
+              metadata: { task_id: task.id },
+            });
 
-          if (notifyResult.success) {
-            notificationsSent++;
-          } else {
-            errors.push(`Failed to send notification for task ${task.id}: ${notifyResult.error}`);
+            if (notifError) {
+              errors.push(`Failed to send notification for task ${task.id}: ${notifError.message}`);
+            } else {
+              notificationsSent++;
+            }
           }
         }
       } catch (err) {
@@ -138,8 +209,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       tasksChecked: overdueTasks?.length || 0,
+      dueSoonTasksChecked: dueSoonTasks?.length || 0,
       alarmsCreated,
       notificationsSent,
+      dueSoonNotificationsSent,
       errors: errors.length > 0 ? errors : undefined,
     });
 

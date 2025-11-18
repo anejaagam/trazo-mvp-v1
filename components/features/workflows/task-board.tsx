@@ -269,27 +269,27 @@ export function TaskBoard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleExecuteTask(task.id)}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleExecuteTask(task.id); }}>
                   <PlayCircle className="mr-2 h-4 w-4" />
                   Execute Task
                 </DropdownMenuItem>
                 {task.status !== 'to_do' && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'to_do')}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'to_do'); }}>
                     Move to To Do
                   </DropdownMenuItem>
                 )}
                 {task.status !== 'in_progress' && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'in_progress')}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'in_progress'); }}>
                     Move to In Progress
                   </DropdownMenuItem>
                 )}
                 {task.status !== 'blocked' && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'blocked')}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'blocked'); }}>
                     Move to Blocked
                   </DropdownMenuItem>
                 )}
                 {task.status !== 'done' && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'done')}>
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'done'); }}>
                     Move to Done
                   </DropdownMenuItem>
                 )}

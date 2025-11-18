@@ -407,11 +407,11 @@ export default function TaskCreateForm({
       } else if (result.data) {
         toast({
           title: 'Task created',
-          description: 'Redirecting to the new task…',
+          description: 'Task created successfully',
         });
         setSuccessId(result.data.id);
         setTimeout(() => {
-          router.push(`/dashboard/workflows/tasks/${result.data!.id}`);
+          router.push('/dashboard/workflows');
         }, 600);
       }
     } catch (err) {

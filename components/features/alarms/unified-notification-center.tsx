@@ -87,9 +87,10 @@ function NotificationCard({
   onMarkAsRead: (id: string) => void;
 }) {
   const isUnread = !notification.read_at;
+  const isTaskCompleted = notification.category === 'task' && notification.read_at;
 
   return (
-    <Card className={`${isUnread ? 'border-l-4 border-l-blue-500' : ''}`}>
+    <Card className={`${isUnread ? 'border-l-4 border-l-blue-500' : isTaskCompleted ? 'border-l-4 border-l-green-500 bg-green-50/30' : ''}`}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1">
@@ -107,10 +108,23 @@ function NotificationCard({
                     New
                   </Badge>
                 )}
+                {isTaskCompleted && (
+                  <Badge variant="default" className="bg-green-600">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Completed
+                  </Badge>
+                )}
               </div>
-              <p className="text-sm">{notification.message}</p>
+              <p className={`text-sm ${isTaskCompleted ? 'line-through text-muted-foreground' : ''}`}>
+                {notification.message}
+              </p>
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span>{new Date(notification.sent_at).toLocaleString()}</span>
+                {isTaskCompleted && notification.read_at && (
+                  <span className="text-green-600 font-medium">
+                    Completed {new Date(notification.read_at).toLocaleString()}
+                  </span>
+                )}
                 {notification.link_url && (
                   <Link
                     href={notification.link_url}
@@ -123,7 +137,7 @@ function NotificationCard({
               </div>
             </div>
           </div>
-          {isUnread && (
+          {isUnread && !isTaskCompleted && (
             <Button
               size="sm"
               variant="ghost"

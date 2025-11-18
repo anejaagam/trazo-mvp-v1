@@ -932,8 +932,14 @@ async function fetchBatchInventoryUsage(batchId: string): Promise<BatchInventory
       .eq('batch_id', batchId)
       .order('timestamp', { ascending: false })
 
+    console.log('fetchBatchInventoryUsage called for batch:', batchId)
+    console.log('Inventory movements query result:', { dataCount: data?.length, error })
+
     if (error) throw error
-    if (!data || data.length === 0) return null
+    if (!data || data.length === 0) {
+      console.log('No inventory movements found for batch:', batchId)
+      return null
+    }
 
     type MovementRow = {
       id: string

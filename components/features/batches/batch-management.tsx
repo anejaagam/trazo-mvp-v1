@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Filter, Factory, GraduationCap, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Filter, Factory, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -87,6 +87,9 @@ export function BatchManagement({
     }
     if (selectedStatus !== 'all') {
       filters.status = selectedStatus
+    } else {
+      // By default, exclude destroyed batches unless explicitly filtered
+      filters.exclude_destroyed = true
     }
     if (selectedStage !== 'all') {
       filters.stage = selectedStage as BatchStage
@@ -101,12 +104,27 @@ export function BatchManagement({
     try {
       setLoading(true)
       const { data, error } = await getBatches(organizationId, siteId, buildFilters())
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching batches:', {
+          error,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorType: typeof error,
+          organizationId,
+          siteId
+        })
+        // Check if this is an authentication/RLS error (empty error object or permission denied)
+        const errorStr = JSON.stringify(error)
+        if (errorStr === '{}' || errorStr.includes('permission') || errorStr.includes('RLS')) {
+          throw new Error('Authentication required. Please log in to view batches.')
+        }
+        throw error
+      }
       setBatches(data || [])
       setError(null)
     } catch (err) {
       console.error('Error fetching batches:', err)
-      setError('Failed to load batches')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(`Failed to load batches: ${errorMessage}`)
       setBatches([])
     } finally {
       setLoading(false)
@@ -122,17 +140,32 @@ export function BatchManagement({
     () => batches.filter((batch) => batch.status === 'quarantined'),
     [batches]
   )
-  const totalPlants = useMemo(
-    () => batches.reduce((sum, batch) => sum + (batch.plant_count || 0), 0),
+  
+  // Filter out destroyed batches for metrics
+  const nonDestroyedBatches = useMemo(
+    () => batches.filter((batch) => batch.status !== 'destroyed'),
     [batches]
   )
+  
+  const totalPlants = useMemo(
+    () => nonDestroyedBatches.reduce((sum, batch) => {
+      // Sum up plant counts from active pod assignments
+      const assignmentTotal = (batch.pod_assignments || [])
+        .filter((assignment) => !assignment.removed_at)
+        .reduce((assignmentSum, assignment) => assignmentSum + (assignment.plant_count || 0), 0)
+      // If there are assignments, use their total; otherwise fall back to batch.plant_count
+      const batchTotal = assignmentTotal > 0 ? assignmentTotal : (batch.plant_count || 0)
+      return sum + batchTotal
+    }, 0),
+    [nonDestroyedBatches]
+  )
   const recipesWithCoverage = useMemo(
-    () => batches.filter((batch) => batch.active_recipe).length,
-    [batches]
+    () => nonDestroyedBatches.filter((batch) => batch.active_recipe).length,
+    [nonDestroyedBatches]
   )
   const podsInUse = useMemo(() => {
     const podIds = new Set<string>()
-    batches.forEach((batch) => {
+    nonDestroyedBatches.forEach((batch) => {
       batch.pod_assignments
         ?.filter((assignment) => !assignment.removed_at)
         .forEach((assignment) => {
@@ -140,7 +173,7 @@ export function BatchManagement({
         })
     })
     return podIds.size
-  }, [batches])
+  }, [nonDestroyedBatches])
 
   const handleCreateSuccess = () => {
     setShowCreateModal(false)
@@ -167,12 +200,6 @@ export function BatchManagement({
           </p>
         </div>
         <div className="flex gap-2">
-          {can('cultivar:view') && (
-            <Button variant="outline" onClick={() => setShowCultivarDialog(true)}>
-              <GraduationCap className="mr-2 h-4 w-4" />
-              Manage Cultivars
-            </Button>
-          )}
           {can('batch:create') && (
             <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -206,7 +233,7 @@ export function BatchManagement({
             <Factory className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{batches.length}</div>
+            <div className="text-2xl font-bold">{nonDestroyedBatches.length}</div>
             <p className="text-xs text-muted-foreground capitalize">
               {plantType} · {podsInUse} pods active
             </p>
@@ -278,7 +305,7 @@ export function BatchManagement({
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="quarantined">Quarantined</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
@@ -303,9 +330,9 @@ export function BatchManagement({
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Recipe coverage</label>
+                <label className="text-sm font-medium">Recipe Coverage</label>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {recipesWithCoverage}/{batches.length} batches running a recipe
+                  {recipesWithCoverage}/{nonDestroyedBatches.length} batches running a recipe
                 </div>
               </div>
             </div>

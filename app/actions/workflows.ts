@@ -296,7 +296,7 @@ export async function archiveTemplateAction(templateId: string) {
 /**
  * Duplicate a template
  */
-export async function duplicateTemplateAction(templateId: string, newName: string) {
+export async function duplicateTemplateAction(templateId: string, newName?: string) {
   const supabase = await createClient();
   
   // Check authentication

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Sprout, MapPin, AlertTriangle, Activity, Beaker, FileText, Loader2 } from 'lucide-react'
+import { Sprout, MapPin, AlertTriangle, Activity, Beaker } from 'lucide-react'
 import { BatchModal } from './batch-modal'
 import { StageTransitionDialog } from './stage-transition-dialog'
 import { HarvestWorkflow } from './harvest-workflow'
@@ -18,8 +18,6 @@ import { BatchTasksPanel } from './batch-tasks-panel'
 import { LinkTemplateDialog } from './link-template-dialog'
 import type { BatchListItem, BatchDetail } from '@/lib/supabase/queries/batches-client'
 import { getBatchDetail, quarantineBatch, releaseFromQuarantine } from '@/lib/supabase/queries/batches-client'
-import { getBatchPacketDataAction } from '@/app/actions/batch-tasks'
-import { generateBatchPacketPDF } from '@/lib/utils/batch-packet-generator'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import type { BatchStageHistory, BatchEvent } from '@/types/batch'
 import type { RoleKey } from '@/lib/rbac/types'
@@ -60,7 +58,6 @@ export function BatchDetailDialog({
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
   const [showLinkTemplate, setShowLinkTemplate] = useState(false)
-  const [generatingPacket, setGeneratingPacket] = useState(false)
 
   const loadDetail = useCallback(async () => {
     setLoading(true)
@@ -107,48 +104,24 @@ export function BatchDetailDialog({
     }
   }
 
-  const handleGeneratePacket = async () => {
-    setGeneratingPacket(true)
-    try {
-      // Fetch batch data via server action (with permission check)
-      const dataResult = await getBatchPacketDataAction(batch.id)
-
-      if (dataResult.error || !dataResult.data) {
-        toast.error(dataResult.error || 'Failed to fetch batch data')
-        return
-      }
-
-      // Generate PDF client-side
-      const pdfResult = await generateBatchPacketPDF(dataResult.data, {
-        packetType: 'full',
-        includesTasks: true,
-        includesRecipe: true,
-        includesInventory: true,
-        includesCompliance: true,
-      })
-
-      if (pdfResult.error || !pdfResult.success) {
-        toast.error(pdfResult.error || 'Failed to generate PDF')
-      } else {
-        toast.success(`Batch packet downloaded: ${pdfResult.filename}`)
-      }
-    } catch (error) {
-      console.error('Error generating packet:', error)
-      toast.error('Failed to generate batch packet')
-    } finally {
-      setGeneratingPacket(false)
-    }
-  }
-
   const renderedDetail = detail || (batch as BatchDetail)
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-3">
             <Sprout className="h-5 w-5" />
             Batch {batch.batch_number}
+            <Button
+              variant={renderedDetail.status === 'quarantined' ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleQuarantineToggle}
+              className={renderedDetail.status === 'quarantined' ? '' : 'text-destructive hover:text-destructive'}
+            >
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              {renderedDetail.status === 'quarantined' ? 'Release' : 'Quarantine'}
+            </Button>
           </DialogTitle>
           <DialogDescription>{batch.cultivar?.name || batch.cultivar_id || 'Unknown cultivar'}</DialogDescription>
         </DialogHeader>
@@ -166,31 +139,6 @@ export function BatchDetailDialog({
           <Button variant="outline" size="sm" onClick={() => setShowApplyRecipe(true)}>
             Apply recipe
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleGeneratePacket}
-            disabled={generatingPacket}
-          >
-            {generatingPacket ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Packet
-              </>
-            )}
-          </Button>
-          <Button
-            variant={renderedDetail.status === 'quarantined' ? 'default' : 'destructive'}
-            size="sm"
-            onClick={handleQuarantineToggle}
-          >
-            {renderedDetail.status === 'quarantined' ? 'Release quarantine' : 'Quarantine'}
-          </Button>
         </div>
 
         {renderedDetail.status === 'quarantined' && (
@@ -207,16 +155,28 @@ export function BatchDetailDialog({
 
         {!loading && (
           <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="assignments">Pods & telemetry</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks & SOPs</TabsTrigger>
-            <TabsTrigger value="quality">Quality</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsList className="grid h-11 w-full grid-cols-6 items-center rounded-lg bg-muted p-1 text-muted-foreground">
+            <TabsTrigger value="overview" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="assignments" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Pods
+            </TabsTrigger>
+            <TabsTrigger value="quality" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Quality
+            </TabsTrigger>
+            <TabsTrigger value="history" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              History
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+              Inventory
+            </TabsTrigger>
           </TabsList>
 
-            <TabsContent value="overview" className="space-y-4">
+            <TabsContent value="overview" className="space-y-4 min-h-[500px]">
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -278,7 +238,7 @@ export function BatchDetailDialog({
               />
             </TabsContent>
 
-            <TabsContent value="assignments" className="space-y-4">
+            <TabsContent value="assignments" className="space-y-4 min-h-[500px]">
               <Card>
                 <CardHeader>
                   <CardTitle>Active pods ({activeAssignments.length})</CardTitle>
@@ -320,7 +280,7 @@ export function BatchDetailDialog({
               )}
             </TabsContent>
 
-            <TabsContent value="quality" className="space-y-4">
+            <TabsContent value="quality" className="space-y-4 min-h-[500px]">
               <QualityMetricsPanel
                 batchId={batch.id}
                 metrics={renderedDetail.quality_metrics}
@@ -331,7 +291,7 @@ export function BatchDetailDialog({
               />
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
+            <TabsContent value="history" className="space-y-4 min-h-[500px]">
               <Card>
                 <CardHeader>
                   <CardTitle>Stage history</CardTitle>
@@ -360,7 +320,7 @@ export function BatchDetailDialog({
               </Card>
             </TabsContent>
 
-            <TabsContent value="tasks" className="space-y-4">
+            <TabsContent value="tasks" className="space-y-4 min-h-[500px]">
               <BatchTasksPanel 
                 batchId={batch.id}
                 userRole={userRole}
@@ -369,7 +329,7 @@ export function BatchDetailDialog({
               />
             </TabsContent>
 
-            <TabsContent value="inventory" className="space-y-4">
+            <TabsContent value="inventory" className="space-y-4 min-h-[500px]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Track inventory movements attributed to this batch.</p>

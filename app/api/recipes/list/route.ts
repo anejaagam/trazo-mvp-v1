@@ -9,19 +9,41 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'organizationId is required' }, { status: 400 })
   }
 
-  const { data, error } = await getRecipes(organizationId, { status: 'published' })
+  // Show published and applied recipes only
+  const { data: recipes, error } = await getRecipes(organizationId, { 
+    status: ['published', 'applied'] 
+  })
   if (error) {
     console.error('Failed to load recipes', error)
     return NextResponse.json({ error: 'Failed to load recipes' }, { status: 500 })
   }
 
-  return NextResponse.json({
-    data:
-      data?.map((recipe) => ({
-        id: recipe.id,
-        name: recipe.name,
-        plant_types: recipe.plant_types,
-        current_version_id: recipe.current_version,
-      })) || [],
-  })
+  // Get the actual version UUIDs for each recipe
+  const recipeData = []
+  for (const recipe of recipes || []) {
+    let versionId = null
+    
+    // If current_version is set, fetch the corresponding version record
+    if (recipe.current_version) {
+      const { createClient } = await import('@/lib/supabase/server')
+      const supabase = await createClient()
+      const { data: version } = await supabase
+        .from('recipe_versions')
+        .select('id')
+        .eq('recipe_id', recipe.id)
+        .eq('version', recipe.current_version)
+        .single()
+      
+      versionId = version?.id || null
+    }
+    
+    recipeData.push({
+      id: recipe.id,
+      name: recipe.name,
+      plant_types: recipe.plant_types,
+      current_version_id: versionId,
+    })
+  }
+
+  return NextResponse.json({ data: recipeData })
 }

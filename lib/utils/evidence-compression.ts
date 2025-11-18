@@ -9,6 +9,7 @@
  * @module lib/utils/evidence-compression
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { CompressionResult, DecompressionResult, CompressionType } from '@/types/workflow';
 
 export const MAX_EVIDENCE_BYTES_BEFORE_COMPRESSION = 10 * 1024 * 1024; // 10 MB

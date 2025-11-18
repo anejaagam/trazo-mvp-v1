@@ -15,6 +15,7 @@ interface PodDetailDashboardProps {
   userId: string
   deviceToken?: string | null
   activeRecipe?: ActiveRecipeDetails | null
+  isBatchManaged?: boolean
 }
 
 export function PodDetailDashboard({
@@ -23,6 +24,7 @@ export function PodDetailDashboard({
   roomName,
   deviceToken,
   activeRecipe,
+  isBatchManaged = false,
 }: PodDetailDashboardProps) {
   const router = useRouter()
 
@@ -49,6 +51,7 @@ export function PodDetailDashboard({
         roomName={roomName}
         deviceToken={deviceToken}
         activeRecipe={activeRecipe}
+        isBatchManaged={isBatchManaged}
         onBack={() => router.push('/dashboard/monitoring')}
       />
     </div>

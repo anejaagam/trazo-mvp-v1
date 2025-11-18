@@ -28,6 +28,7 @@ import {
   createBatch,
   updateBatch,
   assignBatchToPod,
+  removeBatchFromPods,
   BatchListItem,
 } from '@/lib/supabase/queries/batches-client'
 import { getCultivarsClient } from '@/lib/supabase/queries/cultivars-client'
@@ -187,6 +188,14 @@ export function BatchForm({
 
   const domainDefault = (batch?.domain_type as DomainType) || plantType
   const activePodId = getActivePodId(batch)
+  
+  // Calculate total plant count from active assignments
+  const totalPlantCount = useMemo(() => {
+    if (!isBatchListItem(batch)) return batch?.plant_count ?? 0
+    return (batch.pod_assignments || [])
+      .filter((assignment) => !assignment.removed_at)
+      .reduce((sum, assignment) => sum + (assignment.plant_count || 0), 0) || batch?.plant_count || 0
+  }, [batch])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(batchSchema) as Resolver<FormValues>,
@@ -194,7 +203,7 @@ export function BatchForm({
       domainType: domainDefault,
       batchNumber: batch?.batch_number ?? '',
       cultivarId: batch?.cultivar_id ?? '',
-      plantCount: batch?.plant_count ?? 0,
+      plantCount: totalPlantCount,
       stage: batch?.stage ?? 'planning',
       startDate: batch?.start_date ?? new Date().toISOString().slice(0, 10),
       expectedHarvestDate: batch?.expected_harvest_date ?? undefined,
@@ -348,9 +357,18 @@ export function BatchForm({
       const createdBatch = response.data
       const nextPodId = values.podId ?? null
       const currentPodId = activePodId || null
-      const shouldAssignPod = createdBatch && nextPodId && (!batch || nextPodId !== currentPodId)
-      if (shouldAssignPod && createdBatch) {
-        await assignBatchToPod(createdBatch.id, nextPodId, values.plantCount, userId)
+      
+      // Handle pod assignment changes
+      if (createdBatch) {
+        const podChanged = batch && nextPodId !== currentPodId
+        
+        if (!nextPodId && currentPodId && batch) {
+          // User selected "No pod" - remove all assignments
+          await removeBatchFromPods(createdBatch.id, userId)
+        } else if (nextPodId && (!batch || podChanged)) {
+          // User selected a pod (new batch or changed pod)
+          await assignBatchToPod(createdBatch.id, nextPodId, values.plantCount, userId)
+        }
       }
 
       const isPropagationSource = values.sourceType === 'seed' || values.sourceType === 'clone'
@@ -469,9 +487,43 @@ export function BatchForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Current stage</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="vegetative" />
-                </FormControl>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select stage" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {plantType === 'cannabis' ? (
+                      <>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="germination">Germination</SelectItem>
+                        <SelectItem value="clone">Clone</SelectItem>
+                        <SelectItem value="vegetative">Vegetative</SelectItem>
+                        <SelectItem value="flowering">Flowering</SelectItem>
+                        <SelectItem value="harvest">Harvest</SelectItem>
+                        <SelectItem value="drying">Drying</SelectItem>
+                        <SelectItem value="curing">Curing</SelectItem>
+                        <SelectItem value="packaging">Packaging</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="planning">Planning</SelectItem>
+                        <SelectItem value="germination">Germination</SelectItem>
+                        <SelectItem value="transplant">Transplant</SelectItem>
+                        <SelectItem value="growing">Growing</SelectItem>
+                        <SelectItem value="harvest_ready">Harvest Ready</SelectItem>
+                        <SelectItem value="harvesting">Harvesting</SelectItem>
+                        <SelectItem value="washing">Washing</SelectItem>
+                        <SelectItem value="grading">Grading</SelectItem>
+                        <SelectItem value="packing">Packing</SelectItem>
+                        <SelectItem value="storage">Storage</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

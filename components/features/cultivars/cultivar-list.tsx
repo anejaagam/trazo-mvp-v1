@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -23,17 +24,80 @@ import {
 import { usePermissions } from '@/hooks/use-permissions'
 import type { Cultivar } from '@/types/batch'
 import type { RoleKey } from '@/lib/rbac/types'
+import { CultivarModal } from './cultivar-modal'
+import { createCultivarClient, updateCultivarClient, getCultivarsClient } from '@/lib/supabase/queries/cultivars-client'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 interface CultivarListProps {
   cultivars: Cultivar[]
-  onCreateClick: () => void
-  onEditClick: (cultivar: Cultivar) => void
   userRole: RoleKey | null
+  organizationId: string
+  plantType: 'cannabis' | 'produce'
 }
 
-export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }: CultivarListProps) {
+export function CultivarList({ cultivars: initialCultivars, userRole, organizationId, plantType }: CultivarListProps) {
   const { can } = usePermissions(userRole, [])
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [selectedCultivar, setSelectedCultivar] = useState<Cultivar | undefined>()
+  const [cultivars, setCultivars] = useState(initialCultivars)
+  
+  // Refresh cultivars list
+  const refreshCultivars = async () => {
+    const { data, error } = await getCultivarsClient(organizationId)
+    if (data && !error) {
+      setCultivars(data)
+    }
+    router.refresh()
+  }
+  
+  // Handle create
+  const handleCreateClick = () => {
+    setSelectedCultivar(undefined)
+    setModalOpen(true)
+  }
+  
+  // Handle edit
+  const handleEditClick = (cultivar: Cultivar) => {
+    setSelectedCultivar(cultivar)
+    setModalOpen(true)
+  }
+  
+  // Handle save (create or update)
+  const handleSave = async (data: Partial<Cultivar>) => {
+    try {
+      if (selectedCultivar) {
+        // Update existing
+        const { error } = await updateCultivarClient(selectedCultivar.id, data)
+        if (error) throw error
+        toast.success('Cultivar updated successfully')
+      } else {
+        // Create new - get current user ID
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          throw new Error('User not authenticated')
+        }
+
+        const { error } = await createCultivarClient({
+          name: data.name || '',
+          organization_id: organizationId,
+          created_by: user.id,
+          ...data,
+        })
+        if (error) throw error
+        toast.success('Cultivar created successfully')
+      }
+      await refreshCultivars()
+    } catch (error) {
+      console.error('Error saving cultivar:', error)
+      toast.error('Failed to save cultivar')
+      throw error
+    }
+  }
 
   const filteredCultivars = cultivars.filter((cultivar) => {
     if (!searchTerm) return true
@@ -57,7 +121,7 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
           </p>
         </div>
         {can('cultivar:create') && (
-          <Button onClick={onCreateClick}>
+          <Button onClick={handleCreateClick}>
             <Plus className="mr-2 h-4 w-4" />
             Add Cultivar
           </Button>
@@ -116,10 +180,9 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Common Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Growing Days</TableHead>
-                  <TableHead>Expected Yield</TableHead>
+                  <TableHead>{plantType === 'cannabis' ? 'Strain Type' : 'Category'}</TableHead>
+                  <TableHead>{plantType === 'cannabis' ? 'Genetics' : 'Flavor Profile'}</TableHead>
+                  <TableHead>{plantType === 'cannabis' ? 'Flowering Days' : 'Storage Life (days)'}</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -127,20 +190,35 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
                 {activeCultivars.map((cultivar) => (
                   <TableRow key={cultivar.id}>
                     <TableCell className="font-medium">{cultivar.name}</TableCell>
-                    <TableCell>{cultivar.common_name || '-'}</TableCell>
                     <TableCell>
-                      {cultivar.category && (
-                        <Badge variant="outline">{cultivar.category}</Badge>
+                      {plantType === 'cannabis' ? (
+                        cultivar.strain_type ? (
+                          <Badge variant="outline">{cultivar.strain_type}</Badge>
+                        ) : '-'
+                      ) : (
+                        cultivar.category ? (
+                          <Badge variant="outline">{cultivar.category}</Badge>
+                        ) : '-'
                       )}
                     </TableCell>
-                    <TableCell>{cultivar.growing_days || '-'}</TableCell>
-                    <TableCell>{cultivar.expected_yield || '-'}</TableCell>
+                    <TableCell>
+                      {plantType === 'cannabis' 
+                        ? (cultivar.genetics || '-')
+                        : (cultivar.flavor_profile || '-')
+                      }
+                    </TableCell>
+                    <TableCell>
+                      {plantType === 'cannabis'
+                        ? (cultivar.flowering_days || '-')
+                        : (cultivar.storage_life_days || '-')
+                      }
+                    </TableCell>
                     <TableCell className="text-right">
                       {can('cultivar:edit') && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEditClick(cultivar)}
+                          onClick={() => handleEditClick(cultivar)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -165,8 +243,8 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Common Name</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>{plantType === 'cannabis' ? 'Strain Type' : 'Category'}</TableHead>
+                  <TableHead>{plantType === 'cannabis' ? 'Genetics' : 'Flavor Profile'}</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -177,21 +255,28 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
                       {cultivar.name}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {cultivar.common_name || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {cultivar.category && (
-                        <Badge variant="outline" className="opacity-50">
-                          {cultivar.category}
-                        </Badge>
+                      {plantType === 'cannabis' ? (
+                        cultivar.strain_type ? (
+                          <Badge variant="outline" className="opacity-50">{cultivar.strain_type}</Badge>
+                        ) : '-'
+                      ) : (
+                        cultivar.category ? (
+                          <Badge variant="outline" className="opacity-50">{cultivar.category}</Badge>
+                        ) : '-'
                       )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {plantType === 'cannabis' 
+                        ? (cultivar.genetics || '-')
+                        : (cultivar.flavor_profile || '-')
+                      }
                     </TableCell>
                     <TableCell className="text-right">
                       {can('cultivar:edit') && (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEditClick(cultivar)}
+                          onClick={() => handleEditClick(cultivar)}
                         >
                           <Archive className="h-4 w-4" />
                         </Button>
@@ -212,7 +297,7 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
               {searchTerm ? 'No cultivars found matching your search.' : 'No cultivars yet.'}
             </p>
             {can('cultivar:create') && !searchTerm && (
-              <Button onClick={onCreateClick} className="mt-4">
+              <Button onClick={handleCreateClick} className="mt-4">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Your First Cultivar
               </Button>
@@ -220,6 +305,15 @@ export function CultivarList({ cultivars, onCreateClick, onEditClick, userRole }
           </CardContent>
         </Card>
       )}
+
+      {/* Create/Edit Modal */}
+      <CultivarModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        cultivar={selectedCultivar}
+        onSave={handleSave}
+        plantType={plantType}
+      />
     </div>
   )
 }

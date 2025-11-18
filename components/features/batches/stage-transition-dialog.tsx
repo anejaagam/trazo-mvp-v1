@@ -30,6 +30,33 @@ interface StageTransitionDialogProps {
   jurisdictionId?: JurisdictionId | null
 }
 
+const CANNABIS_STAGES: BatchStage[] = [
+  'planning',
+  'germination',
+  'clone',
+  'vegetative',
+  'flowering',
+  'harvest',
+  'drying',
+  'curing',
+  'packaging',
+  'completed',
+]
+
+const PRODUCE_STAGES: BatchStage[] = [
+  'planning',
+  'germination',
+  'transplant',
+  'growing',
+  'harvest_ready',
+  'harvesting',
+  'washing',
+  'grading',
+  'packing',
+  'storage',
+  'completed',
+]
+
 export function StageTransitionDialog({
   batch,
   isOpen,
@@ -46,10 +73,40 @@ export function StageTransitionDialog({
   })
 
   const stageOptions = useMemo(() => {
-    const allowed = getAllowedBatchStages()
-    if (allowed.length === 0) return allowed
+    // If batch has an active recipe, show next stages from the recipe
+    if (batch.active_recipe && batch.active_recipe_detail?.stages) {
+      const stages = batch.active_recipe_detail.stages
+      const currentStageIndex = stages.findIndex(
+        (s) => s.stage_type === batch.stage
+      )
+      
+      // If current stage found in recipe, show subsequent stages
+      if (currentStageIndex !== -1 && currentStageIndex < stages.length - 1) {
+        return stages
+          .slice(currentStageIndex + 1)
+          .map((s) => s.stage_type)
+          .filter((stage): stage is string => stage !== null && stage !== undefined)
+      }
+      
+      // If current stage not in recipe or is last stage, show all recipe stages except current
+      return stages
+        .map((s) => s.stage_type)
+        .filter((stage): stage is string => 
+          stage !== null && stage !== undefined && stage !== batch.stage
+        )
+    }
+    
+    // No active recipe - use jurisdiction or default stages
+    let allowed = getAllowedBatchStages()
+    
+    // Fallback to default stages if jurisdiction doesn't specify
+    if (allowed.length === 0) {
+      allowed = batch.domain_type === 'produce' ? PRODUCE_STAGES : CANNABIS_STAGES
+    }
+    
+    // Filter out current stage
     return allowed.filter((stage) => stage !== batch.stage)
-  }, [batch.stage, getAllowedBatchStages])
+  }, [batch.stage, batch.domain_type, batch.active_recipe, batch.active_recipe_detail, getAllowedBatchStages])
 
   const onSubmit = async (values: z.infer<typeof schema>) => {
     if (!isStageTransitionAllowed(batch.stage, values.newStage)) {

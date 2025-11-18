@@ -520,6 +520,7 @@ export interface BatchFilters {
   start_date_to?: string;
   expected_harvest_from?: string;
   expected_harvest_to?: string;
+  exclude_destroyed?: boolean; // Exclude destroyed batches from results
 }
 
 /**

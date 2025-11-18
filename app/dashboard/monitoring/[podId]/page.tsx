@@ -127,20 +127,59 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
   const { createServiceClient } = await import('@/lib/supabase/service')
   const serviceSupabase = createServiceClient('US')
   
-  // Query recipe_activations directly
-  const { data: activationData, error: activationError } = await serviceSupabase
-    .from('recipe_activations')
-    .select(`
-      *,
-      recipe:recipes(*),
-      recipe_version:recipe_versions(*)
-    `)
-    .eq('scope_type', 'pod')
-    .eq('scope_id', podId)
-    .eq('is_active', true)
-    .order('activated_at', { ascending: false })
+  // First check if pod is assigned to a batch with an active recipe
+  const { data: batchAssignment } = await serviceSupabase
+    .from('batch_pod_assignments')
+    .select('batch_id, batches!inner(batch_number)')
+    .eq('pod_id', podId)
+    .is('removed_at', null)
     .limit(1)
     .maybeSingle()
+
+  let activationData = null
+  let activationError = null
+
+  // If pod is in a batch, check for batch recipe first
+  if (batchAssignment?.batch_id) {
+    console.log('🔍 Pod is in batch, checking for batch recipe:', batchAssignment.batch_id)
+    const { data, error } = await serviceSupabase
+      .from('recipe_activations')
+      .select(`
+        *,
+        recipe:recipes(*),
+        recipe_version:recipe_versions(*)
+      `)
+      .eq('scope_type', 'batch')
+      .eq('scope_id', batchAssignment.batch_id)
+      .eq('is_active', true)
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    activationData = data
+    activationError = error
+  }
+
+  // If no batch recipe found, fall back to pod-specific recipe
+  if (!activationData && !activationError) {
+    console.log('🔍 No batch recipe found, checking for pod-specific recipe')
+    const { data, error } = await serviceSupabase
+      .from('recipe_activations')
+      .select(`
+        *,
+        recipe:recipes(*),
+        recipe_version:recipe_versions(*)
+      `)
+      .eq('scope_type', 'pod')
+      .eq('scope_id', podId)
+      .eq('is_active', true)
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    activationData = data
+    activationError = error
+  }
   
   if (activationError) {
     console.error('❌ Error fetching active recipe:', activationError)
@@ -225,6 +264,7 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
         userId={userId}
         deviceToken={deviceToken}
         activeRecipe={activeRecipe}
+        isBatchManaged={activationData?.scope_type === 'batch'}
       />
     </>
   )

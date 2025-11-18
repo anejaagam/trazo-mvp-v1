@@ -25,6 +25,30 @@ import {
   type PlantType
 } from '@/types/recipe'
 
+// Stage type constants for dropdowns
+const CANNABIS_STAGE_TYPES: StageType[] = [
+  'germination',
+  'clone',
+  'vegetative',
+  'flowering',
+  'harvest',
+  'drying',
+  'curing',
+]
+
+const PRODUCE_STAGE_TYPES: string[] = [
+  'germination',
+  'transplant',
+  'growing',
+  'harvest_ready',
+  'harvesting',
+  'washing',
+  'grading',
+  'packing',
+  'storage',
+  'completed',
+]
+
 interface RecipeAuthorProps {
   initialData?: RecipeFormData
   facilityType?: string
@@ -656,9 +680,9 @@ export function RecipeAuthor({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {STAGE_TYPES.map(type => (
+                            {(plantTypes.includes('produce') ? PRODUCE_STAGE_TYPES : CANNABIS_STAGE_TYPES).map(type => (
                               <SelectItem key={type} value={type}>
-                                {type}
+                                {type.replace('_', ' ')}
                               </SelectItem>
                             ))}
                           </SelectContent>

@@ -39,10 +39,11 @@ interface PodDetailProps {
   deviceToken?: string | null
   stage?: string
   activeRecipe?: ActiveRecipeDetails | null
+  isBatchManaged?: boolean
   onBack?: () => void
 }
 
-export function PodDetail({ podId, podName, roomName, deviceToken, stage, activeRecipe: initialActiveRecipe }: PodDetailProps) {
+export function PodDetail({ podId, podName, roomName, deviceToken, stage, activeRecipe: initialActiveRecipe, isBatchManaged = false }: PodDetailProps) {
   const [timeWindow] = useState<24 | 168 | 720>(24) // 24h, 7d, 30d
   const [equipmentControls, setEquipmentControls] = useState<EquipmentControlRecord[]>([])
   const [equipmentLoading, setEquipmentLoading] = useState(true)
@@ -371,7 +372,7 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
             <Clock className="w-4 h-4" />
             Last update: {reading ? getTimeAgo(reading.timestamp) : '--'}
           </div>
-          {activeRecipe?.activation && can('control:recipe_apply') && (
+          {activeRecipe?.activation && can('control:recipe_apply') && !isBatchManaged && (
             <Button 
               variant="destructive" 
               size="sm" 
@@ -381,6 +382,11 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
               <XCircle className="w-4 h-4 mr-2" />
               Remove Recipe
             </Button>
+          )}
+          {activeRecipe?.activation && isBatchManaged && (
+            <div className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded">
+              Recipe managed by batch: {activeRecipe.activation.scope_name}
+            </div>
           )}
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4 mr-2" />

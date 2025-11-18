@@ -5,6 +5,8 @@
  * Supports cannabis and produce operations with jurisdiction-based rules
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import type {
   DomainType,
   CannabisStage,

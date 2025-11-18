@@ -1,15 +1,15 @@
 # TRAZO MVP - Current Status
 
-**Last Updated:** November 13, 2025
+**Last Updated:** November 17, 2025
 
 ---
 
 ## 🎯 Quick Status
 
-**Test Status:** ✅ 164/173 passing (94.8%)  
-**Development Phase:** Phase 11 Complete - Recipe Management ✅ | Phase 12 Research Complete - Batch Management 🔄  
-**Repository Cleanup:** Phase 2 - 100% complete (5/5 tasks done)  
-**Deployment:** 🚀 Inventory, Monitoring, and Recipe Management deployed
+**Test Status:** ✅ 164/173 passing (94.8%)
+**Development Phase:** Phase 14 - Compliance Engine (Phase 1 Complete) ⏳
+**Repository Cleanup:** Phase 2 - 100% complete (5/5 tasks done)
+**Deployment:** 🚀 Inventory, Monitoring, Recipe Management deployed | Compliance Engine (Phase 1) ready
 
 ---
 
@@ -26,6 +26,7 @@ This directory contains detailed documentation of the current TRAZO MVP project 
 - **[Monitoring Feature](./2-features/feature-monitoring.md)** - Telemetry & monitoring (Phase 10 - DEPLOYED)
 - **[Recipe Management Feature](./2-features/feature-recipes.md)** - Environmental control & recipes (Phase 11 - DEPLOYED)
 - **[Recipe Removal Feature](./feature-recipe-removal.md)** - Remove recipes from pods via monitoring dashboard
+- **[Compliance Engine](./compliance-setup.md)** - Metrc API integration for cannabis compliance (Phase 14.1 - READY)
 
 ### **Reference**
 - **[Project Overview](./3-reference/project-overview.md)** - Architecture, tech stack, and project structure
@@ -53,16 +54,27 @@ This directory contains detailed documentation of the current TRAZO MVP project 
 
 ## 🔄 In Development
 
-### Phase 12: Batch Management (Database Complete)
-- **Status**: Phase 0-1 ✅ COMPLETE, Phase 2 (Backend) ready to start
-- **Database**: 13 tables deployed with full domain support (cannabis + produce)
-- **Next**: Phase 2 - Backend implementation (queries, mutations, TypeScript types)
+### Phase 14: Compliance Engine (Phase 1 Complete ✅)
+- **Status**: Phase 1 ✅ COMPLETE - Foundation & Authentication
+- **Completed**:
+  - Database migration (4 new tables, RLS policies)
+  - MetrcClient with authentication & retry logic
+  - Admin UI for API key management
+  - Database queries and API routes
+  - Test suite (>95% coverage for Phase 1)
+  - Documentation (setup guide)
+- **Next**: Phase 2 - Read Operations & Data Pull (sync services)
+
+### Phase 12: Batch Management (On Hold)
+- **Status**: Phase 0-1 ✅ COMPLETE, Phase 2 ready to start
+- **Database**: 13 tables deployed with full domain support
+- **On Hold**: Deferred to complete Compliance Engine first
 
 **Next Priorities:**
-1. **Batch Management Phase 1:** Create migration `012_batch_management_enhancement.sql` (1-2 days)
-2. **Batch Management Phase 2-7:** Backend types, queries, components, testing (10-12 days)
-3. Write comprehensive test suite for recipes (95%+ coverage)
-4. Begin Phase 13 (Task Management integration)
+1. **Compliance Phase 2:** Implement read operations & sync services (Week 2)
+2. **Compliance Phase 3:** Implement write operations & data push (Week 3)
+3. **Compliance Phase 4:** Build reporting & reconciliation (Week 4)
+4. **Compliance Phase 5:** Placeholders, testing & polish (Week 5)
 
 ---
 

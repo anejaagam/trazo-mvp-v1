@@ -42,7 +42,8 @@ describe('RBAC Permissions', () => {
     it('should have consistent resource:action format for keys (except wildcard)', () => {
       Object.keys(PERMISSIONS).forEach(key => {
         if (key !== '*') {
-          expect(key).toMatch(/^[a-z_]+:[a-z_]+$/);
+          // Allow both resource:action and resource:subresource:action formats
+          expect(key).toMatch(/^[a-z_]+:[a-z_]+(:[a-z_]+)?$/);
         }
       });
     });
@@ -113,7 +114,7 @@ describe('RBAC Permissions', () => {
       
       // Should have reasonable number of distinct resources
       expect(uniqueResources.size).toBeGreaterThan(5);
-      expect(uniqueResources.size).toBeLessThan(20);
+      expect(uniqueResources.size).toBeLessThan(25); // Increased to accommodate waste resource
     });
   });
 });

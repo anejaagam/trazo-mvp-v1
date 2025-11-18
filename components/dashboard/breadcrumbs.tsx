@@ -81,7 +81,7 @@ export function DashboardBreadcrumbs({ className }: DashboardBreadcrumbsProps) {
     
     // Map path segments to human-readable titles
     const segmentTitles: Record<string, string> = {
-      'batches': 'Batch Management',
+      'batches': 'Crop Management',
       'active': 'Active Batches',
       'planning': 'Planning',
       'harvest': 'Harvest Queue',

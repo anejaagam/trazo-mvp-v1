@@ -89,13 +89,14 @@ export function BatchTable({
     })
   }
 
-  const handleDeleteBatch = async (reason: string) => {
+  const handleDeleteBatch = async (reason: string, createWasteLog?: boolean) => {
     if (!deletingBatch) return
-    
+
     try {
       const result = await deleteBatchAction({
         batchId: deletingBatch.id,
         reason,
+        createWasteLog,
       })
 
       if (!result.success) {
@@ -109,7 +110,7 @@ export function BatchTable({
 
       toast({
         title: 'Batch Deleted',
-        description: `Batch ${deletingBatch.batch_number} has been marked as destroyed`,
+        description: `Batch ${deletingBatch.batch_number} has been marked as destroyed${result.wasteLogId ? ' and waste log created' : ''}`,
       })
       
       setDeletingBatch(null)

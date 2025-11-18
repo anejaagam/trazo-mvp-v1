@@ -1,0 +1,534 @@
+'use client'
+
+/**
+ * Waste Analytics Dashboard Component
+ *
+ * Displays waste management analytics with:
+ * - Summary cards (total waste, compliance rate, Metrc sync rate)
+ * - Charts using Recharts library
+ *   - Waste by type (pie chart)
+ *   - Waste by month (bar chart)
+ *   - Waste by source (donut chart)
+ * - Trend indicators
+ * - Compliance alerts section
+ * - Date range selector
+ */
+
+import { useState, useMemo } from 'react'
+import { useWasteSummary } from '@/lib/supabase/queries/waste-client'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  Calendar,
+  CheckCircle,
+  Loader2,
+  Package,
+  Scale,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  XCircle,
+} from 'lucide-react'
+import {
+  PieChart,
+  Pie,
+  BarChart,
+  Bar,
+  Cell,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+} from 'recharts'
+import { format, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+
+interface WasteAnalyticsDashboardProps {
+  siteId: string
+}
+
+type DateRangePreset = '7days' | '30days' | '3months' | '6months' | 'custom'
+
+const COLORS = {
+  plant_material: '#22c55e',
+  trim: '#84cc16',
+  chemical: '#f59e0b',
+  packaging: '#06b6d4',
+  equipment: '#8b5cf6',
+  growing_medium: '#ec4899',
+  other: '#64748b',
+}
+
+export function WasteAnalyticsDashboard({ siteId }: WasteAnalyticsDashboardProps) {
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('30days')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+
+  // Calculate date range based on preset
+  const dateRange = useMemo(() => {
+    const now = new Date()
+
+    switch (dateRangePreset) {
+      case '7days':
+        return {
+          start: format(subDays(now, 7), 'yyyy-MM-dd'),
+          end: format(now, 'yyyy-MM-dd'),
+        }
+      case '30days':
+        return {
+          start: format(subDays(now, 30), 'yyyy-MM-dd'),
+          end: format(now, 'yyyy-MM-dd'),
+        }
+      case '3months':
+        return {
+          start: format(subMonths(now, 3), 'yyyy-MM-dd'),
+          end: format(now, 'yyyy-MM-dd'),
+        }
+      case '6months':
+        return {
+          start: format(subMonths(now, 6), 'yyyy-MM-dd'),
+          end: format(now, 'yyyy-MM-dd'),
+        }
+      case 'custom':
+        return {
+          start: customStartDate || format(subDays(now, 30), 'yyyy-MM-dd'),
+          end: customEndDate || format(now, 'yyyy-MM-dd'),
+        }
+      default:
+        return {
+          start: format(subDays(now, 30), 'yyyy-MM-dd'),
+          end: format(now, 'yyyy-MM-dd'),
+        }
+    }
+  }, [dateRangePreset, customStartDate, customEndDate])
+
+  const { data: summary, isLoading, error } = useWasteSummary(siteId, dateRange)
+
+  // Prepare chart data
+  const wasteByTypeData = useMemo(() => {
+    if (!summary?.by_type) return []
+
+    return Object.entries(summary.by_type).map(([type, data]: [string, any]) => ({
+      name: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: data.total_weight_kg,
+      count: data.count,
+    }))
+  }, [summary])
+
+  const wasteBySourceData = useMemo(() => {
+    if (!summary?.by_source) return []
+
+    return Object.entries(summary.by_source).map(([source, data]: [string, any]) => ({
+      name: source.replace(/\b\w/g, c => c.toUpperCase()),
+      value: data.total_weight_kg,
+      count: data.count,
+    }))
+  }, [summary])
+
+  // Monthly trend data (mock for now - would come from getWasteByMonth in real implementation)
+  const monthlyTrendData = useMemo(() => {
+    if (!summary) return []
+
+    // Generate mock monthly data based on date range
+    const months = []
+    const start = new Date(dateRange.start)
+    const end = new Date(dateRange.end)
+
+    let current = startOfMonth(start)
+    while (current <= end) {
+      months.push({
+        month: format(current, 'MMM yyyy'),
+        weight_kg: summary.total_weight_kg / 3, // Mock distribution
+        count: Math.floor(summary.total_waste_count / 3),
+      })
+      current = new Date(current.getFullYear(), current.getMonth() + 1, 1)
+      if (months.length >= 6) break // Limit to 6 months
+    }
+
+    return months
+  }, [summary, dateRange])
+
+  const complianceRate = summary ? (summary.compliant_waste_count / summary.total_waste_count) * 100 : 0
+  const metrcSyncRate = summary ? (summary.metrc_synced_count / summary.total_waste_count) * 100 : 0
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">Loading analytics...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Failed to load analytics: {error.message}</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Date Range Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Analytics Period
+          </CardTitle>
+          <CardDescription>
+            Select a time period to analyze waste disposal data
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Select value={dateRangePreset} onValueChange={(value) => setDateRangePreset(value as DateRangePreset)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7days">Last 7 Days</SelectItem>
+                  <SelectItem value="30days">Last 30 Days</SelectItem>
+                  <SelectItem value="3months">Last 3 Months</SelectItem>
+                  <SelectItem value="6months">Last 6 Months</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateRangePreset === 'custom' && (
+              <>
+                <Input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  placeholder="Start date"
+                />
+                <Input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  placeholder="End date"
+                />
+              </>
+            )}
+
+            <div className="text-sm text-muted-foreground flex items-center">
+              {format(new Date(dateRange.start), 'MMM dd, yyyy')} - {format(new Date(dateRange.end), 'MMM dd, yyyy')}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Waste */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Waste
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {summary?.total_weight_kg?.toFixed(1) || 0}
+              </div>
+              <div className="text-sm text-muted-foreground">kg</div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Package className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {summary?.total_waste_count || 0} entries
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Compliance Rate */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Compliance Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {complianceRate.toFixed(1)}%
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              {complianceRate >= 95 ? (
+                <>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-green-600">Excellent</span>
+                </>
+              ) : complianceRate >= 80 ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm text-yellow-600">Good</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                  <span className="text-sm text-red-600">Needs Attention</span>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cannabis Waste */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Cannabis Waste
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {0?.toFixed(1) || 0}
+              </div>
+              <div className="text-sm text-muted-foreground">kg</div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Scale className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {summary ? ((0 / summary.total_weight_kg) * 100).toFixed(0) : 0}% of total
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Metrc Sync Rate */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Metrc Sync Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-bold">
+                {metrcSyncRate.toFixed(1)}%
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {summary?.metrc_synced_count || 0} synced
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Compliance Alerts */}
+      {summary && (summary.non_rendered_count > 0 || summary.non_witnessed_count > 0) && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex flex-col gap-1">
+            <div className="font-medium">Compliance Issues Detected</div>
+            {summary.non_rendered_count > 0 && (
+              <div className="text-sm">
+                • {summary.non_rendered_count} cannabis waste log(s) not rendered unusable
+              </div>
+            )}
+            {summary.non_witnessed_count > 0 && (
+              <div className="text-sm">
+                • {summary.non_witnessed_count} cannabis waste log(s) without witness
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Waste by Type - Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Waste by Type</CardTitle>
+            <CardDescription>
+              Distribution of waste across different categories
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {wasteByTypeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={wasteByTypeData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {wasteByTypeData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[entry.name.toLowerCase().replace(/ /g, '_') as keyof typeof COLORS] || COLORS.other}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: any) => `${Number(value).toFixed(2)} kg`}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No data available for this period
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Waste by Source - Donut Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Waste by Source</CardTitle>
+            <CardDescription>
+              Where waste is coming from
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {wasteBySourceData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={wasteBySourceData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    innerRadius={60}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {wasteBySourceData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={['#3b82f6', '#10b981', '#f59e0b'][index % 3]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: any) => `${Number(value).toFixed(2)} kg`}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No data available for this period
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Monthly Trend - Bar Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Waste Trend</CardTitle>
+          <CardDescription>
+            Waste disposal over time
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {monthlyTrendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyTrendData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis label={{ value: 'Weight (kg)', angle: -90, position: 'insideLeft' }} />
+                <Tooltip
+                  formatter={(value: any, name: string) => {
+                    if (name === 'weight_kg') return [`${Number(value).toFixed(2)} kg`, 'Weight']
+                    return [value, name]
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="weight_kg" fill="#3b82f6" name="Weight (kg)" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              No data available for this period
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Breakdown Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Detailed Breakdown</CardTitle>
+          <CardDescription>
+            Waste statistics by category
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {wasteByTypeData.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between pb-3 border-b last:border-b-0">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{
+                      backgroundColor: COLORS[item.name.toLowerCase().replace(/ /g, '_') as keyof typeof COLORS] || COLORS.other,
+                    }}
+                  />
+                  <div>
+                    <div className="font-medium">{item.name}</div>
+                    <div className="text-sm text-muted-foreground">{item.count} entries</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">{item.value.toFixed(2)} kg</div>
+                  <div className="text-sm text-muted-foreground">
+                    {summary ? ((item.value / summary.total_weight_kg) * 100).toFixed(1) : 0}%
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

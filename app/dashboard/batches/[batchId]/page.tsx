@@ -17,7 +17,7 @@ interface BatchPageProps {
 export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Batch Details | TRAZO`,
-    description: 'Batch management and tracking',
+    description: 'Crop management and tracking',
   }
 }
 
@@ -282,4 +282,3 @@ export default async function BatchPage(props: BatchPageProps) {
     />
   )
 }
-

@@ -16,7 +16,7 @@ export default async function BatchesPage() {
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
-    logDevMode('Batch Management Page')
+    logDevMode('Crop Management Page')
     userRole = DEV_MOCK_USER.role
     siteId = DEV_MOCK_USER.site_assignments[0].site_id
     organizationId = DEV_MOCK_USER.organization_id

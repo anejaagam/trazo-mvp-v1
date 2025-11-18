@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, AlertTriangle } from 'lucide-react'
+import { Trash2, AlertTriangle, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
 import type { JurisdictionId } from '@/lib/jurisdiction/types'
 import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
@@ -22,7 +23,7 @@ interface DeleteBatchDialogProps {
   batch: BatchListItem
   isOpen: boolean
   onClose: () => void
-  onConfirm: (reason: string) => Promise<void>
+  onConfirm: (reason: string, createWasteLog?: boolean) => Promise<void>
   jurisdictionId?: JurisdictionId | null
 }
 
@@ -35,6 +36,7 @@ export function DeleteBatchDialog({
 }: DeleteBatchDialogProps) {
   const [reason, setReason] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [createWasteLog, setCreateWasteLog] = useState(false)
   const jurisdictionState = useJurisdiction(jurisdictionId)
 
   const hasActivePlants = (batch.plant_count || 0) > 0 || 
@@ -61,7 +63,7 @@ export function DeleteBatchDialog({
 
     try {
       setIsDeleting(true)
-      await onConfirm(reason.trim())
+      await onConfirm(reason.trim(), createWasteLog)
       onClose()
     } catch (error) {
       console.error('Error deleting batch:', error)
@@ -140,6 +142,30 @@ export function DeleteBatchDialog({
               </div>
             )}
           </div>
+
+          {/* Waste Log Checkbox */}
+          {hasActivePlants && (
+            <div className="flex items-start space-x-3 rounded-md border p-4">
+              <Checkbox
+                id="create-waste-log"
+                checked={createWasteLog}
+                onCheckedChange={(checked) => setCreateWasteLog(checked === true)}
+              />
+              <div className="flex-1 space-y-1">
+                <Label
+                  htmlFor="create-waste-log"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Create waste disposal record
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Automatically log this batch destruction ({batch.plant_count || 0} plants) in waste management for compliance tracking.
+                  {requiresMetrcReporting && ' This will help with your METRC reporting requirements.'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Reason Field */}
           <div className="space-y-2">

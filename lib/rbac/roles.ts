@@ -51,6 +51,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'inventory:waste',
       'inventory:transfer',
       
+      // Full waste management
+      'waste:view',
+      'waste:create',
+      'waste:update',
+      'waste:delete',
+      'waste:witness',
+      'waste:export',
+      
       // Full task management
       'task:view',
       'task:create',
@@ -80,6 +88,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'compliance:view',
       'compliance:export',
       'compliance:report_create',
+      'compliance:sync',
       'evidence:upload',
       'evidence:lock',
       'audit:view',
@@ -139,6 +148,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'inventory:view',
       'inventory:consume',
       
+      // Waste management
+      'waste:view',
+      'waste:create',
+      'waste:update',
+      'waste:delete',
+      'waste:witness',
+      'waste:export',
+      
       // Alarm handling
       'alarm:view',
       'alarm:ack',
@@ -177,6 +194,11 @@ export const ROLES: Record<RoleKey, Role> = {
       'inventory:view',
       'inventory:consume',
       
+      // Waste recording and witnessing
+      'waste:view',
+      'waste:create',
+      'waste:witness',
+      
       // Task execution
       'task:view',
       'task:complete',
@@ -214,6 +236,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'compliance:export',
       'compliance:submit',
       'compliance:report_create',
+      'compliance:sync',
       
       // Evidence management
       'evidence:upload',
@@ -232,6 +255,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:view',
       'alarm:view',
       'monitoring:view',
+      
+      // Full waste management for compliance oversight
+      'waste:view',
+      'waste:create',
+      'waste:update',
+      'waste:delete',
+      'waste:witness',
+      'waste:export',
       
       // Task management for compliance tasks
       'task:create',
@@ -252,6 +283,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:view',
       'cultivar:view',
       'inventory:view',
+      'waste:view',
       'task:view',
       'compliance:view',
       'alarm:view',

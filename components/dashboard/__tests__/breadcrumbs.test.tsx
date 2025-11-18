@@ -23,7 +23,7 @@ describe('DashboardBreadcrumbs', () => {
       render(<DashboardBreadcrumbs />);
 
       expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
       expect(screen.getByText('Active Batches')).toBeInTheDocument();
     });
 
@@ -56,12 +56,12 @@ describe('DashboardBreadcrumbs', () => {
   });
 
   describe('Path Mapping', () => {
-    it('should map batches to Batch Management', () => {
+    it('should map batches to Crop Management', () => {
       mockUsePathname.mockReturnValue('/dashboard/batches');
 
       render(<DashboardBreadcrumbs />);
 
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
     });
 
     it('should map inventory to Inventory', () => {
@@ -105,7 +105,7 @@ describe('DashboardBreadcrumbs', () => {
       render(<DashboardBreadcrumbs />);
 
       expect(screen.getByText('Dashboard')).toBeInTheDocument();
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
       expect(screen.getByText('Active Batches')).toBeInTheDocument();
     });
 
@@ -139,7 +139,7 @@ describe('DashboardBreadcrumbs', () => {
       const dashboardLink = screen.getByRole('link', { name: 'Dashboard' });
       expect(dashboardLink).toHaveAttribute('href', '/dashboard');
 
-      const batchesLink = screen.getByRole('link', { name: 'Batch Management' });
+      const batchesLink = screen.getByRole('link', { name: 'Crop Management' });
       expect(batchesLink).toHaveAttribute('href', '/dashboard/batches');
     });
 
@@ -218,7 +218,7 @@ describe('DashboardBreadcrumbs', () => {
 
       render(<DashboardBreadcrumbs />);
 
-      const finalCrumb = screen.getByText('Batch Management');
+      const finalCrumb = screen.getByText('Crop Management');
       expect(finalCrumb).toHaveClass('text-foreground', 'font-medium');
     });
 
@@ -277,7 +277,7 @@ describe('DashboardBreadcrumbs', () => {
 
       render(<DashboardBreadcrumbs />);
 
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
     });
 
     it('should handle empty segments', () => {
@@ -285,7 +285,7 @@ describe('DashboardBreadcrumbs', () => {
 
       render(<DashboardBreadcrumbs />);
 
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
     });
 
     it('should handle root dashboard path', () => {

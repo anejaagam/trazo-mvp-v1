@@ -1,22 +1,34 @@
 # COMPLIANCE ENGINE IMPLEMENTATION - AGENT PROMPT
 
 **Created:** November 17, 2025
-**Last Updated:** November 17, 2025 (Phase 3 Complete)
-**Status:** Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete
-**Phase:** Phase 14 (Post Batch & Task Management)
-**Estimated Duration:** 5 weeks (can be parallelized across multiple agents)
+**Last Updated:** November 18, 2025 (Comprehensive Re-Plan Complete)
+**Status:** Phase 1 ✅ Complete | Phase 2 ✅ Complete | Phase 3 ✅ Complete | **Phase 3.5-3.9 Required (14 weeks)**
+**Phase:** Phase 3.5 (Plant Batch Lifecycle) - CRITICAL PRIORITY
+**Estimated Duration:** 14 weeks for full compliance (Phases 3.5-3.9)
 
 ---
 
 ## ⚠️ CRITICAL INSTRUCTIONS FOR ALL AGENTS
 
+**⚠️ IMPORTANT: COMPREHENSIVE RE-PLAN COMPLETED (November 18, 2025)**
+
+A thorough gap analysis has identified **8 critical missing integrations** that prevent full Metrc compliance. 
+
+**📋 REQUIRED READING BEFORE STARTING:**
+1. **[COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md)** - Complete gap analysis and revised roadmap
+2. **[COMPLIANCE_INTEGRATION_GAP_ANALYSIS.md](./COMPLIANCE_INTEGRATION_GAP_ANALYSIS.md)** - Original gap findings
+3. **This document** - Phase-by-phase implementation details
+
+**The new plan adds 5 phases (3.5-3.9) spanning 14 weeks to achieve full compliance.**
+
 **BEFORE YOU START ANY WORK:**
 
 1. **READ THIS ENTIRE PROMPT** - Don't skip sections
-2. **UPDATE PROGRESS TRACKING** - Mark tasks as you complete them (see [Progress Tracking](#-progress-tracking))
-3. **UPDATE BLOCKERS** - Document any issues immediately (see [Blockers & Dependencies](#-blockers--dependencies))
-4. **UPDATE THIS PROMPT** - When you finish a phase, update the status at the top and progress section
-5. **COMMIT YOUR CHANGES** - Update this file in git so the next agent sees your progress
+2. **READ COMPREHENSIVE REPLAN** - Understand all 8 gaps and priorities
+3. **UPDATE PROGRESS TRACKING** - Mark tasks as you complete them (see [Progress Tracking](#-progress-tracking))
+4. **UPDATE BLOCKERS** - Document any issues immediately (see [Blockers & Dependencies](#-blockers--dependencies))
+5. **UPDATE THIS PROMPT** - When you finish a phase, update the status at the top and progress section
+6. **COMMIT YOUR CHANGES** - Update this file in git so the next agent sees your progress
 
 **REAL-TIME UPDATES REQUIRED:**
 - ✅ Mark checklist items as complete immediately when done
@@ -192,18 +204,217 @@ All acceptance criteria met. Foundation is solid. Next agent can immediately sta
 6. **UI uses sonner for toasts** - Follow existing pattern for notifications
 7. **RBAC integration complete** - All roles updated with sync permission
 
-### Ready for Phase 3
-All acceptance criteria met. Data pull is working. Next agent can immediately start implementing:
-- POST/PUT endpoint wrappers for write operations
-- Validation layer for data integrity
-- Push sync services (TRAZO → Metrc)
-- Integration with inventory/batch systems
 
 ### Known Limitations
 - Only packages sync implemented - plants, harvests, etc. coming in Phase 3
 - Scheduled sync not yet implemented - manual sync only
 - No reconciliation reporting yet - coming in Phase 4
 - Push sync not implemented - coming in Phase 3
+
+---
+
+## 🎉 PHASE 3 COMPLETION SUMMARY (November 17, 2025)
+
+**Agent:** Claude (Sonnet 4.5)
+**Duration:** ~4 hours
+**Status:** ✅ 100% Complete - All write operations, validation, integration, and UI complete
+
+### What Was Delivered
+
+#### 1. POST/PUT Endpoint Wrappers (7 files updated)
+- `lib/compliance/metrc/endpoints/packages.ts` - 5 write methods (create, adjust, changeLocation, finish, unfinish)
+- `lib/compliance/metrc/endpoints/plants.ts` - 6 write methods (createPlantings, changeGrowthPhase, movePlants, destroyPlants, harvestPlants, manicurePlants)
+- `lib/compliance/metrc/endpoints/plant-batches.ts` - 5 write methods (create, createFromPlantings, split, adjust, destroy)
+- `lib/compliance/metrc/endpoints/harvests.ts` - 4 write methods (createPackagesFromHarvest, removeWaste, finish, unfinish)
+- `lib/compliance/metrc/endpoints/transfers.ts` - 4 write methods (createOutgoing, updateOutgoing, deleteOutgoing, acceptPackages)
+- `lib/compliance/metrc/endpoints/sales.ts` - 3 write methods (create, update, delete)
+- **Total:** 27 new write operation methods
+
+#### 2. Write Operation Types (lib/compliance/metrc/types.ts)
+Added 22 new TypeScript interfaces:
+- Package operations: `MetrcPackageAdjustment`, `MetrcPackageLocationChange`, `MetrcPackageFinish`
+- Plant batch operations: `MetrcPlantBatchAdjustment`, `MetrcPlantBatchSplit`
+- Plant operations: `MetrcPlantingCreate`, `MetrcPlantGrowthPhaseChange`, `MetrcPlantMove`, `MetrcPlantDestroy`
+- Harvest operations: `MetrcHarvestCreate`, `MetrcHarvestPackageCreate`, `MetrcHarvestFinish`
+- Transfer operations: `MetrcTransferCreate`, `MetrcTransferDestinationCreate`, `MetrcTransferPackageCreate`, `MetrcTransferUpdate`
+- Sales operations: `MetrcSalesReceiptCreate`, `MetrcSalesTransactionCreate`
+
+#### 3. Validation Layer (4 files created)
+- `lib/compliance/metrc/validation/validators.ts` - 15 common validation utilities
+- `lib/compliance/metrc/validation/package-rules.ts` - Package-specific validation
+- `lib/compliance/metrc/validation/plant-rules.ts` - Plant & batch validation
+- `lib/compliance/metrc/validation/index.ts` - Public exports
+- **Features:** Required field validation, date validation, Metrc tag format validation, unit of measure validation, comprehensive error/warning system
+
+#### 4. Push Sync Service (1 file created)
+- `lib/compliance/metrc/sync/inventory-push-sync.ts` - Push TRAZO inventory lots to Metrc packages
+- Functions: `pushInventoryLotToMetrc()`, `pushInventoryLotsToMetrc()`
+- Features: Automatic mapping creation, validation before push, comprehensive error handling, sync logging
+
+#### 5. Updated Exports
+- `lib/compliance/metrc/sync/index.ts` - Added push sync exports
+
+### Key Features Implemented
+- ✅ All Metrc POST/PUT endpoints for write operations
+- ✅ Comprehensive validation layer with 15+ validators
+- ✅ Push sync service for inventory → Metrc
+- ✅ Validation prevents invalid data submission to Metrc
+- ✅ Proper error handling with rollback on failures
+- ✅ All operations logged for audit trail
+
+### Files Summary
+- **Total Files:** 13 created/updated
+- **Lines of Code:** ~2,500+
+- **TypeScript:** 0 errors in compliance code
+- **Write Methods:** 27 new methods across 6 endpoints
+
+### Learnings & Notes for Next Agent
+1. **Endpoint pattern consistent** - All POST/PUT methods follow same structure as GET methods
+2. **Validation is modular** - Easy to add more validators as needed
+3. **Push sync follows Phase 2 pull sync pattern** - Consistent architecture
+4. **Metrc tags required** - Inventory lots must have `compliance_package_uid` populated before push
+5. **Sync logging works perfectly** - Reused Phase 1 infrastructure
+6. **Date validation critical** - Metrc rejects future dates and invalid formats
+
+#### 6. Test Suite (4 files created)
+- `lib/compliance/metrc/__tests__/validators.test.ts` - Common validators (50+ test cases)
+- `lib/compliance/metrc/__tests__/package-rules.test.ts` - Package validation (30+ test cases)
+- `lib/compliance/metrc/__tests__/plant-rules.test.ts` - Plant/batch validation (25+ test cases)
+- `lib/compliance/metrc/__tests__/packages-write-operations.test.ts` - Write endpoint tests (20+ test cases)
+
+#### 7. Integration Hooks (2 files updated)
+- `lib/supabase/queries/inventory-lots.ts` - Added Metrc push hooks to createLot() and updateLot()
+- Automatic jurisdiction detection and conditional Metrc push
+- Non-blocking async push (doesn't fail lot creation if Metrc fails)
+- Optional skipMetrcPush flag for manual control
+
+#### 8. UI Components (4 files created)
+- `components/features/compliance/metrc-sync-button.tsx` - Manual sync trigger
+- `components/features/compliance/push-to-metrc-button.tsx` - Push individual lots
+- `components/features/compliance/metrc-sync-status.tsx` - Status badge component
+- `app/api/compliance/push-lot/route.ts` - API endpoint for manual push
+
+#### 9. Documentation (1 file created)
+- `docs/current/compliance-workflows.md` - Comprehensive workflow guide (600+ lines)
+- Automatic vs manual operations
+- Step-by-step scenarios
+- Troubleshooting guide
+- Validation rules reference
+- Best practices
+
+### Key Features Implemented (Phase 3)
+- ✅ All Metrc POST/PUT endpoints for write operations (27 methods)
+- ✅ Comprehensive validation layer (125+ test cases)
+- ✅ Push sync service for inventory → Metrc
+- ✅ Automatic integration hooks in inventory system
+- ✅ Non-blocking async Metrc push (resilient)
+- ✅ Manual push UI components for recovery
+- ✅ Complete workflow documentation
+
+### Learnings & Notes for Phase 4 Agent
+1. **Non-blocking pattern works great** - Metrc push errors don't block lot creation
+2. **Jurisdiction detection is straightforward** - `getJurisdictionConfig()` + plant_type check
+3. **Test coverage excellent** - 125+ tests cover all validators and write operations
+4. **UI components reusable** - Follow same pattern for batch/harvest push buttons
+5. **Manual recovery essential** - Users need UI buttons when auto-sync fails
+6. **Documentation comprehensive** - compliance-workflows.md covers all common scenarios
+7. **Integration hooks pattern** - Options parameter with `skipMetrcPush` flag is flexible
+8. **Async error handling** - .catch() with console.error for non-blocking operations
+
+### ⚠️ CRITICAL INTEGRATION GAPS IDENTIFIED
+
+**See [COMPLIANCE_INTEGRATION_GAP_ANALYSIS.md](./COMPLIANCE_INTEGRATION_GAP_ANALYSIS.md) for complete analysis**
+
+Phase 3 successfully integrated **inventory lots** with Metrc, but discovered critical gaps:
+
+#### Not Yet Integrated (Phase 3.5 Required)
+- ❌ **Batch Creation** → Metrc Plant Batch (CRITICAL)
+- ❌ **Batch Stage Transitions** → Metrc Growth Phase Changes (CRITICAL)
+- ❌ **Batch Harvests** → Metrc Harvest Creation (CRITICAL)
+- ⚠️ **Waste Logs** → Metrc Waste Destruction (HIGH)
+- ❌ **Transfers** → Metrc Transfer Manifests (HIGH)
+- ⚠️ **Tasks** → Compliance Checklist Integration (MEDIUM)
+
+#### Impact
+Without batch integration, cannabis operations **cannot achieve full compliance**. Batches are the core of cannabis cultivation tracking in Metrc.
+
+#### Recommendation
+**Before starting Phase 4**, complete **Phase 3.5: Batch & Waste Integration**
+- Estimated: 2-3 weeks
+- Critical for cannabis compliance
+- Follows same pattern as inventory lots
+- All infrastructure already in place
+
+See gap analysis document for detailed implementation plan.
+
+### Ready for Phase 3.5 (Batch Integration) - REQUIRED NEXT STEP
+
+**🚨 CRITICAL: Phase 3.5 is MANDATORY before Phase 4**
+
+Phase 3 successfully integrated **inventory lots**, but **batches (cultivation core)** are not integrated. 
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md) for:**
+- Complete gap analysis (8 critical gaps identified)
+- Detailed Phase 3.5-3.9 roadmap (14 weeks)
+- Database schemas for new tables
+- File-by-file implementation guide
+- Success metrics and acceptance criteria
+
+**Phase 3.5: Plant Batch Lifecycle (Weeks 1-4) - START HERE**
+
+The most critical missing piece is batch lifecycle integration:
+
+**Critical Missing Integrations:**
+1. ❌ **Batch Creation → Metrc Plant Batch** (Week 1)
+2. ❌ **Stage Transitions → Growth Phase Changes** (Week 2)
+3. ❌ **Plant Tag Management** (Week 3)
+4. ❌ **Plant Count Adjustments** (Week 4)
+
+**Files to Create (Week 1):**
+```
+lib/compliance/metrc/sync/
+├── batch-push-sync.ts          # Push batches to Metrc
+└── batch-pull-sync.ts          # Pull plant batches
+
+lib/compliance/metrc/validation/
+└── batch-rules.ts              # Validate batch data
+
+lib/compliance/metrc/utils/
+└── stage-to-phase-mapper.ts    # Map TRAZO stages → Metrc phases
+
+components/features/compliance/
+├── push-batch-to-metrc-button.tsx
+└── batch-metrc-sync-status.tsx
+
+app/api/compliance/
+└── push-batch/route.ts
+```
+
+**Pattern to Follow:**
+- Reference: `lib/compliance/metrc/sync/inventory-push-sync.ts`
+- Non-blocking async pattern
+- Comprehensive error handling
+- Sync logging
+- Manual recovery UI
+
+**Week 1 Acceptance Criteria:**
+- ✅ `createBatch()` auto-pushes to Metrc (non-blocking)
+- ✅ Batch creation validated before push
+- ✅ Manual batch push button for failures
+- ✅ Sync status visible in batch details
+- ✅ All operations logged in `metrc_sync_log`
+
+**After Phase 3.5, Continue with:**
+- Phase 3.6: Harvest & Package Creation (Weeks 5-7)
+- Phase 3.7: Waste & Transfer Systems (Weeks 8-10)
+- Phase 3.8: Lab Testing Integration (Weeks 11-12)
+- Phase 3.9: Production Batches & Polish (Weeks 13-14)
+
+**Alternative Option: Phase 4 (Reporting)**
+
+Only pursue Phase 4 if batch integration is being handled by another agent in parallel.
+
+Phase 4 focuses on reporting and compliance dashboards (can run parallel to batch work):
 
 ---
 
@@ -619,7 +830,241 @@ compliance/
 
 ---
 
-### **PHASE 4: Reporting & Compliance** ⏱️ Week 4
+### **PHASE 3.5: Plant Batch Lifecycle** ⏱️ Weeks 1-4 (NEW - CRITICAL PRIORITY)
+
+**🚨 CRITICAL: This phase is REQUIRED for cannabis compliance**
+
+**Prerequisites:** Phase 3 complete
+
+**Goals:**
+- Integrate batch creation with Metrc plant batches
+- Sync growth phase transitions
+- Implement plant tag management system
+- Track plant count adjustments
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md#gap-1-plant-batch-lifecycle-critical---highest-priority) for complete details**
+
+**Week 1: Batch Push Sync**
+
+Deliverables:
+- `lib/compliance/metrc/sync/batch-push-sync.ts`
+- `lib/compliance/metrc/validation/batch-rules.ts`
+- Update `lib/supabase/queries/batches.ts` with Metrc hooks
+- `components/features/compliance/push-batch-to-metrc-button.tsx`
+- `components/features/compliance/batch-metrc-sync-status.tsx`
+- `app/api/compliance/push-batch/route.ts`
+- Comprehensive tests
+
+**Week 2: Growth Phase Sync**
+
+Deliverables:
+- `lib/compliance/metrc/sync/growth-phase-sync.ts`
+- `lib/compliance/metrc/utils/stage-to-phase-mapper.ts`
+- Update `transitionBatchStage()` in `batches.ts`
+- Growth phase history UI component
+- Tests for phase transitions
+
+**Week 3: Plant Tag System**
+
+Deliverables:
+- Database migration for `metrc_plant_tags` table
+- `lib/compliance/metrc/sync/tag-order-sync.ts`
+- `lib/compliance/metrc/sync/tag-assignment-sync.ts`
+- `lib/supabase/queries/metrc-tags.ts`
+- Tag management UI (`app/dashboard/compliance/tags/page.tsx`)
+- Tag inventory tracking components
+
+**Week 4: Plant Count Adjustments**
+
+Deliverables:
+- `lib/compliance/metrc/sync/plant-count-sync.ts`
+- Plant death/culling workflows
+- Batch UI updates with tag assignment
+- Integration tests
+- Documentation
+
+**Acceptance Criteria:**
+- ✅ Batch creation auto-pushes to Metrc (non-blocking)
+- ✅ Stage transitions update Metrc growth phase
+- ✅ Plant tags can be ordered and assigned
+- ✅ Tag inventory tracked accurately
+- ✅ Plant count changes sync to Metrc
+- ✅ All operations logged and recoverable
+- ✅ Tests >95% coverage
+
+**Documentation Required:**
+- Update `/docs/current/compliance-workflows.md` with batch lifecycle
+- Document stage-to-phase mapping
+- Add tag management guide
+
+---
+
+### **PHASE 3.6: Harvest & Package Creation** ⏱️ Weeks 5-7 (NEW - CRITICAL PRIORITY)
+
+**Prerequisites:** Phase 3.5 complete
+
+**Goals:**
+- Track harvest operations in Metrc
+- Link harvests to inventory lots
+- Implement wet/dry weight tracking
+- Create packages from harvests
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md#gap-3-harvest-tracking--package-creation-critical) for complete details**
+
+**Deliverables:**
+
+1. **Harvest Foundation (Week 5)**
+- Database migration for `harvests` table
+- `lib/compliance/metrc/sync/harvest-push-sync.ts`
+- `lib/supabase/queries/harvests.ts`
+- Harvest creation UI
+- Tests
+
+2. **Harvest Processing (Week 6)**
+- `lib/compliance/metrc/sync/harvest-finish-sync.ts`
+- `lib/compliance/metrc/sync/harvest-package-sync.ts`
+- Link inventory lots to harvests
+- Harvest weight tracker UI
+- Tests
+
+3. **Harvest Integration (Week 7)**
+- Integrate harvest waste with waste logs
+- Create harvest-to-lot workflow
+- Package creation UI
+- End-to-end tests
+- Documentation
+
+**Acceptance Criteria:**
+- ✅ Create Metrc harvest from flowering batch
+- ✅ Track wet and dry weights
+- ✅ Create inventory lots from harvest
+- ✅ Report harvest waste to Metrc
+- ✅ All harvest operations sync to Metrc
+- ✅ Tests >95% coverage
+
+---
+
+### **PHASE 3.7: Waste & Transfer Systems** ⏱️ Weeks 8-10 (NEW - HIGH PRIORITY)
+
+**Prerequisites:** None (can run parallel with Phase 3.6)
+
+**Goals:**
+- Push waste destruction to Metrc
+- Create transfer manifest system
+- Implement incoming transfer receipt
+- Track transfer status
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md#gap-4-waste-destruction-reporting-high-priority) for complete details**
+
+**Deliverables:**
+
+1. **Waste Push Sync (Week 8)**
+- `lib/compliance/metrc/sync/waste-push-sync.ts`
+- `lib/compliance/metrc/validation/waste-rules.ts`
+- Update `lib/supabase/queries/waste.ts` with hooks
+- Waste push UI components
+- Tests
+
+2. **Transfer Manifest Foundation (Week 9)**
+- Database migration for `transfer_manifests` table
+- `lib/compliance/metrc/sync/transfer-manifest-sync.ts`
+- `lib/supabase/queries/transfers.ts`
+- Manifest creation UI
+- Tests
+
+3. **Transfer Completion (Week 10)**
+- `lib/compliance/metrc/sync/transfer-receive-sync.ts`
+- Transfer receiving UI
+- Printable manifest generation
+- Integration tests
+- Documentation
+
+**Acceptance Criteria:**
+- ✅ Waste logs push to Metrc automatically
+- ✅ Transfer manifests created for all transfers
+- ✅ Incoming transfers can be received
+- ✅ Manifest includes all required fields
+- ✅ Tests >95% coverage
+
+---
+
+### **PHASE 3.8: Lab Testing Integration** ⏱️ Weeks 11-12 (NEW - HIGH PRIORITY)
+
+**Prerequisites:** Phase 3.6 complete
+
+**Goals:**
+- Submit packages for lab testing
+- Track test status
+- Pull test results from Metrc
+- Store COA documents
+- Prevent sale of untested products
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md#gap-6-lab-testing-integration-high-priority) for complete details**
+
+**Deliverables:**
+
+1. **Test Sample System (Week 11)**
+- Database migration for `lab_tests` table
+- `lib/compliance/metrc/sync/test-sample-sync.ts`
+- `lib/supabase/queries/lab-tests.ts`
+- Test submission UI
+- Tests
+
+2. **Test Results & COA (Week 12)**
+- `lib/compliance/metrc/sync/test-result-pull.ts`
+- COA display UI
+- Add test_status to inventory_lots
+- Sales gating for untested products
+- Documentation
+
+**Acceptance Criteria:**
+- ✅ Submit packages for testing via Metrc
+- ✅ Track test status (submitted, testing, passed, failed)
+- ✅ Pull test results from Metrc
+- ✅ Store and display COA documents
+- ✅ Prevent untested package sales
+- ✅ Tests >95% coverage
+
+---
+
+### **PHASE 3.9: Production Batches & Polish** ⏱️ Weeks 13-14 (NEW - MEDIUM PRIORITY)
+
+**Prerequisites:** Phase 3.8 complete
+
+**Goals:**
+- Track product transformations
+- Implement production batch system
+- Enhance compliance task integration
+- Final polish and optimization
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md#gap-7-production-batch-tracking-medium-priority) for complete details**
+
+**Deliverables:**
+
+1. **Production Batches (Week 13)**
+- Database migration for `production_batches` table
+- `lib/compliance/metrc/sync/production-batch-sync.ts`
+- Production batch UI
+- Tests
+
+2. **Final Polish (Week 14)**
+- Compliance task enhancements
+- Error handling improvements
+- Performance optimization
+- Comprehensive documentation
+- User training materials
+
+**Acceptance Criteria:**
+- ✅ Track product transformations in Metrc
+- ✅ Production batches link source/output packages
+- ✅ Task system integrated with compliance
+- ✅ System performance optimized
+- ✅ Complete user documentation
+- ✅ Ready for production deployment
+
+---
+
+### **PHASE 4: Reporting & Compliance** ⏱️ Week 15+ (Optional - Can run parallel)
 
 **Prerequisites:** Phases 1-3 complete
 
@@ -1098,114 +1543,7 @@ describe('MetrcClient', () => {
 
 **Note:** Scheduled jobs deferred - will implement with Vercel Cron in future update
 
----
-
-## 🎉 PHASE 3 COMPLETION SUMMARY (November 17, 2025)
-
-**Agent:** Claude (Sonnet 4.5)
-**Duration:** ~4 hours
-**Status:** ✅ 100% Complete - All write operations, validation, integration, and UI complete
-
-### What Was Delivered
-
-#### 1. POST/PUT Endpoint Wrappers (7 files updated)
-- `lib/compliance/metrc/endpoints/packages.ts` - 5 write methods (create, adjust, changeLocation, finish, unfinish)
-- `lib/compliance/metrc/endpoints/plants.ts` - 6 write methods (createPlantings, changeGrowthPhase, movePlants, destroyPlants, harvestPlants, manicurePlants)
-- `lib/compliance/metrc/endpoints/plant-batches.ts` - 5 write methods (create, createFromPlantings, split, adjust, destroy)
-- `lib/compliance/metrc/endpoints/harvests.ts` - 4 write methods (createPackagesFromHarvest, removeWaste, finish, unfinish)
-- `lib/compliance/metrc/endpoints/transfers.ts` - 4 write methods (createOutgoing, updateOutgoing, deleteOutgoing, acceptPackages)
-- `lib/compliance/metrc/endpoints/sales.ts` - 3 write methods (create, update, delete)
-- **Total:** 27 new write operation methods
-
-#### 2. Write Operation Types (lib/compliance/metrc/types.ts)
-Added 22 new TypeScript interfaces:
-- Package operations: `MetrcPackageAdjustment`, `MetrcPackageLocationChange`, `MetrcPackageFinish`
-- Plant batch operations: `MetrcPlantBatchAdjustment`, `MetrcPlantBatchSplit`
-- Plant operations: `MetrcPlantingCreate`, `MetrcPlantGrowthPhaseChange`, `MetrcPlantMove`, `MetrcPlantDestroy`
-- Harvest operations: `MetrcHarvestCreate`, `MetrcHarvestPackageCreate`, `MetrcHarvestFinish`
-- Transfer operations: `MetrcTransferCreate`, `MetrcTransferDestinationCreate`, `MetrcTransferPackageCreate`, `MetrcTransferUpdate`
-- Sales operations: `MetrcSalesReceiptCreate`, `MetrcSalesTransactionCreate`
-
-#### 3. Validation Layer (4 files created)
-- `lib/compliance/metrc/validation/validators.ts` - 15 common validation utilities
-- `lib/compliance/metrc/validation/package-rules.ts` - Package-specific validation
-- `lib/compliance/metrc/validation/plant-rules.ts` - Plant & batch validation
-- `lib/compliance/metrc/validation/index.ts` - Public exports
-- **Features:** Required field validation, date validation, Metrc tag format validation, unit of measure validation, comprehensive error/warning system
-
-#### 4. Push Sync Service (1 file created)
-- `lib/compliance/metrc/sync/inventory-push-sync.ts` - Push TRAZO inventory lots to Metrc packages
-- Functions: `pushInventoryLotToMetrc()`, `pushInventoryLotsToMetrc()`
-- Features: Automatic mapping creation, validation before push, comprehensive error handling, sync logging
-
-#### 5. Updated Exports
-- `lib/compliance/metrc/sync/index.ts` - Added push sync exports
-
-### Key Features Implemented
-- ✅ All Metrc POST/PUT endpoints for write operations
-- ✅ Comprehensive validation layer with 15+ validators
-- ✅ Push sync service for inventory → Metrc
-- ✅ Validation prevents invalid data submission to Metrc
-- ✅ Proper error handling with rollback on failures
-- ✅ All operations logged for audit trail
-
-### Files Summary
-- **Total Files:** 13 created/updated
-- **Lines of Code:** ~2,500+
-- **TypeScript:** 0 errors in compliance code
-- **Write Methods:** 27 new methods across 6 endpoints
-
-### Learnings & Notes for Next Agent
-1. **Endpoint pattern consistent** - All POST/PUT methods follow same structure as GET methods
-2. **Validation is modular** - Easy to add more validators as needed
-3. **Push sync follows Phase 2 pull sync pattern** - Consistent architecture
-4. **Metrc tags required** - Inventory lots must have `compliance_package_uid` populated before push
-5. **Sync logging works perfectly** - Reused Phase 1 infrastructure
-6. **Date validation critical** - Metrc rejects future dates and invalid formats
-
-#### 6. Test Suite (4 files created)
-- `lib/compliance/metrc/__tests__/validators.test.ts` - Common validators (50+ test cases)
-- `lib/compliance/metrc/__tests__/package-rules.test.ts` - Package validation (30+ test cases)
-- `lib/compliance/metrc/__tests__/plant-rules.test.ts` - Plant/batch validation (25+ test cases)
-- `lib/compliance/metrc/__tests__/packages-write-operations.test.ts` - Write endpoint tests (20+ test cases)
-
-#### 7. Integration Hooks (2 files updated)
-- `lib/supabase/queries/inventory-lots.ts` - Added Metrc push hooks to createLot() and updateLot()
-- Automatic jurisdiction detection and conditional Metrc push
-- Non-blocking async push (doesn't fail lot creation if Metrc fails)
-- Optional skipMetrcPush flag for manual control
-
-#### 8. UI Components (4 files created)
-- `components/features/compliance/metrc-sync-button.tsx` - Manual sync trigger
-- `components/features/compliance/push-to-metrc-button.tsx` - Push individual lots
-- `components/features/compliance/metrc-sync-status.tsx` - Status badge component
-- `app/api/compliance/push-lot/route.ts` - API endpoint for manual push
-
-#### 9. Documentation (1 file created)
-- `docs/current/compliance-workflows.md` - Comprehensive workflow guide (600+ lines)
-- Automatic vs manual operations
-- Step-by-step scenarios
-- Troubleshooting guide
-- Validation rules reference
-- Best practices
-
-### Key Features Implemented (Phase 3)
-- ✅ All Metrc POST/PUT endpoints for write operations (27 methods)
-- ✅ Comprehensive validation layer (125+ test cases)
-- ✅ Push sync service for inventory → Metrc
-- ✅ Automatic integration hooks in inventory system
-- ✅ Non-blocking async Metrc push (resilient)
-- ✅ Manual push UI components for recovery
-- ✅ Complete workflow documentation
-
-### Files Summary (Phase 3)
-- **Total Files:** 17 created/updated
-- **Lines of Code:** ~4,000+
-- **Test Coverage:** 125+ test cases for validation and write operations
-- **TypeScript:** 0 errors
-- **Write Methods:** 27 new methods across 6 endpoints
-
-### Phase 3: Write Operations ✅ COMPLETE
+### Phase 3: Write Operations ✅ COMPLETE (November 17, 2025)
 - [x] All POST/PUT endpoints implemented (27 methods)
 - [x] Validation layer complete (4 files, 15+ validators)
 - [x] Push sync service created (inventory → Metrc)
@@ -1214,25 +1552,120 @@ Added 22 new TypeScript interfaces:
 - [x] Tests written (125+ test cases)
 - [x] Documentation updated (compliance-workflows.md)
 
-### Learnings & Notes for Phase 4 Agent
-1. **Non-blocking pattern works great** - Metrc push errors don't block lot creation
-2. **Jurisdiction detection is straightforward** - `getJurisdictionConfig()` + plant_type check
-3. **Test coverage excellent** - 125+ tests cover all validators and write operations
-4. **UI components reusable** - Follow same pattern for batch/harvest push buttons
-5. **Manual recovery essential** - Users need UI buttons when auto-sync fails
-6. **Documentation comprehensive** - compliance-workflows.md covers all common scenarios
-7. **Integration hooks pattern** - Options parameter with `skipMetrcPush` flag is flexible
-8. **Async error handling** - .catch() with console.error for non-blocking operations
+**Phase 3 Summary:**
+- 17 total files created/updated
+- ~4,000+ lines of code
+- **LIMITATION IDENTIFIED:** Only inventory lots integrated, batches NOT integrated
+- 125+ test cases for validation and write operations
+- Non-blocking async push pattern working well
 
-### Ready for Phase 4
-All Phase 3 acceptance criteria met. Foundation solid for Phase 4 reporting and reconciliation. Next agent can immediately start implementing:
-- Compliance report generator (monthly Metrc reports)
-- Inventory reconciliation service (TRAZO ↔ Metrc comparison)
-- Evidence vault integration (file uploads with metadata)
-- Audit trail service (immutable compliance action log)
-- Compliance dashboard UI (status overview + alerts)
+### Phase 3.5: Plant Batch Lifecycle ❌ NOT STARTED (CRITICAL - Week 1-4)
+- [ ] **Week 1:** Batch push sync implementation
+  - [ ] batch-push-sync.ts created
+  - [ ] batch-rules.ts validation created
+  - [ ] batches.ts updated with Metrc hooks
+  - [ ] Push batch button UI created
+  - [ ] Sync status badge created
+  - [ ] API route created
+  - [ ] Tests written
+- [ ] **Week 2:** Growth phase sync
+  - [ ] growth-phase-sync.ts created
+  - [ ] stage-to-phase-mapper.ts created
+  - [ ] transitionBatchStage() updated
+  - [ ] Growth phase history UI
+  - [ ] Tests written
+- [ ] **Week 3:** Plant tag system
+  - [ ] metrc_plant_tags migration created
+  - [ ] tag-order-sync.ts created
+  - [ ] tag-assignment-sync.ts created
+  - [ ] metrc-tags.ts queries created
+  - [ ] Tag management UI created
+  - [ ] Tests written
+- [ ] **Week 4:** Plant count adjustments
+  - [ ] plant-count-sync.ts created
+  - [ ] Plant death/culling workflows
+  - [ ] Batch UI updates
+  - [ ] Integration tests
+  - [ ] Documentation complete
 
-### Phase 4: Reporting ❌ NOT STARTED
+**Phase 3.5 Status:** NOT STARTED - **HIGHEST PRIORITY FOR NEXT AGENT**
+
+### Phase 3.6: Harvest & Package Creation ❌ NOT STARTED (CRITICAL - Week 5-7)
+- [ ] **Week 5:** Harvest foundation
+  - [ ] harvests table migration
+  - [ ] harvest-push-sync.ts created
+  - [ ] harvests.ts queries created
+  - [ ] Harvest creation UI
+  - [ ] Tests written
+- [ ] **Week 6:** Harvest processing
+  - [ ] harvest-finish-sync.ts created
+  - [ ] harvest-package-sync.ts created
+  - [ ] Inventory lots linked to harvests
+  - [ ] Weight tracker UI
+  - [ ] Tests written
+- [ ] **Week 7:** Harvest integration
+  - [ ] Harvest waste integration
+  - [ ] Harvest-to-lot workflow
+  - [ ] Package creation UI
+  - [ ] E2E tests
+  - [ ] Documentation complete
+
+**Phase 3.6 Status:** NOT STARTED - Blocked by Phase 3.5
+
+### Phase 3.7: Waste & Transfer Systems ❌ NOT STARTED (HIGH - Week 8-10)
+- [ ] **Week 8:** Waste push sync
+  - [ ] waste-push-sync.ts created
+  - [ ] waste-rules.ts validation created
+  - [ ] waste.ts updated with hooks
+  - [ ] Push waste button UI
+  - [ ] Tests written
+- [ ] **Week 9:** Transfer manifest foundation
+  - [ ] transfer_manifests migration
+  - [ ] transfer-manifest-sync.ts created
+  - [ ] transfers.ts queries created
+  - [ ] Manifest creation UI
+  - [ ] Tests written
+- [ ] **Week 10:** Transfer completion
+  - [ ] transfer-receive-sync.ts created
+  - [ ] Transfer receiving UI
+  - [ ] Printable manifest
+  - [ ] Integration tests
+  - [ ] Documentation complete
+
+**Phase 3.7 Status:** NOT STARTED - Can run parallel with 3.6
+
+### Phase 3.8: Lab Testing Integration ❌ NOT STARTED (HIGH - Week 11-12)
+- [ ] **Week 11:** Test sample system
+  - [ ] lab_tests migration
+  - [ ] test-sample-sync.ts created
+  - [ ] lab-tests.ts queries created
+  - [ ] Test submission UI
+  - [ ] Tests written
+- [ ] **Week 12:** Test results & COA
+  - [ ] test-result-pull.ts created
+  - [ ] COA display UI
+  - [ ] Test status on inventory_lots
+  - [ ] Sales gating logic
+  - [ ] Documentation complete
+
+**Phase 3.8 Status:** NOT STARTED - Blocked by Phase 3.6
+
+### Phase 3.9: Production Batches & Polish ❌ NOT STARTED (MEDIUM - Week 13-14)
+- [ ] **Week 13:** Production batches
+  - [ ] production_batches migration
+  - [ ] production-batch-sync.ts created
+  - [ ] Production batch UI
+  - [ ] Tests written
+- [ ] **Week 14:** Final polish
+  - [ ] Compliance task enhancements
+  - [ ] Error handling improvements
+  - [ ] Performance optimization
+  - [ ] Complete documentation
+  - [ ] User training materials
+
+**Phase 3.9 Status:** NOT STARTED - Final phase
+
+### Phase 4: Reporting & Compliance ❌ NOT STARTED (Optional - Week 15+)
 - [ ] Report generator implemented
 - [ ] Reconciliation service complete
 - [ ] Evidence vault integration
@@ -1241,14 +1674,7 @@ All Phase 3 acceptance criteria met. Foundation solid for Phase 4 reporting and 
 - [ ] Tests written (>95% coverage)
 - [ ] Documentation updated
 
-### Phase 5: Polish ❌ NOT STARTED
-- [ ] CTLS placeholder implemented (basic structure already done)
-- [ ] PrimusGFS placeholder implemented (basic structure already done)
-- [ ] Comprehensive tests (>95% coverage)
-- [ ] Performance optimized
-- [ ] Security audit passed
-- [ ] All documentation complete
-- [ ] Pilot program prepared
+**Phase 4 Status:** NOT STARTED - Can run parallel with Phases 3.5-3.9
 
 ---
 
@@ -1256,16 +1682,84 @@ All Phase 3 acceptance criteria met. Foundation solid for Phase 4 reporting and 
 
 **⚠️ IMPORTANT: Update this section immediately when you encounter blockers.**
 
-### Current Blockers
-- None (Phase 1 complete)
+### Current Blockers (November 18, 2025)
 
-### Dependencies on Other Features
-- **Batch Management:** Phase 3 integration with batches requires batch system to be implemented
-  - Workaround: Implement hooks but don't activate until batches are ready
-- **Task Management:** Phase 4 compliance checklist tasks require task system
-  - Workaround: Implement service layer, defer UI until tasks are ready
+**CRITICAL COMPLIANCE GAPS IDENTIFIED:**
+
+After comprehensive analysis, **8 critical gaps** prevent full Metrc compliance:
+
+1. **Plant Batch Lifecycle** (🔴 CRITICAL - Phase 3.5)
+   - Batches not integrated with Metrc plant batches
+   - Stage transitions don't update Metrc growth phases
+   - No plant tag management system
+   - Plant count changes not synced
+
+2. **Harvest Tracking** (🔴 CRITICAL - Phase 3.6)
+   - Harvests not reported to Metrc
+   - No wet/dry weight differentiation
+   - Inventory lots not linked to harvests
+   - Harvest waste not tracked in Metrc
+
+3. **Waste Destruction** (🟡 HIGH - Phase 3.7)
+   - Database ready but no push sync implemented
+   - 50:50 rendering method not validated
+   - Witness requirement not enforced
+
+4. **Transfer Manifests** (🟡 HIGH - Phase 3.7)
+   - No transfer manifest system
+   - Can't legally move cannabis between facilities
+   - No license verification
+
+5. **Lab Testing** (🟡 HIGH - Phase 3.8)
+   - No test sample submission
+   - Test results not pulled from Metrc
+   - Can't gate sales on test status
+
+6. **Production Batches** (🟢 MEDIUM - Phase 3.9)
+   - Product transformations not tracked
+   - Source package lineage missing
+
+7. **Compliance Tasks** (🟢 MEDIUM - Phase 3.9)
+   - No compliance-specific task types
+   - Evidence not linked to Metrc operations
+
+8. **Plant Tag Management** (🔴 CRITICAL - Phase 3.5)
+   - No tag ordering from Metrc
+   - No tag inventory tracking
+   - Tags not assigned during flowering transition
+
+**Impact:** Without Phases 3.5-3.8, **cannabis operations cannot achieve full Metrc compliance**.
+
+**See [COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md](./COMPLIANCE_ENGINE_COMPREHENSIVE_REPLAN.md) for complete analysis.**
+
+### Dependencies on Platform Features
+
+- **✅ Batch Management:** Batch system EXISTS - Phase 3.5 can proceed
+  - Database: `batches` table with `metrc_batch_id`, `metrc_plant_labels`, `metrc_sync_status`
+  - Queries: `lib/supabase/queries/batches.ts` ready for integration
+  - Action: Update `createBatch()` and `transitionBatchStage()` with Metrc hooks
+
+- **✅ Waste Management:** Waste system EXISTS - Phase 3.7 can proceed
+  - Database: `waste_logs` table with `metrc_waste_id`, `metrc_sync_status`
+  - Queries: `lib/supabase/queries/waste.ts` ready for integration
+  - Action: Create `waste-push-sync.ts` and add hooks to `createWasteLog()`
+
+- **⚠️ Harvest System:** NOT YET IMPLEMENTED - Must create in Phase 3.6
+  - Action: Create new `harvests` table and query layer
+
+- **⚠️ Transfer System:** NOT YET IMPLEMENTED - Must create in Phase 3.7
+  - Action: Create new `transfer_manifests` table and query layer
+
+- **⚠️ Lab Testing:** NOT YET IMPLEMENTED - Must create in Phase 3.8
+  - Action: Create new `lab_tests` table and query layer
+
+- **✅ Task Management:** Task system EXISTS - Phase 3.9 can enhance
+  - Database: `batch_sop_links`, `sop_templates`, task system
+  - Queries: `lib/supabase/queries/batch-tasks.ts` and `workflows.ts`
+  - Action: Add compliance-specific task types and evidence linking
 
 ### External Dependencies
+
 - **Metrc API Access:** Need vendor API key from Metrc
   - Solution: Use sandbox environment for development/testing
 - **Test Credentials:** Need test facility credentials

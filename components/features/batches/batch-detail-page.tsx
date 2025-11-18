@@ -26,6 +26,8 @@ import type { ActiveRecipeDetails } from '@/types/recipe'
 import type { TelemetryReading } from '@/types/telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { RoleKey } from '@/lib/rbac/types'
+import { PushBatchToMetrcButton } from '@/components/features/compliance/push-batch-to-metrc-button'
+import { BatchMetrcSyncStatus } from '@/components/features/compliance/batch-metrc-sync-status'
 
 interface BatchDetailPageProps {
   batch: BatchDetail
@@ -172,7 +174,23 @@ export function BatchDetailPage({
         <Button variant="outline" size="sm" onClick={() => setShowApplyRecipe(true)}>
           Apply recipe
         </Button>
+        {can('compliance:push') && (
+          <PushBatchToMetrcButton
+            batchId={detail.id}
+            batchNumber={detail.batch_number}
+            onPushComplete={() => loadDetail()}
+          />
+        )}
       </div>
+
+      {/* Metrc Sync Status */}
+      {detail.metrc_batch_id && (
+        <BatchMetrcSyncStatus
+          status="synced"
+          metrcBatchId={detail.metrc_batch_id}
+          domainType={detail.domain_type}
+        />
+      )}
 
       {/* Quarantine Alert */}
       {detail.status === 'quarantined' && (

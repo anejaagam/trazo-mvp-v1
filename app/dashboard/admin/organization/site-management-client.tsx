@@ -29,6 +29,7 @@ import { DeleteSiteDialog } from '@/components/features/admin/delete-site-dialog
 import { RoomFormDialog } from '@/components/features/admin/room-form-dialog';
 import { DeleteRoomDialog } from '@/components/features/admin/delete-room-dialog';
 import { PodAssignmentDialog } from '@/components/features/admin/pod-assignment-dialog';
+import { PodEditDialog } from '@/components/features/admin/pod-edit-dialog';
 
 interface Site {
   id: string;
@@ -71,6 +72,7 @@ interface Pod {
   room_id: string;
   status: string;
   pod_serial_number?: string;
+  metrc_location_name?: string;
   is_active: boolean;
 }
 
@@ -109,6 +111,8 @@ export function SiteManagementClient({
   const [selectedPodSiteId, setSelectedPodSiteId] = useState<string>('');
   const [roomPods, setRoomPods] = useState<Map<string, Pod[]>>(new Map());
   const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
+  const [podEditDialogOpen, setPodEditDialogOpen] = useState(false);
+  const [podToEdit, setPodToEdit] = useState<Pod | null>(null);
 
   const totalSites = sites.filter(s => s.is_active).length;
   const totalRooms = sites.reduce((sum, s) => sum + (s.room_count || 0), 0);
@@ -240,6 +244,19 @@ export function SiteManagementClient({
     setSelectedPod(pod);
     setSelectedPodSiteId(siteId);
     setPodAssignmentDialogOpen(true);
+  };
+
+  const handleEditPod = (pod: Pod) => {
+    setPodToEdit(pod);
+    setPodEditDialogOpen(true);
+  };
+
+  const handlePodEditSuccess = () => {
+    // Refresh pods in the affected room
+    if (podToEdit?.room_id) {
+      fetchPods(podToEdit.room_id);
+    }
+    handleRefresh();
   };
 
   const handlePodAssignmentSuccess = () => {
@@ -601,10 +618,17 @@ export function SiteManagementClient({
                                                                 key={pod.id}
                                                                 className="flex items-center justify-between p-2 rounded border bg-background hover:bg-muted/50 transition-colors"
                                                               >
-                                                                <div className="flex items-center gap-3">
+                                                                <div className="flex items-center gap-3 flex-1">
                                                                   <Boxes className="h-4 w-4 text-muted-foreground" />
-                                                                  <div>
-                                                                    <div className="text-sm font-medium">{pod.name}</div>
+                                                                  <div className="flex-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                      <div className="text-sm font-medium">{pod.name}</div>
+                                                                      {pod.metrc_location_name && (
+                                                                        <Badge variant="secondary" className="text-xs">
+                                                                          📍 {pod.metrc_location_name}
+                                                                        </Badge>
+                                                                      )}
+                                                                    </div>
                                                                     {pod.pod_serial_number && (
                                                                       <div className="text-xs text-muted-foreground">
                                                                         SN: {pod.pod_serial_number}
@@ -616,6 +640,15 @@ export function SiteManagementClient({
                                                                   <Badge variant="outline" className="text-xs capitalize">
                                                                     {pod.status}
                                                                   </Badge>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => handleEditPod(pod)}
+                                                                    className="h-7 text-xs"
+                                                                  >
+                                                                    <Edit className="h-3 w-3 mr-1" />
+                                                                    Edit
+                                                                  </Button>
                                                                   <Button
                                                                     size="sm"
                                                                     variant="ghost"
@@ -701,6 +734,12 @@ export function SiteManagementClient({
           />
         </>
       )}
+      <PodEditDialog
+        open={podEditDialogOpen}
+        onClose={() => setPodEditDialogOpen(false)}
+        pod={podToEdit}
+        onSuccess={handlePodEditSuccess}
+      />
     </div>
   );
 }

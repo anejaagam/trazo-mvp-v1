@@ -507,7 +507,8 @@ export async function updatePlantCount(
   batchId: string,
   newCount: number,
   userId: string,
-  reason?: string
+  reason?: string,
+  reasonNote?: string
 ) {
   try {
     const supabase = await createClient()
@@ -526,12 +527,38 @@ export async function updatePlantCount(
 
     if (error) throw error
 
-    // Log plant count update event
+    // Log plant count update event with reason
     await createBatchEvent(batchId, 'plant_count_update', userId, {
       from: oldCount,
       to: newCount,
-      reason,
+      reason: reason || 'unspecified',
+      adjustment_reason: reason, // Store in adjustment_reason field for Metrc sync
     })
+
+    // 🆕 AUTO-SYNC TO METRC (non-blocking)
+    // Only sync if:
+    // 1. Reason is provided (required for Metrc adjustments)
+    // 2. Batch is cannabis (produce batches don't sync to Metrc)
+    // 3. Count actually changed (prevent unnecessary API calls)
+    if (reason && batch?.domain_type === 'cannabis' && oldCount !== newCount) {
+      // Import dynamically to avoid circular dependencies
+      const { syncPlantCountAdjustmentToMetrc } = await import(
+        '@/lib/compliance/metrc/sync/batch-adjustment-sync'
+      )
+
+      // Run async - don't await, don't block TRAZO update
+      syncPlantCountAdjustmentToMetrc(
+        batchId,
+        oldCount,
+        newCount,
+        reason,
+        userId,
+        reasonNote
+      ).catch((error) => {
+        console.error('Metrc adjustment sync failed (non-blocking):', error)
+        // Error is logged but doesn't prevent TRAZO update
+      })
+    }
 
     return await getBatchById(batchId)
   } catch (error) {
@@ -769,6 +796,35 @@ export async function getActiveBatches(
 }
 
 /**
+ * Get Metrc sync status for a batch
+ */
+export async function getBatchMetrcSyncStatus(batchId: string) {
+  try {
+    const supabase = await createClient()
+
+    const { data: mapping, error } = await supabase
+      .from('metrc_batch_mappings')
+      .select('*')
+      .eq('batch_id', batchId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 is "not found" - that's okay
+      throw error
+    }
+
+    return {
+      data: mapping || null,
+      error: null,
+      isSynced: !!mapping,
+    }
+  } catch (error) {
+    console.error('Error in getBatchMetrcSyncStatus:', error)
+    return { data: null, error, isSynced: false }
+  }
+}
+
+/**
  * Helper: Create a batch event
  */
 async function createBatchEvent(
@@ -779,7 +835,7 @@ async function createBatchEvent(
 ) {
   try {
     const supabase = await createClient()
-    
+
     await supabase
       .from('batch_events')
       .insert({

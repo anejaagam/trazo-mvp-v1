@@ -81,6 +81,7 @@ export async function GET(
         room_id,
         status,
         pod_serial_number,
+        metrc_location_name,
         is_active,
         created_at
       `)

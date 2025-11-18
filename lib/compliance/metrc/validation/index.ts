@@ -13,5 +13,8 @@ export * from './package-rules'
 // Plant validation
 export * from './plant-rules'
 
+// Batch validation
+export * from './batch-rules'
+
 // Re-export types for convenience
 export type { ValidationResult, ValidationError, ValidationWarning } from '@/lib/compliance/types'

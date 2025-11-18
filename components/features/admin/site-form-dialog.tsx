@@ -77,6 +77,7 @@ export function SiteFormDialog({
     timezone: 'America/Los_Angeles',
     max_pods: 48,
     site_license_number: '',
+    default_metrc_location: '',
   });
 
   // Populate form when editing
@@ -92,6 +93,7 @@ export function SiteFormDialog({
         timezone: site.timezone || 'America/Los_Angeles',
         max_pods: site.max_pods || 48,
         site_license_number: site.site_license_number || '',
+        default_metrc_location: (site as any).default_metrc_location || '',
       });
     } else {
       // Reset form when creating new
@@ -105,6 +107,7 @@ export function SiteFormDialog({
         timezone: 'America/Los_Angeles',
         max_pods: 48,
         site_license_number: '',
+        default_metrc_location: '',
       });
     }
   }, [site, open]);
@@ -281,6 +284,25 @@ export function SiteFormDialog({
                 placeholder="Optional"
               />
             </div>
+          </div>
+
+          {/* Metrc Default Location */}
+          <div className="space-y-2">
+            <Label htmlFor="default_metrc_location">
+              Default Metrc Location
+              <span className="text-xs text-muted-foreground ml-2">(Optional - for compliance sync)</span>
+            </Label>
+            <Input
+              id="default_metrc_location"
+              value={formData.default_metrc_location}
+              onChange={(e) =>
+                setFormData({ ...formData, default_metrc_location: e.target.value })
+              }
+              placeholder="e.g., Propagation Area, Germination Room"
+            />
+            <p className="text-xs text-muted-foreground">
+              Fallback Metrc location for batches not yet assigned to pods. Must match Metrc facility location names exactly.
+            </p>
           </div>
 
           <DialogFooter>

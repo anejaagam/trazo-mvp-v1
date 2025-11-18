@@ -46,18 +46,18 @@ export const DEV_MOCK_USER = {
   phone: '+1234567890',
   role: 'org_admin',
   is_active: true,
-  organization_id: '11111111-1111-1111-1111-111111111111', // GreenLeaf Cultivation
+  organization_id: '38769260-9223-497f-8773-aaf510217f51', // Infinity Greens and Produce Ltd
   organization: {
-    id: '11111111-1111-1111-1111-111111111111',
-    name: 'GreenLeaf Cultivation',
+    id: '38769260-9223-497f-8773-aaf510217f51',
+    name: 'Infinity Greens and Produce Ltd',
     jurisdiction: 'oregon_metrc',
     plant_type: 'cannabis',
     data_region: 'us'
   },
   site_assignments: [
     {
-      site_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // GreenLeaf Main Facility
-      site_name: 'GreenLeaf Main Facility'
+      site_id: 'a05980d4-4750-4e2d-bec9-720076fabd30', // Main site
+      site_name: 'Main Facility'
     }
   ]
 } as const

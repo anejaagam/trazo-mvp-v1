@@ -364,12 +364,10 @@ export async function transitionBatchStage(
     })
 
     if (error) throw error
-    return getBatchById(batchId)
-  } catch (error) {
-     logSupabaseError('Error transitioning batch stage:', error)
     
+    // Try to sync recipe stage to match batch stage
     try {
-      await fetch('/api/recipes/advance-stage', {
+      await fetch('/api/recipes/sync-to-batch-stage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,8 +375,12 @@ export async function transitionBatchStage(
         body: JSON.stringify({ batchId, userId }),
       })
     } catch (syncError) {
-      console.warn('Failed to advance recipe stage after transition', syncError)
+      console.warn('Failed to sync recipe stage after transition', syncError)
     }
+    
+    return getBatchById(batchId)
+  } catch (error) {
+     logSupabaseError('Error transitioning batch stage:', error)
     return { data: null, error }
   }
 }
@@ -932,8 +934,14 @@ async function fetchBatchInventoryUsage(batchId: string): Promise<BatchInventory
       .eq('batch_id', batchId)
       .order('timestamp', { ascending: false })
 
+    console.log('fetchBatchInventoryUsage called for batch:', batchId)
+    console.log('Inventory movements query result:', { dataCount: data?.length, error })
+
     if (error) throw error
-    if (!data || data.length === 0) return null
+    if (!data || data.length === 0) {
+      console.log('No inventory movements found for batch:', batchId)
+      return null
+    }
 
     type MovementRow = {
       id: string

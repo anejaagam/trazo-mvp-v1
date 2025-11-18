@@ -13,6 +13,7 @@ import {
 } from '@/lib/supabase/queries/workflows';
 import { TaskEvidence, CreateTaskRequest, UpdateTaskInput, TaskStatus } from '@/types/workflow';
 import { notifyTaskAssignment } from './notifications';
+import { createTaskNotification } from './task-notifications';
 
 /**
  * Create a new task from a template
@@ -81,6 +82,17 @@ export async function createTaskAction(taskData: CreateTaskRequest) {
         await deleteTask(newTask.id);
         return { error: dependencyErrors[0] };
       }
+    }
+
+    // Create notification if task is assigned
+    if (newTask && taskPayload.assigned_to) {
+      await createTaskNotification(
+        taskPayload.assigned_to,
+        newTask.id,
+        `New task assigned: "${newTask.title}"`,
+        'task',
+        taskPayload.priority === 'critical' || taskPayload.priority === 'high' ? 'high' : 'medium'
+      );
     }
 
     revalidatePath('/dashboard/workflows');
@@ -263,6 +275,35 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
   }
 
   try {
+    // Get current task to check workflow enforcement
+    const { data: currentTask } = await supabase
+      .from('tasks')
+      .select('status, requires_execution')
+      .eq('id', taskId)
+      .single();
+
+    if (!currentTask) {
+      return { error: 'Task not found' };
+    }
+
+    // Enforce workflow if task requires execution
+    if (currentTask.requires_execution) {
+      // Cannot move to in_progress without executing first
+      if (status === 'in_progress' && currentTask.status === 'to_do') {
+        return { error: 'This task must be executed before starting. Click "Execute Task" first.' };
+      }
+      
+      // Cannot move to done without being in progress
+      if (status === 'done' && currentTask.status !== 'in_progress') {
+        return { error: 'Task must be in progress before completing. Start the task first.' };
+      }
+      
+      // Cannot move to blocked from to_do (must start first)
+      if (status === 'blocked' && currentTask.status === 'to_do') {
+        return { error: 'Task must be started before it can be blocked.' };
+      }
+    }
+
     const updateInput: UpdateTaskInput = {
       id: taskId,
       status
@@ -272,6 +313,16 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
 
     if (result.error) {
       return { error: result.error };
+    }
+
+    // If task is marked as done or cancelled, mark related notifications as read
+    if (status === 'done' || status === 'cancelled') {
+      await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('category', 'task')
+        .contains('metadata', JSON.stringify({ task_id: taskId }))
+        .is('read_at', null);
     }
 
     revalidatePath('/dashboard/workflows');

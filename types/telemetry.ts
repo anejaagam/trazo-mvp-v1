@@ -529,7 +529,7 @@ export interface UpdateAlarmPolicy {
 
 export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'push';
 export type NotificationStatus = 'sent' | 'delivered' | 'failed' | 'read';
-export type NotificationCategory = 'inventory' | 'batch' | 'task' | 'system';
+export type NotificationCategory = 'alarm' | 'inventory' | 'batch' | 'task' | 'system';
 export type NotificationUrgency = 'low' | 'medium' | 'high';
 
 export interface Notification {

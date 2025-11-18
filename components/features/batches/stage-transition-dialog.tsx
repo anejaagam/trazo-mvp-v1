@@ -15,6 +15,7 @@ import type { BatchStage } from '@/types/batch'
 import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
 import { transitionBatchStage } from '@/lib/supabase/queries/batches-client'
 import { toast } from 'sonner'
+import { isDevModeActive } from '@/lib/dev-mode'
 
 const schema = z.object({
   newStage: z.string().min(1, 'Select a stage'),
@@ -109,7 +110,8 @@ export function StageTransitionDialog({
   }, [batch.stage, batch.domain_type, batch.active_recipe, batch.active_recipe_detail, getAllowedBatchStages])
 
   const onSubmit = async (values: z.infer<typeof schema>) => {
-    if (!isStageTransitionAllowed(batch.stage, values.newStage)) {
+    // Bypass compliance check in dev mode
+    if (!isDevModeActive() && !isStageTransitionAllowed(batch.stage, values.newStage)) {
       form.setError('newStage', { message: 'Transition not allowed in this jurisdiction' })
       return
     }
@@ -118,7 +120,7 @@ export function StageTransitionDialog({
       setLoading(true)
       const { error } = await transitionBatchStage(batch.id, values.newStage as BatchStage, userId, values.notes || undefined)
       if (error) throw error
-      toast.success('Stage updated')
+      toast.success(isDevModeActive() ? 'Stage updated (dev mode - compliance bypassed)' : 'Stage updated')
       onTransition()
       onClose()
     } catch (error) {

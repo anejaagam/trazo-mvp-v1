@@ -139,6 +139,75 @@ export default async function BatchPage(props: BatchPageProps) {
 
   const batchDetail = batchData as BatchDetail
 
+  // Fetch inventory movements for this batch
+  const { data: inventoryMovements } = await supabase
+    .from('inventory_movements')
+    .select(`
+      id,
+      movement_type,
+      quantity,
+      lot_id,
+      timestamp,
+      item:inventory_items!inner(
+        id,
+        name,
+        item_type,
+        unit_of_measure
+      )
+    `)
+    .eq('batch_id', batchId)
+    .order('timestamp', { ascending: false })
+
+  if (inventoryMovements && inventoryMovements.length > 0) {
+    // Process inventory movements into usage summary
+    const entriesMap = new Map()
+    const consumedSummary = {}
+    const receivedSummary = {}
+
+    inventoryMovements.forEach((row: any) => {
+      if (!row.item?.id) return
+      const key = `${row.item.id}-${row.movement_type}`
+      const existing = entriesMap.get(key)
+      const quantity = Number(row.quantity) || 0
+
+      if (existing) {
+        existing.total_quantity += quantity
+        existing.last_movement_at =
+          new Date(row.timestamp) > new Date(existing.last_movement_at)
+            ? row.timestamp
+            : existing.last_movement_at
+        if (row.lot_id) {
+          existing.lot_count = existing.lot_count + 1
+        }
+      } else {
+        entriesMap.set(key, {
+          item_id: row.item.id,
+          item_name: row.item.name,
+          item_type: row.item.item_type,
+          movement_type: row.movement_type,
+          total_quantity: quantity,
+          unit_of_measure: row.item.unit_of_measure || null,
+          last_movement_at: row.timestamp,
+          lot_count: row.lot_id ? 1 : 0,
+        })
+      }
+
+      const targetSummary =
+        row.movement_type === 'receive' ? receivedSummary : consumedSummary
+      targetSummary[row.item.item_type] = (targetSummary[row.item.item_type] || 0) + quantity
+    })
+
+    batchDetail.inventory_usage = {
+      entries: Array.from(entriesMap.values()),
+      total_items_consumed: Object.keys(consumedSummary).length,
+      total_items_received: Object.keys(receivedSummary).length,
+      summary: {
+        consumed_by_type: consumedSummary,
+        received_by_type: receivedSummary,
+      },
+    }
+  }
+
   // Fetch telemetry for assigned pods using the same logic as monitoring page
   const activeAssignments = batchDetail.pod_assignments?.filter((assignment) => !assignment.removed_at) || []
   const podIds = activeAssignments.map((assignment) => assignment.pod_id).filter(Boolean)

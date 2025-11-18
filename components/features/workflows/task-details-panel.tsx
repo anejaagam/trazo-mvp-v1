@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -30,7 +30,7 @@ interface TaskDetailsPanelProps {
   canEditHierarchy?: boolean;
 }
 
-const sectionClasses = 'space-y-3 rounded border bg-white/60 p-4';
+const sectionClasses = 'space-y-4 rounded-lg border border-slate-200 bg-slate-50/50 p-5';
 
 function renderDependencyList(
   label: string,
@@ -41,23 +41,28 @@ function renderDependencyList(
   return (
     <div className={sectionClasses}>
       <div className="flex items-center justify-between">
-        <p className="font-medium">{label}</p>
-        <Badge variant="secondary">{items.length}</Badge>
+        <h3 className="text-sm font-semibold text-slate-900">{label}</h3>
+        <Badge variant="secondary" className="text-xs">
+          {items.length}
+        </Badge>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-slate-500">{emptyText}</p>
+        <p className="text-sm text-muted-foreground italic">{emptyText}</p>
       ) : (
-        <ul className="space-y-2 text-sm">
+        <ul className="space-y-2">
           {items.map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-2 rounded border px-2 py-1">
-              <div>
-                <p className="font-medium">{item.title}</p>
-                <p className="text-xs text-slate-500">{item.status.replace('_', ' ')}</p>
+            <li
+              key={item.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-slate-900 truncate">{item.title}</p>
+                <p className="text-xs text-muted-foreground capitalize">{item.status.replace('_', ' ')}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {onNavigateTask && (
-                  <Button variant="link" size="sm" onClick={() => onNavigateTask(item.id)}>
-                    Inspect
+                  <Button variant="ghost" size="sm" onClick={() => onNavigateTask(item.id)}>
+                    View
                   </Button>
                 )}
                 <Button variant="outline" size="sm" asChild>
@@ -85,46 +90,62 @@ export function TaskDetailsPanel({
 }: TaskDetailsPanelProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-xl lg:max-w-2xl xl:max-w-3xl p-8" side="right">
         {!task ? (
-          <div className="p-4 text-sm text-slate-500">Select a task to view its hierarchy and dependencies.</div>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-muted-foreground">Select a task to view its details</p>
+          </div>
         ) : (
-          <div className="space-y-6 py-4">
-            <SheetHeader>
-              <SheetTitle>{task.title}</SheetTitle>
-              <SheetDescription>
-                {task.template_name ? `Derived from ${task.template_name}` : 'Ad-hoc task'}
+          <div className="space-y-6">
+            <SheetHeader className="space-y-3">
+              <SheetTitle className="text-2xl">{task.title}</SheetTitle>
+              <SheetDescription className="text-base">
+                {task.template_name ? `📋 ${task.template_name}` : '📝 Ad-hoc task'}
               </SheetDescription>
             </SheetHeader>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded border bg-slate-50 p-3">
-                <p className="text-xs uppercase text-slate-500">Status</p>
-                <Badge>{task.status.replace('_', ' ')}</Badge>
+              <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Status</p>
+                <Badge className="capitalize">{task.status.replace('_', ' ')}</Badge>
               </div>
-              <div className="rounded border bg-slate-50 p-3">
-                <p className="text-xs uppercase text-slate-500">Priority</p>
-                <Badge variant="outline">{task.priority}</Badge>
+              <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Priority</p>
+                <Badge variant="outline" className="capitalize">{task.priority}</Badge>
               </div>
               {task.due_date && (
-                <div className="rounded border bg-slate-50 p-3">
-                  <p className="text-xs uppercase text-slate-500">Due</p>
-                  <p className="font-medium">{format(new Date(task.due_date), 'MMM d, yyyy')}</p>
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Due</p>
+                  <p className="font-semibold text-slate-900">{format(new Date(task.due_date), 'MMM d, yyyy')}</p>
                 </div>
               )}
-              {task.assigned_to && (
-                <div className="rounded border bg-slate-50 p-3">
-                  <p className="text-xs uppercase text-slate-500">Assigned User</p>
-                  <p className="font-medium">{task.assigned_to}</p>
+              {((task as any).assignee || task.assigned_to) && (
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Assigned To</p>
+                  <p className="font-semibold text-slate-900">
+                    {(task as any).assignee?.full_name || (task as any).assignee?.email || (task as any).assignee?.id || task.assigned_to}
+                  </p>
+                </div>
+              )}
+              {(task as any).created_by_user && (
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Created By</p>
+                  <p className="font-semibold text-slate-900">{(task as any).created_by_user.full_name || (task as any).created_by_user.email}</p>
+                </div>
+              )}
+              {task.created_at && (
+                <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-4 shadow-sm">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">Created</p>
+                  <p className="font-semibold text-slate-900">{format(new Date(task.created_at), 'MMM d, yyyy h:mm a')}</p>
                 </div>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button variant="default" size="sm" onClick={() => onExecuteTask?.(task.id)}>
+            <div className="flex flex-wrap gap-3">
+              <Button className="flex-1 sm:flex-initial" onClick={() => onExecuteTask?.(task.id)}>
                 Execute
               </Button>
-              <Button variant="outline" size="sm" asChild>
+              <Button variant="outline" asChild>
                 <Link href={`/dashboard/workflows/tasks/${task.id}`}>Open task page</Link>
               </Button>
             </div>

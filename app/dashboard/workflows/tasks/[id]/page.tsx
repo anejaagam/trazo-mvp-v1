@@ -51,11 +51,6 @@ export default async function TaskExecutionPage(props: {
     }
   }
 
-  // If no template, redirect back
-  if (!template) {
-    redirect('/dashboard/workflows');
-  }
-
   // Check if user is assigned to this task (or has permission to execute any task)
   const canExecute = 
     task.assigned_to === user.id || 

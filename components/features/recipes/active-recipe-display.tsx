@@ -13,6 +13,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 import type { ActiveRecipeDetails } from '@/types/recipe'
 
 interface ActiveRecipeDisplayProps {
@@ -24,8 +25,7 @@ export function ActiveRecipeDisplay({ activeRecipe }: ActiveRecipeDisplayProps) 
   const { activation, current_setpoints } = activeRecipe
 
   const formatDate = (dateString: string): string => {
-    const date = new Date(dateString)
-    return date.toISOString().replace('T', ' ').substring(0, 16)
+    return format(new Date(dateString), 'yyyy-MM-dd h:mm a')
   }
 
   const handleViewRecipe = () => {

@@ -35,11 +35,58 @@ export function FleetGridView({ snapshots, onPodClick }: FleetGridViewProps) {
       if (snapshots.length === 0) return
       
       const podIds = snapshots.map(s => s.pod.id)
-      const { data } = await getActiveRecipesForScopes('pod', podIds)
+      console.log('Fleet Grid: Fetching recipes for pods:', podIds)
       
-      if (data) {
-        setActiveRecipes(data)
+      // Fetch pod-level recipes
+      const { data: podRecipes } = await getActiveRecipesForScopes('pod', podIds)
+      console.log('Fleet Grid: Pod recipes:', podRecipes)
+      
+      // Fetch batch assignments to find which pods belong to batches
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      
+      const { data: assignments, error: assignError } = await supabase
+        .from('batch_pod_assignments')
+        .select('pod_id, batch_id')
+        .in('pod_id', podIds)
+        .is('removed_at', null)
+      
+      console.log('Fleet Grid: Batch assignments:', assignments, 'Error:', assignError)
+      
+      // Get unique batch IDs
+      const batchIds = assignments ? [...new Set(assignments.map(a => a.batch_id))] : []
+      console.log('Fleet Grid: Batch IDs:', batchIds)
+      
+      const { data: batchRecipes } = batchIds.length > 0 
+        ? await getActiveRecipesForScopes('batch', batchIds)
+        : { data: null }
+      
+      console.log('Fleet Grid: Batch recipes:', batchRecipes)
+      
+      // Merge pod and batch recipes
+      const mergedRecipes: Record<string, RecipeInfo> = {}
+      
+      // First add batch recipes (map batch recipes to their assigned pods)
+      if (batchRecipes && assignments) {
+        assignments.forEach(assignment => {
+          if (batchRecipes[assignment.batch_id]) {
+            mergedRecipes[assignment.pod_id] = batchRecipes[assignment.batch_id]
+          }
+        })
       }
+      
+      // Then override with pod-specific recipes if they exist (pod recipes take precedence)
+      // Only override if the pod recipe is not null
+      if (podRecipes) {
+        Object.entries(podRecipes).forEach(([podId, recipe]) => {
+          if (recipe !== null) {
+            mergedRecipes[podId] = recipe
+          }
+        })
+      }
+      
+      console.log('Fleet Grid: Final merged recipes:', mergedRecipes)
+      setActiveRecipes(mergedRecipes)
     }
     
     fetchRecipes()

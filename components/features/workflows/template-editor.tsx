@@ -226,7 +226,8 @@ export function TemplateEditor({
       router.push('/dashboard/workflows/templates');
     } catch (error) {
       console.error('Error saving template:', error);
-      alert('Failed to save template. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save template. Please try again.';
+      alert(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -570,7 +571,7 @@ function StepEditor({
               />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 min-h-[40px]">
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={step.evidenceRequired}
@@ -620,13 +621,18 @@ function StepEditor({
                   <div className="space-y-1">
                     <Label className="text-xs">Primary Approval Role</Label>
                     <Select
-                      value={step.approvalPrimaryRole || ''}
-                      onValueChange={(v) => onUpdate({ approvalPrimaryRole: v })}
+                      value={step.approvalPrimaryRole || 'select-role'}
+                      onValueChange={(v) => {
+                        if (v !== 'select-role') {
+                          onUpdate({ approvalPrimaryRole: v });
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="select-role" disabled>Select a role...</SelectItem>
                         {Object.values(ROLES).map(r => (
                           <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                         ))}
@@ -636,14 +642,14 @@ function StepEditor({
                   <div className="space-y-1">
                     <Label className="text-xs">Secondary Approval Role (optional)</Label>
                     <Select
-                      value={step.approvalSecondaryRole || ''}
-                      onValueChange={(v) => onUpdate({ approvalSecondaryRole: v })}
+                      value={step.approvalSecondaryRole || 'none'}
+                      onValueChange={(v) => onUpdate({ approvalSecondaryRole: v === 'none' ? undefined : v })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {Object.values(ROLES).map(r => (
                           <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                         ))}

@@ -1,7 +1,7 @@
 /**
- * Record Waste Disposal Page
+ * Edit Waste Disposal Page
  *
- * Multi-step form for recording waste disposal with compliance documentation
+ * Edit existing waste disposal record (only editable within 24 hours)
  * Implements Phase 8 of the Waste Management system
  */
 
@@ -14,11 +14,17 @@ import { getBatches } from '@/lib/supabase/queries/batches'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { WasteRecordingForm } from '@/components/features/waste/waste-recording-form'
+import { isEditable } from '@/types/waste'
 
-export default async function RecordWastePage() {
+export default async function EditWastePage({
+  params,
+}: {
+  params: { id: string }
+}) {
   let userRole: string
   let siteId: string
   let organizationId: string
@@ -26,7 +32,7 @@ export default async function RecordWastePage() {
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
-    logDevMode('Record Waste Page')
+    logDevMode('Edit Waste Page')
     userRole = DEV_MOCK_USER.role
     siteId = DEV_MOCK_USER.site_assignments[0].site_id
     organizationId = DEV_MOCK_USER.organization_id
@@ -51,8 +57,8 @@ export default async function RecordWastePage() {
       redirect('/auth/login')
     }
 
-    // Check permission to create waste records
-    if (!canPerformAction(userData.role, 'waste:create')) {
+    // Check permission to update waste records
+    if (!canPerformAction(userData.role, 'waste:update')) {
       redirect('/dashboard/waste')
     }
 
@@ -77,6 +83,51 @@ export default async function RecordWastePage() {
     }
   }
 
+  // Fetch the waste log to edit
+  const supabase = await createClient()
+  const { data: wasteLog, error: wasteError } = await supabase
+    .from('waste_logs')
+    .select(`
+      *,
+      batch:batches(id, batch_number),
+      inventory_item:inventory_items(id, name),
+      performer:users!waste_logs_performed_by_fkey(id, full_name),
+      witness:users!waste_logs_witnessed_by_fkey(id, full_name)
+    `)
+    .eq('id', params.id)
+    .single()
+
+  if (wasteError || !wasteLog) {
+    redirect('/dashboard/waste')
+  }
+
+  // Check if waste log is editable (within 24 hours)
+  if (!isEditable(wasteLog, userId)) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href={`/dashboard/waste/${params.id}`}>
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Details
+            </Button>
+          </Link>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            This waste log can no longer be edited. Records can only be edited within 24 hours of creation.
+          </AlertDescription>
+        </Alert>
+
+        <Link href={`/dashboard/waste/${params.id}`}>
+          <Button>View Details</Button>
+        </Link>
+      </div>
+    )
+  }
+
   // Fetch available batches (active batches only)
   const { data: batches } = await getBatches(organizationId, siteId, {
     status: ['active', 'in_progress'],
@@ -86,7 +137,6 @@ export default async function RecordWastePage() {
   const { data: inventoryItems } = await getInventoryItems(siteId)
 
   // Fetch available users for witness selection
-  const supabase = await createClient()
   const { data: users } = await supabase
     .from('users')
     .select('id, email, full_name, role')
@@ -115,28 +165,36 @@ export default async function RecordWastePage() {
     <div className="space-y-6">
       {/* Header with Back Button */}
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/waste">
+        <Link href={`/dashboard/waste/${params.id}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Waste Management
+            Back to Details
           </Button>
         </Link>
       </div>
 
       {/* Page Title */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Record Waste Disposal</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Edit Waste Disposal</h1>
         <p className="text-muted-foreground">
-          Document waste disposal with compliance requirements
+          Update waste disposal record
         </p>
       </div>
+
+      {/* Alert about edit window */}
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Waste logs can only be edited within 24 hours of creation for compliance purposes.
+        </AlertDescription>
+      </Alert>
 
       {/* Recording Form Card */}
       <Card>
         <CardHeader>
           <CardTitle>Disposal Information</CardTitle>
           <CardDescription>
-            Complete all required steps to ensure compliance with regulatory requirements
+            Update the waste disposal information
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -148,6 +206,8 @@ export default async function RecordWastePage() {
             availableBatches={availableBatches}
             availableInventoryItems={availableInventoryItems}
             availableUsers={availableUsers}
+            existingWasteLog={wasteLog}
+            isEditing={true}
           />
         </CardContent>
       </Card>

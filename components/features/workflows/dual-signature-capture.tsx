@@ -3,12 +3,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @next/next/no-img-element */
 import { useState, useRef } from 'react';
 import Image from 'next/image';
+import SignatureCanvas from 'react-signature-canvas';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DualSignature, type TaskEvidence } from '@/types/workflow';
 import { PenTool, X, Check, Shield, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
 type DualSignatureValue = NonNullable<TaskEvidence['dualSignatures']>;
 
@@ -39,74 +41,34 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
   const [signature2, setSignature2] = useState<string | null>(null);
   const [currentSigner, setCurrentSigner] = useState<1 | 2 | null>(null);
   
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const signature1Ref = useRef<SignatureCanvas>(null);
+  const signature2Ref = useRef<SignatureCanvas>(null);
 
-  const startDrawing = (signerNumber: 1 | 2) => {
-    setCurrentSigner(signerNumber);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = signerNumber === 1 ? '#3b82f6' : '#10b981';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-
-    let isDrawing = false;
-
-    const start = (e: MouseEvent | TouchEvent) => {
-      isDrawing = true;
-      const rect = canvas.getBoundingClientRect();
-      const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-      const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    };
-
-    const draw = (e: MouseEvent | TouchEvent) => {
-      if (!isDrawing) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-      const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    };
-
-    const stop = () => {
-      isDrawing = false;
-    };
-
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stop);
-    canvas.addEventListener('touchstart', start);
-    canvas.addEventListener('touchmove', draw);
-    canvas.addEventListener('touchend', stop);
-  };
-
-  const saveSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const dataUrl = canvas.toDataURL();
+  const saveSignature = (signerNumber: 1 | 2) => {
+    const ref = signerNumber === 1 ? signature1Ref : signature2Ref;
     
-    if (currentSigner === 1) {
+    if (ref.current?.isEmpty()) {
+      toast.error('Please provide a signature');
+      return;
+    }
+
+    const dataUrl = ref.current?.toDataURL();
+    if (!dataUrl) return;
+    
+    if (signerNumber === 1) {
       setSignature1(dataUrl);
       setCurrentSigner(null);
-    } else if (currentSigner === 2) {
+      toast.success(`${getRoleLabel(config.role1)} signature captured`);
+    } else {
       setSignature2(dataUrl);
       setCurrentSigner(null);
+      toast.success(`${getRoleLabel(config.role2)} signature captured`);
     }
   };
 
-  const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const clearSignature = (signerNumber: 1 | 2) => {
+    const ref = signerNumber === 1 ? signature1Ref : signature2Ref;
+    ref.current?.clear();
   };
 
   const submitBothSignatures = () => {
@@ -208,21 +170,24 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
             {signature1 ? (
               <div className="space-y-3">
                 <div className="border-2 border-green-500 rounded-lg p-2 bg-white">
-                  <SignaturePreview src={signature1} alt="Signature 1" />
+                  <img src={signature1} alt="Signature 1" className="w-full h-auto max-h-40" />
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => setSignature1(null)}
+                  onClick={() => {
+                    setSignature1(null);
+                    signature1Ref.current?.clear();
+                  }}
                   className="w-full"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  Clear Signature
+                  Clear & Re-sign
                 </Button>
               </div>
             ) : (
               <Button
-                onClick={() => startDrawing(1)}
-                disabled={currentSigner !== null}
+                onClick={() => setCurrentSigner(1)}
+                disabled={currentSigner !== null && currentSigner !== 1}
                 className="w-full"
                 variant={currentSigner === 1 ? 'default' : 'outline'}
               >
@@ -251,21 +216,24 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
             {signature2 ? (
               <div className="space-y-3">
                 <div className="border-2 border-green-500 rounded-lg p-2 bg-white">
-                  <SignaturePreview src={signature2} alt="Signature 2" />
+                  <img src={signature2} alt="Signature 2" className="w-full h-auto max-h-40" />
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => setSignature2(null)}
+                  onClick={() => {
+                    setSignature2(null);
+                    signature2Ref.current?.clear();
+                  }}
                   className="w-full"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  Clear Signature
+                  Clear & Re-sign
                 </Button>
               </div>
             ) : (
               <Button
-                onClick={() => startDrawing(2)}
-                disabled={currentSigner !== null}
+                onClick={() => setCurrentSigner(2)}
+                disabled={currentSigner !== null && currentSigner !== 2}
                 className="w-full"
                 variant={currentSigner === 2 ? 'default' : 'outline'}
               >
@@ -279,7 +247,7 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
 
       {/* Signature Canvas */}
       {currentSigner && (
-        <Card className="border-2 border-blue-500">
+        <Card className="border-2 border-blue-500 bg-blue-50/30">
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-base">
               <span>
@@ -291,24 +259,40 @@ export function DualSignatureCapture({ config, onCapture, existingValue }: DualS
                 Signature {currentSigner}
               </Badge>
             </CardTitle>
+            <CardDescription>
+              Please sign in the box below to verify your authorization
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="border-2 border-slate-300 rounded-lg overflow-hidden bg-white">
-              <canvas
-                ref={canvasRef}
-                width={600}
-                height={200}
-                className="w-full cursor-crosshair"
+            <div className="border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <SignatureCanvas
+                ref={currentSigner === 1 ? signature1Ref : signature2Ref}
+                canvasProps={{
+                  className: 'w-full h-40 cursor-crosshair',
+                }}
+                backgroundColor="rgb(249, 250, 251)"
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={clearSignature}>
+              <Button 
+                variant="outline" 
+                onClick={() => clearSignature(currentSigner)}
+              >
                 <X className="w-4 h-4 mr-2" />
                 Clear
               </Button>
-              <Button onClick={saveSignature} className="flex-1">
+              <Button 
+                onClick={() => saveSignature(currentSigner)} 
+                className="flex-1"
+              >
                 <Check className="w-4 h-4 mr-2" />
                 Save Signature {currentSigner}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setCurrentSigner(null)}
+              >
+                Cancel
               </Button>
             </div>
           </CardContent>

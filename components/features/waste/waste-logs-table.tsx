@@ -64,6 +64,7 @@ import { format } from 'date-fns'
 import type { WasteLogWithRelations, WasteLogFilters, WasteType, SourceType, DisposalMethod } from '@/types/waste'
 import type { RoleKey } from '@/lib/rbac/types'
 import { isEditable, isDeletable } from '@/types/waste'
+import { WasteDetailDialog } from './waste-detail-dialog'
 
 interface WasteLogsTableProps {
   siteId: string
@@ -122,6 +123,10 @@ export function WasteLogsTable({
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
 
+  // Detail dialog
+  const [selectedWasteLog, setSelectedWasteLog] = useState<WasteLogWithRelations | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+
   // Build filters object
   useEffect(() => {
     const newFilters: WasteLogFilters = {}
@@ -143,6 +148,12 @@ export function WasteLogsTable({
 
   // Fetch waste logs with real-time updates
   const { data: wasteLogs, isLoading, error } = useWasteLogs(siteId, filters)
+
+  // Handle row click to navigate to detail page
+  const handleRowClick = (log: WasteLogWithRelations) => {
+    // Navigate to detail page
+    window.location.href = `/dashboard/waste/${log.id}`
+  }
 
   // Check permissions
   if (!can('waste:view')) {
@@ -473,13 +484,14 @@ export function WasteLogsTable({
                 <TableBody>
                   {paginatedLogs.map((log) => {
                     const canEditLog = can('waste:update') && isEditable(log, userId)
+                    const isCannabis = log.waste_type === 'plant_material' || log.waste_type === 'trim'
                     // Delete not implemented yet
 
                     return (
                       <TableRow
                         key={log.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => onRowClick?.(log)}
+                        onClick={() => handleRowClick(log)}
                       >
                         <TableCell>
                           <div>
@@ -529,7 +541,7 @@ export function WasteLogsTable({
                           {log.witnessed_by ? (
                             <div className="flex items-center gap-1 text-sm">
                               <Users className="h-3 w-3" />
-                              {log.witness?.name || 'Yes'}
+                              {log.witness?.full_name || 'Yes'}
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">None</span>
@@ -558,7 +570,7 @@ export function WasteLogsTable({
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuItem onClick={(e) => {
                                 e.stopPropagation()
-                                onRowClick?.(log)
+                                window.location.href = `/dashboard/waste/${log.id}`
                               }}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
@@ -570,6 +582,15 @@ export function WasteLogsTable({
                                 }}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit
+                                </DropdownMenuItem>
+                              )}
+                              {isCannabis && !log.rendered_unusable && can('waste:update') && (
+                                <DropdownMenuItem onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRowClick(log)
+                                }} className="text-amber-700">
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Mark as Rendered
                                 </DropdownMenuItem>
                               )}
                               {can('waste:export') && (
@@ -622,6 +643,23 @@ export function WasteLogsTable({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Waste Detail Dialog */}
+      {selectedWasteLog && (
+        <WasteDetailDialog
+          wasteLogId={selectedWasteLog.id}
+          open={detailDialogOpen}
+          onOpenChange={setDetailDialogOpen}
+          userId={userId}
+          userRole={userRole}
+          onEdit={(wasteLogId) => {
+            const log = wasteLogs?.find(l => l.id === wasteLogId)
+            if (log && onEdit) {
+              onEdit(log)
+            }
+          }}
+        />
       )}
     </div>
   )

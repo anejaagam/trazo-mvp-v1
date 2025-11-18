@@ -39,7 +39,7 @@ export async function getWasteLogs(
         witness:users!waste_logs_witnessed_by_fkey(id, full_name, email),
         batch:batches(id, batch_number, cultivar:cultivars(name)),
         inventory_item:inventory_items(id, name, sku),
-        inventory_lot:inventory_lots(id, lot_number)
+        inventory_lot:inventory_lots(id, lot_code)
       `)
       .eq('site_id', siteId)
       .order('disposed_at', { ascending: false })
@@ -123,7 +123,7 @@ export async function getWasteLogById(
         witness:users!waste_logs_witnessed_by_fkey(id, full_name, email),
         batch:batches(id, batch_number, cultivar:cultivars(name)),
         inventory_item:inventory_items(id, name, sku),
-        inventory_lot:inventory_lots(id, lot_number)
+        inventory_lot:inventory_lots(id, lot_code)
       `)
       .eq('id', id)
       .single()

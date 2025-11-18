@@ -1,9 +1,9 @@
 'use client'
 
 /**
- * Waste Detail Dialog Component
+ * Waste Details Page Component
  *
- * Full waste log details view with:
+ * Full page view of waste disposal details with:
  * - Photo gallery with lightbox
  * - Witness signature display
  * - Metrc sync status
@@ -11,19 +11,13 @@
  * - Edit button (if within 24h and user has permission)
  * - Export to PDF button
  * - Mark as Rendered action for cannabis waste
+ * - Back to waste logs button
  */
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useWasteLog, markAsRendered } from '@/lib/supabase/queries/waste-client'
 import { usePermissions } from '@/hooks/use-permissions'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,9 +41,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
 import {
   AlertCircle,
+  ArrowLeft,
   Camera,
   CheckCircle,
   Clock,
@@ -57,7 +51,6 @@ import {
   Edit,
   FileText,
   Loader2,
-  MapPin,
   Package,
   Scale,
   Trash2,
@@ -71,56 +64,32 @@ import { toast } from 'sonner'
 import type { RoleKey } from '@/lib/rbac/types'
 import { isEditable } from '@/types/waste'
 
-interface WasteDetailDialogProps {
-  wasteLogId: string | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
+interface WasteDetailsPageProps {
+  wasteLogId: string
   userId: string
   userRole: string
+  siteId: string
   onEdit?: (wasteLogId: string) => void
   onExport?: (wasteLogId: string) => void
 }
 
-export function WasteDetailDialog({
+export function WasteDetailsPage({
   wasteLogId,
-  open,
-  onOpenChange,
   userId,
   userRole,
+  siteId,
   onEdit,
   onExport,
-}: WasteDetailDialogProps) {
+}: WasteDetailsPageProps) {
+  const router = useRouter()
   const { can } = usePermissions(userRole as RoleKey)
-  const { data: wasteLog, isLoading, error } = useWasteLog(wasteLogId || '')
+  const { data: wasteLog, isLoading, error } = useWasteLog(wasteLogId)
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null)
   const [showRenderingDialog, setShowRenderingDialog] = useState(false)
   const [isSubmittingRendering, setIsSubmittingRendering] = useState(false)
   const [renderingMethod, setRenderingMethod] = useState('grinding')
   const [wasteMaterialMixed, setWasteMaterialMixed] = useState('')
   const [mixRatio, setMixRatio] = useState('50:50')
-
-  // Debug logging for rendering dialog state
-  useEffect(() => {
-    console.log('showRenderingDialog changed:', showRenderingDialog)
-  }, [showRenderingDialog])
-
-  // Debug logging for button visibility
-  useEffect(() => {
-    if (wasteLog && open) {
-      const isCannabis = wasteLog.waste_type === 'plant_material' || wasteLog.waste_type === 'trim'
-      const canUpdate = can('waste:update')
-      console.log('=== Mark as Rendered Button Visibility Check ===')
-      console.log('Dialog open:', open)
-      console.log('Waste type:', wasteLog.waste_type)
-      console.log('Is cannabis:', isCannabis)
-      console.log('Already rendered:', wasteLog.rendered_unusable)
-      console.log('Can update:', canUpdate)
-      console.log('Button should show:', isCannabis && !wasteLog.rendered_unusable && canUpdate)
-      console.log('==============================================')
-    }
-  }, [wasteLog, open, can])
-
-  if (!wasteLogId) return null
 
   // Check permissions
   const canEdit = wasteLog && can('waste:update') && isEditable(wasteLog, userId)
@@ -163,23 +132,18 @@ export function WasteDetailDialog({
   }
 
   const handleEdit = () => {
-    if (wasteLog && onEdit) {
-      onEdit(wasteLog.id)
+    if (wasteLog) {
+      if (onEdit) {
+        onEdit(wasteLog.id)
+      } else {
+        // Navigate to edit mode or open edit dialog
+        router.push(`/dashboard/waste/${wasteLog.id}/edit`)
+      }
     }
   }
 
   const handleMarkAsRendered = async () => {
-    if (!wasteLog) {
-      console.error('No wasteLog available')
-      return
-    }
-
-    console.log('Marking as rendered:', {
-      id: wasteLog.id,
-      method: renderingMethod,
-      material: wasteMaterialMixed,
-      ratio: mixRatio
-    })
+    if (!wasteLog) return
 
     setIsSubmittingRendering(true)
     try {
@@ -190,16 +154,13 @@ export function WasteDetailDialog({
         renderingMethod === 'fifty_fifty_mix' ? mixRatio : undefined
       )
 
-      console.log('Mark as rendered result:', result)
-
       if (result.error) {
-        console.error('Error marking as rendered:', result.error)
         toast.error('Failed to mark as rendered: ' + result.error.message)
       } else {
-        console.log('Successfully marked as rendered')
         toast.success('Waste marked as rendered unusable')
         setShowRenderingDialog(false)
-        // Refresh will happen via real-time subscription
+        // Force page reload to show updated data
+        router.refresh()
       }
     } catch (error) {
       console.error('Exception marking as rendered:', error)
@@ -661,221 +622,240 @@ export function WasteDetailDialog({
     )
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[98vw] max-w-[2000px] max-h-[95vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="space-y-1 pb-1 px-6 pt-3 flex-shrink-0">
-          <DialogTitle className="flex items-center gap-3 text-2xl">
-            <div className="rounded-lg bg-red-100 p-2.5">
-              <Trash2 className="h-6 w-6 text-red-700" />
-            </div>
-            Waste Disposal Details
-          </DialogTitle>
-          <DialogDescription className="text-base">
-            {wasteLog ? (
-              <span className="flex flex-wrap items-center gap-3 text-slate-600">
-                <span className="inline-flex items-center gap-1.5 font-medium capitalize">
-                  <Package className="h-4 w-4" />
-                  {wasteLog.waste_type.replace(/_/g, ' ')}
-                </span>
-                <span className="text-slate-400">•</span>
-                <span className="inline-flex items-center gap-1.5 font-semibold">
-                  <Scale className="h-4 w-4" />
-                  {wasteLog.quantity} {wasteLog.unit_of_measure}
-                </span>
-                <span className="text-slate-400">•</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-4 w-4" />
-                  {format(new Date(wasteLog.disposed_at), 'MMM dd, yyyy')}
-                </span>
-              </span>
-            ) : (
-              'Loading waste log details...'
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto px-6 min-h-0">
-          {isLoading && (
-            <div className="py-12 flex flex-col items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="mt-4 text-muted-foreground">Loading waste log...</p>
-            </div>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>Failed to load waste log: {error.message}</AlertDescription>
-            </Alert>
-          )}
-
-          {wasteLog && !isLoading && (
-            <Tabs defaultValue="details" className="flex flex-col h-full -mt-2">
-              {canEdit && (
-                <div className="flex justify-end mb-2">
-                  <Button variant="outline" onClick={handleEdit} className="border-slate-300 hover:bg-slate-50">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                </div>
-              )}
-              <div className="mb-1 flex-shrink-0">
-                <TabsList className="grid w-full grid-cols-4 h-11 bg-slate-100">
-                  <TabsTrigger value="details" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm">Details</TabsTrigger>
-                <TabsTrigger value="photos" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm">
-                  <Camera className="h-3.5 w-3.5 mr-1.5" />
-                  Photos ({wasteLog.photo_urls?.length || 0})
-                </TabsTrigger>
-                <TabsTrigger value="compliance" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm">
-                  <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                  Compliance
-                </TabsTrigger>
-                <TabsTrigger value="timeline" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm">
-                  <Clock className="h-3.5 w-3.5 mr-1.5" />
-                  Timeline
-                </TabsTrigger>
-              </TabsList>
-              </div>
-
-              <TabsContent value="details" className="mt-0 flex-1 overflow-y-auto pb-4">
-                {renderDetailsTab()}
-              </TabsContent>
-
-              <TabsContent value="photos" className="mt-3 flex-1 overflow-y-auto pb-4">
-                {renderPhotoGallery()}
-              </TabsContent>
-
-              <TabsContent value="compliance" className="mt-3 flex-1 overflow-y-auto pb-4">
-                {renderComplianceTab()}
-              </TabsContent>
-
-              <TabsContent value="timeline" className="mt-3 flex-1 overflow-y-auto pb-4">
-                {renderTimelineTab()}
-              </TabsContent>
-            </Tabs>
-          )}
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="mt-4 text-muted-foreground">Loading waste log...</p>
         </div>
+      </div>
+    )
+  }
 
-        <DialogFooter className="flex justify-between items-center sm:justify-between pt-3 pb-4 px-6 border-t flex-shrink-0">
-          <div className="flex gap-3">
-            {isCannabisWaste && !wasteLog?.rendered_unusable && can('waste:update') && (
+  if (error || !wasteLog) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Failed to load waste log: {error?.message || 'Not found'}</AlertDescription>
+        </Alert>
+        <div className="mt-4">
+          <Button variant="outline" onClick={() => router.push('/dashboard/waste')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Waste Logs
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto py-6 px-4 max-w-7xl">
+      {/* Header */}
+      <div className="mb-6 space-y-4">
+        <Button 
+          variant="ghost" 
+          onClick={() => router.push('/dashboard/waste')}
+          className="mb-2"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Waste Logs
+        </Button>
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-red-100 p-2.5">
+                <Trash2 className="h-6 w-6 text-red-700" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Waste Disposal Details</h1>
+                <p className="text-muted-foreground mt-1">
+                  {format(new Date(wasteLog.disposed_at), 'MMMM dd, yyyy')}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="inline-flex items-center gap-1.5 font-medium capitalize">
+                <Package className="h-4 w-4" />
+                {wasteLog.waste_type.replace(/_/g, ' ')}
+              </span>
+              <span className="text-muted-foreground">•</span>
+              <span className="inline-flex items-center gap-1.5 font-semibold">
+                <Scale className="h-4 w-4" />
+                {wasteLog.quantity} {wasteLog.unit_of_measure}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {isCannabisWaste && !wasteLog.rendered_unusable && can('waste:update') && (
               <Button 
-                variant="outline" 
-                onClick={() => {
-                  console.log('Mark as Rendered button clicked')
-                  console.log('isCannabisWaste:', isCannabisWaste)
-                  console.log('rendered_unusable:', wasteLog?.rendered_unusable)
-                  console.log('can waste:update:', can('waste:update'))
-                  setShowRenderingDialog(true)
-                  console.log('showRenderingDialog set to true')
-                }} 
+                onClick={() => setShowRenderingDialog(true)} 
                 className="border-amber-600 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium"
+                variant="outline"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Mark as Rendered
               </Button>
             )}
+            {canEdit && (
+              <Button variant="outline" onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
             {canExport && (
-              <Button variant="outline" onClick={handleExport} className="border-slate-300 hover:bg-slate-50">
+              <Button variant="outline" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
             )}
           </div>
-          <Button onClick={() => onOpenChange(false)} className="bg-slate-900 hover:bg-slate-800">Close</Button>
-        </DialogFooter>
+        </div>
+      </div>
 
-        {/* Rendering Method Dialog */}
-        <AlertDialog open={showRenderingDialog} onOpenChange={setShowRenderingDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Mark Waste as Rendered Unusable</AlertDialogTitle>
-              <AlertDialogDescription>
-                Select the method used to render this cannabis waste unusable
-              </AlertDialogDescription>
-            </AlertDialogHeader>
+      {/* Main Content */}
+      <Tabs defaultValue="details" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 h-11 bg-slate-100">
+          <TabsTrigger value="details" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            Details
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Camera className="h-4 w-4 mr-2" />
+            Photos ({wasteLog.photo_urls?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="compliance" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <CheckCircle className="h-4 w-4 mr-2" />
+            Compliance
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Clock className="h-4 w-4 mr-2" />
+            Timeline
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="space-y-4 py-4">
-              <div className="space-y-3">
-                <Label>Rendering Method</Label>
-                <RadioGroup value={renderingMethod} onValueChange={setRenderingMethod}>
-                  <div className="flex items-center space-x-2 border rounded-lg p-3">
-                    <RadioGroupItem value="grinding" id="grinding" />
-                    <Label htmlFor="grinding" className="cursor-pointer flex-1">
-                      <div className="font-medium">Grinding</div>
-                      <div className="text-sm text-muted-foreground">Grind to make unusable</div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-3">
-                    <RadioGroupItem value="fifty_fifty_mix" id="fifty_fifty_mix" />
-                    <Label htmlFor="fifty_fifty_mix" className="cursor-pointer flex-1">
-                      <div className="font-medium">50:50 Mix</div>
-                      <div className="text-sm text-muted-foreground">Mix with inert material (Required for OR/MD)</div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-3">
-                    <RadioGroupItem value="composting" id="composting" />
-                    <Label htmlFor="composting" className="cursor-pointer flex-1">
-                      <div className="font-medium">Composting</div>
-                      <div className="text-sm text-muted-foreground">Compost with organic matter</div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 border rounded-lg p-3">
-                    <RadioGroupItem value="chemical_treatment" id="chemical_treatment" />
-                    <Label htmlFor="chemical_treatment" className="cursor-pointer flex-1">
-                      <div className="font-medium">Chemical Treatment</div>
-                      <div className="text-sm text-muted-foreground">Render unusable with chemicals</div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
+        <TabsContent value="details" className="space-y-6">
+          {renderDetailsTab()}
+        </TabsContent>
 
-              {renderingMethod === 'fifty_fifty_mix' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="material">Inert Material Used</Label>
-                    <Input
-                      id="material"
-                      placeholder="e.g., sand, kitty litter, soil"
-                      value={wasteMaterialMixed}
-                      onChange={(e) => setWasteMaterialMixed(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ratio">Mix Ratio</Label>
-                    <Input
-                      id="ratio"
-                      placeholder="50:50"
-                      value={mixRatio}
-                      onChange={(e) => setMixRatio(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
+        <TabsContent value="photos" className="space-y-6">
+          {renderPhotoGallery()}
+        </TabsContent>
+
+        <TabsContent value="compliance" className="space-y-6">
+          {renderComplianceTab()}
+        </TabsContent>
+
+        <TabsContent value="timeline" className="space-y-6">
+          {renderTimelineTab()}
+        </TabsContent>
+      </Tabs>
+
+      {/* Rendering Method Dialog */}
+      <AlertDialog open={showRenderingDialog} onOpenChange={setShowRenderingDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Waste as Rendered Unusable</AlertDialogTitle>
+            <AlertDialogDescription>
+              Select the method used to render this cannabis waste unusable
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <Label>Rendering Method</Label>
+              <RadioGroup value={renderingMethod} onValueChange={setRenderingMethod}>
+                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                  <RadioGroupItem value="fifty_fifty_mix" id="fifty_fifty_mix" />
+                  <Label htmlFor="fifty_fifty_mix" className="cursor-pointer flex-1">
+                    <div className="font-medium">50:50 Mix</div>
+                    <div className="text-sm text-muted-foreground">Mix with inert material (Required for OR/MD)</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                  <RadioGroupItem value="grinding" id="grinding" />
+                  <Label htmlFor="grinding" className="cursor-pointer flex-1">
+                    <div className="font-medium">Grinding</div>
+                    <div className="text-sm text-muted-foreground">Grind to make unusable</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                  <RadioGroupItem value="composting" id="composting" />
+                  <Label htmlFor="composting" className="cursor-pointer flex-1">
+                    <div className="font-medium">Composting</div>
+                    <div className="text-sm text-muted-foreground">Compost with organic matter</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                  <RadioGroupItem value="incineration" id="incineration" />
+                  <Label htmlFor="incineration" className="cursor-pointer flex-1">
+                    <div className="font-medium">Incineration</div>
+                    <div className="text-sm text-muted-foreground">Burn waste (if state-approved)</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                  <RadioGroupItem value="chemical_treatment" id="chemical_treatment" />
+                  <Label htmlFor="chemical_treatment" className="cursor-pointer flex-1">
+                    <div className="font-medium">Chemical Treatment</div>
+                    <div className="text-sm text-muted-foreground">Render unusable with chemicals</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3">
+                  <RadioGroupItem value="other" id="other" />
+                  <Label htmlFor="other" className="cursor-pointer flex-1">
+                    <div className="font-medium">Other Method</div>
+                    <div className="text-sm text-muted-foreground">Other approved rendering method</div>
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
 
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isSubmittingRendering}>
-                Cancel
-              </AlertDialogCancel>
-              <Button onClick={handleMarkAsRendered} disabled={isSubmittingRendering}>
-                {isSubmittingRendering ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark as Rendered
-                  </>
-                )}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </DialogContent>
-    </Dialog>
+            {renderingMethod === 'fifty_fifty_mix' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="material">Inert Material Used</Label>
+                  <Input
+                    id="material"
+                    placeholder="e.g., sand, kitty litter, soil"
+                    value={wasteMaterialMixed}
+                    onChange={(e) => setWasteMaterialMixed(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ratio">Mix Ratio</Label>
+                  <Input
+                    id="ratio"
+                    placeholder="50:50"
+                    value={mixRatio}
+                    onChange={(e) => setMixRatio(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmittingRendering}>
+              Cancel
+            </AlertDialogCancel>
+            <Button onClick={handleMarkAsRendered} disabled={isSubmittingRendering}>
+              {isSubmittingRendering ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Mark as Rendered
+                </>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   )
 }

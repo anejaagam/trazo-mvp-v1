@@ -4,12 +4,13 @@
 
 import { render, screen } from '@testing-library/react';
 import { DashboardSidebar } from '../sidebar';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/use-permissions';
 
 // Mock dependencies
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
+  useRouter: jest.fn(),
 }));
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: jest.fn(),
@@ -17,6 +18,7 @@ jest.mock('@/hooks/use-permissions', () => ({
 
 describe('DashboardSidebar', () => {
   const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
+  const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
   const mockUsePermissions = usePermissions as jest.MockedFunction<typeof usePermissions>;
 
   const mockUser = {
@@ -32,6 +34,14 @@ describe('DashboardSidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUsePathname.mockReturnValue('/dashboard');
+    mockUseRouter.mockReturnValue({
+      push: jest.fn(),
+      replace: jest.fn(),
+      refresh: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      prefetch: jest.fn(),
+    } as any);
   });
 
   // Helper to create complete mock permissions
@@ -77,12 +87,12 @@ describe('DashboardSidebar', () => {
       expect(mainOverview).toHaveAttribute('href', '/dashboard');
     });
 
-    it('should show Batch Management nav item', () => {
+    it('should show Crop Management nav item', () => {
       mockUsePermissions.mockReturnValue(createMockPermissions());
 
       render(<DashboardSidebar user={mockUser} />);
 
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
     });
 
     it('should show Inventory nav item', () => {
@@ -148,7 +158,7 @@ describe('DashboardSidebar', () => {
       render(<DashboardSidebar user={{ ...mockUser, role: 'manager' }} />);
 
       expect(screen.getByText('Overview')).toBeInTheDocument();
-      expect(screen.getByText('Batch Management')).toBeInTheDocument();
+      expect(screen.getByText('Crop Management')).toBeInTheDocument();
     });
 
     it('should show limited items for viewer role', () => {
@@ -229,8 +239,9 @@ describe('DashboardSidebar', () => {
   });
 
   describe('Nested Navigation', () => {
-    it('should show nested items under Batch Management', () => {
+    it('should show nested items under Crop Management', () => {
       mockUsePermissions.mockReturnValue(createMockPermissions());
+      mockUsePathname.mockReturnValue('/dashboard/batches/active');
 
       render(<DashboardSidebar user={mockUser} />);
 
@@ -241,6 +252,7 @@ describe('DashboardSidebar', () => {
 
     it('should show nested items under Inventory', () => {
       mockUsePermissions.mockReturnValue(createMockPermissions());
+      mockUsePathname.mockReturnValue('/dashboard/inventory/items');
 
       render(<DashboardSidebar user={mockUser} />);
 

@@ -1,5 +1,5 @@
 /**
- * Batch Management Types
+ * Crop Management Types
  * Comprehensive type definitions for batch tracking with domain-specific support
  * Supports cannabis and produce operations with jurisdiction-based compliance
  */

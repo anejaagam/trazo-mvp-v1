@@ -21,7 +21,9 @@ import {
   Users,
   Shield,
   Beaker,
-  Bell
+  Bell,
+  BookCheck,
+  BookOpenCheck,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -146,7 +148,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       badge: (alarmCount + notificationCount) > 0 ? String(alarmCount + notificationCount) : undefined,
     },
     {
-      title: 'Batch Management',
+      title: 'Crop Management',
       href: '/dashboard/batches',
       icon: <Sprout className="h-4 w-4" />,
       permission: 'batch:view',
@@ -159,24 +161,25 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           badge: batchBadges.active ? String(batchBadges.active) : undefined,
         },
         {
-          title: 'Planning',
-          href: '/dashboard/batches/planning',
-          icon: <ClipboardList className="h-4 w-4" />, 
-          permission: 'batch:create'
+          title: 'Cultivars',
+          href: '/dashboard/cultivars',
+          icon: <Beaker className="h-4 w-4" />,
+          permission: 'cultivar:view',
         },
+        
         {
           title: 'Harvest Queue',
           href: '/dashboard/batches/harvest',
           icon: <Package className="h-4 w-4" />,
           permission: 'batch:stage_change',
           badge: batchBadges.harvest ? String(batchBadges.harvest) : undefined,
+        },{
+          title: 'Planning - Coming soon',
+          href: '/dashboard/batches/planning',
+          icon: <ClipboardList className="h-4 w-4" />, 
+          permission: 'batch:create'
         },
-        {
-          title: 'Cultivars',
-          href: '/dashboard/cultivars',
-          icon: <Beaker className="h-4 w-4" />,
-          permission: 'cultivar:view',
-        }
+        
       ]
     },
     {
@@ -213,25 +216,16 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       ]
     },
     {
-      title: 'Monitoring',
+      title: 'Monitoring & Controls',
       href: '/dashboard/monitoring',
       icon: <Thermometer className="h-4 w-4" />,
-      permission: 'monitoring:view',
       children: [
         {
-          title: 'Fleet Overview',
+          title: 'Monitoring Overview',
           href: '/dashboard/monitoring',
           icon: <BarChart3 className="h-4 w-4" />,
           permission: 'monitoring:view'
-        }
-      ]
-    },
-    {
-      title: 'Environmental Controls',
-      href: '/dashboard/environmental',
-      icon: <Settings className="h-4 w-4" />,
-      permission: 'control:view',
-      children: [
+        },
         {
           title: 'Recipes',
           href: '/dashboard/recipes',
@@ -283,13 +277,13 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     {
       title: 'Compliance',
       href: '/dashboard/compliance/sync',
-      icon: <Shield className="h-4 w-4" />,
+      icon: <BookCheck className="h-4 w-4" />,
       permission: 'compliance:view',
       children: [
         {
           title: 'Metrc Sync',
           href: '/dashboard/compliance/sync',
-          icon: <Shield className="h-4 w-4" />,
+          icon: <BookOpenCheck className="h-4 w-4" />,
           permission: 'compliance:sync'
         }
       ]
@@ -362,13 +356,39 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     })
   }
 
+  const hasPermissionForItem = (item: NavItem) => !item.permission || can(item.permission as PermissionKey)
+
+  const hasAccessibleDescendant = (children?: NavItem[]): boolean => {
+    if (!children) return false
+    for (const child of children) {
+      if (hasPermissionForItem(child)) return true
+      if (hasAccessibleDescendant(child.children)) return true
+    }
+    return false
+  }
+
+  const getFirstAccessibleChildHref = (children?: NavItem[]): string | undefined => {
+    if (!children) return undefined
+    for (const child of children) {
+      if (hasPermissionForItem(child)) {
+        return child.href
+      }
+      const nested = getFirstAccessibleChildHref(child.children)
+      if (nested) return nested
+    }
+    return undefined
+  }
+
   const renderNavItem = (item: NavItem, depth = 0) => {
-    const isActive = pathname === item.href || 
-      (item.children && item.children.some(child => pathname.startsWith(child.href)))
+    const childIsActive = item.children?.some(child => hasPermissionForItem(child) && pathname.startsWith(child.href))
+    const isActive = pathname === item.href || !!childIsActive
     const isExpanded = expanded[item.href] ?? false
     
-    // Check permissions
-    if (item.permission && !can(item.permission as PermissionKey)) {
+    if (!hasPermissionForItem(item)) {
+      return null
+    }
+
+    if (item.children && !hasAccessibleDescendant(item.children)) {
       return null
     }
 
@@ -407,8 +427,8 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
                   onlyThisExpanded[parent.href] = parent.href === item.href
                 }
                 setExpanded(onlyThisExpanded)
-                const firstChildHref = item.children?.[0]?.href
-                if (firstChildHref) router.push(firstChildHref)
+                const firstAccessibleChildHref = getFirstAccessibleChildHref(item.children)
+                if (firstAccessibleChildHref) router.push(firstAccessibleChildHref)
               }}
             >
               {item.icon}

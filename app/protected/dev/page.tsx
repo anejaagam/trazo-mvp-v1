@@ -104,7 +104,7 @@ export default function DevDashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="p-2 bg-muted/50 rounded-md">
-              <div className="font-medium">Batch Management</div>
+              <div className="font-medium">Crop Management</div>
               <div className="text-sm text-muted-foreground">Crop lifecycle tracking</div>
             </div>
             <div className="p-2 bg-muted/50 rounded-md">

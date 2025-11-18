@@ -194,7 +194,7 @@ export function BatchManagement({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Batch Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Crop Management</h1>
           <p className="text-muted-foreground">
             Track cultivation progress, pod assignments, and recipe coverage across the facility.
           </p>

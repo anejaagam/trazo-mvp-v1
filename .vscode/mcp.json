@@ -8,18 +8,6 @@
 			"url": "https://mcp.notion.com/mcp",
 			"type": "http"
 		},
-		"Metrc MCP": {
-			"url": "https://www.metrc.ai/mcp",
-			"type": "http"
-		},
-		"my-mcp-server-5a83b617": {
-			"url": "https://www.metrc.ai/mcp",
-			"type": "http"
-		},
-		"Metrc": {
-			"url": "https://localhost:3333",
-			"type": "http"
-		}
 	},
 	"inputs": []
 }

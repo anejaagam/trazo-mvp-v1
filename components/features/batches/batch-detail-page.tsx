@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -339,9 +340,11 @@ export function BatchDetailPage({
                 <CardTitle>Stage history</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {(detail.stage_history || []).map((entry) => (
-                  <HistoryRow key={entry.id} history={entry} />
-                ))}
+                {(detail.stage_history || [])
+                  .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+                  .map((entry) => (
+                    <HistoryRow key={entry.id} history={entry} />
+                  ))}
                 {(!detail.stage_history || detail.stage_history.length === 0) && (
                   <p className="text-sm text-muted-foreground">No stage transitions recorded yet.</p>
                 )}
@@ -487,8 +490,8 @@ function HistoryRow({ history }: { history: BatchStageHistory }) {
       <div>
         <p className="text-sm font-medium">{history.stage}</p>
         <p className="text-xs text-muted-foreground">
-          Started {history.started_at}
-          {history.ended_at && ` · Completed ${history.ended_at}`}
+          Started {format(new Date(history.started_at), 'MMM d, yyyy h:mm a')}
+          {history.ended_at && ` · Completed ${format(new Date(history.ended_at), 'MMM d, yyyy h:mm a')}`}
         </p>
       </div>
     </div>
@@ -499,7 +502,7 @@ function EventRow({ event }: { event: BatchEvent }) {
   return (
     <div className="rounded-md border p-3 text-sm">
       <p className="font-medium">{event.event_type}</p>
-      <p className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</p>
+      <p className="text-xs text-muted-foreground">{format(new Date(event.timestamp), 'MMM d, yyyy h:mm a')}</p>
       {event.notes && <p className="text-xs text-muted-foreground">{event.notes}</p>}
     </div>
   )

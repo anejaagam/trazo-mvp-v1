@@ -364,12 +364,10 @@ export async function transitionBatchStage(
     })
 
     if (error) throw error
-    return getBatchById(batchId)
-  } catch (error) {
-     logSupabaseError('Error transitioning batch stage:', error)
     
+    // Try to sync recipe stage to match batch stage
     try {
-      await fetch('/api/recipes/advance-stage', {
+      await fetch('/api/recipes/sync-to-batch-stage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,8 +375,12 @@ export async function transitionBatchStage(
         body: JSON.stringify({ batchId, userId }),
       })
     } catch (syncError) {
-      console.warn('Failed to advance recipe stage after transition', syncError)
+      console.warn('Failed to sync recipe stage after transition', syncError)
     }
+    
+    return getBatchById(batchId)
+  } catch (error) {
+     logSupabaseError('Error transitioning batch stage:', error)
     return { data: null, error }
   }
 }

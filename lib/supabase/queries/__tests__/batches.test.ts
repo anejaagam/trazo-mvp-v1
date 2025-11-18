@@ -214,7 +214,7 @@ describe('Batch Queries', () => {
       resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
-        },
+        } as any,
         from: jest.fn()
           .mockReturnValueOnce(mockQuery) // For insert
           .mockReturnValueOnce(mockEventQuery) // For event
@@ -239,7 +239,7 @@ describe('Batch Queries', () => {
       resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: null } }),
-        },
+        } as any,
       });
 
       const result = await createBatch({
@@ -295,7 +295,7 @@ describe('Batch Queries', () => {
       resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
-        },
+        } as any,
         from: jest.fn()
           .mockReturnValueOnce(mockQuery) // For update
           .mockReturnValueOnce(mockEventQuery), // For event

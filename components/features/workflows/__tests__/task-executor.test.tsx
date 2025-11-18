@@ -4,13 +4,13 @@ import '@testing-library/jest-dom';
 import { TaskExecutor } from '../task-executor';
 import { SOPTemplate, Task, type TaskEvidence } from '@/types/workflow';
 
-const mockCan = jest.fn(() => true);
+const mockCan = jest.fn<boolean, []>(() => true);
 const toastMock = jest.fn();
 // Mock permissions hook to allow override in tests
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
-    can: (permission: string) => mockCan(permission),
-    cannot: (permission: string) => !mockCan(permission),
+    can: jest.fn((permission: string) => mockCan()),
+    cannot: jest.fn((permission: string) => !mockCan()),
     hasAny: jest.fn(),
     hasAll: jest.fn(),
     requirePermission: jest.fn(),
@@ -29,8 +29,8 @@ jest.mock('../dual-signature-capture', () => ({
       data-testid="dual-signature-mock"
       onClick={() =>
         onCapture({
-          signature1: { role: 'site_manager', signature: 'sig1', timestamp: new Date() },
-          signature2: { role: 'compliance_qa', signature: 'sig2', timestamp: new Date() },
+          signature1: { userId: 'user1', userName: 'Manager', role: 'site_manager', signature: 'sig1', timestamp: new Date().toISOString() },
+          signature2: { userId: 'user2', userName: 'QA', role: 'compliance_qa', signature: 'sig2', timestamp: new Date().toISOString() },
         })
       }
     >
@@ -83,7 +83,7 @@ const baseTask: Task = {
 
 describe('TaskExecutor', () => {
   beforeEach(() => {
-    mockCan.mockImplementation((permission: string) => permission !== 'task:retain_original_evidence');
+    mockCan.mockImplementation(() => true);
     window.localStorage.clear();
     toastMock.mockClear();
   });
@@ -140,7 +140,7 @@ describe('TaskExecutor', () => {
   });
 
   it('hides retain original toggle without permission', () => {
-    mockCan.mockImplementation((permission: string) => permission !== 'task:retain_original_evidence' && permission !== '*');
+    mockCan.mockImplementation(() => false);
     const templateWithPhoto: SOPTemplate = {
       ...baseTemplate,
       steps: [

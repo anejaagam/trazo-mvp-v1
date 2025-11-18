@@ -30,7 +30,7 @@ describe('recipe-sync helpers', () => {
     from: jest.fn(),
     rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
     ...overrides,
-  }) as unknown as AnySupabaseClient
+  }) as any
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -62,7 +62,7 @@ describe('recipe-sync helpers', () => {
 
     const rpcMock = jest.fn().mockResolvedValue({ data: 'activation-id', error: null })
 
-    const supabase = createSupabaseMock({ from: fromMock, rpc: rpcMock })
+    const supabase = createSupabaseMock({ from: fromMock as any, rpc: rpcMock })
 
     await syncPodAndBatchRecipes({
       supabase,
@@ -109,7 +109,7 @@ describe('recipe-sync helpers', () => {
 
     const rpcMock = jest.fn().mockResolvedValue({ data: 'activation-id', error: null })
 
-    const supabase = createSupabaseMock({ from: fromMock, rpc: rpcMock })
+    const supabase = createSupabaseMock({ from: fromMock as any, rpc: rpcMock })
 
     await syncPodAndBatchRecipes({
       supabase,
@@ -139,7 +139,7 @@ describe('recipe-sync helpers', () => {
 
     const rpcMock = jest.fn().mockResolvedValue({ data: null, error: null })
 
-    const supabase = createSupabaseMock({ from: fromMock, rpc: rpcMock })
+    const supabase = createSupabaseMock({ from: fromMock as any, rpc: rpcMock })
 
     const result = await advanceRecipeStageForBatch({
       supabase,

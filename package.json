@@ -16,6 +16,8 @@
     "test:user-flow": "ts-node --project scripts/tsconfig.json scripts/test-user-flow.ts",
     "seed:dev": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts",
     "seed:clean": "ts-node --project scripts/tsconfig.json scripts/seed-dev-db.ts --clean",
+    "seed:alarm-policies": "ts-node --project scripts/tsconfig.json scripts/seed-alarm-policies.ts",
+    "test:alarm-evaluation": "ts-node --project scripts/tsconfig.json scripts/test-alarm-evaluation.ts",
     "poll": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-tagoio.ts --once",
     "poll:watch": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-tagoio.ts",
     "poll:historical": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-historical.ts",

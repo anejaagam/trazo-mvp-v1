@@ -1,20 +1,20 @@
 /**
  * @jest-environment node
  */
-
+// @ts-nocheck
 import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 import { linkTemplateToBatch, unlinkTemplateFromBatch, createTaskFromTemplate } from '../batch-tasks'
 
 // Mock Supabase client
-const mockFrom = jest.fn()
-const mockAuthGetUser = jest.fn()
+const mockFrom = jest.fn() as jest.MockedFunction<any>
+const mockAuthGetUser = jest.fn() as jest.MockedFunction<any>
 
 const mockSupabase = {
   from: mockFrom,
   auth: {
     getUser: mockAuthGetUser,
   },
-}
+} as any
 
 // Mock the server client creation
 jest.mock('@/lib/supabase/server', () => ({
@@ -43,7 +43,7 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       // Mock insert
       mockFrom.mockReturnValueOnce({
@@ -60,12 +60,12 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       // Mock batch_events insert
       mockFrom.mockReturnValueOnce({
         insert: jest.fn().mockResolvedValue({ data: {}, error: null }),
-      })
+      } as any)
 
       const result = await linkTemplateToBatch('batch-123', 'template-456', {
         userId: 'test-user-id',
@@ -90,7 +90,7 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       const result = await linkTemplateToBatch('batch-123', 'template-456', {
         userId: 'test-user-id',
@@ -116,19 +116,19 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       // Mock delete
       mockFrom.mockReturnValueOnce({
         delete: jest.fn().mockReturnValue({
           eq: jest.fn().mockResolvedValue({ error: null }),
         }),
-      })
+      } as any)
 
       // Mock batch_events insert
       mockFrom.mockReturnValueOnce({
         insert: jest.fn().mockResolvedValue({ data: {}, error: null }),
-      })
+      } as any)
 
       const result = await unlinkTemplateFromBatch('link-123', 'test-user-id')
 
@@ -170,7 +170,7 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       // Mock template lookup
       mockFrom.mockReturnValueOnce({
@@ -195,7 +195,7 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       // Mock task insert
       mockFrom.mockReturnValueOnce({
@@ -211,17 +211,17 @@ describe('Batch-Task Integration Query Helpers', () => {
             }),
           }),
         }),
-      })
+      } as any)
 
       // Mock task_steps insert
       mockFrom.mockReturnValueOnce({
         insert: jest.fn().mockResolvedValue({ error: null }),
-      })
+      } as any)
 
       // Mock batch_events insert
       mockFrom.mockReturnValueOnce({
         insert: jest.fn().mockResolvedValue({ data: {}, error: null }),
-      })
+      } as any)
 
       const result = await createTaskFromTemplate('batch-123', 'template-789', {
         userId: 'test-user-id',

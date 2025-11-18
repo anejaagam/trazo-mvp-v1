@@ -1,8 +1,8 @@
 'use client'
 
-import { 
-  Bell, 
-  Menu, 
+import {
+  Bell,
+  Menu,
   User,
   Package,
   ClipboardList,
@@ -10,7 +10,8 @@ import {
   FileCheck,
   BarChart3,
   Sprout,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +26,10 @@ import { Badge } from '@/components/ui/badge'
 import { LogoutButton } from '@/components/auth/logout-button'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { GlobalSearch } from '@/components/dashboard/global-search'
+import { useNotifications, useAlarms } from '@/hooks/use-alarms'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface DashboardHeaderProps {
   user: {
@@ -34,6 +38,7 @@ interface DashboardHeaderProps {
     email: string
     role: string
     organization?: {
+      id?: string
       name: string
       jurisdiction: string
     }
@@ -52,6 +57,47 @@ const navigationCategories = [
 ]
 
 export function DashboardHeader({ user, className }: DashboardHeaderProps) {
+  const [organizationId, setOrganizationId] = useState<string>('')
+
+  // Fetch organization ID
+  useEffect(() => {
+    const fetchOrgId = async () => {
+      if (user.organization?.id) {
+        setOrganizationId(user.organization.id)
+        return
+      }
+
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (data?.organization_id) {
+        setOrganizationId(data.organization_id)
+      }
+    }
+
+    fetchOrgId()
+  }, [user.id, user.organization?.id])
+
+  // Use hooks to get real-time counts
+  const { activeCount: alarmCount } = useAlarms({
+    realtime: true,
+    status: 'active',
+  })
+
+  const { unreadCount: notificationCount, notifications } = useNotifications({
+    userId: user.id,
+    organizationId,
+    limit: 3,
+    unreadOnly: true,
+    realtime: true,
+  })
+
+  const totalCount = alarmCount + notificationCount
+
   return (
     <header className={`${className} bg-green-900`}>
       <div className="relative flex items-center justify-between h-16 pl-6 pr-0">
@@ -60,7 +106,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
           <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
             <Menu className="h-5 w-5" />
           </Button>
-          
+
           <div className="hidden md:block">
             <GlobalSearch />
           </div>
@@ -91,38 +137,84 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
         {/* Right: Actions */}
         <div className="flex items-center gap-2 -mr-4">
           <ThemeSwitcher />
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="relative text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
               >
                 <Bell className="h-7 w-7" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 border-0 text-[10px]">
-                  3
-                </Badge>
+                {totalCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 border-0 text-[10px]">
+                    {totalCount > 9 ? '9+' : totalCount}
+                  </Badge>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Notifications</span>
+                {totalCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {totalCount}
+                  </Badge>
+                )}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <div className="font-medium">High Temperature Alert</div>
-                <div className="text-sm text-muted-foreground">Pod 12 exceeded 85°F</div>
-                <div className="text-xs text-muted-foreground">2 min ago</div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <div className="font-medium">Low Stock Alert</div>
-                <div className="text-sm text-muted-foreground">CO2 below threshold</div>
-                <div className="text-xs text-muted-foreground">1 hour ago</div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <div className="font-medium">Task Due Soon</div>
-                <div className="text-sm text-muted-foreground">Cleaning checklist due in 2h</div>
-                <div className="text-xs text-muted-foreground">3 hours ago</div>
-              </DropdownMenuItem>
+
+              {alarmCount > 0 && (
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/alarms" className="flex items-center gap-2 py-3 cursor-pointer">
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <div className="flex-1">
+                      <div className="font-medium text-red-600">{alarmCount} Active Alarm{alarmCount !== 1 ? 's' : ''}</div>
+                      <div className="text-xs text-muted-foreground">Requires immediate attention</div>
+                    </div>
+                    <ExternalLink className="h-3 w-3" />
+                  </Link>
+                </DropdownMenuItem>
+              )}
+
+              {notifications.slice(0, 3).map((notification) => (
+                <DropdownMenuItem key={notification.id} asChild>
+                  <Link
+                    href={notification.link_url || '/dashboard/alarms'}
+                    className="flex flex-col items-start gap-1 py-3 cursor-pointer"
+                  >
+                    <div className="font-medium">{notification.message}</div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {notification.category}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(notification.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+
+              {totalCount === 0 && (
+                <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No new notifications
+                </div>
+              )}
+
+              {totalCount > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/dashboard/alarms"
+                      className="w-full text-center py-2 cursor-pointer font-medium"
+                    >
+                      View All Notifications →
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 

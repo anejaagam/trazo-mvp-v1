@@ -40,7 +40,7 @@ describe('Batch Packet Generator', () => {
       {
         id: 'event-1',
         batch_id: 'batch-123',
-        event_type: 'stage_change',
+        event_type: 'stage_change' as const,
         timestamp: '2025-11-14T09:00:00Z',
         notes: 'Transitioned to flowering',
         user_id: 'user-1',

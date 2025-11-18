@@ -23,6 +23,14 @@
     {
       "path": "/api/cron/generate-recurring-tasks",
       "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/escalate-alarms",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/check-overdue-tasks",
+      "schedule": "0 * * * *"
     }
   ]
 }

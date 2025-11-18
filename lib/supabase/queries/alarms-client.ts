@@ -14,9 +14,110 @@ import { createClient } from '@/lib/supabase/client';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import type {
   Alarm,
+  AlarmFilters,
+  AlarmSeverity,
+  AlarmWithDetails,
   Notification,
   QueryResult,
 } from '@/types/telemetry';
+
+// =====================================================
+// CLIENT-SIDE QUERIES - FETCH HELPERS
+// =====================================================
+
+/**
+ * Fetch alarms with optional filtering (client-side)
+ * Mirrors the server-side getAlarms query for use in hooks/components
+ */
+export async function getAlarmsClient(
+  filters?: AlarmFilters
+): Promise<QueryResult<AlarmWithDetails[]>> {
+  try {
+    const supabase = createClient();
+
+    let query = supabase
+      .from('alarms')
+      .select(`
+        *,
+        pod:pods!inner(id, name, room:rooms!inner(id, name, site_id))
+      `)
+      .order('triggered_at', { ascending: false });
+
+    if (filters?.pod_id) {
+      query = query.eq('pod_id', filters.pod_id);
+    }
+    if (filters?.site_id) {
+      query = query.eq('pod.room.site_id', filters.site_id);
+    }
+    if (filters?.severity) {
+      query = query.eq('severity', filters.severity);
+    }
+    if (filters?.status) {
+      query = query.eq('status', filters.status);
+    }
+    if (filters?.triggered_after) {
+      query = query.gte('triggered_at', filters.triggered_after);
+    }
+    if (filters?.triggered_before) {
+      query = query.lte('triggered_at', filters.triggered_before);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return {
+      data: (data as AlarmWithDetails[]) || [],
+      error: null,
+    };
+  } catch (error) {
+    console.error('Error in getAlarmsClient:', error);
+    return {
+      data: [],
+      error: error instanceof Error ? error : new Error('Unknown error'),
+    };
+  }
+}
+
+/**
+ * Get alarm counts by severity for a site (client-side)
+ * Used by dashboard summaries without server-module imports
+ */
+export async function getAlarmCountsBySeverityClient(
+  siteId: string
+): Promise<QueryResult<Record<AlarmSeverity, number>>> {
+  try {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from('alarms')
+      .select('severity, pod:pods!inner(room:rooms!inner(site_id))')
+      .eq('pod.room.site_id', siteId)
+      .in('status', ['triggered', 'escalated']);
+
+    if (error) throw error;
+
+    const counts: Record<AlarmSeverity, number> = {
+      critical: 0,
+      warning: 0,
+      info: 0,
+    };
+
+    data?.forEach((alarm) => {
+      if (alarm.severity in counts) {
+        counts[alarm.severity as AlarmSeverity]++;
+      }
+    });
+
+    return { data: counts, error: null };
+  } catch (error) {
+    console.error('Error in getAlarmCountsBySeverityClient:', error);
+    return {
+      data: { critical: 0, warning: 0, info: 0 },
+      error: error instanceof Error ? error : new Error('Unknown error'),
+    };
+  }
+}
 
 // =====================================================
 // CLIENT-SIDE QUERIES - REALTIME SUBSCRIPTIONS

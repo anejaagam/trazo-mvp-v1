@@ -3,8 +3,8 @@ import type { TaskDependency } from '@/types/workflow';
 
 describe('wouldCreateDependencyCycle', () => {
   const baseGraph: TaskDependency[] = [
-    { id: '1', task_id: 'A', depends_on_task_id: 'B', dependency_type: 'blocking' },
-    { id: '2', task_id: 'B', depends_on_task_id: 'C', dependency_type: 'blocking' },
+    { id: '1', task_id: 'A', depends_on_task_id: 'B', dependency_type: 'blocking', created_at: new Date().toISOString() },
+    { id: '2', task_id: 'B', depends_on_task_id: 'C', dependency_type: 'blocking', created_at: new Date().toISOString() },
   ];
 
   it('returns true when creating a self dependency', () => {

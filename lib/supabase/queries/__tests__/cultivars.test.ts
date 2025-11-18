@@ -202,10 +202,11 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockCultivar);
+      
       resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
-        },
+        } as any,
         from: jest.fn().mockReturnValue(mockQuery),
       });
 
@@ -236,12 +237,13 @@ describe('Cultivar Queries', () => {
       };
 
       const mockQuery = new MockQueryBuilder(mockCultivar);
-        resolveClient({
-          auth: {
-            getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
-          },
-          from: jest.fn().mockReturnValue(mockQuery),
-        });
+      
+      resolveClient({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: mockUser } }),
+        } as any,
+        from: jest.fn().mockReturnValue(mockQuery),
+      });
 
       const result = await createCultivar({
         organization_id: 'org-1',
@@ -260,7 +262,7 @@ describe('Cultivar Queries', () => {
       resolveClient({
         auth: {
           getUser: jest.fn().mockResolvedValue({ data: { user: null } }),
-        },
+        } as any,
       });
 
       const result = await createCultivar({

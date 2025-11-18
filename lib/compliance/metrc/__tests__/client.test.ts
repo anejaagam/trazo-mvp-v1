@@ -228,10 +228,22 @@ describe('MetrcClient', () => {
         timeout: 100,
       })
 
+      // Mock fetch to simulate a timeout by checking if signal is aborted
       ;(global.fetch as jest.Mock).mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => resolve({ ok: true, json: async () => ({}) }), 200)
+        (_url: string, options: any) =>
+          new Promise((resolve, reject) => {
+            // Simulate delay longer than timeout
+            const delay = setTimeout(() => {
+              resolve({ ok: true, json: async () => ({}) })
+            }, 200)
+
+            // Listen for abort signal
+            if (options.signal) {
+              options.signal.addEventListener('abort', () => {
+                clearTimeout(delay)
+                reject(new DOMException('The user aborted a request', 'AbortError'))
+              })
+            }
           })
       )
 

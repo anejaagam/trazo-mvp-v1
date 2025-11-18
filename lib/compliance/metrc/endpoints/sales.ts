@@ -1,11 +1,11 @@
 /**
  * Metrc Sales Endpoint
  *
- * GET operations for sales transaction tracking
+ * GET and POST/PUT operations for sales transaction tracking
  */
 
 import type { MetrcClient } from '../client'
-import type { MetrcSalesReceipt } from '../types'
+import type { MetrcSalesReceipt, MetrcSalesReceiptCreate } from '../types'
 
 export class SalesEndpoint {
   constructor(private client: MetrcClient) {}
@@ -69,5 +69,61 @@ export class SalesEndpoint {
     return this.client.request<MetrcSalesReceipt>(`/sales/v1/receipts/${receiptId}`, {
       method: 'GET',
     })
+  }
+
+  // ===== WRITE OPERATIONS (POST/PUT) =====
+
+  /**
+   * Create sales receipts
+   *
+   * @param receipts - Array of sales receipts to create
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async create(receipts: MetrcSalesReceiptCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/sales/v1/receipts?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: receipts,
+      }
+    )
+  }
+
+  /**
+   * Update sales receipts
+   *
+   * @param updates - Array of sales receipt updates
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async update(updates: MetrcSalesReceiptCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/sales/v1/receipts?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'PUT',
+        body: updates,
+      }
+    )
+  }
+
+  /**
+   * Delete sales receipts
+   *
+   * @param receiptIds - Array of receipt IDs to delete
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async delete(receiptIds: number[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/sales/v1/receipts?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'DELETE',
+        body: receiptIds.map((id) => ({ Id: id })),
+      }
+    )
   }
 }

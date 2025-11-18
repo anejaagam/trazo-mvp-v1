@@ -1,11 +1,11 @@
 /**
  * Metrc Transfers Endpoint
  *
- * GET operations for transfer manifest tracking
+ * GET and POST/PUT operations for transfer manifest tracking
  */
 
 import type { MetrcClient } from '../client'
-import type { MetrcTransfer } from '../types'
+import type { MetrcTransfer, MetrcTransferCreate, MetrcTransferUpdate } from '../types'
 
 export class TransfersEndpoint {
   constructor(private client: MetrcClient) {}
@@ -100,6 +100,85 @@ export class TransfersEndpoint {
       `/transfers/v1/types?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
+      }
+    )
+  }
+
+  // ===== WRITE OPERATIONS (POST/PUT) =====
+
+  /**
+   * Create outgoing transfer
+   *
+   * @param transfers - Array of transfers to create
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async createOutgoing(transfers: MetrcTransferCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/transfers/v1/external/outgoing?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: transfers,
+      }
+    )
+  }
+
+  /**
+   * Update outgoing transfer
+   *
+   * @param updates - Array of transfer updates
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async updateOutgoing(updates: MetrcTransferUpdate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/transfers/v1/external/outgoing?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'PUT',
+        body: updates,
+      }
+    )
+  }
+
+  /**
+   * Delete outgoing transfer
+   *
+   * @param manifestNumbers - Array of manifest numbers to delete
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async deleteOutgoing(manifestNumbers: string[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/transfers/v1/external/outgoing?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'DELETE',
+        body: manifestNumbers.map((mn) => ({ ManifestNumber: mn })),
+      }
+    )
+  }
+
+  /**
+   * Accept incoming transfer packages
+   *
+   * @param acceptances - Array of package acceptances
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async acceptPackages(
+    acceptances: Array<{
+      PackageLabel: string
+      AcceptedDateTime: string
+    }>
+  ): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/transfers/v1/external/incoming?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: acceptances,
       }
     )
   }

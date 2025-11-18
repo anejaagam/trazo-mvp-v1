@@ -1,7 +1,8 @@
 /**
  * Inventory Lots Database Queries
- * 
+ *
  * Lot/batch tracking with FIFO/LIFO logic and expiry management
+ * Includes Metrc integration hooks for cannabis jurisdictions
  */
 
 import { createClient } from '@/lib/supabase/server'
@@ -9,6 +10,8 @@ import type {
   InsertInventoryLot,
   UpdateInventoryLot,
 } from '@/types/inventory'
+import { pushInventoryLotToMetrc } from '@/lib/compliance/metrc/sync/inventory-push-sync'
+import { getJurisdictionConfig } from '@/lib/jurisdiction/config'
 
 /**
  * Get all lots for an inventory item
@@ -136,11 +139,12 @@ export async function getLotByComplianceUid(complianceUid: string) {
 
 /**
  * Create a new lot (when receiving inventory)
+ * Automatically pushes to Metrc if cannabis jurisdiction with compliance requirement
  */
-export async function createLot(lot: InsertInventoryLot) {
+export async function createLot(lot: InsertInventoryLot, options?: { skipMetrcPush?: boolean }) {
   try {
     const supabase = await createClient()
-    
+
     // Get current user for created_by
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -157,6 +161,40 @@ export async function createLot(lot: InsertInventoryLot) {
       .single()
 
     if (error) throw error
+
+    // Push to Metrc if cannabis jurisdiction (unless explicitly skipped)
+    if (!options?.skipMetrcPush && data) {
+      try {
+        // Get site and organization to check jurisdiction
+        const { data: siteData } = await supabase
+          .from('sites')
+          .select('id, jurisdiction_id, organization_id')
+          .eq('id', data.site_id)
+          .single()
+
+        if (siteData?.jurisdiction_id) {
+          const jurisdiction = getJurisdictionConfig(siteData.jurisdiction_id)
+
+          // Only push if cannabis jurisdiction with Metrc requirement
+          if (jurisdiction?.plant_type === 'cannabis' &&
+              jurisdiction?.rules?.batch?.require_metrc_id) {
+            // Push to Metrc asynchronously (don't block lot creation)
+            pushInventoryLotToMetrc(
+              data.id,
+              siteData.id,
+              siteData.organization_id,
+              user.id
+            ).catch((metrcError) => {
+              console.error('Failed to push lot to Metrc (non-blocking):', metrcError)
+            })
+          }
+        }
+      } catch (metrcError) {
+        // Log Metrc push error but don't fail the lot creation
+        console.error('Metrc integration error (non-blocking):', metrcError)
+      }
+    }
+
     return { data, error: null }
   } catch (error) {
     console.error('Error in createLot:', error)
@@ -166,6 +204,8 @@ export async function createLot(lot: InsertInventoryLot) {
 
 /**
  * Update a lot (e.g., after partial consumption)
+ * Note: Metrc sync for quantity updates should be handled via inventory movements
+ * for proper audit trail. This function only updates the lot record.
  */
 export async function updateLot(lotId: string, updates: UpdateInventoryLot) {
   try {

@@ -1,11 +1,17 @@
 /**
  * Metrc Packages Endpoint
  *
- * GET operations for package tracking (inventory)
+ * GET and POST/PUT operations for package tracking (inventory)
  */
 
 import type { MetrcClient } from '../client'
-import type { MetrcPackage } from '../types'
+import type {
+  MetrcPackage,
+  MetrcPackageCreate,
+  MetrcPackageAdjustment,
+  MetrcPackageLocationChange,
+  MetrcPackageFinish,
+} from '../types'
 
 export class PackagesEndpoint {
   constructor(private client: MetrcClient) {}
@@ -138,6 +144,98 @@ export class PackagesEndpoint {
       `/packages/v2/adjust/reasons?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
+      }
+    )
+  }
+
+  // ===== WRITE OPERATIONS (POST/PUT) =====
+
+  /**
+   * Create new packages in Metrc
+   *
+   * @param packages - Array of packages to create
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async create(packages: MetrcPackageCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/packages/v2/create?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: packages,
+      }
+    )
+  }
+
+  /**
+   * Adjust package quantity (inventory adjustment)
+   *
+   * @param adjustments - Array of package adjustments
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async adjust(adjustments: MetrcPackageAdjustment[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/packages/v2/adjust?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: adjustments,
+      }
+    )
+  }
+
+  /**
+   * Change package location
+   *
+   * @param locationChanges - Array of location changes
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async changeLocation(locationChanges: MetrcPackageLocationChange[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/packages/v2/change/locations?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'PUT',
+        body: locationChanges,
+      }
+    )
+  }
+
+  /**
+   * Finish (close/archive) packages
+   *
+   * @param finishes - Array of packages to finish
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async finish(finishes: MetrcPackageFinish[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/packages/v2/finish?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: finishes,
+      }
+    )
+  }
+
+  /**
+   * Un-finish (reopen) packages
+   *
+   * @param labels - Array of package labels to un-finish
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async unfinish(labels: string[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/packages/v2/unfinish?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: labels.map((label) => ({ Label: label })),
       }
     )
   }

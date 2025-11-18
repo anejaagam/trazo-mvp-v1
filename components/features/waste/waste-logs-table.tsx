@@ -499,7 +499,7 @@ export function WasteLogsTable({
                               {format(new Date(log.disposed_at), 'MMM dd, yyyy')}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {format(new Date(log.disposed_at), 'HH:mm')}
+                              {format(new Date(log.disposed_at), 'h:mm a')}
                             </div>
                           </div>
                         </TableCell>

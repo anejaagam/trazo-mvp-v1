@@ -144,18 +144,18 @@ export function BatchDetailPage({
           <div className="flex items-center gap-3 mb-2">
             <Sprout className="h-6 w-6" />
             <h1 className="text-3xl font-bold">Batch {detail.batch_number}</h1>
-            <Button
-              variant={detail.status === 'quarantined' ? 'default' : 'destructive'}
-              size="sm"
-              onClick={handleQuarantineToggle}
-              className={detail.status === 'quarantined' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-            >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              {detail.status === 'quarantined' ? 'Release' : 'Quarantine'}
-            </Button>
           </div>
           <p className="text-muted-foreground">{detail.cultivar?.name || detail.cultivar_id || 'Unknown cultivar'}</p>
         </div>
+        <Button
+          variant={detail.status === 'quarantined' ? 'default' : 'destructive'}
+          size="sm"
+          onClick={handleQuarantineToggle}
+          className={detail.status === 'quarantined' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+        >
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          {detail.status === 'quarantined' ? 'Release' : 'Quarantine'}
+        </Button>
       </div>
 
       {/* Action Buttons */}

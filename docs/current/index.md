@@ -66,6 +66,7 @@ This directory contains detailed documentation of the current TRAZO MVP project 
 ### **Reference**
 - **[Project Overview](./3-reference/project-overview.md)** - Architecture, tech stack, and project structure
 - **[Health Metrics](./3-reference/health-metrics.md)** - Test coverage, code stats, and known issues
+- **[TagoIO Integration](./3-reference/tagoio-integration.md)** - Growth stages, SOPs, and automation system
 
 ---
 

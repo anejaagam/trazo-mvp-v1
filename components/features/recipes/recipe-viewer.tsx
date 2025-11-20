@@ -402,13 +402,13 @@ export function RecipeViewer({
             </Button>
           )}
           {canClone && (
-            <Button variant="outline" onClick={handleClone}>
+            <Button variant="outline" onClick={handleClone} className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 border-green-300 hover:border-green-500">
               <Copy className="w-4 h-4 mr-2" />
               Clone
             </Button>
           )}
           {canEdit && (
-            <Button variant="outline" onClick={handleEdit}>
+            <Button variant="outline" onClick={handleEdit} className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 border-green-300 hover:border-green-500">
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Button>

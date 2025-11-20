@@ -324,7 +324,7 @@ export function WasteDetailsPage({
                 <div className="text-sm font-medium text-slate-500">Disposal Date</div>
                 <div className="flex items-center gap-2 text-base font-semibold text-slate-900">
                   <Clock className="h-5 w-5 text-slate-600" />
-                  {format(new Date(wasteLog.disposed_at), 'MMM dd, yyyy HH:mm')}
+                  {format(new Date(wasteLog.disposed_at), 'MMM dd, yyyy h:mm a')}
                 </div>
               </div>
               <div className="space-y-1">

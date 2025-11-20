@@ -82,7 +82,7 @@ export function RecipeLibrary({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
-      case 'applied': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+      case 'applied': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       case 'draft': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
       case 'deprecated': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
       case 'archived': return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
@@ -144,6 +144,7 @@ export function RecipeLibrary({
                     variant={filterStatus === status ? 'default' : 'outline'}
                     onClick={() => setFilterStatus(status)}
                     size="sm"
+                    className={filterStatus !== status ? 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100' : ''}
                   >
                     {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
                   </Button>
@@ -157,6 +158,7 @@ export function RecipeLibrary({
                     variant={filterPlantType === type ? 'default' : 'outline'}
                     onClick={() => setFilterPlantType(type)}
                     size="sm"
+                    className={filterPlantType !== type ? 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100' : ''}
                   >
                     {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
                   </Button>
@@ -249,7 +251,7 @@ export function RecipeLibrary({
               No recipes found matching your criteria
             </p>
             {canCreate && onCreateRecipe && (
-              <Button onClick={onCreateRecipe} variant="outline" className="mt-4">
+              <Button onClick={onCreateRecipe} variant="outline" className="mt-4 text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 border-green-300 hover:border-green-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Your First Recipe
               </Button>

@@ -5,6 +5,7 @@ import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 import { FleetMonitoringDashboard } from '@/components/features/monitoring/fleet-monitoring-dashboard'
+import { NotificationsPanel } from '@/components/features/monitoring/notifications-panel'
 
 export const metadata: Metadata = {
   title: 'Fleet Monitoring | TRAZO',
@@ -80,14 +81,15 @@ export default async function MonitoringPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Fleet Monitoring</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Real-time environmental conditions across all cultivation pods
           </p>
         </div>
+        <NotificationsPanel userId={userId} />
       </div>
 
       <FleetMonitoringDashboard

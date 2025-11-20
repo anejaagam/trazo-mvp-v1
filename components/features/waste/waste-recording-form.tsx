@@ -150,7 +150,7 @@ export function WasteRecordingForm({
       disposal_method: existingWasteLog.disposal_method,
       unit_of_measure: existingWasteLog.unit_of_measure,
       quantity: existingWasteLog.quantity,
-      disposed_at: new Date(existingWasteLog.disposed_at).toISOString().split('T')[0],
+      disposed_at: new Date(existingWasteLog.disposed_at).toISOString().slice(0, 16),
       reason: existingWasteLog.reason,
       notes: existingWasteLog.notes,
       rendered_unusable: existingWasteLog.rendered_unusable,
@@ -174,7 +174,9 @@ export function WasteRecordingForm({
         const year = now.getFullYear()
         const month = String(now.getMonth() + 1).padStart(2, '0')
         const day = String(now.getDate()).padStart(2, '0')
-        return `${year}-${month}-${day}`
+        const hours = String(now.getHours()).padStart(2, '0')
+        const minutes = String(now.getMinutes()).padStart(2, '0')
+        return `${year}-${month}-${day}T${hours}:${minutes}`
       })(),
       rendered_unusable: false,
       photo_urls: [],
@@ -566,12 +568,12 @@ export function WasteRecordingForm({
           name="disposed_at"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Disposal Date</FormLabel>
+              <FormLabel>Disposal Date & Time</FormLabel>
               <FormControl>
-                <Input type="date" {...field} />
+                <Input type="datetime-local" {...field} />
               </FormControl>
               <FormDescription>
-                Date when waste was disposed
+                Date and time when waste was disposed
               </FormDescription>
               <FormMessage />
             </FormItem>

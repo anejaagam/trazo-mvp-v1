@@ -24,6 +24,7 @@ import {
   Bell,
   BookCheck,
   BookOpenCheck,
+  FlaskConical,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -91,12 +92,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         supabase
           .from('batches')
           .select('*', { count: 'exact', head: true })
-          .eq('organization_id', user.organization.id)
+          .eq('organization_id', user.organization?.id)
           .in('status', ['active', 'quarantined']),
         supabase
           .from('batches')
           .select('*', { count: 'exact', head: true })
-          .eq('organization_id', user.organization.id)
+          .eq('organization_id', user.organization?.id)
           .eq('stage', 'harvest'),
       ]
       
@@ -357,7 +358,13 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/compliance/sync',
           icon: <BookOpenCheck className="h-4 w-4" />,
           permission: 'compliance:sync'
-        }
+        },
+        {
+        title: 'Lab Tests',
+  href: '/dashboard/lab-tests',
+  icon: <FlaskConical className="h-4 w-4" />  ,
+  permission: 'compliance:sync'
+}
       ]
     }
   ]

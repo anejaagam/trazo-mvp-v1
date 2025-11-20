@@ -135,24 +135,25 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
         </nav>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2 -mr-4">
-          <ThemeSwitcher />
+        <div className="flex items-center gap-2 ml-auto -mr-4">
+          <div className="flex items-center gap-2 -ml-3">
+            <ThemeSwitcher />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="relative text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
-              >
-                <Bell className="h-7 w-7" />
-                {totalCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 border-0 text-[10px]">
-                    {totalCount > 9 ? '9+' : totalCount}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="relative text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
+                >
+                  <Bell className="h-7 w-7" />
+                  {totalCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 border-0 text-[10px]">
+                      {totalCount > 9 ? '9+' : totalCount}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>Notifications</span>
@@ -256,37 +257,38 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 </>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="text-white hover:bg-white/10 gap-2 h-9 !bg-transparent dark:!bg-transparent dark:hover:!bg-white/10"
-              >
-                <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center">
-                  <User className="h-4 w-4" />
-                </div>
-                <div className="hidden xl:block text-left">
-                  <div className="text-sm font-medium leading-none">{user.full_name}</div>
-                  <div className="text-xs text-white/60 mt-0.5 capitalize">
-                    {user.role.replace('_', ' ')}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="text-white hover:bg-white/10 gap-1.5 h-9 !bg-transparent dark:!bg-transparent dark:hover:!bg-white/10 rounded-md px-2"
+                >
+                  <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center">
+                    <User className="h-4 w-4" />
                   </div>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-              <DropdownMenuItem>Preferences</DropdownMenuItem>
-              <DropdownMenuItem>Help & Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <LogoutButton />
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <div className="hidden xl:block text-left">
+                    <div className="text-sm font-medium leading-none">{user.full_name}</div>
+                    <div className="text-xs text-white/60 mt-0.5 capitalize">
+                      {user.role.replace('_', ' ')}
+                    </div>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+                <DropdownMenuItem>Preferences</DropdownMenuItem>
+                <DropdownMenuItem>Help & Support</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <LogoutButton />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>

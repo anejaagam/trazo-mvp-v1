@@ -7,12 +7,11 @@ import { FleetGridView } from './fleet-grid-view'
 import { AlarmSummaryWidget } from './alarm-summary-widget'
 import { NotificationsPanel } from './notifications-panel'
 import { StatsGrid, StatItem } from './stats-grid'
-import { TimeRangeSelector, TimeRange } from './time-range-selector'
+// Time range selector removed from header per UI request
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { usePodSnapshots } from '@/hooks/use-telemetry'
 import { Activity, Thermometer, Droplets, Wind, AlertTriangle, RefreshCw } from 'lucide-react'
-import { subHours } from 'date-fns'
 
 interface FleetMonitoringDashboardProps {
   siteId: string | null // null for org_admin viewing all sites
@@ -28,11 +27,6 @@ export function FleetMonitoringDashboard({
 }: FleetMonitoringDashboardProps) {
   const router = useRouter()
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
-  const [timeRange, setTimeRange] = useState<TimeRange>({
-    start: subHours(new Date(), 24),
-    end: new Date(),
-    preset: '24h',
-  })
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('just now')
 
@@ -136,13 +130,7 @@ export function FleetMonitoringDashboard({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between">
-        <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
-        <NotificationsPanel userId={userId} />
-      </div>
-
+    <div className="space-y-4">
       {/* Fleet Statistics */}
       <StatsGrid stats={stats} columns={4} />
 

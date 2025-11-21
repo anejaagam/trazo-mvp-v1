@@ -17,6 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getInventoryItems as getInventoryItemsClient } from '@/lib/supabase/queries/inventory-client'
 import type { InventoryItemWithStock } from '@/types/inventory'
 import { getDefaultLotCode, receiveInventoryForBatch } from '@/lib/inventory/batch-integrations'
+import { PerPlantHarvestDialog } from '@/components/features/harvests/per-plant-harvest-dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Scale, Sprout } from 'lucide-react'
 
 const harvestSchema = z.object({
   wetWeight: z.coerce.number().positive('Wet weight required'),
@@ -45,6 +48,7 @@ interface HarvestWorkflowProps {
 }
 
 export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: HarvestWorkflowProps) {
+  const [showPerPlantHarvest, setShowPerPlantHarvest] = useState(false)
   const form = useForm<HarvestFormValues>({
     resolver: zodResolver(harvestSchema) as Resolver<HarvestFormValues>,
     defaultValues: {
@@ -134,14 +138,72 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Record harvest for {batch.batch_number}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
+    <>
+      {/* Per-Plant Harvest Dialog */}
+      {showPerPlantHarvest && (
+        <PerPlantHarvestDialog
+          harvestId="" // Will be created after batch-level harvest
+          batchId={batch.id}
+          organizationId={batch.organization_id}
+          batchNumber={batch.batch_number}
+          expectedPlantCount={batch.plant_count || 0}
+          availablePlantTags={batch.metrc_plant_labels || []}
+          onCreated={() => {
+            setShowPerPlantHarvest(false)
+            onComplete()
+          }}
+          trigger={<></>}
+        />
+      )}
+
+      <Dialog open={isOpen && !showPerPlantHarvest} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Record harvest for {batch.batch_number}</DialogTitle>
+          </DialogHeader>
+
+          {/* Harvest Method Selection */}
+          <Alert>
+            <Sprout className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium mb-1">Choose Harvest Method</p>
+                  <p className="text-sm text-muted-foreground">
+                    Record batch-level totals or track individual plants
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Continue with batch-level harvest (current form)
+                    }}
+                  >
+                    <Scale className="h-4 w-4 mr-2" />
+                    Batch Total
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      setShowPerPlantHarvest(true)
+                    }}
+                  >
+                    <Sprout className="h-4 w-4 mr-2" />
+                    Per-Plant Entry
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <FormField
               control={form.control}
               name="wetWeight"
               render={({ field }) => (
@@ -358,5 +420,6 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
         </Form>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

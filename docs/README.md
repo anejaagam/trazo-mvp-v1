@@ -80,8 +80,10 @@
 | Document | Description | Location |
 |----------|-------------|----------|
 | **README** | Project overview & getting started | `/README.md` |
-| **Current Status** | Complete feature status (split into 6 guides) | `/docs/current/index.md` |
-| **Roadmap** | Integration guides (9 focused files) | `/docs/roadmap/` |
+| **Current Status** | Complete feature status | `/docs/current/index.md` |
+| **Roadmap** | Integration guides & planning | `/docs/roadmap/index.md` |
+| **Project History** | Past phase completion reports | `/docs/project-history/` |
+| **Technical Reports** | Deep dive analysis & findings | `/docs/technical-reports/` |
 | **API Reference** | REST API documentation | `/docs/API.md` |
 | **Contributing** | Development guidelines | `/CONTRIBUTING.md` |
 | **Changelog** | Version history | `/CHANGELOG.md` |
@@ -107,30 +109,20 @@
 
 ## 🗂️ **Documentation Structure**
 
-```
 /docs/
 ├── README.md                    # This file - navigation hub
 ├── API.md                       # REST API reference
-├── CURRENT.md                   # Current project status (with TOC)
-├── roadmap/                     # Integration roadmap (9 files)
-│   ├── index.md                # Roadmap navigation hub
-│   ├── agent-quickstart.md     # New developer onboarding
-│   ├── integration-checklist.md # Phase tracking
-│   ├── deployment-guide.md     # Deployment steps
-│   ├── feature-roadmap.md      # Feature timeline
-│   ├── integration-patterns.md # 7-phase approach
-│   ├── development-workflow.md # Daily dev guide
-│   ├── cleanup-tracking.md     # Repository cleanup
-│   └── quick-reference.md      # Code patterns
-├── archived_docs/               # Historical documentation (63 files)
-│   ├── README.md               # Archived docs navigation
-│   ├── 1-setup-guides/         # Setup, config, testing (19 files)
-│   ├── 2-feature-integration/  # Integration completion reports (12 files)
-│   ├── 3-troubleshooting/      # Bug fixes and patches (13 files)
-│   ├── 4-cleanup-reports/      # Repository cleanup analysis (11 files)
-│   ├── 5-deployment/           # Deployment guides (6 files)
-│   └── 6-design-reference/     # Design tokens, UI audit (2 files)
-```
+├── current/                     # Current project status (with TOC)
+│   └── index.md                 # Current status dashboard
+├── roadmap/                     # Integration roadmap
+│   ├── index.md                 # Roadmap navigation hub
+│   ├── getting-started/         # Quick start guides
+│   └── planning-progress/       # Active planning & phase docs
+├── project-history/             # Historical completion reports
+├── technical-reports/           # Deep dives & analysis
+├── agent-context/               # AI Agent context & prompts
+└── archived_docs/               # Legacy documentation
+
 
 ---
 

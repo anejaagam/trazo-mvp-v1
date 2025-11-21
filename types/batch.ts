@@ -127,6 +127,7 @@ export interface Batch {
   
   // Jurisdiction-specific fields
   metrc_batch_id?: string;
+  metrc_plant_labels?: string[]; // Array of Metrc plant tags
   license_number?: string;
   
   // Tracking fields

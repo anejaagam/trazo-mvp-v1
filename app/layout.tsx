@@ -33,7 +33,7 @@ const helveticaLocal = localFont({
   variable: "--font-helvetica",
   display: "swap",
   src: [
-    { path: "./fonts/helvetica/helvetica-light-587ebe5a59211.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/helvetica/Helvetica.ttf", weight: "300", style: "normal" },
     { path: "./fonts/helvetica/Helvetica.ttf", weight: "400", style: "normal" },
     { path: "./fonts/helvetica/Helvetica-Oblique.ttf", weight: "400", style: "italic" },
     { path: "./fonts/helvetica/Helvetica-Bold.ttf", weight: "700", style: "normal" },

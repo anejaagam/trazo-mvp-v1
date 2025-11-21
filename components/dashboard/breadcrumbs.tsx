@@ -50,10 +50,10 @@ export function DashboardBreadcrumbs({ className }: DashboardBreadcrumbsProps) {
             } else if (prevSegment === 'batches') {
               const { data } = await supabase
                 .from('batches')
-                .select('batch_code')
+                .select('batch_number')
                 .eq('id', segment)
                 .single()
-              if (data?.batch_code) newNames[segment] = data.batch_code
+              if (data?.batch_number) newNames[segment] = data.batch_number
             }
             // Add more entity types as needed
           } catch (error) {

@@ -157,10 +157,11 @@ export async function PATCH(
       updates.room_id = room_id
     }
     
-    // Add any other allowed updates (name, status, etc.)
+    // Add any other allowed updates (name, status, metrc_location_name, etc.)
     if (otherUpdates.name) updates.name = otherUpdates.name
     if (otherUpdates.status) updates.status = otherUpdates.status
     if (otherUpdates.pod_serial_number) updates.pod_serial_number = otherUpdates.pod_serial_number
+    if (otherUpdates.metrc_location_name !== undefined) updates.metrc_location_name = otherUpdates.metrc_location_name
 
     const { data: updatedPod, error: updateError } = await supabase
       .from('pods')
@@ -172,6 +173,7 @@ export async function PATCH(
         room_id,
         status,
         pod_serial_number,
+        metrc_location_name,
         rooms(
           id,
           name,

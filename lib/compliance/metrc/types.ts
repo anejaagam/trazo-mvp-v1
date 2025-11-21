@@ -83,6 +83,35 @@ export interface MetrcPackageIngredient {
 }
 
 /**
+ * Package adjustment payload
+ */
+export interface MetrcPackageAdjustment {
+  Label: string
+  Quantity: number
+  UnitOfMeasure: string
+  AdjustmentReason: string
+  AdjustmentDate: string
+  ReasonNote?: string
+}
+
+/**
+ * Package location change payload
+ */
+export interface MetrcPackageLocationChange {
+  Label: string
+  Location: string
+  MoveDate: string
+}
+
+/**
+ * Package finish payload
+ */
+export interface MetrcPackageFinish {
+  Label: string
+  ActualDate: string
+}
+
+/**
  * Metrc plant structure
  */
 export interface MetrcPlant {
@@ -127,6 +156,105 @@ export interface MetrcPlantBatchCreate {
   Strain: string
   Location: string
   PlantedDate: string
+}
+
+/**
+ * Plant batch adjustment payload
+ */
+export interface MetrcPlantBatchAdjustment {
+  Id: number
+  Count: number
+  AdjustmentReason: string
+  AdjustmentDate: string
+  ReasonNote?: string
+}
+
+/**
+ * Plant batch split payload
+ */
+export interface MetrcPlantBatchSplit {
+  PlantBatch: string
+  GroupName: string
+  Count: number
+  Location: string
+  Strain: string
+  SplitDate: string
+}
+
+/**
+ * Plant creation (from plant batch) payload
+ */
+export interface MetrcPlantingCreate {
+  PlantBatch: string
+  PlantCount: number
+  Location: string
+  Strain: string
+  PlantedDate: string
+  PlantingSource?: 'Clone' | 'Seed'
+}
+
+/**
+ * Plant growth phase change payload
+ */
+export interface MetrcPlantGrowthPhaseChange {
+  Label: string
+  NewLocation: string
+  GrowthPhase: 'Vegetative' | 'Flowering'
+  NewTag?: string
+  GrowthDate: string
+}
+
+/**
+ * Plant move payload
+ */
+export interface MetrcPlantMove {
+  Label: string
+  Location: string
+  MoveDate: string
+}
+
+/**
+ * Plant destroy payload
+ */
+export interface MetrcPlantDestroy {
+  Label: string
+  ReasonNote: string
+  ActualDate: string
+}
+
+/**
+ * Harvest creation payload
+ */
+export interface MetrcHarvestCreate {
+  PlantLabels: string[]
+  HarvestName: string
+  DryingLocation: string
+  WasteWeight: number
+  WasteUnitOfMeasure: string
+  HarvestDate: string
+}
+
+/**
+ * Harvest package creation payload
+ */
+export interface MetrcHarvestPackageCreate {
+  Tag: string
+  Location: string
+  Item: string
+  Quantity: number
+  UnitOfMeasure: string
+  ProductionBatchNumber?: string
+  PatientLicenseNumber?: string
+  Note?: string
+  PackagedDate: string
+}
+
+/**
+ * Harvest finish payload
+ */
+export interface MetrcHarvestFinish {
+  Id: number
+  ActualDate: string
 }
 
 /**
@@ -184,6 +312,51 @@ export interface MetrcTransferPackage {
 }
 
 /**
+ * Transfer creation payload
+ */
+export interface MetrcTransferCreate {
+  ShipperLicenseNumber: string
+  ShipmentLicenseType: string
+  ShipmentTransactionType: string
+  EstimatedDepartureDateTime: string
+  EstimatedArrivalDateTime: string
+  Destinations: MetrcTransferDestinationCreate[]
+}
+
+/**
+ * Transfer destination creation payload
+ */
+export interface MetrcTransferDestinationCreate {
+  RecipientLicenseNumber: string
+  TransferTypeName: string
+  PlannedRoute?: string
+  EstimatedDepartureDateTime: string
+  EstimatedArrivalDateTime: string
+  Packages: MetrcTransferPackageCreate[]
+}
+
+/**
+ * Transfer package creation payload
+ */
+export interface MetrcTransferPackageCreate {
+  PackageLabel: string
+  Quantity: number
+  UnitOfMeasure: string
+  PackagedDate: string
+  GrossWeight?: number
+  WholesalePrice?: number
+}
+
+/**
+ * Transfer update payload
+ */
+export interface MetrcTransferUpdate {
+  ManifestNumber: string
+  EstimatedDepartureDateTime?: string
+  EstimatedArrivalDateTime?: string
+}
+
+/**
  * Metrc sales receipt
  */
 export interface MetrcSalesReceipt {
@@ -205,6 +378,28 @@ export interface MetrcSalesTransaction {
 }
 
 /**
+ * Sales receipt creation payload
+ */
+export interface MetrcSalesReceiptCreate {
+  SalesDateTime: string
+  SalesCustomerType: string
+  PatientLicenseNumber?: string
+  CaregiverLicenseNumber?: string
+  IdentificationMethod?: string
+  Transactions: MetrcSalesTransactionCreate[]
+}
+
+/**
+ * Sales transaction creation payload
+ */
+export interface MetrcSalesTransactionCreate {
+  PackageLabel: string
+  Quantity: number
+  UnitOfMeasure: string
+  TotalAmount: number
+}
+
+/**
  * API request options
  */
 export interface MetrcRequestOptions {
@@ -220,4 +415,50 @@ export interface MetrcRequestOptions {
 export interface MetrcPaginationOptions {
   limit?: number
   offset?: number
+}
+
+// =====================================================
+// LOCATIONS
+// =====================================================
+
+/**
+ * Metrc location type
+ * Types returned from /locations/v2/types endpoint
+ */
+export interface MetrcLocationType {
+  Id: number
+  Name: string
+  ForPlantBatches: boolean
+  ForPlants: boolean
+  ForHarvests: boolean
+  ForPackages: boolean
+}
+
+/**
+ * Metrc location structure
+ */
+export interface MetrcLocation {
+  Id: number
+  Name: string
+  LocationTypeId: number
+  LocationTypeName: string
+  FacilityLicenseNumber?: string
+  FacilityName?: string
+}
+
+/**
+ * Location creation payload
+ */
+export interface MetrcLocationCreate {
+  Name: string
+  LocationTypeId: number
+}
+
+/**
+ * Location update payload
+ */
+export interface MetrcLocationUpdate {
+  Id: number
+  Name: string
+  LocationTypeId: number
 }

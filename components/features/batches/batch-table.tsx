@@ -222,6 +222,20 @@ export function BatchTable({
                           {totalPlants > 0 && (
                             <Badge variant="secondary">{totalPlants.toLocaleString()} units</Badge>
                           )}
+                          {batch.domain_type === 'cannabis' && totalPlants > 0 && (
+                            <Badge
+                              variant={
+                                !batch.metrc_plant_labels || batch.metrc_plant_labels.length === 0
+                                  ? 'destructive'
+                                  : batch.metrc_plant_labels.length < totalPlants
+                                  ? 'outline'
+                                  : 'default'
+                              }
+                              className="gap-1 text-xs"
+                            >
+                              {batch.metrc_plant_labels?.length || 0}/{totalPlants} tagged
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </TableCell>

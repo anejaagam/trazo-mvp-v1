@@ -1,11 +1,18 @@
 /**
  * Metrc Plants Endpoint
  *
- * GET operations for individual plant tracking
+ * GET and POST/PUT operations for individual plant tracking
  */
 
 import type { MetrcClient } from '../client'
-import type { MetrcPlant } from '../types'
+import type {
+  MetrcPlant,
+  MetrcPlantingCreate,
+  MetrcPlantGrowthPhaseChange,
+  MetrcPlantMove,
+  MetrcPlantDestroy,
+  MetrcHarvestCreate,
+} from '../types'
 
 export class PlantsEndpoint {
   constructor(private client: MetrcClient) {}
@@ -149,6 +156,123 @@ export class PlantsEndpoint {
       `/plants/v2/waste/reasons?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
+      }
+    )
+  }
+
+  // ===== WRITE OPERATIONS (POST/PUT) =====
+
+  /**
+   * Create plantings (individual plants from plant batch)
+   *
+   * @param plantings - Array of plantings to create
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async createPlantings(plantings: MetrcPlantingCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/create/plantings?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: plantings,
+      }
+    )
+  }
+
+  /**
+   * Change growth phase (e.g., vegetative to flowering)
+   *
+   * @param phaseChanges - Array of growth phase changes
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async changeGrowthPhase(phaseChanges: MetrcPlantGrowthPhaseChange[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/changegrowthphase?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: phaseChanges,
+      }
+    )
+  }
+
+  /**
+   * Move plants to new location
+   *
+   * @param moves - Array of plant moves
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async movePlants(moves: MetrcPlantMove[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/move?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'PUT',
+        body: moves,
+      }
+    )
+  }
+
+  /**
+   * Destroy plants (waste)
+   *
+   * @param destroys - Array of plants to destroy
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async destroyPlants(destroys: MetrcPlantDestroy[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/destroy?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: destroys,
+      }
+    )
+  }
+
+  /**
+   * Harvest plants (create harvest from plants)
+   *
+   * @param harvests - Array of harvest operations
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async harvestPlants(harvests: MetrcHarvestCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/harvest?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: harvests,
+      }
+    )
+  }
+
+  /**
+   * Manicure plants (trim/prune with waste tracking)
+   *
+   * @param manicures - Array of manicure operations
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async manicurePlants(
+    manicures: Array<{
+      Label: string
+      WasteWeight: number
+      UnitOfWeight: string
+      ActualDate: string
+    }>
+  ): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/manicure?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: manicures,
       }
     )
   }

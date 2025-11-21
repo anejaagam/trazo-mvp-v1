@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
@@ -9,6 +9,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Info, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
 import type { JurisdictionId } from '@/lib/jurisdiction/types'
 import type { BatchStage } from '@/types/batch'
@@ -16,6 +18,10 @@ import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
 import { transitionBatchStage } from '@/lib/supabase/queries/batches-client'
 import { toast } from 'sonner'
 import { isDevModeActive } from '@/lib/dev-mode'
+import {
+  mapStageToMetrcPhase,
+  requiresMetrcPhaseChange
+} from '@/lib/compliance/metrc/validation/phase-transition-rules'
 
 const schema = z.object({
   newStage: z.string().min(1, 'Select a stage'),
@@ -68,10 +74,47 @@ export function StageTransitionDialog({
 }: StageTransitionDialogProps) {
   const { getAllowedBatchStages, isStageTransitionAllowed } = useJurisdiction(jurisdictionId)
   const [loading, setLoading] = useState(false)
+  const [isSyncedToMetrc, setIsSyncedToMetrc] = useState(false)
+  const [willTriggerMetrcSync, setWillTriggerMetrcSync] = useState(false)
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { newStage: '', notes: '' },
   })
+
+  // Check if batch is synced to Metrc
+  useEffect(() => {
+    async function checkMetrcSync() {
+      if (batch.domain_type !== 'cannabis') {
+        setIsSyncedToMetrc(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/compliance/batch-sync-status?batchId=${batch.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setIsSyncedToMetrc(data.isSynced || false)
+        }
+      } catch (error) {
+        console.error('Failed to check Metrc sync status:', error)
+      }
+    }
+
+    if (isOpen) {
+      checkMetrcSync()
+    }
+  }, [batch.id, batch.domain_type, isOpen])
+
+  // Check if selected stage will trigger Metrc phase sync
+  useEffect(() => {
+    const newStage = form.watch('newStage')
+    if (newStage && isSyncedToMetrc && batch.domain_type === 'cannabis') {
+      const willSync = requiresMetrcPhaseChange(batch.stage, newStage as BatchStage)
+      setWillTriggerMetrcSync(willSync)
+    } else {
+      setWillTriggerMetrcSync(false)
+    }
+  }, [form.watch('newStage'), batch.stage, batch.domain_type, isSyncedToMetrc])
 
   const stageOptions = useMemo(() => {
     // If batch has an active recipe, show next stages from the recipe
@@ -120,7 +163,19 @@ export function StageTransitionDialog({
       setLoading(true)
       const { error } = await transitionBatchStage(batch.id, values.newStage as BatchStage, userId, values.notes || undefined)
       if (error) throw error
-      toast.success(isDevModeActive() ? 'Stage updated (dev mode - compliance bypassed)' : 'Stage updated')
+
+      toast.success(isDevModeActive() ? 'Stage updated (dev mode - compliance bypassed)' : 'Stage transitioned successfully')
+
+      // Show Metrc sync notification if applicable
+      if (willTriggerMetrcSync && isSyncedToMetrc) {
+        const currentPhase = mapStageToMetrcPhase(batch.stage)
+        const newPhase = mapStageToMetrcPhase(values.newStage as BatchStage)
+        toast.info(
+          `Growth phase change (${currentPhase} → ${newPhase}) will be synced to Metrc automatically`,
+          { duration: 5000 }
+        )
+      }
+
       onTransition()
       onClose()
     } catch (error) {
@@ -131,20 +186,49 @@ export function StageTransitionDialog({
     }
   }
 
+  const getMetrcPhaseLabel = (stage: string): string | null => {
+    const phase = mapStageToMetrcPhase(stage)
+    return phase ? `Metrc: ${phase}` : null
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Transition stage for {batch.batch_number}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Metrc Sync Info Alert */}
+            {isSyncedToMetrc && batch.domain_type === 'cannabis' && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  This batch is synced to Metrc. Stage changes may automatically sync growth phase
+                  changes to Metrc.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Current Stage with Metrc Phase */}
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Current Stage</div>
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                <span className="font-medium capitalize">{batch.stage.replace('_', ' ')}</span>
+                {isSyncedToMetrc && getMetrcPhaseLabel(batch.stage) && (
+                  <span className="text-xs text-muted-foreground">
+                    ({getMetrcPhaseLabel(batch.stage)})
+                  </span>
+                )}
+              </div>
+            </div>
+
             <FormField
               control={form.control}
               name="newStage"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Next stage</FormLabel>
+                  <FormLabel>New Stage *</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
@@ -154,7 +238,14 @@ export function StageTransitionDialog({
                     <SelectContent>
                       {stageOptions.map((stage) => (
                         <SelectItem key={stage} value={stage}>
-                          {stage.replace('_', ' ')}
+                          <div className="flex items-center gap-2">
+                            <span className="capitalize">{stage.replace('_', ' ')}</span>
+                            {isSyncedToMetrc && getMetrcPhaseLabel(stage) && (
+                              <span className="text-xs text-muted-foreground">
+                                ({getMetrcPhaseLabel(stage)})
+                              </span>
+                            )}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -163,6 +254,26 @@ export function StageTransitionDialog({
                 </FormItem>
               )}
             />
+
+            {/* Transition Arrow */}
+            {form.watch('newStage') && (
+              <div className="flex items-center justify-center py-2">
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
+
+            {/* Metrc Phase Change Warning */}
+            {willTriggerMetrcSync && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Metrc Sync:</strong> This stage transition will automatically sync a
+                  growth phase change to Metrc (
+                  {mapStageToMetrcPhase(batch.stage)} → {mapStageToMetrcPhase(form.watch('newStage') as BatchStage)}).
+                  This action is irreversible in Metrc.
+                </AlertDescription>
+              </Alert>
+            )}
             <FormField
               control={form.control}
               name="notes"

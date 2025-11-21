@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { getMetrcSyncLog } from '@/lib/supabase/queries/compliance'
 import { MetrcSyncDashboard } from '@/components/features/compliance/metrc-sync-dashboard'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { TagInventoryView } from '@/components/features/tags/tag-inventory-view'
 
 export default async function ComplianceSyncPage() {
   const supabase = await createClient()
@@ -57,20 +59,45 @@ export default async function ComplianceSyncPage() {
     })
   )
 
+  // Get default site for tag inventory
+  const defaultSite = sites?.[0]
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Metrc Sync</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Compliance Management</h1>
         <p className="text-muted-foreground mt-2">
-          Monitor and manage data synchronization with Metrc compliance system
+          Monitor Metrc sync operations and manage tag inventory
         </p>
       </div>
 
-      <MetrcSyncDashboard
-        sites={sites || []}
-        syncLogs={syncLogs}
-        canSync={canPerformAction(userData.role, 'compliance:sync')}
-      />
+      <Tabs defaultValue="sync" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="sync">Metrc Sync</TabsTrigger>
+          <TabsTrigger value="tags">Tag Inventory</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sync">
+          <MetrcSyncDashboard
+            sites={sites || []}
+            syncLogs={syncLogs}
+            canSync={canPerformAction(userData.role, 'compliance:sync')}
+          />
+        </TabsContent>
+
+        <TabsContent value="tags">
+          {defaultSite ? (
+            <TagInventoryView
+              organizationId={userData.organization_id}
+              siteId={defaultSite.id}
+            />
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No sites configured. Please add a site first.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

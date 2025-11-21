@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Sprout, MapPin, AlertTriangle, Activity, Beaker, ArrowLeft } from 'lucide-react'
+import { Sprout, MapPin, AlertTriangle, Activity, Beaker, ArrowLeft, Info } from 'lucide-react'
 import { BatchModal } from './batch-modal'
 import { StageTransitionDialog } from './stage-transition-dialog'
 import { HarvestWorkflow } from './harvest-workflow'
@@ -27,6 +27,11 @@ import type { ActiveRecipeDetails } from '@/types/recipe'
 import type { TelemetryReading } from '@/types/telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { RoleKey } from '@/lib/rbac/types'
+import { PushBatchToMetrcButton } from '@/components/features/compliance/push-batch-to-metrc-button'
+import { BatchMetrcSyncStatus } from '@/components/features/compliance/batch-metrc-sync-status'
+import { BatchTagsList } from './batch-tags-list'
+import { AssignTagsDialog } from './assign-tags-dialog'
+import { DestroyPlantBatchDialog } from '@/components/features/waste/destroy-plant-batch-dialog'
 
 interface BatchDetailPageProps {
   batch: BatchDetail
@@ -173,7 +178,89 @@ export function BatchDetailPage({
         <Button variant="outline" size="sm" onClick={() => setShowApplyRecipe(true)}>
           Apply recipe
         </Button>
+        {can('compliance:push') && (
+          <PushBatchToMetrcButton
+            batchId={detail.id}
+            batchNumber={detail.batch_number}
+            onPushComplete={() => loadDetail()}
+          />
+        )}
+        {detail.domain_type === 'cannabis' && detail.plant_count && detail.plant_count > 0 && (
+          <DestroyPlantBatchDialog
+            batchId={detail.id}
+            batchNumber={detail.batch_number}
+            currentPlantCount={detail.plant_count}
+            plantTags={detail.metrc_plant_labels || []}
+            onDestroyed={() => loadDetail()}
+          />
+        )}
       </div>
+
+      {/* Metrc Sync Status */}
+      {detail.metrc_batch_id && (
+        <BatchMetrcSyncStatus
+          status="synced"
+          metrcBatchId={detail.metrc_batch_id}
+          domainType={detail.domain_type}
+        />
+      )}
+
+      {/* Plant Tag Management - Cannabis Only */}
+      {detail.domain_type === 'cannabis' && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <BatchTagsList
+            batchId={detail.id}
+            batchNumber={detail.batch_number}
+            tags={detail.metrc_plant_labels || []}
+            plantCount={detail.plant_count || 0}
+            onManageTags={() => {/* Open assign dialog */}}
+          />
+          <div className="flex items-center">
+            <AssignTagsDialog
+              batchId={detail.id}
+              batchNumber={detail.batch_number}
+              plantCount={detail.plant_count || 0}
+              currentTags={detail.metrc_plant_labels || []}
+              onAssigned={() => loadDetail()}
+              trigger={
+                <Button variant="outline" className="w-full">
+                  Assign Metrc Tags
+                </Button>
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Missing Tags Alert for Synced Cannabis Batches */}
+      {detail.domain_type === 'cannabis' &&
+       detail.metrc_batch_id &&
+       (!detail.metrc_plant_labels || detail.metrc_plant_labels.length === 0) && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Plant Tags Required</AlertTitle>
+          <AlertDescription>
+            This batch is synced to Metrc but has no plant tags assigned.
+            Assign Metrc plant tags to enable individual plant tracking and phase transitions.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Incomplete Tagging Warning */}
+      {detail.domain_type === 'cannabis' &&
+       detail.metrc_batch_id &&
+       detail.metrc_plant_labels &&
+       detail.metrc_plant_labels.length > 0 &&
+       detail.metrc_plant_labels.length < (detail.plant_count || 0) && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Incomplete Tag Assignment</AlertTitle>
+          <AlertDescription>
+            {detail.metrc_plant_labels.length} of {detail.plant_count} plants tagged ({((detail.metrc_plant_labels.length / (detail.plant_count || 1)) * 100).toFixed(0)}% complete).
+            Assign remaining tags for full Metrc compliance.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Quarantine Alert */}
       {detail.status === 'quarantined' && (

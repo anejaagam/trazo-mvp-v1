@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
         timezone,
         max_pods,
         site_license_number,
+        default_metrc_location,
         is_active,
         created_at,
         updated_at
@@ -170,7 +171,8 @@ export async function POST(request: NextRequest) {
       country,
       timezone,
       max_pods,
-      site_license_number
+      site_license_number,
+      default_metrc_location
     } = body
 
     // Validate required fields
@@ -195,6 +197,7 @@ export async function POST(request: NextRequest) {
         timezone: timezone || 'America/Los_Angeles',
         max_pods: max_pods || 48,
         site_license_number,
+        default_metrc_location,
         is_active: true
       })
       .select()

@@ -290,7 +290,7 @@ export function ReceiveInventoryDialog({
   if (!hasPermission) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent disableOutsideClose disableEscapeClose>
+        <DialogContent disableOutsideClose>
           <DialogHeader>
             <DialogTitle>Receive Inventory</DialogTitle>
           </DialogHeader>
@@ -307,7 +307,7 @@ export function ReceiveInventoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent disableOutsideClose disableEscapeClose>
+      <DialogContent disableOutsideClose className="max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ export function ReceiveInventoryDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-y-auto pr-2">
             {/* Item Selection */}
             <FormField
               control={form.control}
@@ -621,6 +621,7 @@ export function ReceiveInventoryDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
               >
                 Cancel
               </Button>

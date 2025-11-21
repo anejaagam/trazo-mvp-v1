@@ -140,10 +140,10 @@ export function AlarmsDashboard({ siteId }: AlarmsDashboardProps) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Info</CardTitle>
-            <div className="h-3 w-3 rounded-full bg-blue-500" />
+            <div className="h-3 w-3 rounded-full bg-neutral-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-neutral-600">
               {summaryLoading ? '...' : counts.info}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -173,6 +173,7 @@ export function AlarmsDashboard({ siteId }: AlarmsDashboardProps) {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={loading}
+                className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -188,29 +189,33 @@ export function AlarmsDashboard({ siteId }: AlarmsDashboardProps) {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  variant={statusFilter === 'all' ? 'default' : 'ghost'}
                   onClick={() => setStatusFilter('all')}
+                  className={statusFilter === 'all' ? '' : 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50'}
                 >
                   All
                 </Button>
                 <Button
                   size="sm"
-                  variant={statusFilter === 'active' ? 'default' : 'outline'}
+                  variant={statusFilter === 'active' ? 'default' : 'ghost'}
                   onClick={() => setStatusFilter('active')}
+                  className={statusFilter === 'active' ? '' : 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50'}
                 >
                   Active
                 </Button>
                 <Button
                   size="sm"
-                  variant={statusFilter === 'acknowledged' ? 'default' : 'outline'}
+                  variant={statusFilter === 'acknowledged' ? 'default' : 'ghost'}
                   onClick={() => setStatusFilter('acknowledged')}
+                  className={statusFilter === 'acknowledged' ? '' : 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50'}
                 >
                   Acknowledged
                 </Button>
                 <Button
                   size="sm"
-                  variant={statusFilter === 'resolved' ? 'default' : 'outline'}
+                  variant={statusFilter === 'resolved' ? 'default' : 'ghost'}
                   onClick={() => setStatusFilter('resolved')}
+                  className={statusFilter === 'resolved' ? '' : 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50'}
                 >
                   Resolved
                 </Button>
@@ -223,32 +228,32 @@ export function AlarmsDashboard({ siteId }: AlarmsDashboardProps) {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  variant={severityFilter === 'all' ? 'default' : 'outline'}
+                  variant={severityFilter === 'all' ? 'default' : 'ghost'}
                   onClick={() => setSeverityFilter('all')}
                 >
                   All
                 </Button>
                 <Button
                   size="sm"
-                  variant={severityFilter === 'critical' ? 'default' : 'outline'}
+                  variant={severityFilter === 'critical' ? 'default' : 'ghost'}
                   onClick={() => setSeverityFilter('critical')}
-                  className="border-red-200 text-red-700 hover:bg-red-50"
+                  className={severityFilter === 'critical' ? '' : 'text-red-700 hover:bg-red-50 hover:text-red-800'}
                 >
                   Critical
                 </Button>
                 <Button
                   size="sm"
-                  variant={severityFilter === 'warning' ? 'default' : 'outline'}
+                  variant={severityFilter === 'warning' ? 'default' : 'ghost'}
                   onClick={() => setSeverityFilter('warning')}
-                  className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                  className={severityFilter === 'warning' ? '' : 'text-amber-700 hover:bg-amber-50 hover:text-amber-800'}
                 >
                   Warning
                 </Button>
                 <Button
                   size="sm"
-                  variant={severityFilter === 'info' ? 'default' : 'outline'}
+                  variant={severityFilter === 'info' ? 'default' : 'ghost'}
                   onClick={() => setSeverityFilter('info')}
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  className={severityFilter === 'info' ? '' : 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50'}
                 >
                   Info
                 </Button>

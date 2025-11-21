@@ -252,7 +252,7 @@ export function TemplateLibrary({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
                         onClick={() => onEditTemplate(template.id)}
                       >
                         <Edit className="w-4 h-4 mr-1" />
@@ -263,7 +263,7 @@ export function TemplateLibrary({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
+                        className="flex-1 text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50"
                         onClick={() => onCopyTemplate(template.id)}
                       >
                         <Copy className="w-4 h-4 mr-1" />

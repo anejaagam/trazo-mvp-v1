@@ -161,19 +161,15 @@ export function ItemCatalogPage({
         onOpenChange={setDetailSheetOpen}
         userRole={userRole}
         onEdit={(item) => {
-          setDetailSheetOpen(false)
           handleEditItem(item)
         }}
         onReceive={(item) => {
-          setDetailSheetOpen(false)
           handleReceiveInventory(item)
         }}
         onIssue={(item) => {
-          setDetailSheetOpen(false)
           handleIssueInventory(item)
         }}
         onAdjust={(item) => {
-          setDetailSheetOpen(false)
           handleAdjustInventory(item)
         }}
       />

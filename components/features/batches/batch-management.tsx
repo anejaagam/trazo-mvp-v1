@@ -19,6 +19,37 @@ import { BatchTable } from './batch-table'
 import { BatchModal } from './batch-modal'
 import { CultivarManagement } from './cultivar-management'
 
+// Export utility functions
+function exportBatchesToCSV(batches: BatchListItem[]): string {
+  const headers = ['Batch Number', 'Cultivar', 'Stage', 'Status', 'Pods', 'Plant Count', 'Start Date', 'Recipe']
+  const rows = batches.map(batch => [
+    batch.batch_number || 'N/A',
+    batch.cultivar?.name || 'N/A',
+    batch.stage || 'N/A',
+    batch.status || 'N/A',
+    batch.pod_assignments?.map(p => p.pod?.name).filter(Boolean).join(', ') || 'N/A',
+    batch.plant_count?.toString() || '0',
+    batch.start_date ? new Date(batch.start_date).toLocaleDateString() : 'N/A',
+    batch.active_recipe?.name || 'N/A'
+  ])
+  
+  return [headers, ...rows].map(row => 
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+  ).join('\n')
+}
+
+function downloadCSV(csv: string, filename: string): void {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 interface BatchManagementProps {
   siteId: string
   organizationId: string
@@ -71,6 +102,7 @@ export function BatchManagement({
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCultivarDialog, setShowCultivarDialog] = useState(false)
+  const [selectedBatchIds, setSelectedBatchIds] = useState<Set<string>>(new Set())
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<BatchStatus | 'all'>('all')
@@ -192,23 +224,6 @@ export function BatchManagement({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Crop Management</h1>
-          <p className="text-muted-foreground">
-            Track cultivation progress, pod assignments, and recipe coverage across the facility.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {can('batch:create') && (
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Batch
-            </Button>
-          )}
-        </div>
-      </div>
-
       {complianceMessage && (
         <Alert>
           <AlertTitle>Jurisdiction Controls</AlertTitle>
@@ -284,7 +299,11 @@ export function BatchManagement({
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowFilters((prev) => !prev)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowFilters((prev) => !prev)}
+                className="border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-700"
+              >
                 <Filter className="mr-2 h-4 w-4" />
                 Filters
                 {(selectedStatus !== 'all' || selectedStage !== 'all') && (
@@ -293,6 +312,29 @@ export function BatchManagement({
                   </Badge>
                 )}
               </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  const batchesToExport = selectedBatchIds.size > 0 
+                    ? batches.filter(b => selectedBatchIds.has(b.id))
+                    : batches;
+                  const csv = exportBatchesToCSV(batchesToExport);
+                  const filename = selectedBatchIds.size > 0 
+                    ? `batches-selected-${new Date().toISOString().split('T')[0]}.csv`
+                    : `batches-all-${new Date().toISOString().split('T')[0]}.csv`;
+                  downloadCSV(csv, filename);
+                }}
+                disabled={batches.length === 0}
+                className="border-neutral-300 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-700"
+              >
+                Export {selectedBatchIds.size > 0 ? `(${selectedBatchIds.size})` : ''}
+              </Button>
+              {can('batch:create') && (
+                <Button onClick={() => setShowCreateModal(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Batch
+                </Button>
+              )}
             </div>
           </div>
 
@@ -348,6 +390,8 @@ export function BatchManagement({
         userRole={userRole}
         jurisdictionId={jurisdictionId}
         plantType={plantType}
+        selectedBatchIds={selectedBatchIds}
+        onSelectionChange={setSelectedBatchIds}
       />
 
       {showCreateModal && (

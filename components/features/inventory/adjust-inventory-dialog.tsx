@@ -362,7 +362,6 @@ export function AdjustInventoryDialog({
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -671,6 +670,7 @@ export function AdjustInventoryDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
               >
                 Cancel
               </Button>

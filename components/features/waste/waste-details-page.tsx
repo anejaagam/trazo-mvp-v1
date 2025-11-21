@@ -599,14 +599,14 @@ export function WasteDetailsPage({
         {timelineEvents.map((event, idx) => (
           <div key={idx} className="flex gap-4">
             <div className="flex flex-col items-center">
-              <div className="rounded-full bg-blue-100 p-3 shadow-sm">
-                <div className="text-blue-700">{event.icon}</div>
+              <div className="rounded-full bg-green-600 p-3 shadow-sm">
+                <div className="text-white">{event.icon}</div>
               </div>
               {idx < timelineEvents.length - 1 && (
-                <div className="w-0.5 flex-1 bg-gradient-to-b from-blue-300 to-slate-200 my-2" />
+                <div className="w-0.5 flex-1 bg-gradient-to-b from-green-400 to-slate-200 my-2" />
               )}
             </div>
-            <Card className="flex-1 mb-6 border-slate-200 hover:border-blue-300 transition-colors">
+            <Card className="flex-1 mb-6 border-slate-200 hover:border-green-400 transition-colors">
               <CardContent className="p-4">
                 <div className="font-semibold text-slate-900 mb-1">{event.title}</div>
                 <div className="text-sm text-slate-600 mb-2">{event.description}</div>
@@ -693,7 +693,7 @@ export function WasteDetailsPage({
             {isCannabisWaste && !wasteLog.rendered_unusable && can('waste:update') && (
               <Button 
                 onClick={() => setShowRenderingDialog(true)} 
-                className="border-amber-600 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium"
+                className="border-amber-600 bg-amber-50 text-amber-900 hover:bg-amber-100 hover:text-amber-900 font-medium"
                 variant="outline"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
@@ -707,7 +707,7 @@ export function WasteDetailsPage({
               </Button>
             )}
             {canExport && (
-              <Button variant="outline" onClick={handleExport}>
+              <Button variant="outline" onClick={handleExport} className="text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50">
                 <Download className="h-4 w-4 mr-2" />
                 Export PDF
               </Button>
@@ -718,19 +718,19 @@ export function WasteDetailsPage({
 
       {/* Main Content */}
       <Tabs defaultValue="details" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-11 bg-slate-100">
-          <TabsTrigger value="details" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="details">
             Details
           </TabsTrigger>
-          <TabsTrigger value="photos" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="photos">
             <Camera className="h-4 w-4 mr-2" />
             Photos ({wasteLog.photo_urls?.length || 0})
           </TabsTrigger>
-          <TabsTrigger value="compliance" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="compliance">
             <CheckCircle className="h-4 w-4 mr-2" />
             Compliance
           </TabsTrigger>
-          <TabsTrigger value="timeline" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="timeline">
             <Clock className="h-4 w-4 mr-2" />
             Timeline
           </TabsTrigger>

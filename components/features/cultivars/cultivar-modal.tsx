@@ -5,7 +5,7 @@ import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Lock, Unlock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -77,6 +77,7 @@ interface CultivarModalProps {
 export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType }: CultivarModalProps) {
   const [loading, setLoading] = useState(false)
   const isEdit = !!cultivar
+  const [isLocked, setIsLocked] = useState(true)
 
   const cannabisForm = useForm<CannabisFormData>({
     resolver: zodResolver(cannabisSchema),
@@ -104,6 +105,9 @@ export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType 
   // Reset form when cultivar changes (for editing) or when modal opens
   React.useEffect(() => {
     if (open) {
+      // Reset lock state when opening modal
+      setIsLocked(isEdit)
+      
       if (cultivar && plantType === 'cannabis') {
         cannabisForm.reset({
           name: cultivar.name,
@@ -132,10 +136,37 @@ export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType 
         })
       } else {
         // Reset to empty form for new cultivar
-        form.reset()
+        cannabisForm.reset({
+          name: '',
+          genetics: '',
+          breeder: '',
+          harvest_notes: '',
+          grow_characteristics: '',
+        })
+        produceForm.reset({
+          name: '',
+          category: 'vegetable',
+          flavor_profile: '',
+          grow_characteristics: '',
+        })
       }
+    } else {
+      // Reset both forms when modal closes to prevent old values from showing
+      cannabisForm.reset({
+        name: '',
+        genetics: '',
+        breeder: '',
+        harvest_notes: '',
+        grow_characteristics: '',
+      })
+      produceForm.reset({
+        name: '',
+        category: 'vegetable',
+        flavor_profile: '',
+        grow_characteristics: '',
+      })
     }
-  }, [open, cultivar, plantType, cannabisForm, produceForm, form])
+  }, [open, cultivar, plantType, cannabisForm, produceForm, form, isEdit])
 
   const onSubmit = async (data: CannabisFormData | ProduceFormData) => {
     try {
@@ -152,12 +183,21 @@ export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto" 
+        onInteractOutside={(e) => {
+          // Allow closing when locked (view mode), prevent when unlocked (edit mode)
+          if (!isEdit || isLocked) {
+            return // Allow default behavior (close)
+          }
+          e.preventDefault() // Prevent closing when editing
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Cultivar' : 'Create New Cultivar'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'View/Edit Cultivar' : 'Create New Cultivar'}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? 'Update the cultivar information below.'
+              ? 'View cultivar details or unlock to make changes.'
               : `Add a new ${plantType === 'cannabis' ? 'cannabis strain' : 'produce variety'} to your library.`}
           </DialogDescription>
         </DialogHeader>
@@ -165,19 +205,51 @@ export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {plantType === 'cannabis' ? (
-              <CannabisFields form={cannabisForm} />
+              <CannabisFields form={cannabisForm} disabled={isEdit && isLocked} />
             ) : (
-              <ProduceFields form={produceForm} />
+              <ProduceFields form={produceForm} disabled={isEdit && isLocked} />
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEdit ? 'Update' : 'Create'} Cultivar
-              </Button>
+              <div className={`flex gap-2 w-full ${isEdit ? 'justify-between' : 'justify-end'}`}>
+                {isEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsLocked(!isLocked)}
+                    className="border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-800"
+                  >
+                    {isLocked ? (
+                      <>
+                        <Lock className="h-4 w-4 mr-2" />
+                        Unlock to Edit
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="h-4 w-4 mr-2" />
+                        Lock
+                      </>
+                    )}
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => onOpenChange(false)}
+                  className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                >
+                  Cancel
+                </Button>
+                {(!isEdit || !isLocked) && (
+                  <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isEdit ? 'Update' : 'Create'} Cultivar
+                  </Button>
+                )}
+                </div>
+              </div>
             </DialogFooter>
           </form>
         </Form>
@@ -186,7 +258,7 @@ export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType 
   )
 }
 
-function CannabisFields({ form }: { form: any }) {
+function CannabisFields({ form, disabled }: { form: any; disabled?: boolean }) {
   return (
     <Tabs defaultValue="basic" className="w-full">
       <TabsList className="grid w-full grid-cols-3">
@@ -195,7 +267,7 @@ function CannabisFields({ form }: { form: any }) {
         <TabsTrigger value="growing">Growing</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="basic" className="space-y-4 mt-4">
+      <TabsContent value="basic" className="space-y-4 mt-4 min-h-[400px]">
         <FormField
           control={form.control}
           name="name"
@@ -203,7 +275,7 @@ function CannabisFields({ form }: { form: any }) {
             <FormItem>
               <FormLabel>Strain Name *</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Blue Dream, OG Kush" {...field} />
+                <Input placeholder="e.g., Blue Dream, OG Kush" {...field} disabled={disabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -216,7 +288,7 @@ function CannabisFields({ form }: { form: any }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Strain Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={disabled}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select strain type" />
@@ -242,7 +314,7 @@ function CannabisFields({ form }: { form: any }) {
             <FormItem>
               <FormLabel>Genetics</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Blueberry × Haze" {...field} />
+                <Input placeholder="e.g., Blueberry × Haze" {...field} disabled={disabled} />
               </FormControl>
               <FormDescription>Parent strains or lineage</FormDescription>
               <FormMessage />
@@ -257,7 +329,7 @@ function CannabisFields({ form }: { form: any }) {
             <FormItem>
               <FormLabel>Breeder</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., DJ Short Seeds" {...field} />
+                <Input placeholder="e.g., DJ Short Seeds" {...field} disabled={disabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -265,7 +337,7 @@ function CannabisFields({ form }: { form: any }) {
         />
       </TabsContent>
 
-      <TabsContent value="cannabinoids" className="space-y-4 mt-4">
+      <TabsContent value="cannabinoids" className="space-y-4 mt-4 min-h-[400px]">
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -282,6 +354,7 @@ function CannabisFields({ form }: { form: any }) {
                     placeholder="0"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -304,6 +377,7 @@ function CannabisFields({ form }: { form: any }) {
                     placeholder="0"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -328,6 +402,7 @@ function CannabisFields({ form }: { form: any }) {
                     placeholder="0"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -350,6 +425,7 @@ function CannabisFields({ form }: { form: any }) {
                     placeholder="0"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -359,7 +435,7 @@ function CannabisFields({ form }: { form: any }) {
         </div>
       </TabsContent>
 
-      <TabsContent value="growing" className="space-y-4 mt-4">
+      <TabsContent value="growing" className="space-y-4 mt-4 min-h-[400px]">
         <FormField
           control={form.control}
           name="flowering_days"
@@ -373,6 +449,7 @@ function CannabisFields({ form }: { form: any }) {
                   placeholder="e.g., 56"
                   value={field.value ?? ''}
                   onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                  disabled={disabled}
                 />
               </FormControl>
               <FormDescription>Typical flowering period in days</FormDescription>
@@ -392,6 +469,7 @@ function CannabisFields({ form }: { form: any }) {
                   placeholder="e.g., Vigorous growth, responds well to topping, prefers warmer temperatures"
                   className="min-h-[100px]"
                   {...field}
+                  disabled={disabled}
                 />
               </FormControl>
               <FormMessage />
@@ -410,6 +488,7 @@ function CannabisFields({ form }: { form: any }) {
                   placeholder="e.g., Dense buds, prone to mold in high humidity, trim carefully"
                   className="min-h-[100px]"
                   {...field}
+                  disabled={disabled}
                 />
               </FormControl>
               <FormMessage />
@@ -421,7 +500,7 @@ function CannabisFields({ form }: { form: any }) {
   )
 }
 
-function ProduceFields({ form }: { form: any }) {
+function ProduceFields({ form, disabled }: { form: any; disabled?: boolean }) {
   return (
     <Tabs defaultValue="basic" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -429,7 +508,7 @@ function ProduceFields({ form }: { form: any }) {
         <TabsTrigger value="storage">Storage & Growth</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="basic" className="space-y-4 mt-4">
+      <TabsContent value="basic" className="space-y-4 mt-4 min-h-[400px]">
         <FormField
           control={form.control}
           name="name"
@@ -437,7 +516,7 @@ function ProduceFields({ form }: { form: any }) {
             <FormItem>
               <FormLabel>Variety Name *</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Cherry Tomato, Romaine Lettuce" {...field} />
+                <Input placeholder="e.g., Cherry Tomato, Romaine Lettuce" {...field} disabled={disabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -450,7 +529,7 @@ function ProduceFields({ form }: { form: any }) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category *</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={disabled}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
@@ -478,7 +557,7 @@ function ProduceFields({ form }: { form: any }) {
             <FormItem>
               <FormLabel>Flavor Profile</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Sweet, tangy, crisp" {...field} />
+                <Input placeholder="e.g., Sweet, tangy, crisp" {...field} disabled={disabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -496,6 +575,7 @@ function ProduceFields({ form }: { form: any }) {
                   placeholder="e.g., Fast-growing, needs support, drought-tolerant"
                   className="min-h-[100px]"
                   {...field}
+                  disabled={disabled}
                 />
               </FormControl>
               <FormMessage />
@@ -504,7 +584,7 @@ function ProduceFields({ form }: { form: any }) {
         />
       </TabsContent>
 
-      <TabsContent value="storage" className="space-y-4 mt-4">
+      <TabsContent value="storage" className="space-y-4 mt-4 min-h-[400px]">
         <FormField
           control={form.control}
           name="storage_life_days"
@@ -518,6 +598,7 @@ function ProduceFields({ form }: { form: any }) {
                   placeholder="e.g., 7"
                   value={field.value ?? ''}
                   onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                  disabled={disabled}
                 />
               </FormControl>
               <FormDescription>Typical shelf life after harvest</FormDescription>
@@ -540,6 +621,7 @@ function ProduceFields({ form }: { form: any }) {
                     placeholder="e.g., 10"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -560,6 +642,7 @@ function ProduceFields({ form }: { form: any }) {
                     placeholder="e.g., 25"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -583,6 +666,7 @@ function ProduceFields({ form }: { form: any }) {
                     placeholder="e.g., 60"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -604,6 +688,7 @@ function ProduceFields({ form }: { form: any }) {
                     placeholder="e.g., 80"
                     value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />

@@ -126,6 +126,9 @@ export function WasteLogsTable({
   // Detail dialog
   const [selectedWasteLog, setSelectedWasteLog] = useState<WasteLogWithRelations | null>(null)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  
+  // Filter visibility
+  const [filtersVisible, setFiltersVisible] = useState(false)
 
   // Build filters object
   useEffect(() => {
@@ -325,7 +328,7 @@ export function WasteLogsTable({
     <div className="space-y-4">
       {/* Filters */}
       <Card>
-        <CardHeader>
+        <CardHeader className="cursor-pointer" onClick={() => setFiltersVisible(!filtersVisible)}>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
             Filters
@@ -334,6 +337,7 @@ export function WasteLogsTable({
             Filter and search waste disposal records
           </CardDescription>
         </CardHeader>
+        {filtersVisible && (
         <CardContent className="space-y-4">
           {/* Search */}
           <div className="relative">
@@ -421,11 +425,12 @@ export function WasteLogsTable({
             <div className="text-sm text-muted-foreground">
               Showing {paginatedLogs.length} of {sortedLogs.length} records
             </div>
-            <Button variant="outline" size="sm" onClick={handleClearFilters}>
+            <Button variant="outline" size="sm" onClick={handleClearFilters} className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">
               Clear Filters
             </Button>
           </div>
         </CardContent>
+        )}
       </Card>
 
       {/* Table */}

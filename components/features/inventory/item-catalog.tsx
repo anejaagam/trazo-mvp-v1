@@ -387,6 +387,7 @@ export function ItemCatalog({
           <Button
             variant={isActive ? 'default' : 'outline'}
             onClick={() => setIsActive(!isActive)}
+            className={!isActive ? 'border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800' : ''}
           >
             <Filter className="h-4 w-4 mr-2" />
             {isActive ? 'Active' : 'All Items'}

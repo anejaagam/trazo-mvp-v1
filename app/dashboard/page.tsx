@@ -75,7 +75,7 @@ export default async function DashboardPage() {
 
       {/* Key metrics cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Batches</CardTitle>
             <Sprout className="h-4 w-4 text-muted-foreground" />
@@ -140,8 +140,8 @@ export default async function DashboardPage() {
               Latest batch activity and status updates
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="flex flex-1 flex-col">
+            <div className="flex-1 space-y-4">
               {dashboardData.recentBatches.map((batch) => (
                 <div key={batch.id} className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -161,14 +161,14 @@ export default async function DashboardPage() {
                 </div>
               ))}
             </div>
-            <Button variant="outline" className="w-full mt-4">
+            <Button variant="outline" className="mt-4 w-full border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800">
               View All Batches
             </Button>
           </CardContent>
         </Card>
 
         {/* Environmental Status */}
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Thermometer className="h-5 w-5" />
@@ -178,8 +178,8 @@ export default async function DashboardPage() {
               Current environmental conditions across all pods
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="flex flex-1 flex-col">
+            <div className="flex-1 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Avg Temperature</p>
@@ -203,7 +203,7 @@ export default async function DashboardPage() {
                 </div>
               </div>
             </div>
-            <Button variant="outline" className="w-full mt-4">
+            <Button variant="outline" className="mt-4 w-full border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800">
               View Environmental Dashboard
             </Button>
           </CardContent>
@@ -246,7 +246,7 @@ export default async function DashboardPage() {
               </div>
             ))}
           </div>
-          <Button variant="outline" className="w-full mt-4">
+          <Button variant="outline" className="w-full mt-4 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800">
             View All Alerts
           </Button>
         </CardContent>

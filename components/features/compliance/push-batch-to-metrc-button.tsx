@@ -31,6 +31,7 @@ interface PushBatchToMetrcButtonProps {
   size?: 'default' | 'sm' | 'lg' | 'icon'
   showLabel?: boolean
   onPushComplete?: () => void
+  className?: string
 }
 
 export function PushBatchToMetrcButton({
@@ -40,6 +41,7 @@ export function PushBatchToMetrcButton({
   size = 'sm',
   showLabel = true,
   onPushComplete,
+  className,
 }: PushBatchToMetrcButtonProps) {
   const [isPushing, setIsPushing] = useState(false)
   const [isPushed, setIsPushed] = useState(false)
@@ -145,6 +147,7 @@ export function PushBatchToMetrcButton({
           variant={variant}
           size={size}
           disabled={isPushed}
+          className={className}
         >
           {isPushed ? (
             <>

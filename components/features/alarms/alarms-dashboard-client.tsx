@@ -253,6 +253,7 @@ export function AlarmsDashboard({ siteId }: AlarmsDashboardProps) {
                   size="sm"
                   variant={severityFilter === 'info' ? 'default' : 'ghost'}
                   onClick={() => setSeverityFilter('info')}
+                
                   className={severityFilter === 'info' ? '' : 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50'}
                 >
                   Info

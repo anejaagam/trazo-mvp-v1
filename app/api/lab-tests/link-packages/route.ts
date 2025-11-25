@@ -11,7 +11,7 @@ import { linkPackageToTest } from '@/lib/compliance/metrc/sync/lab-test-sync'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()

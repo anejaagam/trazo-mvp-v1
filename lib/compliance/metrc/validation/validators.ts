@@ -6,6 +6,9 @@
 
 import type { ValidationResult, ValidationError, ValidationWarning } from '@/lib/compliance/types'
 
+// Re-export types for external use
+export type { ValidationResult, ValidationError, ValidationWarning }
+
 /**
  * Create a validation result
  */

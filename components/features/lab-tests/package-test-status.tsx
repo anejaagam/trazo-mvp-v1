@@ -39,9 +39,21 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { COAUploadForm } from './coa-upload-form'
 import { TestResultsViewer } from './test-results-viewer'
-import type { Database } from '@/types/database'
 
-type HarvestPackage = Database['public']['Tables']['harvest_packages']['Row']
+// Define type locally
+type HarvestPackage = {
+  id: string
+  package_number: string
+  batch_id: string | null
+  strain_name: string | null
+  product_type: string | null
+  quantity: number
+  unit_of_measure: string
+  harvest_date: string | null
+  test_status: 'pending' | 'in_progress' | 'passed' | 'failed' | null
+  lab_test_id: string | null
+  [key: string]: any
+}
 
 interface PackageTestStatusProps {
   packageId: string

@@ -261,6 +261,7 @@ export function TemplateEditor({
         <div className="flex gap-2">
           <Button
             variant="outline"
+            className="text-red-500 hover:text-red-600"
             onClick={handleCancel}
             disabled={isSaving}
           >
@@ -269,6 +270,7 @@ export function TemplateEditor({
           </Button>
           <Button
             variant="outline"
+            className="text-emerald-600 hover:text-emerald-700"
             onClick={() => handleSave(false)}
             disabled={isSaving}
           >

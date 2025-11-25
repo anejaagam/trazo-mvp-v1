@@ -45,7 +45,7 @@ export function ActiveRecipeDisplay({ activeRecipe }: ActiveRecipeDisplayProps) 
               {activation.recipe?.name || 'Unknown Recipe'}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={handleViewRecipe}>
+          <Button variant="outline" size="sm" className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" onClick={handleViewRecipe}>
             <ExternalLink className="w-4 h-4 mr-2" />
             View Recipe
           </Button>

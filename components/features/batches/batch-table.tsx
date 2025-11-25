@@ -40,6 +40,8 @@ interface BatchTableProps {
   userRole: string
   jurisdictionId?: JurisdictionId | null
   plantType: PlantType
+  selectedBatchIds?: Set<string>
+  onSelectionChange?: (selected: Set<string>) => void
 }
 
 export function BatchTable({
@@ -50,11 +52,18 @@ export function BatchTable({
   userRole,
   jurisdictionId,
   plantType,
+  selectedBatchIds: externalSelectedIds,
+  onSelectionChange,
 }: BatchTableProps) {
   const router = useRouter()
   const { toast } = useToast()
   const { can } = usePermissions(userRole as RoleKey, [])
-  const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
+  const [internalSelectedRows, setInternalSelectedRows] = useState<Record<string, boolean>>({})
+  
+  // Use external selection if provided, otherwise internal
+  const selectedRows = externalSelectedIds 
+    ? Object.fromEntries(Array.from(externalSelectedIds).map(id => [id, true]))
+    : internalSelectedRows
   const [selectedBatch, setSelectedBatch] = useState<BatchListItem | null>(null)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [editingBatch, setEditingBatch] = useState<BatchListItem | null>(null)
@@ -66,27 +75,41 @@ export function BatchTable({
   }, [batches, selectedRows])
 
   const toggleAll = (checked: boolean) => {
-    if (!checked) {
-      setSelectedRows({})
-      return
+    if (onSelectionChange) {
+      onSelectionChange(checked ? new Set(batches.map(b => b.id)) : new Set())
+    } else {
+      if (!checked) {
+        setInternalSelectedRows({})
+        return
+      }
+      const next: Record<string, boolean> = {}
+      batches.forEach((batch) => {
+        next[batch.id] = true
+      })
+      setInternalSelectedRows(next)
     }
-    const next: Record<string, boolean> = {}
-    batches.forEach((batch) => {
-      next[batch.id] = true
-    })
-    setSelectedRows(next)
   }
 
   const handleRowSelection = (batchId: string, checked: boolean) => {
-    setSelectedRows((prev) => {
-      const next = { ...prev }
+    if (onSelectionChange && externalSelectedIds) {
+      const newSet = new Set(externalSelectedIds)
       if (checked) {
-        next[batchId] = true
+        newSet.add(batchId)
       } else {
-        delete next[batchId]
+        newSet.delete(batchId)
       }
-      return next
-    })
+      onSelectionChange(newSet)
+    } else {
+      setInternalSelectedRows((prev) => {
+        const next = { ...prev }
+        if (checked) {
+          next[batchId] = true
+        } else {
+          delete next[batchId]
+        }
+        return next
+      })
+    }
   }
 
   const handleDeleteBatch = async (reason: string, createWasteLog?: boolean) => {

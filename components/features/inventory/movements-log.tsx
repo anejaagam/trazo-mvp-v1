@@ -345,6 +345,7 @@ export function MovementsLog({
             size="sm"
             onClick={handleExportExcel}
             disabled={filteredMovements.length === 0}
+            className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
           >
             <Download className="h-4 w-4 mr-2" />
             Export

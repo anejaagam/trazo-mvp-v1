@@ -259,6 +259,7 @@ export function TaskList({ tasks, onTaskExecute, selectedTaskId, onSelectTask, b
                       e.stopPropagation();
                       handleExecuteTask(task.id);
                     }}
+                    className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
                   >
                     <PlayCircle className="mr-2 h-4 w-4" />
                     {getActionLabel(task.status)}

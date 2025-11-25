@@ -406,7 +406,12 @@ export function HarvestWorkflow({ batch, isOpen, onClose, onComplete, userId }: 
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              >
                 Cancel
               </Button>
               <Button type="submit">Record harvest</Button>

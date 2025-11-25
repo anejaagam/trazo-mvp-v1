@@ -44,6 +44,8 @@ interface DestroyPlantBatchDialogProps {
   plantTags?: string[]
   onDestroyed: () => void
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function DestroyPlantBatchDialog({
@@ -53,8 +55,19 @@ export function DestroyPlantBatchDialog({
   plantTags = [],
   onDestroyed,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: DestroyPlantBatchDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen! : uncontrolledOpen
+
+  const handleOpenChange = (value: boolean) => {
+    if (!isControlled) {
+      setUncontrolledOpen(value)
+    }
+    onOpenChange?.(value)
+  }
   const [plantsDestroyed, setPlantsDestroyed] = useState('')
   const [wasteWeight, setWasteWeight] = useState('')
   const [wasteUnit, setWasteUnit] = useState('Kilograms')
@@ -133,7 +146,7 @@ export function DestroyPlantBatchDialog({
         })
       }
 
-      setOpen(false)
+      handleOpenChange(false)
       onDestroyed()
     } catch (error) {
       console.error('Error destroying plant batch:', error)
@@ -152,15 +165,17 @@ export function DestroyPlantBatchDialog({
     renderingMethod.startsWith('50_50') && Number(ratio) >= 0.9 && Number(ratio) <= 1.1
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Destroy Plants
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {(trigger !== null) && (
+        <DialogTrigger asChild>
+          {trigger || (
+            <Button variant="destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Destroy Plants
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Destroy Plant Batch Waste</DialogTitle>
@@ -341,7 +356,7 @@ export function DestroyPlantBatchDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={() => handleOpenChange(false)}
             disabled={isDestroying}
           >
             Cancel

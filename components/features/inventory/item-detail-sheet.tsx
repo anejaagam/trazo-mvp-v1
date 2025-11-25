@@ -262,7 +262,7 @@ export function ItemDetailSheet({
           {(can('inventory:update') || can('inventory:create') || can('inventory:consume')) && (
             <div className="px-6 pb-4 flex flex-wrap gap-2">
               {can('inventory:update') && onEdit && (
-                <Button onClick={() => onEdit(item)} variant="outline" size="sm">
+                <Button onClick={() => onEdit(item)} variant="outline" size="sm" className="text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50">
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
                 </Button>

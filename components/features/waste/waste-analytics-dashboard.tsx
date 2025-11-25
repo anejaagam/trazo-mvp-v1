@@ -194,6 +194,26 @@ export function WasteAnalyticsDashboard({ siteId }: WasteAnalyticsDashboardProps
 
   return (
     <div className="space-y-6">
+      {/* Compliance Alerts */}
+      {summary && (summary.non_rendered_count > 0 || summary.non_witnessed_count > 0) && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex flex-col gap-1">
+            <div className="font-medium">Compliance Issues Detected</div>
+            {summary.non_rendered_count > 0 && (
+              <div className="text-sm">
+                • {summary.non_rendered_count} cannabis waste log(s) not rendered unusable
+              </div>
+            )}
+            {summary.non_witnessed_count > 0 && (
+              <div className="text-sm">
+                • {summary.non_witnessed_count} cannabis waste log(s) without witness
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Date Range Selector */}
       <Card>
         <CardHeader>
@@ -350,26 +370,6 @@ export function WasteAnalyticsDashboard({ siteId }: WasteAnalyticsDashboardProps
           </CardContent>
         </Card>
       </div>
-
-      {/* Compliance Alerts */}
-      {summary && (summary.non_rendered_count > 0 || summary.non_witnessed_count > 0) && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="flex flex-col gap-1">
-            <div className="font-medium">Compliance Issues Detected</div>
-            {summary.non_rendered_count > 0 && (
-              <div className="text-sm">
-                • {summary.non_rendered_count} cannabis waste log(s) not rendered unusable
-              </div>
-            )}
-            {summary.non_witnessed_count > 0 && (
-              <div className="text-sm">
-                • {summary.non_witnessed_count} cannabis waste log(s) without witness
-              </div>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

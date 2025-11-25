@@ -28,7 +28,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { acknowledgeAlarm, resolveAlarm } from '@/app/actions/alarms';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Notification } from '@/types/telemetry';
 import Link from 'next/link';
 
@@ -173,6 +173,13 @@ export function UnifiedNotificationCenter({
     realtime: true,
   });
 
+  // Refresh alarms when switching to alarms tab
+  useEffect(() => {
+    if (activeTab === 'alarms' || activeTab === 'all') {
+      refreshAlarms();
+    }
+  }, [activeTab]);
+
   // Fetch notifications with category filter
   const {
     notifications,
@@ -265,6 +272,7 @@ export function UnifiedNotificationCenter({
             variant="outline"
             onClick={handleRefresh}
             disabled={loading}
+            className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh

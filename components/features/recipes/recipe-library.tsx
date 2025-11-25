@@ -144,7 +144,7 @@ export function RecipeLibrary({
                     variant={filterStatus === status ? 'default' : 'outline'}
                     onClick={() => setFilterStatus(status)}
                     size="sm"
-                    className={filterStatus !== status ? 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100' : ''}
+                    className={filterStatus !== status ? 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50' : ''}
                   >
                     {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
                   </Button>
@@ -158,7 +158,7 @@ export function RecipeLibrary({
                     variant={filterPlantType === type ? 'default' : 'outline'}
                     onClick={() => setFilterPlantType(type)}
                     size="sm"
-                    className={filterPlantType !== type ? 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100' : ''}
+                    className={filterPlantType !== type ? 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50' : ''}
                   >
                     {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
                   </Button>

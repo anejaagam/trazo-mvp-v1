@@ -188,7 +188,7 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
               </TableHeader>
               <TableBody>
                 {activeCultivars.map((cultivar) => (
-                  <TableRow key={cultivar.id}>
+                  <TableRow key={cultivar.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleEditClick(cultivar)}>
                     <TableCell className="font-medium">{cultivar.name}</TableCell>
                     <TableCell>
                       {plantType === 'cannabis' ? (
@@ -218,7 +218,10 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditClick(cultivar)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditClick(cultivar)
+                          }}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -250,7 +253,7 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
               </TableHeader>
               <TableBody>
                 {archivedCultivars.map((cultivar) => (
-                  <TableRow key={cultivar.id}>
+                  <TableRow key={cultivar.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleEditClick(cultivar)}>
                     <TableCell className="font-medium text-muted-foreground">
                       {cultivar.name}
                     </TableCell>
@@ -276,7 +279,10 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEditClick(cultivar)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditClick(cultivar)
+                          }}
                         >
                           <Archive className="h-4 w-4" />
                         </Button>

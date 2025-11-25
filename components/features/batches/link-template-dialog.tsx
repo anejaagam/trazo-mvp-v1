@@ -256,6 +256,7 @@ export function LinkTemplateDialog({
             variant="outline"
             onClick={onClose}
             disabled={submitting}
+            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
           >
             Cancel
           </Button>

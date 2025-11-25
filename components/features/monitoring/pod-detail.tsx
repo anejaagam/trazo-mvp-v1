@@ -388,7 +388,7 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
               Recipe managed by batch: {activeRecipe.activation.scope_name}
             </div>
           )}
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <Button variant="outline" size="sm" className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
@@ -695,8 +695,9 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage, active
                 <CardTitle className="text-sm">Equipment Status & Controls</CardTitle>
                 {can('equipment:override') && (
                   <Button
-                    variant={overrideMode ? "destructive" : "outline"}
+                    variant="outline"
                     size="sm"
+                    className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
                     onClick={() => {
                       if (overrideMode) {
                         // Cancel - reset pending changes

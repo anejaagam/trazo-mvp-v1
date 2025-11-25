@@ -147,8 +147,8 @@ export function BatchModal(props: BatchModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{props.batch ? 'Edit batch' : 'Create new batch'}</DialogTitle>
           <DialogDescription>
             Configure domain-specific information, assign pods, and respect jurisdiction limits.
@@ -420,7 +420,8 @@ export function BatchForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-y-auto pr-2 flex-1 flex flex-col">
+        <div className="flex-1 space-y-6">
         <div className="grid gap-4">
           <FormField
             control={form.control}
@@ -779,10 +780,17 @@ export function BatchForm({
             </FormItem>
           )}
         />
+        </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 flex-shrink-0 pt-4 border-t">
           {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel} 
+              disabled={loading}
+              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+            >
               Cancel
             </Button>
           )}

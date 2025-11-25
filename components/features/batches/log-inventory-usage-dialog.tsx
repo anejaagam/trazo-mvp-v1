@@ -310,7 +310,12 @@ export function LogInventoryUsageDialog({
             />
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>

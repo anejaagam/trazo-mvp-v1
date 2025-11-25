@@ -323,6 +323,7 @@ export function WorkflowsDashboardClient({
             variant={view === 'board' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setView('board')}
+            className={view !== 'board' ? 'border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800' : ''}
           >
             <LayoutGrid className="mr-2 h-4 w-4" />
             Board
@@ -331,6 +332,7 @@ export function WorkflowsDashboardClient({
             variant={view === 'list' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setView('list')}
+            className={view !== 'list' ? 'border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800' : ''}
           >
             <List className="mr-2 h-4 w-4" />
             List
@@ -340,7 +342,7 @@ export function WorkflowsDashboardClient({
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50">
                 <Filter className="mr-2 h-4 w-4" />
                 {statusButtonLabel}
               </Button>

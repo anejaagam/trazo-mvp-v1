@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const siteId = searchParams.get('siteId')
     const itemId = searchParams.get('item_id')
     const limit = searchParams.get('limit') || '10'
+    const fromDate = searchParams.get('fromDate') // Optional date filter
 
     const supabase = createServiceClient()
 
@@ -60,10 +61,20 @@ export async function GET(request: NextRequest) {
       query = query.eq('inventory_items.site_id', siteId)
     }
 
-    // Apply limit and ordering
+    // Filter by date if provided (for today's movements)
+    if (fromDate) {
+      query = query.gte('timestamp', fromDate)
+    }
+
+    // Apply ordering and optional limit
+    query = query.order('timestamp', { ascending: false })
+    
+    if (!fromDate) {
+      // Only apply limit if not filtering by date (let client handle limit for date-filtered results)
+      query = query.limit(parseInt(limit))
+    }
+
     const { data, error } = await query
-      .order('timestamp', { ascending: false })
-      .limit(parseInt(limit))
 
     if (error) {
       console.error('Dev mode movements fetch error:', error)

@@ -138,7 +138,11 @@ export function ApplyRecipeDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+          >
             Cancel
           </Button>
           <Button onClick={handleApply} disabled={loading || !selectedRecipeId}>

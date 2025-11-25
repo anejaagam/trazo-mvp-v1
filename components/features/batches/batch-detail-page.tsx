@@ -3,35 +3,68 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
+import { toast } from 'sonner'
+import {
+  Sprout,
+  AlertTriangle,
+  ArrowLeft,
+  Edit3,
+  ArrowRightLeft,
+  Package,
+  MoreVertical,
+  FileText,
+  Tag,
+  ExternalLink,
+  Calendar,
+  Hash,
+  Shield,
+  Thermometer,
+  Droplet,
+  Wind,
+  CheckCircle2,
+  AlertCircle,
+  Activity,
+  Info,
+  Trash2,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Sprout, MapPin, AlertTriangle, Activity, Beaker, ArrowLeft, Info } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
 import { BatchModal } from './batch-modal'
 import { StageTransitionDialog } from './stage-transition-dialog'
 import { HarvestWorkflow } from './harvest-workflow'
 import { QualityMetricsPanel } from './quality-metrics-panel'
-import type { BatchDetail } from '@/lib/supabase/queries/batches-client'
-import { getBatchDetail, quarantineBatch, releaseFromQuarantine } from '@/lib/supabase/queries/batches-client'
-import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
-import type { BatchStageHistory, BatchEvent } from '@/types/batch'
-import { toast } from 'sonner'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LogInventoryUsageDialog } from './log-inventory-usage-dialog'
 import { ApplyRecipeDialog } from './apply-recipe-dialog'
 import { AssignPodDialog } from './assign-pod-dialog'
+import { BatchTagsList } from './batch-tags-list'
+import { AssignTagsDialog } from './assign-tags-dialog'
+import { PushBatchToMetrcButton } from '@/components/features/compliance/push-batch-to-metrc-button'
+import { BatchMetrcSyncStatus } from '@/components/features/compliance/batch-metrc-sync-status'
+import { DestroyPlantBatchDialog } from '@/components/features/waste/destroy-plant-batch-dialog'
+import { getBatchDetail, quarantineBatch, releaseFromQuarantine } from '@/lib/supabase/queries/batches-client'
+import type { BatchDetail } from '@/lib/supabase/queries/batches-client'
+import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
+import type { BatchStageHistory, BatchEvent } from '@/types/batch'
 import type { ActiveRecipeDetails } from '@/types/recipe'
 import type { TelemetryReading } from '@/types/telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { RoleKey } from '@/lib/rbac/types'
-import { PushBatchToMetrcButton } from '@/components/features/compliance/push-batch-to-metrc-button'
-import { BatchMetrcSyncStatus } from '@/components/features/compliance/batch-metrc-sync-status'
-import { BatchTagsList } from './batch-tags-list'
-import { AssignTagsDialog } from './assign-tags-dialog'
-import { DestroyPlantBatchDialog } from '@/components/features/waste/destroy-plant-batch-dialog'
+import { getJurisdictionConfig } from '@/lib/jurisdiction/config'
 
 interface BatchDetailPageProps {
   batch: BatchDetail
@@ -58,7 +91,10 @@ export function BatchDetailPage({
   const [showInventoryDialog, setShowInventoryDialog] = useState(false)
   const [showApplyRecipe, setShowApplyRecipe] = useState(false)
   const [showAssignPod, setShowAssignPod] = useState(false)
+  const [showTagsDialog, setShowTagsDialog] = useState(false)
+  const [activeTab, setActiveTab] = useState('overview')
   const [deactivating, setDeactivating] = useState(false)
+  const [showDestroyDialog, setShowDestroyDialog] = useState(false)
 
   const loadDetail = async () => {
     setLoading(true)
@@ -78,8 +114,7 @@ export function BatchDetailPage({
 
   const totalPlantCount = useMemo(() => {
     const assignmentTotal = activeAssignments.reduce((sum, assignment) => sum + (assignment.plant_count || 0), 0)
-    // If there are assignments, use their total; otherwise fall back to batch.plant_count
-    return assignmentTotal > 0 ? assignmentTotal : (detail.plant_count || 0)
+    return assignmentTotal > 0 ? assignmentTotal : detail.plant_count || 0
   }, [activeAssignments, detail.plant_count])
 
   const handleQuarantineToggle = async () => {
@@ -104,8 +139,8 @@ export function BatchDetailPage({
 
   const handleDeactivateRecipe = async () => {
     if (!detail.active_recipe_detail?.activation?.id) return
-    
-    const confirmed = window.confirm('Are you sure you want to deactivate this recipe from the batch?')
+
+    const confirmed = window.confirm('Deactivate this recipe from the batch?')
     if (!confirmed) return
 
     setDeactivating(true)
@@ -116,7 +151,7 @@ export function BatchDetailPage({
         userId,
         `Deactivated from batch ${detail.batch_number}`
       )
-      
+
       if (error) {
         console.error('Error deactivating recipe:', error)
         toast.error('Failed to deactivate recipe')
@@ -133,428 +168,940 @@ export function BatchDetailPage({
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Back Navigation */}
-      <Button
-        variant="ghost"
-        onClick={() => router.push('/dashboard/batches/active')}
+  const jurisdictionName = useMemo(() => {
+    if (!jurisdictionId) return 'Not configured'
+    const config = getJurisdictionConfig(jurisdictionId)
+    return config?.name ?? 'Not configured'
+  }, [jurisdictionId])
+
+  const tagCount = detail.metrc_plant_labels?.length ?? 0
+
+  const pushToMetrcAction = can('compliance:push') ? (
+    <PushBatchToMetrcButton
+      batchId={detail.id}
+      batchNumber={detail.batch_number}
+      onPushComplete={() => loadDetail()}
+      variant="outline"
+      size="sm"
+      className="text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+    />
+  ) : null
+
+  const assignTagsAction = detail.domain_type === 'cannabis' ? (
+    <AssignTagsDialog
+      batchId={detail.id}
+      batchNumber={detail.batch_number}
+      plantCount={totalPlantCount}
+      currentTags={detail.metrc_plant_labels || []}
+      onAssigned={() => loadDetail()}
+      trigger={
+        <Button size="sm" className="gap-2 bg-amber-600 text-white hover:bg-amber-700">
+          <ExternalLink className="h-4 w-4" />
+          Assign Metrc Tags
+        </Button>
+      }
+    />
+  ) : null
+
+  const destroyPlantMenuItem =
+    detail.domain_type === 'cannabis' && totalPlantCount > 0 ? (
+      <DropdownMenuItem
+        className="gap-2 text-red-600 focus:text-red-600"
+        onSelect={() => {
+          setShowDestroyDialog(true)
+        }}
       >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Batches
-      </Button>
+        <Trash2 className="h-4 w-4" />
+        Destroy plants
+      </DropdownMenuItem>
+    ) : null
 
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <Sprout className="h-6 w-6" />
-            <h1 className="text-3xl font-bold">Batch {detail.batch_number}</h1>
+  return (
+    <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="-mx-6 -mt-6">
+        <div className="sticky top-0 z-30 border-b bg-white">
+          <div className="mx-auto flex w-full max-w-[96rem] items-center px-8 py-4">
+            <Button
+              variant="ghost"
+              className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700"
+              onClick={() => router.push('/dashboard/batches/active')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Batches
+            </Button>
           </div>
-          <p className="text-muted-foreground">{detail.cultivar?.name || detail.cultivar_id || 'Unknown cultivar'}</p>
         </div>
-        <Button
-          variant={detail.status === 'quarantined' ? 'default' : 'destructive'}
-          size="sm"
-          onClick={handleQuarantineToggle}
-          className={detail.status === 'quarantined' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-        >
-          <AlertTriangle className="h-4 w-4 mr-2" />
-          {detail.status === 'quarantined' ? 'Release' : 'Quarantine'}
-        </Button>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-          Edit batch
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setShowStageDialog(true)}>
-          Transition stage
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setShowHarvestDialog(true)}>
-          Record harvest
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setShowApplyRecipe(true)}>
-          Apply recipe
-        </Button>
-        {can('compliance:push') && (
-          <PushBatchToMetrcButton
-            batchId={detail.id}
-            batchNumber={detail.batch_number}
-            onPushComplete={() => loadDetail()}
-          />
-        )}
-        {detail.domain_type === 'cannabis' && detail.plant_count && detail.plant_count > 0 && (
-          <DestroyPlantBatchDialog
-            batchId={detail.id}
-            batchNumber={detail.batch_number}
-            currentPlantCount={detail.plant_count}
-            plantTags={detail.metrc_plant_labels || []}
-            onDestroyed={() => loadDetail()}
-          />
-        )}
-      </div>
-
-      {/* Metrc Sync Status */}
-      {detail.metrc_batch_id && (
-        <BatchMetrcSyncStatus
-          status="synced"
-          metrcBatchId={detail.metrc_batch_id}
-          domainType={detail.domain_type}
+      <div className="mx-auto w-full max-w-[96rem] space-y-6 px-8 py-8 sm:px-10 lg:px-16">
+        <BatchDetailsHeader
+          batch={detail}
+          cultivarName={detail.cultivar?.name || detail.cultivar_id || 'Unknown cultivar'}
+          isQuarantined={detail.status === 'quarantined'}
+          canApplyRecipe={can('control:recipe_apply')}
+          onEdit={() => setEditing(true)}
+          onStageTransition={() => setShowStageDialog(true)}
+          onRecordHarvest={() => setShowHarvestDialog(true)}
+          onApplyRecipe={() => setShowApplyRecipe(true)}
+          onAssignPod={() => setShowAssignPod(true)}
+          onLogInventory={() => {
+            setActiveTab('inventory')
+            setShowInventoryDialog(true)
+          }}
+          onToggleQuarantine={handleQuarantineToggle}
+          pushToMetrcButton={pushToMetrcAction}
+          destroyMenuItem={destroyPlantMenuItem}
         />
-      )}
 
-      {/* Plant Tag Management - Cannabis Only */}
-      {detail.domain_type === 'cannabis' && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <BatchTagsList
-            batchId={detail.id}
-            batchNumber={detail.batch_number}
-            tags={detail.metrc_plant_labels || []}
-            plantCount={detail.plant_count || 0}
-            onManageTags={() => {/* Open assign dialog */}}
+        {detail.metrc_batch_id && (
+          <BatchMetrcSyncStatus
+            status="synced"
+            metrcBatchId={detail.metrc_batch_id}
+            domainType={detail.domain_type}
           />
-          <div className="flex items-center">
-            <AssignTagsDialog
-              batchId={detail.id}
-              batchNumber={detail.batch_number}
-              plantCount={detail.plant_count || 0}
-              currentTags={detail.metrc_plant_labels || []}
-              onAssigned={() => loadDetail()}
-              trigger={
-                <Button variant="outline" className="w-full">
-                  Assign Metrc Tags
-                </Button>
-              }
-            />
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Missing Tags Alert for Synced Cannabis Batches */}
-      {detail.domain_type === 'cannabis' &&
-       detail.metrc_batch_id &&
-       (!detail.metrc_plant_labels || detail.metrc_plant_labels.length === 0) && (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Plant Tags Required</AlertTitle>
-          <AlertDescription>
-            This batch is synced to Metrc but has no plant tags assigned.
-            Assign Metrc plant tags to enable individual plant tracking and phase transitions.
-          </AlertDescription>
-        </Alert>
-      )}
+        {detail.domain_type === 'cannabis' && (
+          <MetrcTagsSummaryCard
+            plantCount={totalPlantCount}
+            tagCount={tagCount}
+            onManage={() => {
+              setActiveTab('overview')
+              setShowTagsDialog(true)
+            }}
+            assignButton={assignTagsAction}
+          />
+        )}
 
-      {/* Incomplete Tagging Warning */}
-      {detail.domain_type === 'cannabis' &&
-       detail.metrc_batch_id &&
-       detail.metrc_plant_labels &&
-       detail.metrc_plant_labels.length > 0 &&
-       detail.metrc_plant_labels.length < (detail.plant_count || 0) && (
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Incomplete Tag Assignment</AlertTitle>
-          <AlertDescription>
-            {detail.metrc_plant_labels.length} of {detail.plant_count} plants tagged ({((detail.metrc_plant_labels.length / (detail.plant_count || 1)) * 100).toFixed(0)}% complete).
-            Assign remaining tags for full Metrc compliance.
-          </AlertDescription>
-        </Alert>
-      )}
+        {detail.domain_type === 'cannabis' &&
+          detail.metrc_batch_id &&
+          (!detail.metrc_plant_labels || detail.metrc_plant_labels.length === 0) && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Plant tags required</AlertTitle>
+              <AlertDescription>
+                This batch is synced to Metrc but has no plant tags assigned. Assign tags to enable
+                plant-level tracking and downstream compliance actions.
+              </AlertDescription>
+            </Alert>
+          )}
 
-      {/* Quarantine Alert */}
-      {detail.status === 'quarantined' && (
-        <Alert>
-          <AlertTitle>Quarantined</AlertTitle>
-          <AlertDescription className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            {detail.quarantine_reason || 'Pending reason'}
-          </AlertDescription>
-        </Alert>
-      )}
+        {detail.domain_type === 'cannabis' &&
+          detail.metrc_batch_id &&
+          detail.metrc_plant_labels &&
+          detail.metrc_plant_labels.length > 0 &&
+          detail.metrc_plant_labels.length < totalPlantCount && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Incomplete tag assignment</AlertTitle>
+              <AlertDescription>
+                {detail.metrc_plant_labels.length} of {totalPlantCount} plants tagged (
+                {totalPlantCount > 0
+                  ? Math.round((detail.metrc_plant_labels.length / totalPlantCount) * 100)
+                  : 0}
+                % complete). Assign the remaining tags for full Metrc compliance.
+              </AlertDescription>
+            </Alert>
+          )}
 
-      {/* Loading State */}
-      {loading && <Skeleton className="h-96 w-full" />}
+        {detail.status === 'quarantined' && (
+          <Alert className="border-amber-200 bg-amber-50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle>Quarantined</AlertTitle>
+            <AlertDescription>{detail.quarantine_reason || 'Pending reason'}</AlertDescription>
+          </Alert>
+        )}
 
-      {/* Content Tabs */}
-      {!loading && (
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid h-11 w-full grid-cols-5 items-center rounded-lg bg-muted p-1 text-muted-foreground">
-            <TabsTrigger value="overview" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="assignments" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Pods & Telemetry
-            </TabsTrigger>
-            <TabsTrigger value="quality" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Quality
-            </TabsTrigger>
-            <TabsTrigger value="history" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              History
-            </TabsTrigger>
-            <TabsTrigger value="inventory" className="rounded-md px-3 py-2 text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
-              Inventory
-            </TabsTrigger>
-          </TabsList>
+        {loading && <Skeleton className="h-96 w-full rounded-xl" />}
 
-          <TabsContent value="overview" className="space-y-4 mt-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Status</CardTitle>
+        {!loading && (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="flex w-full flex-wrap gap-2 overflow-x-auto">
+              <TabsTrigger value="overview" className="flex-shrink-0">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="assignments" className="flex-shrink-0">
+                Pods & Telemetry
+              </TabsTrigger>
+              <TabsTrigger value="quality" className="flex-shrink-0">
+                Quality
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex-shrink-0">
+                History
+              </TabsTrigger>
+              <TabsTrigger value="inventory" className="flex-shrink-0">
+                Inventory
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="mt-6 space-y-6">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <StatusOverviewCard
+                  stage={detail.stage}
+                  plantCount={totalPlantCount}
+                  activeRecipeName={detail.active_recipe?.name ?? null}
+                />
+                <MetadataOverviewCard
+                  jurisdictionName={jurisdictionName}
+                  batchId={detail.id}
+                  siteId={detail.site_id}
+                  startDate={detail.start_date}
+                  expectedHarvestDate={detail.expected_harvest_date}
+                  notes={detail.notes}
+                />
+              </div>
+
+              {detail.domain_type === 'cannabis' &&
+                detail.metrc_plant_labels &&
+                detail.metrc_plant_labels.length > 0 && (
+                  <BatchTagsList
+                    batchId={detail.id}
+                    batchNumber={detail.batch_number}
+                    tags={detail.metrc_plant_labels}
+                    plantCount={totalPlantCount}
+                    onManageTags={() => setShowTagsDialog(true)}
+                  />
+                )}
+
+              <RecipeOverviewCard
+                recipe={detail.active_recipe_detail}
+                telemetry={(detail.telemetry_snapshots || [])[0] || null}
+                onDeactivate={can('control:recipe_apply') ? handleDeactivateRecipe : undefined}
+                isDeactivating={deactivating}
+              />
+            </TabsContent>
+
+            <TabsContent value="assignments" className="mt-6 space-y-6">
+              <Card className="rounded-xl border bg-white shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle>Active pods</CardTitle>
+                    <CardDescription>{activeAssignments.length} assignment(s)</CardDescription>
+                  </div>
+                  {can('batch:assign_pod') && (
+                    <Button size="sm" onClick={() => setShowAssignPod(true)}>
+                      Assign Pod
+                    </Button>
+                  )}
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Current stage</span>
-                    <Badge>{detail.stage}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Plant count</span>
-                    <span className="text-lg font-semibold">{totalPlantCount.toLocaleString()}</span>
-                  </div>
-                  {detail.active_recipe && (
-                    <div className="flex items-center gap-2 rounded-md border p-2 text-sm">
-                      <Beaker className="h-4 w-4" />
-                      Active recipe: {detail.active_recipe.name}
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                  {activeAssignments.map((assignment) => (
+                    <div key={assignment.id} className="rounded-lg border bg-slate-50 p-4 text-sm">
+                      <p className="font-medium">{assignment.pod?.name || 'Pod'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {assignment.pod?.room?.name || 'Unassigned room'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {assignment.plant_count || 0} plants
+                      </p>
                     </div>
+                  ))}
+                  {activeAssignments.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No active assignments.</p>
                   )}
                 </CardContent>
               </Card>
-              <Card>
+
+              {detail.telemetry_snapshots && detail.telemetry_snapshots.length > 0 && (
+                <Card className="rounded-xl border bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Recent telemetry</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 md:grid-cols-2">
+                    {detail.telemetry_snapshots.map((snapshot) => (
+                      <div key={snapshot.id} className="rounded-lg border p-4 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>{snapshot.pod_id}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(snapshot.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <TelemetryStat label="Temp" value={snapshot.temperature_c != null ? `${snapshot.temperature_c}°C` : '—'} />
+                          <TelemetryStat label="Humidity" value={snapshot.humidity_pct != null ? `${snapshot.humidity_pct}%` : '—'} />
+                          <TelemetryStat label="CO₂" value={snapshot.co2_ppm != null ? `${snapshot.co2_ppm} ppm` : '—'} />
+                          <TelemetryStat label="Lights" value={snapshot.lights_on ? 'On' : 'Off'} />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="quality" className="mt-6 space-y-6">
+              <Card className="rounded-xl border bg-white shadow-sm">
                 <CardHeader>
-                  <CardTitle>Metadata</CardTitle>
-                  <CardDescription>Jurisdiction-aware context</CardDescription>
+                  <CardTitle>Quality metrics</CardTitle>
+                  <CardDescription>Track lab and on-site quality measurements.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{detail.site_id}</span>
-                  </div>
-                  <p>Start date: {detail.start_date}</p>
-                  <p>Expected harvest: {detail.expected_harvest_date || 'n/a'}</p>
-                  {detail.notes && <p className="text-muted-foreground">{detail.notes}</p>}
+                <CardContent>
+                  <QualityMetricsPanel
+                    batchId={detail.id}
+                    metrics={detail.quality_metrics}
+                    onMetricAdded={() => loadDetail()}
+                    userId={userId}
+                  />
                 </CardContent>
               </Card>
-            </div>
+            </TabsContent>
 
-            {detail.genealogy && detail.genealogy.length > 0 && (
-              <Card>
+            <TabsContent value="history" className="mt-6 space-y-6">
+              <Card className="rounded-xl border bg-white shadow-sm">
                 <CardHeader>
-                  <CardTitle>Genealogy</CardTitle>
+                  <CardTitle>Stage history</CardTitle>
+                  <CardDescription>Chronological view of lifecycle transitions.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-2 text-sm md:grid-cols-2">
-                  {detail.genealogy.map((node) => (
-                    <div key={node.id} className="rounded-md border p-2">
-                      <p className="font-medium">{node.batch_number}</p>
-                      <p className="text-xs text-muted-foreground">{node.relationship}</p>
-                    </div>
+                <CardContent className="space-y-3">
+                  {(detail.stage_history || [])
+                    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
+                    .map((entry) => (
+                      <HistoryRow key={entry.id} history={entry} />
+                    ))}
+                  {(!detail.stage_history || detail.stage_history.length === 0) && (
+                    <p className="text-sm text-muted-foreground">No stage transitions recorded yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-xl border bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle>Events</CardTitle>
+                  <CardDescription>Operational events tied to this batch.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(detail.events || []).map((event) => (
+                    <EventRow key={event.id} event={event} />
                   ))}
+                  {(!detail.events || detail.events.length === 0) && (
+                    <p className="text-sm text-muted-foreground">No lifecycle events recorded.</p>
+                  )}
                 </CardContent>
               </Card>
-            )}
+            </TabsContent>
 
-            <RecipeDetailCard
-              recipe={detail.active_recipe_detail}
-              telemetry={(detail.telemetry_snapshots || [])[0] || null}
-              onDeactivate={can('control:recipe_apply') && !deactivating ? handleDeactivateRecipe : undefined}
-            />
-          </TabsContent>
-
-          <TabsContent value="assignments" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle>Active pods ({activeAssignments.length})</CardTitle>
-                {can('batch:assign_pod') && (
-                  <Button
-                    size="sm"
-                    onClick={() => setShowAssignPod(true)}
-                  >
-                    Assign Pod
+            <TabsContent value="inventory" className="mt-6 space-y-6">
+              <Card className="rounded-xl border bg-white shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle>Inventory usage</CardTitle>
+                    <CardDescription>Movements attributed to this batch.</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => setShowInventoryDialog(true)}>
+                    Log usage
                   </Button>
-                )}
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
-                {activeAssignments.map((assignment) => (
-                  <div key={assignment.id} className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">{assignment.pod?.name || 'Pod'}</p>
-                    <p className="text-muted-foreground">{assignment.pod?.room?.name || 'Unassigned room'}</p>
-                    <p className="text-xs text-muted-foreground">{assignment.plant_count || 0} plants</p>
-                  </div>
-                ))}
-                {activeAssignments.length === 0 && <p className="text-sm text-muted-foreground">No active assignments.</p>}
-              </CardContent>
-            </Card>
-
-            {detail.telemetry_snapshots && detail.telemetry_snapshots.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent telemetry</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
-                  {detail.telemetry_snapshots.map((snapshot) => (
-                    <div key={snapshot.id} className="rounded-md border p-3 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span>{snapshot.pod_id}</span>
-                        <span className="text-xs text-muted-foreground">{new Date(snapshot.timestamp).toLocaleString()}</span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
-                        <TelemetryStat label="Temp" value={`${snapshot.temperature_c ?? '-'}°C`} />
-                        <TelemetryStat label="Humidity" value={`${snapshot.humidity_pct ?? '-'}%`} />
-                        <TelemetryStat label="CO₂" value={`${snapshot.co2_ppm ?? '-'}ppm`} />
-                        <TelemetryStat label="Lights" value={snapshot.lights_on ? 'On' : 'Off'} />
-                      </div>
-                    </div>
-                  ))}
+                <CardContent className="space-y-6">
+                  {detail.inventory_usage ? (
+                    <>
+                      <InventorySummary usage={detail.inventory_usage} />
+                      <InventoryUsageTable usage={detail.inventory_usage} />
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No inventory usage recorded yet.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
+            </TabsContent>
+          </Tabs>
+        )}
 
-          <TabsContent value="quality" className="space-y-4 mt-6">
-            <QualityMetricsPanel
-              batchId={detail.id}
-              metrics={detail.quality_metrics}
-              onMetricAdded={() => {
-                loadDetail()
-              }}
-              userId={userId}
-            />
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Stage history</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(detail.stage_history || [])
-                  .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-                  .map((entry) => (
-                    <HistoryRow key={entry.id} history={entry} />
-                  ))}
-                {(!detail.stage_history || detail.stage_history.length === 0) && (
-                  <p className="text-sm text-muted-foreground">No stage transitions recorded yet.</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Events</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(detail.events || []).map((event) => (
-                  <EventRow key={event.id} event={event} />
-                ))}
-                {(!detail.events || detail.events.length === 0) && (
-                  <p className="text-sm text-muted-foreground">No lifecycle events recorded.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="inventory" className="space-y-4 mt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Track inventory movements attributed to this batch.</p>
-              </div>
-              <Button size="sm" onClick={() => setShowInventoryDialog(true)}>
-                Log usage
-              </Button>
-            </div>
-
-            {detail.inventory_usage ? (
-              <>
-                <InventorySummary usage={detail.inventory_usage} />
-                <InventoryUsageTable usage={detail.inventory_usage} />
-              </>
-            ) : (
-              <Card>
-                <CardContent className="py-6 text-sm text-muted-foreground">
-                  No inventory usage recorded yet.
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* Modals */}
-      {editing && (
-        <BatchModal
-          isOpen={editing}
-          onClose={() => setEditing(false)}
-          onSuccess={() => {
-            setEditing(false)
-            loadDetail()
-          }}
-          siteId={detail.site_id}
+        <LogInventoryUsageDialog
+          isOpen={showInventoryDialog}
+          onOpenChange={setShowInventoryDialog}
+          batchId={detail.id}
+          batchNumber={detail.batch_number}
           organizationId={detail.organization_id}
-          userId={userId}
-          batch={detail}
-          jurisdictionId={jurisdictionId}
-          plantType={plantType}
+          siteId={detail.site_id}
+          onLogged={() => loadDetail()}
         />
-      )}
 
-      {showStageDialog && (
-        <StageTransitionDialog
-          batch={detail}
-          isOpen={showStageDialog}
-          onClose={() => setShowStageDialog(false)}
-          onTransition={() => {
+        <ApplyRecipeDialog
+          open={showApplyRecipe}
+          onOpenChange={setShowApplyRecipe}
+          organizationId={detail.organization_id}
+          batchId={detail.id}
+          batchNumber={detail.batch_number}
+          userId={userId}
+          onApplied={() => loadDetail()}
+        />
+
+        <AssignPodDialog
+          open={showAssignPod}
+          onOpenChange={setShowAssignPod}
+          batchId={detail.id}
+          batchNumber={detail.batch_number}
+          siteId={detail.site_id}
+          currentPlantCount={totalPlantCount}
+          userId={userId}
+          onAssigned={() => loadDetail()}
+        />
+
+        <Dialog open={showTagsDialog} onOpenChange={setShowTagsDialog}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Manage Metrc plant tags</DialogTitle>
+            </DialogHeader>
+            <BatchTagsList
+              batchId={detail.id}
+              batchNumber={detail.batch_number}
+              tags={detail.metrc_plant_labels || []}
+              plantCount={totalPlantCount}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {editing && (
+          <BatchModal
+            isOpen={editing}
+            onClose={() => setEditing(false)}
+            onSuccess={() => {
+              setEditing(false)
+              loadDetail()
+            }}
+            siteId={detail.site_id}
+            organizationId={detail.organization_id}
+            userId={userId}
+            batch={detail}
+            jurisdictionId={jurisdictionId}
+            plantType={plantType}
+          />
+        )}
+
+        {showStageDialog && (
+          <StageTransitionDialog
+            batch={detail}
+            isOpen={showStageDialog}
+            onClose={() => setShowStageDialog(false)}
+            onTransition={() => loadDetail()}
+            userId={userId}
+            jurisdictionId={jurisdictionId}
+          />
+        )}
+
+        {showHarvestDialog && (
+          <HarvestWorkflow
+            batch={detail}
+            isOpen={showHarvestDialog}
+            onClose={() => setShowHarvestDialog(false)}
+            onComplete={() => loadDetail()}
+            userId={userId}
+          />
+        )}
+
+        <DestroyPlantBatchDialog
+          batchId={detail.id}
+          batchNumber={detail.batch_number}
+          currentPlantCount={totalPlantCount}
+          plantTags={detail.metrc_plant_labels || []}
+          onDestroyed={() => {
+            setShowDestroyDialog(false)
             loadDetail()
           }}
-          userId={userId}
-          jurisdictionId={jurisdictionId}
+          open={showDestroyDialog}
+          onOpenChange={setShowDestroyDialog}
+          trigger={null}
         />
-      )}
+      </div>
+    </div>
+  )
+}
 
-      {showHarvestDialog && (
-        <HarvestWorkflow
-          batch={detail}
-          isOpen={showHarvestDialog}
-          onClose={() => setShowHarvestDialog(false)}
-          onComplete={() => {
-            loadDetail()
-          }}
-          userId={userId}
-        />
-      )}
+interface BatchDetailsHeaderProps {
+  batch: BatchDetail
+  cultivarName: string
+  isQuarantined: boolean
+  canApplyRecipe: boolean
+  onEdit: () => void
+  onStageTransition: () => void
+  onRecordHarvest: () => void
+  onApplyRecipe: () => void
+  onAssignPod: () => void
+  onLogInventory: () => void
+  onToggleQuarantine: () => void
+  pushToMetrcButton?: React.ReactNode
+  destroyMenuItem?: React.ReactNode
+}
 
-      <LogInventoryUsageDialog
-        isOpen={showInventoryDialog}
-        onOpenChange={setShowInventoryDialog}
-        batchId={detail.id}
-        batchNumber={detail.batch_number}
-        organizationId={detail.organization_id}
-        siteId={detail.site_id}
-        onLogged={() => {
-          loadDetail()
-        }}
-      />
-      <ApplyRecipeDialog
-        open={showApplyRecipe}
-        onOpenChange={setShowApplyRecipe}
-        organizationId={detail.organization_id}
-        batchId={detail.id}
-        batchNumber={detail.batch_number}
-        userId={userId}
-        onApplied={() => {
-          loadDetail()
-        }}
-      />
-      <AssignPodDialog
-        open={showAssignPod}
-        onOpenChange={setShowAssignPod}
-        batchId={detail.id}
-        batchNumber={detail.batch_number}
-        siteId={detail.site_id}
-        currentPlantCount={detail.plant_count || 0}
-        userId={userId}
-        onAssigned={() => {
-          loadDetail()
-        }}
-      />
+function BatchDetailsHeader({
+  batch,
+  cultivarName,
+  isQuarantined,
+  canApplyRecipe,
+  onEdit,
+  onStageTransition,
+  onRecordHarvest,
+  onApplyRecipe,
+  onAssignPod,
+  onLogInventory,
+  onToggleQuarantine,
+  pushToMetrcButton,
+  destroyMenuItem,
+}: BatchDetailsHeaderProps) {
+  return (
+    <Card className="rounded-xl border bg-white shadow-sm">
+      <CardContent className="space-y-6 p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
+              <Sprout className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-semibold text-slate-900">Batch {batch.batch_number}</h1>
+                {isQuarantined && (
+                  <Badge variant="destructive" className="gap-1.5">
+                    <AlertTriangle className="h-3 w-3" />
+                    Quarantined
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{cultivarName}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              onClick={onEdit}
+            >
+              <Edit3 className="h-4 w-4" />
+              Edit batch
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              onClick={onStageTransition}
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Transition stage
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              onClick={onRecordHarvest}
+            >
+              <Package className="h-4 w-4" />
+              Record harvest
+            </Button>
+            {pushToMetrcButton}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  More
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {canApplyRecipe && (
+                  <DropdownMenuItem className="gap-2" onSelect={onApplyRecipe}>
+                    <FileText className="h-4 w-4" />
+                    Apply recipe
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem className="gap-2" onSelect={onAssignPod}>
+                  <Sprout className="h-4 w-4" />
+                  Assign pod
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2" onSelect={onLogInventory}>
+                  <FileText className="h-4 w-4" />
+                  Log inventory usage
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="gap-2 text-amber-600 focus:text-amber-600"
+                  onSelect={onToggleQuarantine}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  {isQuarantined ? 'Release from quarantine' : 'Quarantine batch'}
+                </DropdownMenuItem>
+                {destroyMenuItem && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {destroyMenuItem}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface MetrcTagsSummaryCardProps {
+  plantCount: number
+  tagCount: number
+  onManage: () => void
+  assignButton: React.ReactNode
+}
+
+function MetrcTagsSummaryCard({ plantCount, tagCount, onManage, assignButton }: MetrcTagsSummaryCardProps) {
+  const completion = plantCount > 0 ? Math.round((tagCount / plantCount) * 100) : 0
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-sm">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 items-center gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
+            <Tag className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-base font-semibold text-slate-900">Metrc Plant Tags</h3>
+              <Badge
+                variant="outline"
+                className="border-amber-200 bg-white text-amber-700 hover:bg-white hover:text-amber-800"
+              >
+                {plantCount > 0
+                  ? `${tagCount} of ${plantCount} plants tagged (${completion}%)`
+                  : 'No plants assigned'}
+              </Badge>
+            </div>
+            <Progress value={plantCount > 0 ? (tagCount / plantCount) * 100 : 0} className="h-2 bg-amber-100" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 border border-amber-300 bg-white text-amber-500 hover:border-amber-400 hover:text-amber-600"
+            onClick={onManage}
+          >
+            Manage Tags
+          </Button>
+          {assignButton}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface StatusOverviewCardProps {
+  stage: string | null
+  plantCount: number
+  activeRecipeName: string | null
+}
+
+function StatusOverviewCard({ stage, plantCount, activeRecipeName }: StatusOverviewCardProps) {
+  return (
+    <Card className="rounded-xl border bg-white shadow-sm lg:col-span-2">
+      <CardHeader className="pb-4">
+        <CardTitle>Status</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Current stage</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-green-200 bg-gradient-to-br from-green-100 to-emerald-100">
+                <Sprout className="h-6 w-6 text-green-600" />
+              </div>
+              <Badge className="bg-green-100 text-green-700 hover:bg-green-100">{stage || 'Unknown'}</Badge>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Plant count</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-blue-200 bg-gradient-to-br from-blue-100 to-indigo-100">
+                <Sprout className="h-6 w-6 text-blue-600" />
+              </div>
+              <p className="text-xl font-semibold text-slate-900">{plantCount.toLocaleString()} plants</p>
+            </div>
+          </div>
+        </div>
+
+        {activeRecipeName && (
+          <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100">
+              <FileText className="h-5 w-5 text-slate-600" />
+            </div>
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" />
+                Active recipe
+              </span>
+              <p className="text-sm font-medium text-slate-900">{activeRecipeName}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface MetadataOverviewCardProps {
+  jurisdictionName: string
+  batchId: string
+  siteId: string
+  startDate: string | null
+  expectedHarvestDate: string | null
+  notes?: string | null
+}
+
+function MetadataOverviewCard({
+  jurisdictionName,
+  batchId,
+  siteId,
+  startDate,
+  expectedHarvestDate,
+  notes,
+}: MetadataOverviewCardProps) {
+  const formatDate = (value: string | null) => {
+    if (!value) return 'N/A'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return format(date, 'PPP')
+  }
+
+  return (
+    <Card className="rounded-xl border bg-white shadow-sm">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-slate-600" />
+          <CardTitle>Metadata</CardTitle>
+        </div>
+        <CardDescription>Jurisdiction-aware context</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div>
+          <p className="text-sm text-muted-foreground">Jurisdiction</p>
+          <Badge variant="secondary" className="mt-2 gap-2">
+            <Shield className="h-3 w-3" />
+            {jurisdictionName}
+          </Badge>
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">Batch ID</p>
+          <div className="flex items-center gap-2 rounded-lg border bg-slate-50 p-3">
+            <Hash className="h-4 w-4 text-slate-400" />
+            <code className="break-all text-sm text-slate-700">{batchId}</code>
+          </div>
+        </div>
+        <div className="space-y-2 text-sm">
+          <p className="text-muted-foreground">Site</p>
+          <p className="font-medium text-slate-900">{siteId || 'Not assigned'}</p>
+        </div>
+        <div className="space-y-3 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>Start date</span>
+          </div>
+          <p className="font-medium text-slate-900">{formatDate(startDate)}</p>
+          <div className="mt-2 flex items-center gap-2 text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>Expected harvest</span>
+          </div>
+          <p className="font-medium text-slate-900">{formatDate(expectedHarvestDate)}</p>
+        </div>
+        {notes && (
+          <div className="rounded-lg border bg-slate-50 p-3 text-sm text-slate-600">{notes}</div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+interface RecipeOverviewCardProps {
+  recipe?: ActiveRecipeDetails | null
+  telemetry: TelemetryReading | null
+  onDeactivate?: () => void
+  isDeactivating: boolean
+}
+
+function RecipeOverviewCard({ recipe, telemetry, onDeactivate, isDeactivating }: RecipeOverviewCardProps) {
+  if (!recipe) {
+    return (
+      <Card className="rounded-xl border bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle>Recipe</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">No recipe applied.</CardContent>
+      </Card>
+    )
+  }
+
+  const stage = recipe.activation.current_stage
+  const metrics = [
+    {
+      key: 'temperature',
+      label: 'Temperature',
+      unit: '°C',
+      actual: telemetry?.temperature_c ?? null,
+      Icon: Thermometer,
+      color: 'orange' as const,
+    },
+    {
+      key: 'humidity',
+      label: 'Humidity',
+      unit: '%',
+      actual: telemetry?.humidity_pct ?? null,
+      Icon: Droplet,
+      color: 'blue' as const,
+    },
+    {
+      key: 'co2',
+      label: 'CO₂',
+      unit: 'ppm',
+      actual: telemetry?.co2_ppm ?? null,
+      Icon: Wind,
+      color: 'teal' as const,
+    },
+  ]
+
+  const getSetpoint = (parameterType: string) =>
+    recipe.current_setpoints.find((sp) => sp.parameter_type === parameterType)
+
+  return (
+    <Card className="rounded-xl border bg-white shadow-sm">
+      <CardHeader className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              <CheckCircle2 className="h-3 w-3" />
+              Active recipe
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-semibold text-slate-900">
+                {recipe.activation.recipe?.name || 'Active recipe'}
+              </h2>
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                {stage?.name || 'No stage'}
+              </Badge>
+              <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                Day {recipe.activation.current_stage_day ?? 1}
+              </Badge>
+            </div>
+          </div>
+          {onDeactivate && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-red-200 text-red-600 transition-colors hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+              onClick={onDeactivate}
+              disabled={isDeactivating}
+            >
+              <ExternalLink className="h-4 w-4" />
+              {isDeactivating ? 'Deactivating...' : 'Deactivate recipe'}
+            </Button>
+          )}
+        </div>
+        <CardDescription>
+          Latest telemetry compared against the configured setpoints for this stage.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-3">
+          {metrics.map((metric) => {
+            const setpoint = getSetpoint(metric.key)
+            const min = setpoint?.min_value ?? setpoint?.value ?? null
+            const max = setpoint?.max_value ?? setpoint?.value ?? null
+            const actual = metric.actual
+
+            let status: 'in-range' | 'out-of-range' | 'no-target' = 'no-target'
+            if (setpoint && actual != null && min != null && max != null) {
+              status = actual >= min && actual <= max ? 'in-range' : 'out-of-range'
+            } else if (!setpoint) {
+              status = 'no-target'
+            } else if (actual != null) {
+              status = 'in-range'
+            }
+
+            let targetLabel = 'No target defined'
+            if (setpoint) {
+              const minLabel = min != null ? min.toFixed(1) : null
+              const maxLabel = max != null ? max.toFixed(1) : null
+              if (minLabel && maxLabel) {
+                targetLabel = `${minLabel} - ${maxLabel}${metric.unit}`
+              } else if (minLabel) {
+                targetLabel = `${minLabel}${metric.unit}`
+              }
+            }
+
+            const valueLabel = actual != null ? `${actual.toFixed(1)}${metric.unit}` : '—'
+
+            return (
+              <RecipeMetricCard
+                key={metric.key}
+                label={metric.label}
+                value={valueLabel}
+                target={targetLabel}
+                status={status}
+                Icon={metric.Icon}
+                color={metric.color}
+              />
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface RecipeMetricCardProps {
+  label: string
+  value: string
+  target: string
+  status: 'in-range' | 'out-of-range' | 'no-target'
+  Icon: LucideIcon
+  color: 'orange' | 'blue' | 'teal'
+}
+
+function RecipeMetricCard({ label, value, target, status, Icon, color }: RecipeMetricCardProps) {
+  const iconClassMap = {
+    orange: 'bg-orange-100 text-orange-700',
+    blue: 'bg-sky-100 text-sky-700',
+    teal: 'bg-teal-100 text-teal-700',
+  } as const
+
+  const statusMeta: Record<RecipeMetricCardProps['status'], { label: string; badgeClass: string; Icon: LucideIcon }> = {
+    'in-range': {
+      label: 'In range',
+      badgeClass: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 cursor-default',
+      Icon: CheckCircle2,
+    },
+    'out-of-range': {
+      label: 'Out of range',
+      badgeClass: 'bg-rose-100 text-rose-700 hover:bg-rose-100 cursor-default',
+      Icon: AlertCircle,
+    },
+    'no-target': {
+      label: 'No target',
+      badgeClass: 'bg-slate-200 text-slate-700 hover:bg-slate-200 cursor-default',
+      Icon: AlertCircle,
+    },
+  }
+
+  const iconClasses = iconClassMap[color]
+  const meta = statusMeta[status]
+
+  return (
+    <div className="flex h-full flex-col justify-between rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className={`flex h-10 w-10 items-center justify-center rounded-full ${iconClasses}`}>
+            <Icon className="h-5 w-5" />
+          </span>
+          <p className="text-sm font-medium text-slate-900">{label}</p>
+        </div>
+        <Badge className={`border-0 ${meta.badgeClass} gap-1.5 px-2 py-1`}>
+          <meta.Icon className="h-3 w-3" />
+          {meta.label}
+        </Badge>
+      </div>
+      <p className="mt-6 text-2xl font-semibold text-slate-900">{value}</p>
+      <p className="mt-2 text-xs text-muted-foreground">{target}</p>
     </div>
   )
 }
@@ -610,7 +1157,7 @@ function InventorySummary({ usage }: { usage: NonNullable<BatchDetail['inventory
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {summaryCards.map((card) => (
-        <Card key={card.label}>
+        <Card key={card.label} className="rounded-xl border bg-slate-50">
           <CardHeader className="pb-2">
             <CardDescription>{card.label}</CardDescription>
             <CardTitle className="text-2xl">{card.value.toLocaleString()}</CardTitle>
@@ -623,7 +1170,7 @@ function InventorySummary({ usage }: { usage: NonNullable<BatchDetail['inventory
 
 function InventoryUsageTable({ usage }: { usage: NonNullable<BatchDetail['inventory_usage']> }) {
   return (
-    <Card>
+    <Card className="rounded-xl border bg-white shadow-sm">
       <CardHeader>
         <CardTitle>Inventory movements</CardTitle>
       </CardHeader>
@@ -661,105 +1208,6 @@ function InventoryUsageTable({ usage }: { usage: NonNullable<BatchDetail['invent
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
-  )
-}
-
-function RecipeDetailCard({
-  recipe,
-  telemetry,
-  onDeactivate,
-}: {
-  recipe?: ActiveRecipeDetails | null
-  telemetry: TelemetryReading | null
-  onDeactivate?: () => void
-}) {
-  if (!recipe) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recipe</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">No recipe applied.</CardContent>
-      </Card>
-    )
-  }
-
-  const stage = recipe.activation.current_stage
-  const metrics = [
-    {
-      key: 'temperature',
-      label: 'Temperature',
-      unit: '°C',
-      actual: telemetry?.temperature_c ?? null,
-    },
-    {
-      key: 'humidity',
-      label: 'Humidity',
-      unit: '%',
-      actual: telemetry?.humidity_pct ?? null,
-    },
-    {
-      key: 'co2',
-      label: 'CO₂',
-      unit: 'ppm',
-      actual: telemetry?.co2_ppm ?? null,
-    },
-  ]
-
-  const getSetpoint = (parameterType: string) =>
-    recipe.current_setpoints.find((sp) => sp.parameter_type === parameterType)
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle>Recipe: {recipe.activation.recipe?.name || 'Active recipe'}</CardTitle>
-            <CardDescription>
-              {stage?.name || 'No stage'} · Day {recipe.activation.current_stage_day ?? 1}
-            </CardDescription>
-          </div>
-          {onDeactivate && (
-            <Button variant="outline" size="sm" onClick={onDeactivate}>
-              Deactivate Recipe
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-3">
-          {metrics.map((metric) => {
-            const setpoint = getSetpoint(metric.key)
-            const min = setpoint?.min_value ?? setpoint?.value ?? null
-            const max = setpoint?.max_value ?? setpoint?.value ?? null
-            const actual = metric.actual
-            const inRange =
-              actual != null && min != null && max != null && actual >= min && actual <= max
-
-            return (
-              <div key={metric.key} className="rounded-md border p-3">
-                <p className="text-xs text-muted-foreground">{metric.label}</p>
-                <p className="text-lg font-semibold">
-                  {actual != null ? `${actual.toFixed(1)} ${metric.unit}` : '—'}
-                </p>
-                {setpoint ? (
-                  <p className="text-xs text-muted-foreground">
-                    Target: {min?.toFixed(1)} - {max?.toFixed(1)} {metric.unit}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No target defined</p>
-                )}
-                {setpoint && actual != null && (
-                  <Badge variant={inRange ? 'secondary' : 'destructive'} className="mt-2 text-xs">
-                    {inRange ? 'In range' : 'Out of range'}
-                  </Badge>
-                )}
-              </div>
-            )
-          })}
-        </div>
       </CardContent>
     </Card>
   )

@@ -29,6 +29,8 @@ type LabTestResult = {
   coa_file_url: string | null
   coa_file_name: string | null
   coa_file_size: number | null
+  coa_file_type: string | null
+  coa_uploaded_by: string | null
   test_results: any
   notes: string | null
   internal_notes: string | null
@@ -53,6 +55,8 @@ type PackageTestResult = {
   package_test_status: string
   sample_taken: boolean | null
   sample_quantity: number | null
+  sample_unit_of_measure: string | null
+  notes: string | null
   associated_at: string
   associated_by: string | null
 }
@@ -155,7 +159,7 @@ export async function createLabTest(
     }
 
     // Determine overall status based on test results
-    let status = 'pending'
+    let status: 'pending' | 'in_progress' | 'passed' | 'failed' | 'retesting' = 'pending'
     if (params.testResults) {
       const hasFailures = Object.values(params.testResults).some(test =>
         test?.tested && test?.passed === false
@@ -578,7 +582,14 @@ export async function canPackageBeSold(
           test_date
         )
       `)
-      .eq('package_id', packageId)
+      .eq('package_id', packageId) as { data: Array<{
+        package_test_status: string
+        lab_test_results: {
+          status: string
+          test_results: TestResultsData
+          test_date: string
+        } | null
+      }> | null }
 
     if (!testResults || testResults.length === 0) {
       result.canSell = false

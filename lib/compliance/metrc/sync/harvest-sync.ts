@@ -163,11 +163,12 @@ export async function syncHarvestToMetrc(
     // Build Metrc harvest creation payload
     const harvestDate = new Date(harvest.harvested_at).toISOString().split('T')[0]
     const metrcHarvest: MetrcHarvestCreate = {
-      Name: metrcHarvestName,
-      HarvestType: harvest.harvest_type || 'WholePlant',
+      PlantLabels: harvest.plant_labels || [],
+      HarvestName: metrcHarvestName,
       DryingLocation: dryingLocation,
-      HarvestStartDate: harvestDate,
-      PatientLicenseNumber: 'null', // Required field, use 'null' for non-patient harvests
+      WasteWeight: harvest.waste_weight || 0,
+      WasteUnitOfMeasure: harvest.waste_unit || 'Grams',
+      HarvestDate: harvestDate,
     }
 
     // Validate Metrc payload
@@ -254,7 +255,7 @@ export async function syncHarvestToMetrc(
       response_payload: {
         metrc_harvest_id: metrcHarvestId,
         metrc_harvest_name: metrcHarvestName,
-        harvest_type: metrcHarvest.HarvestType,
+        harvest_name: metrcHarvest.HarvestName,
         drying_location: dryingLocation,
         note: 'Harvest creation synced to Metrc',
       },

@@ -38,5 +38,11 @@ export * from './phase-transition-rules'
 // Waste destruction validation
 export * from './waste-destruction-rules'
 
+// Strain validation
+export * from './strain-rules'
+
+// Item validation
+export * from './item-rules'
+
 // Re-export types for convenience
 export type { ValidationResult, ValidationError, ValidationWarning } from '@/lib/compliance/types'

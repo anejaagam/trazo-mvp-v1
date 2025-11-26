@@ -11,6 +11,7 @@ import {
   validateHarvestPackageCreate,
   validateHarvestPackageCreateBatch,
 } from '../validation/harvest-rules'
+import { validatePackageProduct } from '../validation/item-rules'
 import type { MetrcHarvestPackageCreate } from '../types'
 
 export interface PackageCreationResult {
@@ -150,12 +151,27 @@ export async function createPackagesFromHarvest(
       Item: pkg.productName,
       Quantity: pkg.quantity,
       UnitOfMeasure: pkg.unitOfMeasure,
-      ActualDate: packageDate,
+      PackagedDate: packageDate,
       ProductionBatchNumber: pkg.productionBatchNumber || batch.batch_number,
-      IsTradeSample: pkg.isTradeSample || false,
-      IsTestingSample: pkg.isTestingSample || false,
       ...(pkg.notes && { Note: pkg.notes }),
     }))
+
+    // Validate each package product against Metrc item rules
+    for (const pkg of packages) {
+      const itemValidation = validatePackageProduct({
+        productName: pkg.productName,
+        unitOfMeasure: pkg.unitOfMeasure,
+        quantity: pkg.quantity,
+      })
+
+      // Item validation issues are warnings (Metrc accepts string names)
+      itemValidation.errors.forEach((e) => {
+        result.warnings.push(`Item (${pkg.productName}): ${e.field}: ${e.message}`)
+      })
+      itemValidation.warnings.forEach((w) => {
+        result.warnings.push(`Item (${pkg.productName}): ${w.field}: ${w.message}`)
+      })
+    }
 
     // Validate Metrc package batch
     const validation = validateHarvestPackageCreateBatch(metrcPackages)

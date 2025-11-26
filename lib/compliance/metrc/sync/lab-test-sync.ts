@@ -7,7 +7,6 @@
  */
 
 import { createClient } from '@/lib/supabase/client'
-import { Database } from '@/types/database'
 import {
   validateLabTestUpload,
   validateTestResults,
@@ -17,10 +16,53 @@ import {
 } from '../validation/lab-test-rules'
 import { MetrcClient } from '../client'
 
-type LabTestResult = Database['public']['Tables']['lab_test_results']['Row']
-type PackageTestResult = Database['public']['Tables']['package_test_results']['Row']
-type InsertLabTestResult = Database['public']['Tables']['lab_test_results']['Insert']
-type InsertPackageTestResult = Database['public']['Tables']['package_test_results']['Insert']
+// Define types locally
+type LabTestResult = {
+  id: string
+  test_number: string
+  organization_id: string
+  site_id: string | null
+  lab_name: string
+  lab_license_number: string | null
+  test_date: string
+  received_date: string
+  coa_file_url: string | null
+  coa_file_name: string | null
+  coa_file_size: number | null
+  coa_file_type: string | null
+  coa_uploaded_by: string | null
+  test_results: any
+  notes: string | null
+  internal_notes: string | null
+  sample_quantity: number | null
+  sample_unit_of_measure: string | null
+  sample_collected_by: string | null
+  metrc_test_id: string | null
+  metrc_sync_status: string | null
+  metrc_sync_error: string | null
+  metrc_last_sync: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+  status: 'pending' | 'in_progress' | 'passed' | 'failed' | 'retesting'
+}
+
+type PackageTestResult = {
+  id: string
+  package_id: string
+  test_result_id: string
+  package_test_status: string
+  sample_taken: boolean | null
+  sample_quantity: number | null
+  sample_unit_of_measure: string | null
+  notes: string | null
+  associated_at: string
+  associated_by: string | null
+}
+
+type InsertLabTestResult = Partial<LabTestResult>
+type InsertPackageTestResult = Partial<PackageTestResult>
 
 export interface CreateLabTestParams {
   organizationId: string
@@ -98,8 +140,8 @@ export async function createLabTest(
     }
 
     const uploadValidation = validateLabTestUpload(uploadData)
-    result.errors.push(...uploadValidation.errors.map(e => e.message))
-    result.warnings.push(...uploadValidation.warnings.map(w => w.message))
+    result.errors.push(...uploadValidation.errors.map((e: any) => e.message))
+    result.warnings.push(...uploadValidation.warnings.map((w: any) => w.message))
 
     if (uploadValidation.errors.length > 0) {
       return result
@@ -108,8 +150,8 @@ export async function createLabTest(
     // Validate test results if provided
     if (params.testResults) {
       const resultsValidation = validateTestResults(params.testResults)
-      result.errors.push(...resultsValidation.errors.map(e => e.message))
-      result.warnings.push(...resultsValidation.warnings.map(w => w.message))
+      result.errors.push(...resultsValidation.errors.map((e: any) => e.message))
+      result.warnings.push(...resultsValidation.warnings.map((w: any) => w.message))
 
       if (resultsValidation.errors.length > 0) {
         return result
@@ -117,7 +159,7 @@ export async function createLabTest(
     }
 
     // Determine overall status based on test results
-    let status = 'pending'
+    let status: 'pending' | 'in_progress' | 'passed' | 'failed' | 'retesting' = 'pending'
     if (params.testResults) {
       const hasFailures = Object.values(params.testResults).some(test =>
         test?.tested && test?.passed === false
@@ -252,8 +294,8 @@ export async function linkPackageToTest(
       params.sampleQuantity
     )
 
-    result.errors.push(...validation.errors.map(e => e.message))
-    result.warnings.push(...validation.warnings.map(w => w.message))
+    result.errors.push(...validation.errors.map((e: any) => e.message))
+    result.warnings.push(...validation.warnings.map((w: any) => w.message))
 
     if (validation.errors.length > 0) {
       return result
@@ -377,8 +419,8 @@ export async function updateTestResults(
 
     // Validate test results
     const validation = validateTestResults(testResults)
-    result.errors.push(...validation.errors.map(e => e.message))
-    result.warnings.push(...validation.warnings.map(w => w.message))
+    result.errors.push(...validation.errors.map((e: any) => e.message))
+    result.warnings.push(...validation.warnings.map((w: any) => w.message))
 
     if (validation.errors.length > 0) {
       return result
@@ -540,7 +582,14 @@ export async function canPackageBeSold(
           test_date
         )
       `)
-      .eq('package_id', packageId)
+      .eq('package_id', packageId) as { data: Array<{
+        package_test_status: string
+        lab_test_results: {
+          status: string
+          test_results: TestResultsData
+          test_date: string
+        } | null
+      }> | null }
 
     if (!testResults || testResults.length === 0) {
       result.canSell = false

@@ -188,7 +188,7 @@ export async function syncBatchPhaseTransitionToMetrc(
     // If plants are tagged, use Metrc API to change individual plant phases
     if (plantLabels.length > 0) {
       // Build phase changes for each tagged plant
-      const phaseChanges: MetrcPlantGrowthPhaseChange[] = plantLabels.map((label) => ({
+      const phaseChanges: MetrcPlantGrowthPhaseChange[] = plantLabels.map((label: string) => ({
         Label: label,
         NewLocation: metrcLocation,
         GrowthPhase: newMetrcPhase as 'Vegetative' | 'Flowering',

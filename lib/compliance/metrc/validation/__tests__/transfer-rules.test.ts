@@ -18,7 +18,7 @@ describe('validateTransferManifest', () => {
       vehiclePlate: 'ABC1234',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 10,
           unitOfMeasure: 'Ounces',
         },
@@ -50,7 +50,7 @@ describe('validateTransferManifest', () => {
       estimatedArrival: '2025-11-20T14:00:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 10,
           unitOfMeasure: 'Ounces',
         },
@@ -69,7 +69,7 @@ describe('validateTransferManifest', () => {
       estimatedArrival: '2025-11-20T10:00:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 10,
           unitOfMeasure: 'Ounces',
         },
@@ -88,7 +88,7 @@ describe('validateTransferManifest', () => {
       estimatedArrival: '2025-11-22T10:00:00', // 48 hours later
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 10,
           unitOfMeasure: 'Ounces',
         },
@@ -139,7 +139,7 @@ describe('validateTransferManifest', () => {
       estimatedArrival: '2025-11-20T14:00:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 0,
           unitOfMeasure: 'Ounces',
         },
@@ -158,7 +158,7 @@ describe('validateTransferManifest', () => {
       estimatedArrival: '2025-11-20T14:00:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 10,
           unitOfMeasure: 'Ounces',
         },
@@ -177,7 +177,7 @@ describe('validateTransferManifest', () => {
       driverName: 'John Driver',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           quantity: 10,
           unitOfMeasure: 'Ounces',
         },
@@ -194,7 +194,7 @@ describe('validateTransferReceipt', () => {
       receivedDateTime: '2025-11-20T14:30:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           accepted: true,
           receivedQuantity: 10,
         },
@@ -230,7 +230,7 @@ describe('validateTransferReceipt', () => {
       receivedDateTime: '2025-11-20T14:30:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           accepted: false,
         },
       ],
@@ -245,7 +245,7 @@ describe('validateTransferReceipt', () => {
       receivedDateTime: '2025-11-20T14:30:00',
       packages: [
         {
-          packageLabel: '1A4FF01000000220000000123',
+          packageLabel: '1A4FF0100000022000000001',
           accepted: false,
           rejectionReason: 'Package damaged during transport',
         },
@@ -257,13 +257,13 @@ describe('validateTransferReceipt', () => {
 
 describe('validatePackageLabel', () => {
   it('should validate a valid 24-character Metrc package label', () => {
-    expect(validatePackageLabel('1A4FF01000000220000000123')).toBe(true)
+    expect(validatePackageLabel('1A4FF0100000022000000001')).toBe(true)
   })
 
   it('should reject invalid package labels', () => {
     expect(validatePackageLabel('INVALID')).toBe(false)
-    expect(validatePackageLabel('1A4FF0100000022000000012')).toBe(false) // 23 chars
-    expect(validatePackageLabel('2A4FF01000000220000000123')).toBe(false) // doesn't start with 1A
+    expect(validatePackageLabel('1A4FF010000002200000001')).toBe(false) // 23 chars
+    expect(validatePackageLabel('2A4FF0100000022000000001')).toBe(false) // doesn't start with 1A
     expect(validatePackageLabel('')).toBe(false)
   })
 })

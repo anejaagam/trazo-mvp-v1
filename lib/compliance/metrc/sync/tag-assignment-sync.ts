@@ -221,7 +221,7 @@ export async function removeMetrcTagFromBatch(
     if (!batch) throw new Error('Batch not found')
 
     // Remove tag
-    const updatedTags = (batch.metrc_plant_labels || []).filter((t) => t !== tag)
+    const updatedTags = (batch.metrc_plant_labels || []).filter((t: string) => t !== tag)
 
     await supabase
       .from('batches')

@@ -39,7 +39,7 @@ describe('validateLabTestUpload', () => {
     const result = validateLabTestUpload(data)
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ code: 'required', field: 'Lab name' })
+      expect.objectContaining({ code: 'REQUIRED', field: 'labName' })
     )
   })
 
@@ -48,7 +48,7 @@ describe('validateLabTestUpload', () => {
     const result = validateLabTestUpload(data)
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ code: 'required', field: 'Test date' })
+      expect.objectContaining({ code: 'REQUIRED', field: 'testDate' })
     )
   })
 
@@ -57,7 +57,7 @@ describe('validateLabTestUpload', () => {
     const result = validateLabTestUpload(data)
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ code: 'required', field: 'COA file' })
+      expect.objectContaining({ code: 'REQUIRED', field: 'coaFile' })
     )
   })
 
@@ -141,7 +141,7 @@ describe('validateLabTestUpload', () => {
     const result = validateLabTestUpload(data)
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ code: 'date_in_future' })
+      expect.objectContaining({ code: 'DATE_IN_FUTURE' })
     )
   })
 
@@ -414,7 +414,7 @@ describe('validatePackageTestAssociation', () => {
     const result = validatePackageTestAssociation('', 'test-456')
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ field: 'Package ID' })
+      expect.objectContaining({ field: 'packageId', code: 'REQUIRED' })
     )
   })
 
@@ -422,7 +422,7 @@ describe('validatePackageTestAssociation', () => {
     const result = validatePackageTestAssociation('pkg-123', '')
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ field: 'Test ID' })
+      expect.objectContaining({ field: 'testId', code: 'REQUIRED' })
     )
   })
 
@@ -448,7 +448,7 @@ describe('validatePackageTestAssociation', () => {
     )
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
-      expect.objectContaining({ field: 'Sample quantity' })
+      expect.objectContaining({ field: 'sampleQuantity', code: 'NOT_POSITIVE' })
     )
   })
 })

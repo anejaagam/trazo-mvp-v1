@@ -88,7 +88,7 @@ describe('Plant Validation Rules', () => {
       }
       const result = validatePlantingCreate(planting)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -149,7 +149,7 @@ describe('Plant Validation Rules', () => {
       }
       const result = validatePlantGrowthPhaseChange(change)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -196,7 +196,7 @@ describe('Plant Validation Rules', () => {
       }
       const result = validatePlantMove(move)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -243,7 +243,7 @@ describe('Plant Validation Rules', () => {
       }
       const result = validatePlantDestroy(destroy)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -320,7 +320,7 @@ describe('Plant Validation Rules', () => {
       }
       const result = validatePlantBatchCreate(batch)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -387,7 +387,7 @@ describe('Plant Validation Rules', () => {
       }
       const result = validatePlantBatchAdjustment(adjustment)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 })

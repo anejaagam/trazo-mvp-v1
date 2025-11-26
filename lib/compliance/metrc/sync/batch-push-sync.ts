@@ -12,6 +12,7 @@ import {
   validatePlantBatchCreateBatch,
   validateTrazoToMetrcBatchConversion,
 } from '../validation/batch-rules'
+import { validateBatchStrainForMetrc } from '../validation/strain-rules'
 import type { MetrcPlantBatchCreate } from '../types'
 
 export interface BatchPushResult {
@@ -138,6 +139,24 @@ export async function pushBatchToMetrc(
     // Collect warnings
     trazoValidation.warnings.forEach((w) => {
       result.warnings.push(`${w.field}: ${w.message}`)
+    })
+
+    // Validate strain is properly configured for Metrc
+    const strainValidation = validateBatchStrainForMetrc({
+      batch_number: trazoBatch.batch_number,
+      cultivar_name: trazoBatch.cultivar_name,
+      cultivar: batch.cultivar ? {
+        name: batch.cultivar.name || batch.cultivar.common_name,
+        metrc_strain_id: (batch.cultivar as any).metrc_strain_id || null,
+      } : undefined,
+    })
+
+    // Strain validation issues are warnings (Metrc accepts string names)
+    strainValidation.errors.forEach((e) => {
+      result.warnings.push(`Strain: ${e.field}: ${e.message}`)
+    })
+    strainValidation.warnings.forEach((w) => {
+      result.warnings.push(`Strain: ${w.field}: ${w.message}`)
     })
 
     // Get API keys for the site

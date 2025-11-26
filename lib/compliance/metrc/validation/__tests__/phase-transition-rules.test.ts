@@ -178,7 +178,7 @@ describe('validatePlantGrowthPhaseChange', () => {
 
     const result = validatePlantGrowthPhaseChange(change)
     expect(result.isValid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'FUTURE_DATE')).toBe(true)
+    expect(result.errors.some((e) => e.code === 'DATE_IN_FUTURE')).toBe(true)
   })
 
   it('should fail for empty location', () => {
@@ -276,7 +276,7 @@ describe('validateStageTransitionForMetrc', () => {
     })
 
     expect(result.isValid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'FUTURE_DATE')).toBe(true)
+    expect(result.errors.some((e) => e.code === 'DATE_IN_FUTURE')).toBe(true)
   })
 
   it('should fail when required fields are missing', () => {
@@ -288,7 +288,7 @@ describe('validateStageTransitionForMetrc', () => {
     })
 
     expect(result.isValid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'REQUIRED_FIELD_MISSING')).toBe(true)
+    expect(result.errors.some((e) => e.code === 'REQUIRED')).toBe(true)
   })
 })
 

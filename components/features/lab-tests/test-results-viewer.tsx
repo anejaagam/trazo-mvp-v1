@@ -54,10 +54,46 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import type { Database } from '@/types/database'
 
-type LabTestResult = Database['public']['Tables']['lab_test_results']['Row']
-type PackageTestResult = Database['public']['Tables']['package_test_results']['Row'] & {
+// Define types locally
+type LabTestResult = {
+  id: string
+  test_number: string
+  organization_id: string
+  site_id: string | null
+  lab_name: string
+  lab_license_number: string | null
+  test_date: string
+  received_date: string
+  coa_file_url: string | null
+  coa_file_name: string | null
+  coa_file_size: number | null
+  test_results: any
+  notes: string | null
+  internal_notes: string | null
+  sample_quantity: number | null
+  sample_unit_of_measure: string | null
+  sample_collected_by: string | null
+  metrc_test_id: string | null
+  metrc_sync_status: string | null
+  metrc_sync_error: string | null
+  metrc_last_sync: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+  status: 'pending' | 'in_progress' | 'passed' | 'failed' | 'retesting'
+}
+
+type PackageTestResult = {
+  id: string
+  package_id: string
+  test_result_id: string
+  package_test_status: string
+  sample_taken: boolean | null
+  sample_quantity: number | null
+  associated_at: string
+  associated_by: string | null
   harvest_packages?: {
     id: string
     package_label: string
@@ -188,7 +224,9 @@ export function TestResultsViewer({
   const testResults = testData.test_results as any || {}
 
   const handleDownloadCOA = () => {
-    window.open(testData.coa_file_url, '_blank')
+    if (testData.coa_file_url) {
+      window.open(testData.coa_file_url, '_blank')
+    }
   }
 
   return (
@@ -526,21 +564,23 @@ export function TestResultsViewer({
         <DialogContent className="max-w-4xl h-[80vh]">
           <DialogHeader>
             <DialogTitle>Certificate of Analysis</DialogTitle>
-            <DialogDescription>{testData.coa_file_name}</DialogDescription>
+            <DialogDescription>{testData.coa_file_name || 'Document'}</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
-            {testData.coa_file_type === 'application/pdf' ? (
-              <iframe
-                src={testData.coa_file_url}
-                className="w-full h-full border-0"
-                title="COA Document"
-              />
-            ) : (
-              <img
-                src={testData.coa_file_url}
-                alt="COA Document"
+            {testData.coa_file_url && (
+              testData.coa_file_name?.toLowerCase().endsWith('.pdf') ? (
+                <iframe
+                  src={testData.coa_file_url}
+                  className="w-full h-full border-0"
+                  title="COA Document"
+                />
+              ) : (
+                <img
+                  src={testData.coa_file_url}
+                  alt="COA Document"
                 className="w-full h-full object-contain"
               />
+              )
             )}
           </div>
           <div className="flex justify-end gap-2 pt-4">

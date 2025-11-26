@@ -102,34 +102,32 @@ export function validateMetrcHarvestCreate(
   const result = createValidationResult()
 
   // Required fields per Metrc API
-  validateRequired(result, 'Name', harvestCreate.Name)
-  validateRequired(result, 'HarvestType', harvestCreate.HarvestType)
+  validateRequired(result, 'PlantLabels', harvestCreate.PlantLabels)
+  validateRequired(result, 'HarvestName', harvestCreate.HarvestName)
   validateRequired(result, 'DryingLocation', harvestCreate.DryingLocation)
-  validateRequired(result, 'HarvestStartDate', harvestCreate.HarvestStartDate)
-  validateRequired(result, 'PatientLicenseNumber', harvestCreate.PatientLicenseNumber)
+  validateRequired(result, 'HarvestDate', harvestCreate.HarvestDate)
 
-  // Harvest type validation
-  const validTypes = ['WholePlant', 'Manicure', 'Flower']
-  if (harvestCreate.HarvestType && !validTypes.includes(harvestCreate.HarvestType)) {
+  // Plant labels array validation
+  if (harvestCreate.PlantLabels && harvestCreate.PlantLabels.length === 0) {
     addError(
       result,
-      'HarvestType',
-      `Invalid harvest type. Must be one of: ${validTypes.join(', ')}`,
-      'INVALID_HARVEST_TYPE'
+      'PlantLabels',
+      'At least one plant label is required for harvest',
+      'EMPTY_PLANT_LABELS'
     )
   }
 
   // Date validation
-  if (harvestCreate.HarvestStartDate) {
-    validateDate(result, 'HarvestStartDate', harvestCreate.HarvestStartDate)
-    validateDateNotInFuture(result, 'HarvestStartDate', harvestCreate.HarvestStartDate)
+  if (harvestCreate.HarvestDate) {
+    validateDate(result, 'HarvestDate', harvestCreate.HarvestDate)
+    validateDateNotInFuture(result, 'HarvestDate', harvestCreate.HarvestDate)
   }
 
   // Name validation (Metrc harvest name must be unique)
-  if (harvestCreate.Name && harvestCreate.Name.length > 100) {
+  if (harvestCreate.HarvestName && harvestCreate.HarvestName.length > 100) {
     addError(
       result,
-      'Name',
+      'HarvestName',
       'Harvest name must be 100 characters or less',
       'NAME_TOO_LONG'
     )
@@ -142,6 +140,16 @@ export function validateMetrcHarvestCreate(
       'DryingLocation',
       'Drying location cannot be empty',
       'EMPTY_LOCATION'
+    )
+  }
+
+  // Waste weight validation
+  if (harvestCreate.WasteWeight !== undefined && harvestCreate.WasteWeight < 0) {
+    addError(
+      result,
+      'WasteWeight',
+      'Waste weight cannot be negative',
+      'NEGATIVE_WASTE_WEIGHT'
     )
   }
 
@@ -162,15 +170,15 @@ export function validateHarvestPackageCreate(
   validateRequired(result, 'Item', packageCreate.Item)
   validateRequired(result, 'Quantity', packageCreate.Quantity)
   validateRequired(result, 'UnitOfMeasure', packageCreate.UnitOfMeasure)
-  validateRequired(result, 'ActualDate', packageCreate.ActualDate)
+  validateRequired(result, 'PackagedDate', packageCreate.PackagedDate)
 
   // Quantity validation
   validatePositiveNumber(result, 'Quantity', packageCreate.Quantity)
 
   // Date validation
-  if (packageCreate.ActualDate) {
-    validateDate(result, 'ActualDate', packageCreate.ActualDate)
-    validateDateNotInFuture(result, 'ActualDate', packageCreate.ActualDate)
+  if (packageCreate.PackagedDate) {
+    validateDate(result, 'PackagedDate', packageCreate.PackagedDate)
+    validateDateNotInFuture(result, 'PackagedDate', packageCreate.PackagedDate)
   }
 
   // Tag format validation (Metrc package tag)

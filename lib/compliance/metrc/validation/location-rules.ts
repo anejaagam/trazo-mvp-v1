@@ -27,10 +27,13 @@ export function validateLocationName(name: string): ValidationResult {
   const errors: ValidationError[] = []
   const warnings: ValidationWarning[] = []
 
-  // Required
-  const requiredCheck = validateRequired(name, 'Name')
-  if (!requiredCheck.isValid) {
-    errors.push(...requiredCheck.errors)
+  // Required check
+  if (!name || name.trim() === '') {
+    errors.push({
+      field: 'Name',
+      message: 'Name is required',
+      code: 'REQUIRED',
+    })
     return { isValid: false, errors, warnings }
   }
 
@@ -48,9 +51,8 @@ export function validateLocationName(name: string): ValidationResult {
   if (trimmedName.length > 100) {
     errors.push({
       field: 'Name',
-      message: 'Location name cannot exceed 100 characters',
+      message: `Location name cannot exceed 100 characters (currently ${trimmedName.length})`,
       code: 'NAME_TOO_LONG',
-      value: trimmedName.length,
     })
   }
 
@@ -119,9 +121,8 @@ export function validateLocationTypeId(locationTypeId: number): ValidationResult
   if (typeof locationTypeId !== 'number') {
     errors.push({
       field: 'LocationTypeId',
-      message: 'Location type ID must be a number',
+      message: `Location type ID must be a number, got ${typeof locationTypeId}`,
       code: 'LOCATION_TYPE_INVALID_TYPE',
-      value: typeof locationTypeId,
     })
     return { isValid: false, errors, warnings }
   }
@@ -130,9 +131,8 @@ export function validateLocationTypeId(locationTypeId: number): ValidationResult
   if (!Number.isInteger(locationTypeId) || locationTypeId <= 0) {
     errors.push({
       field: 'LocationTypeId',
-      message: 'Location type ID must be a positive integer',
+      message: `Location type ID must be a positive integer, got ${locationTypeId}`,
       code: 'LOCATION_TYPE_INVALID_VALUE',
-      value: locationTypeId,
     })
   }
 
@@ -192,9 +192,8 @@ export function validateLocationUpdate(payload: MetrcLocationUpdate): Validation
   if (typeof payload.Id !== 'number' || !Number.isInteger(payload.Id) || payload.Id <= 0) {
     errors.push({
       field: 'Id',
-      message: 'Location ID must be a positive integer',
+      message: `Location ID must be a positive integer, got ${payload.Id}`,
       code: 'LOCATION_ID_INVALID',
-      value: payload.Id,
     })
   }
 

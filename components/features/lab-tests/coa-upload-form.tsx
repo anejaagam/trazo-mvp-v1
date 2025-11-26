@@ -7,8 +7,7 @@
  * Handles Certificate of Analysis upload with drag-and-drop support
  */
 
-import { useState, useCallback } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useState, useRef } from 'react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -49,10 +48,32 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import type { Database } from '@/types/database'
 
-type HarvestPackage = Database['public']['Tables']['harvest_packages']['Row']
-type Batch = Database['public']['Tables']['batches']['Row']
+// Define types locally
+type HarvestPackage = {
+  id: string
+  package_number: string
+  batch_id: string | null
+  strain_name: string | null
+  product_type: string | null
+  quantity: number
+  unit_of_measure: string
+  harvest_date: string | null
+  test_status: 'pending' | 'in_progress' | 'passed' | 'failed' | null
+  lab_test_id: string | null
+  [key: string]: any
+}
+
+type Batch = {
+  id: string
+  batch_number: string
+  stage: string
+  status: string
+  current_quantity: number | null
+  unit_of_measure: string | null
+  strain_name: string | null
+  [key: string]: any
+}
 
 interface COAUploadFormProps {
   organizationId: string
@@ -112,25 +133,30 @@ export function COAUploadForm({
     moisture: false
   })
 
-  // Dropzone configuration
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0]
+  // File input ref
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
       if (file.size > MAX_FILE_SIZE) {
         toast.error('File size must be less than 10MB')
+        return
+      }
+      // Check file type
+      const isValidType = file.type === 'application/pdf' ||
+                         file.type === 'image/png' ||
+                         file.type === 'image/jpeg' ||
+                         file.type === 'image/jpg'
+      if (!isValidType) {
+        toast.error('File must be PDF or image (PNG/JPG)')
         return
       }
       setUploadedFile(file)
       toast.success('File selected successfully')
     }
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: ALLOWED_FILE_TYPES,
-    maxFiles: 1,
-    maxSize: MAX_FILE_SIZE
-  })
+  }
 
   // Handle file upload to Supabase Storage
   const uploadFileToStorage = async (file: File): Promise<string | null> => {
@@ -229,7 +255,7 @@ export function COAUploadForm({
           notes: notes || null,
           status: overallStatus,
           test_results: testResults,
-          coa_uploaded_by: (await supabase.auth.getUser()).data.user?.id
+          coa_uploaded_by: (await supabase.auth.getUser()).data?.user?.id
         })
         .select()
         .single()
@@ -242,11 +268,12 @@ export function COAUploadForm({
 
       // Link packages to test
       if (selectedPackages.length > 0) {
+        const { data: userData } = await supabase.auth.getUser()
         const packageLinks = selectedPackages.map(packageId => ({
           package_id: packageId,
           test_result_id: labTest.id,
           package_test_status: overallStatus,
-          associated_by: (supabase.auth.getUser()).data.user?.id
+          associated_by: userData?.user?.id
         }))
 
         const { error: linkError } = await supabase
@@ -261,11 +288,12 @@ export function COAUploadForm({
 
       // Link batches to test
       if (selectedBatches.length > 0) {
+        const { data: userData } = await supabase.auth.getUser()
         const batchLinks = selectedBatches.map(batchId => ({
           batch_id: batchId,
           test_result_id: labTest.id,
           batch_test_status: overallStatus,
-          associated_by: (supabase.auth.getUser()).data.user?.id
+          associated_by: userData?.user?.id
         }))
 
         const { error: linkError } = await supabase
@@ -310,48 +338,55 @@ export function COAUploadForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div
-            {...getRootProps()}
-            className={`
-              border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
-              transition-colors duration-200
-              ${isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-              ${uploadedFile ? 'bg-green-50 border-green-300' : 'hover:border-primary/50'}
-            `}
-          >
-            <input {...getInputProps()} />
-            {uploadedFile ? (
-              <div className="space-y-2">
-                <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
-                <p className="font-medium">{uploadedFile.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setUploadedFile(null)
-                  }}
-                >
-                  <X className="h-4 w-4 mr-1" />
-                  Remove
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Upload className="h-12 w-12 text-muted-foreground mx-auto" />
-                <p className="font-medium">
-                  {isDragActive ? 'Drop the file here' : 'Drag & drop COA file here'}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  or click to browse (PDF, PNG, JPG - max 10MB)
-                </p>
-              </div>
-            )}
-          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {uploadedFile ? (
+            <div className="border-2 border-green-300 bg-green-50 rounded-lg p-6 text-center">
+              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-2" />
+              <p className="font-medium">{uploadedFile.name}</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setUploadedFile(null)}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Remove File
+              </Button>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 rounded-lg p-8 text-center cursor-pointer transition-colors"
+            >
+              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+              <p className="font-medium mb-1">Click to upload COA document</p>
+              <p className="text-sm text-muted-foreground">
+                Supported formats: PDF, PNG, JPG (max 10MB)
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  fileInputRef.current?.click()
+                }}
+              >
+                <FileUp className="h-4 w-4 mr-2" />
+                Choose File
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

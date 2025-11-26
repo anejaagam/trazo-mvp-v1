@@ -462,3 +462,161 @@ export interface MetrcLocationUpdate {
   Name: string
   LocationTypeId: number
 }
+
+// =====================================================
+// STRAINS
+// =====================================================
+
+/**
+ * Metrc strain structure
+ * Returned from /strains/v2/active and /strains/v2/inactive endpoints
+ */
+export interface MetrcStrain {
+  Id: number
+  Name: string
+  TestingStatus: string
+  ThcLevel: number
+  CbdLevel: number
+  IndicaPercentage?: number
+  SativaPercentage?: number
+  IsUsed: boolean
+}
+
+/**
+ * Strain creation payload
+ * Used for POST /strains/v2/
+ */
+export interface MetrcStrainCreate {
+  Name: string
+  TestingStatus: string
+  ThcLevel: number
+  CbdLevel: number
+  IndicaPercentage?: number
+  SativaPercentage?: number
+}
+
+/**
+ * Strain update payload
+ * Used for PUT /strains/v2/
+ */
+export interface MetrcStrainUpdate extends MetrcStrainCreate {
+  Id: number
+}
+
+// =====================================================
+// ITEMS
+// =====================================================
+
+/**
+ * Metrc item structure
+ * Returned from /items/v2/active and /items/v2/inactive endpoints
+ */
+export interface MetrcItem {
+  Id: number
+  Name: string
+  ProductCategoryName: string
+  ProductCategoryType: string
+  QuantityType: string
+  DefaultLabTestingState: string
+  UnitOfMeasureName: string
+  ApprovalStatus: string
+  StrainId?: number
+  StrainName?: string
+}
+
+/**
+ * Item creation payload
+ * Used for POST /items/v2/
+ */
+export interface MetrcItemCreate {
+  ItemCategory: string
+  Name: string
+  UnitOfMeasure: string
+  Strain?: string
+}
+
+/**
+ * Item update payload
+ * Used for PUT /items/v2/
+ */
+export interface MetrcItemUpdate extends MetrcItemCreate {
+  Id: number
+}
+
+/**
+ * Item category structure
+ * Returned from /items/v2/categories endpoint
+ */
+export interface MetrcItemCategory {
+  Name: string
+  ProductCategoryType: string
+  QuantityType: string
+  RequiresStrain: boolean
+  RequiresUnitCbdPercent: boolean
+  RequiresUnitThcPercent: boolean
+}
+
+/**
+ * Item brand structure
+ * Returned from /items/v2/brands endpoint
+ */
+export interface MetrcBrand {
+  Id: number
+  Name: string
+}
+
+// =====================================================
+// LAB TESTS
+// =====================================================
+
+/**
+ * Lab test type structure
+ * Returned from /labtests/v2/types endpoint
+ */
+export interface MetrcLabTestType {
+  Id: number
+  Name: string
+}
+
+/**
+ * Lab test batch structure
+ * Returned from /labtests/v2/batches endpoint
+ */
+export interface MetrcLabTestBatch {
+  Id: number
+  PackageId: number
+  PackageLabel: string
+  LabFacilityLicenseNumber: string
+  LabFacilityName: string
+  TestPerformedDate: string
+  OverallPassed: boolean
+  TestResults: MetrcLabTestResult[]
+}
+
+/**
+ * Lab test result structure
+ */
+export interface MetrcLabTestResult {
+  TestTypeName: string
+  TestPassed: boolean
+  TestResultLevel?: number
+  TestComment?: string
+  TestInstrument?: string
+}
+
+/**
+ * Lab test record creation payload
+ * Used for POST /labtests/v2/record
+ */
+export interface MetrcLabTestRecord {
+  Label: string
+  ResultDate: string
+  LabFacilityLicenseNumber: string
+  LabFacilityName: string
+  Results: {
+    TestTypeName: string
+    TestPassed: boolean
+    TestResultLevel?: number
+    TestComment?: string
+  }[]
+}

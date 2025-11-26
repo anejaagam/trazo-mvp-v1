@@ -199,11 +199,12 @@ export default async function DashboardPage() {
   const twelveWeeksAgo = new Date()
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
   
-  // Get all batches created in the last 12 weeks
+  // Get only active batches created in the last 12 weeks
   const { data: batchHistory } = await supabase
     .from('batches')
     .select('id, created_at, plant_count')
     .eq('site_id', siteId)
+    .eq('status', 'active')
     .gte('created_at', twelveWeeksAgo.toISOString())
     .order('created_at', { ascending: true })
 

@@ -144,7 +144,7 @@ describe('validatePlantCountAdjustment', () => {
 
     const result = validatePlantCountAdjustment(adjustment)
     expect(result.isValid).toBe(false)
-    expect(result.errors.some((e) => e.code === 'FUTURE_DATE')).toBe(true)
+    expect(result.errors.some((e) => e.code === 'DATE_IN_FUTURE')).toBe(true)
   })
 
   it('should accept today as adjustment date', () => {

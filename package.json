@@ -22,7 +22,11 @@
     "poll:watch": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-tagoio.ts",
     "poll:historical": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-historical.ts",
     "poll:user": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-user-org.ts --once",
-    "poll:user:watch": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-user-org.ts"
+    "poll:user:watch": "ts-node -r tsconfig-paths/register --project scripts/tsconfig.json scripts/poll-user-org.ts",
+    "test:metrc:sandbox": "ts-node --project scripts/tsconfig.json scripts/test-metrc-sandbox.ts",
+    "test:metrc:or": "METRC_STATE=OR ts-node --project scripts/tsconfig.json scripts/test-metrc-sandbox.ts",
+    "test:metrc:md": "METRC_STATE=MD ts-node --project scripts/tsconfig.json scripts/test-metrc-sandbox.ts",
+    "test:seed-to-sale": "ts-node --project scripts/tsconfig.json scripts/test-seed-to-sale.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

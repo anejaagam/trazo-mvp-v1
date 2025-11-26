@@ -157,11 +157,12 @@ describe('validateHarvestCreate', () => {
 describe('validateMetrcHarvestCreate', () => {
   it('should validate a valid Metrc harvest', () => {
     const result = validateMetrcHarvestCreate({
-      Name: 'BATCH-001-H1',
-      HarvestType: 'WholePlant',
+      PlantLabels: ['1A4FF0100000022000000001', '1A4FF0100000022000000002'],
+      HarvestName: 'BATCH-001-H1',
       DryingLocation: 'Drying Room A',
-      HarvestStartDate: '2025-11-15',
-      PatientLicenseNumber: 'null',
+      WasteWeight: 10,
+      WasteUnitOfMeasure: 'Grams',
+      HarvestDate: '2025-11-15',
     })
 
     expect(result.isValid).toBe(true)
@@ -170,11 +171,12 @@ describe('validateMetrcHarvestCreate', () => {
 
   it('should require all Metrc fields', () => {
     const result = validateMetrcHarvestCreate({
-      Name: '',
-      HarvestType: '',
+      PlantLabels: [],
+      HarvestName: '',
       DryingLocation: '',
-      HarvestStartDate: '',
-      PatientLicenseNumber: '',
+      WasteWeight: 0,
+      WasteUnitOfMeasure: '',
+      HarvestDate: '',
     })
 
     expect(result.isValid).toBe(false)
@@ -183,17 +185,18 @@ describe('validateMetrcHarvestCreate', () => {
 
   it('should reject harvest name too long', () => {
     const result = validateMetrcHarvestCreate({
-      Name: 'A'.repeat(101),
-      HarvestType: 'WholePlant',
+      PlantLabels: ['1A4FF0100000022000000001'],
+      HarvestName: 'A'.repeat(101),
       DryingLocation: 'Room A',
-      HarvestStartDate: '2025-11-15',
-      PatientLicenseNumber: 'null',
+      WasteWeight: 10,
+      WasteUnitOfMeasure: 'Grams',
+      HarvestDate: '2025-11-15',
     })
 
     expect(result.isValid).toBe(false)
     expect(result.errors).toContainEqual(
       expect.objectContaining({
-        field: 'Name',
+        field: 'HarvestName',
         code: 'NAME_TOO_LONG',
       })
     )
@@ -203,15 +206,13 @@ describe('validateMetrcHarvestCreate', () => {
 describe('validateHarvestPackageCreate', () => {
   it('should validate a valid package', () => {
     const result = validateHarvestPackageCreate({
-      Tag: '1A4FF01000000220000000123',
+      Tag: '1A4FF0100000022000000123',
       Location: 'Main Facility',
       Item: 'Flower - Strain Name',
       Quantity: 100,
       UnitOfMeasure: 'Grams',
-      ActualDate: '2025-11-15',
+      PackagedDate: '2025-11-15',
       ProductionBatchNumber: 'BATCH-001',
-      IsTradeSample: false,
-      IsTestingSample: false,
     })
 
     expect(result.isValid).toBe(true)
@@ -225,7 +226,7 @@ describe('validateHarvestPackageCreate', () => {
       Item: '',
       Quantity: 0,
       UnitOfMeasure: '',
-      ActualDate: '',
+      PackagedDate: '',
     })
 
     expect(result.isValid).toBe(false)
@@ -234,12 +235,12 @@ describe('validateHarvestPackageCreate', () => {
 
   it('should warn on missing production batch number', () => {
     const result = validateHarvestPackageCreate({
-      Tag: '1A4FF01000000220000000123',
+      Tag: '1A4FF0100000022000000123',
       Location: 'Main Facility',
       Item: 'Flower',
       Quantity: 100,
       UnitOfMeasure: 'Grams',
-      ActualDate: '2025-11-15',
+      PackagedDate: '2025-11-15',
     })
 
     expect(result.isValid).toBe(true)
@@ -258,7 +259,7 @@ describe('validateHarvestPackageCreate', () => {
       Item: 'Flower',
       Quantity: 100,
       UnitOfMeasure: 'Grams',
-      ActualDate: '2025-11-15',
+      PackagedDate: '2025-11-15',
       ProductionBatchNumber: 'BATCH-001',
     })
 
@@ -276,21 +277,21 @@ describe('validateHarvestPackageCreateBatch', () => {
   it('should validate batch of packages', () => {
     const result = validateHarvestPackageCreateBatch([
       {
-        Tag: '1A4FF01000000220000000001',
+        Tag: '1A4FF0100000022000000001',
         Location: 'Main Facility',
         Item: 'Flower',
         Quantity: 100,
         UnitOfMeasure: 'Grams',
-        ActualDate: '2025-11-15',
+        PackagedDate: '2025-11-15',
         ProductionBatchNumber: 'BATCH-001',
       },
       {
-        Tag: '1A4FF01000000220000000002',
+        Tag: '1A4FF0100000022000000002',
         Location: 'Main Facility',
         Item: 'Flower',
         Quantity: 100,
         UnitOfMeasure: 'Grams',
-        ActualDate: '2025-11-15',
+        PackagedDate: '2025-11-15',
         ProductionBatchNumber: 'BATCH-001',
       },
     ])
@@ -312,12 +313,12 @@ describe('validateHarvestPackageCreateBatch', () => {
 
   it('should reject batch size > 100', () => {
     const packages = Array(101).fill({
-      Tag: '1A4FF01000000220000000001',
+      Tag: '1A4FF0100000022000000001',
       Location: 'Main Facility',
       Item: 'Flower',
       Quantity: 100,
       UnitOfMeasure: 'Grams',
-      ActualDate: '2025-11-15',
+      PackagedDate: '2025-11-15',
     })
 
     const result = validateHarvestPackageCreateBatch(packages)
@@ -334,20 +335,20 @@ describe('validateHarvestPackageCreateBatch', () => {
   it('should detect duplicate tags', () => {
     const result = validateHarvestPackageCreateBatch([
       {
-        Tag: '1A4FF01000000220000000001',
+        Tag: '1A4FF0100000022000000001',
         Location: 'Main Facility',
         Item: 'Flower',
         Quantity: 100,
         UnitOfMeasure: 'Grams',
-        ActualDate: '2025-11-15',
+        PackagedDate: '2025-11-15',
       },
       {
-        Tag: '1A4FF01000000220000000001', // Duplicate
+        Tag: '1A4FF0100000022000000001', // Duplicate
         Location: 'Main Facility',
         Item: 'Flower',
         Quantity: 100,
         UnitOfMeasure: 'Grams',
-        ActualDate: '2025-11-15',
+        PackagedDate: '2025-11-15',
       },
     ])
 

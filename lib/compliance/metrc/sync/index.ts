@@ -14,6 +14,21 @@ export {
   type InventoryPushResult,
 } from './inventory-push-sync'
 
+// Production batch sync
+export {
+  createProductionBatch,
+  addInputPackages,
+  completeProduction,
+  cancelProduction,
+  syncProductionBatchToMetrc,
+  getProductionBatchSyncStatus,
+  type ProductionBatchSyncResult,
+  type CreateProductionBatchParams,
+  type AddInputPackagesParams,
+  type CompleteProductionParams,
+  type CancelProductionParams,
+} from './production-batch-sync'
+
 // Orchestration
 export {
   runSync,

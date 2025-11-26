@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * Enhanced Harvest Queue with Lab Test Integration
- * Phase 3.5 Week 8 Implementation
+ * Enhanced Harvest Queue with Lab Test Integration & Production
+ * Phase 3.5 Week 8 + Week 10 Implementation
  */
 
 import { useState, useEffect } from 'react'
@@ -28,19 +28,29 @@ import {
   FlaskConical,
   XCircle,
   Clock,
-  Plus
+  Plus,
+  Factory
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { getHarvests } from '@/lib/supabase/queries/harvests-client'
 import { createClient } from '@/lib/supabase/client'
 import { HarvestDetailDialog } from './harvest-detail-dialog'
 import { PackageTestStatus } from '@/components/features/lab-tests/package-test-status'
+import { StartProductionDialog } from '@/components/features/production/start-production-dialog'
+import { ProductionStatusBadge } from '@/components/features/production/production-status-badge'
 
 interface PackageWithTestStatus {
   id: string
   package_label: string
+  tag?: string
+  product_name?: string
+  product_type?: string
+  current_quantity: number
+  unit_of_measure: string
   latest_test_status?: 'passed' | 'failed' | 'pending' | 'retesting' | 'not_tested'
   has_passing_test?: boolean
+  production_status?: 'available' | 'in_production' | 'processed'
+  lab_test_status?: string
 }
 
 interface HarvestRecord {
@@ -98,6 +108,8 @@ export function HarvestQueueWithLabTests({
   const [activeTab, setActiveTab] = useState<string>('all')
   const [selectedHarvestId, setSelectedHarvestId] = useState<string | null>(null)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
+  const [showProductionDialog, setShowProductionDialog] = useState(false)
+  const [selectedHarvestForProduction, setSelectedHarvestForProduction] = useState<HarvestRecord | null>(null)
 
   useEffect(() => {
     loadHarvestsWithTestStatus()
@@ -126,7 +138,14 @@ export function HarvestQueueWithLabTests({
           ),
           packages:harvest_packages (
             id,
-            package_label
+            package_label,
+            tag,
+            product_name,
+            product_type,
+            current_quantity,
+            unit_of_measure,
+            production_status,
+            lab_test_status
           )
         `)
         .eq('organization_id', organizationId)
@@ -196,8 +215,40 @@ export function HarvestQueueWithLabTests({
         !pkg.has_passing_test || pkg.latest_test_status === 'failed'
       )
     }
+    if (activeTab === 'ready-for-production') {
+      // Show harvests with packages that have passed lab tests and are available
+      return harvest.packages?.some(pkg =>
+        pkg.has_passing_test &&
+        pkg.current_quantity > 0 &&
+        (!pkg.production_status || pkg.production_status === 'available')
+      )
+    }
+    if (activeTab === 'in-production') {
+      // Show harvests with packages currently in production
+      return harvest.packages?.some(pkg =>
+        pkg.production_status === 'in_production'
+      )
+    }
     return harvest.status === activeTab
   })
+
+  // Helper to check if harvest can start production
+  const canStartProduction = (harvest: HarvestRecord) => {
+    return harvest.packages?.some(pkg =>
+      pkg.has_passing_test &&
+      pkg.current_quantity > 0 &&
+      (!pkg.production_status || pkg.production_status === 'available')
+    )
+  }
+
+  // Helper to get production status summary
+  const getProductionStatusSummary = (harvest: HarvestRecord) => {
+    const packages = harvest.packages || []
+    const available = packages.filter(p => !p.production_status || p.production_status === 'available').length
+    const inProduction = packages.filter(p => p.production_status === 'in_production').length
+    const processed = packages.filter(p => p.production_status === 'processed').length
+    return { available, inProduction, processed, total: packages.length }
+  }
 
   const calculateMoistureLoss = (harvest: HarvestRecord) => {
     if (!harvest.dry_weight_g) return null
@@ -314,7 +365,7 @@ export function HarvestQueueWithLabTests({
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="flex flex-wrap gap-1">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="drying">Drying</TabsTrigger>
@@ -325,6 +376,14 @@ export function HarvestQueueWithLabTests({
             <TabsTrigger value="needs-testing" className="flex items-center gap-1">
               <FlaskConical className="h-3.5 w-3.5" />
               Needs Testing
+            </TabsTrigger>
+            <TabsTrigger value="ready-for-production" className="flex items-center gap-1 bg-green-50 data-[state=active]:bg-green-100">
+              <Factory className="h-3.5 w-3.5" />
+              Ready for Production
+            </TabsTrigger>
+            <TabsTrigger value="in-production" className="flex items-center gap-1 bg-blue-50 data-[state=active]:bg-blue-100">
+              <Factory className="h-3.5 w-3.5" />
+              In Production
             </TabsTrigger>
           </TabsList>
 
@@ -356,6 +415,7 @@ export function HarvestQueueWithLabTests({
                       <TableHead>Plants</TableHead>
                       <TableHead>Packages</TableHead>
                       <TableHead>Lab Tests</TableHead>
+                      <TableHead>Production</TableHead>
                       <TableHead>Metrc</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -426,6 +486,55 @@ export function HarvestQueueWithLabTests({
                           {getTestStatusIcon(harvest)}
                         </TableCell>
                         <TableCell>
+                          {(() => {
+                            const prodStatus = getProductionStatusSummary(harvest)
+                            if (prodStatus.total === 0) {
+                              return <span className="text-muted-foreground text-xs">No packages</span>
+                            }
+                            if (prodStatus.inProduction > 0) {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <div className="flex items-center gap-1">
+                                        <Factory className="h-4 w-4 text-blue-600" />
+                                        <span className="text-xs">{prodStatus.inProduction} in prod</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{prodStatus.inProduction} package(s) in production</p>
+                                      <p>{prodStatus.processed} processed, {prodStatus.available} available</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )
+                            }
+                            if (prodStatus.processed > 0) {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <div className="flex items-center gap-1">
+                                        <CheckCircle2 className="h-4 w-4 text-purple-600" />
+                                        <span className="text-xs">{prodStatus.processed} processed</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{prodStatus.processed} package(s) processed</p>
+                                      <p>{prodStatus.available} still available</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )
+                            }
+                            return (
+                              <span className="text-muted-foreground text-xs">
+                                {prodStatus.available} available
+                              </span>
+                            )
+                          })()}
+                        </TableCell>
+                        <TableCell>
                           {isSyncedToMetrc(harvest) ? (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                           ) : (
@@ -455,6 +564,19 @@ export function HarvestQueueWithLabTests({
                                 }}
                               >
                                 <FlaskConical className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canStartProduction(harvest) && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => {
+                                  setSelectedHarvestForProduction(harvest)
+                                  setShowProductionDialog(true)
+                                }}
+                              >
+                                <Factory className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
@@ -503,6 +625,40 @@ export function HarvestQueueWithLabTests({
             if (!open) {
               setSelectedHarvestId(null)
             }
+          }}
+        />
+      )}
+
+      {/* Start Production Dialog */}
+      {selectedHarvestForProduction && siteId && (
+        <StartProductionDialog
+          harvest={{
+            id: selectedHarvestForProduction.id,
+            batch_number: selectedHarvestForProduction.batch.batch_number,
+            cultivar_name: selectedHarvestForProduction.batch.cultivar?.name,
+            packages: (selectedHarvestForProduction.packages || []).map(pkg => ({
+              id: pkg.id,
+              tag: pkg.tag,
+              product_name: pkg.product_name,
+              product_type: pkg.product_type,
+              current_quantity: pkg.current_quantity,
+              unit_of_measure: pkg.unit_of_measure,
+              lab_test_status: pkg.has_passing_test ? 'passed' : pkg.latest_test_status,
+              production_status: pkg.production_status,
+            }))
+          }}
+          siteId={siteId}
+          organizationId={organizationId}
+          open={showProductionDialog}
+          onOpenChange={(open) => {
+            setShowProductionDialog(open)
+            if (!open) {
+              setSelectedHarvestForProduction(null)
+            }
+          }}
+          onSuccess={(productionBatchId, batchNumber) => {
+            // Refresh harvest data after production is started
+            loadHarvestsWithTestStatus()
           }}
         />
       )}

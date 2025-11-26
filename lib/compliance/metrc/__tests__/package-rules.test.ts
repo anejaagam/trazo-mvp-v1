@@ -96,7 +96,7 @@ describe('Package Validation Rules', () => {
       const pkg = { ...validPackage, PackagedDate: futureDate.toISOString().split('T')[0] }
       const result = validatePackageCreate(pkg)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
 
     it('should fail when PackagedDate format is invalid', () => {
@@ -218,7 +218,7 @@ describe('Package Validation Rules', () => {
       }
       const result = validatePackageAdjustment(adjustment)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -265,7 +265,7 @@ describe('Package Validation Rules', () => {
       }
       const result = validatePackageLocationChange(change)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 
@@ -304,7 +304,7 @@ describe('Package Validation Rules', () => {
       }
       const result = validatePackageFinish(finish)
       expect(result.isValid).toBe(false)
-      expect(result.errors.some(e => e.code === 'FUTURE_DATE')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DATE_IN_FUTURE')).toBe(true)
     })
   })
 

@@ -121,14 +121,14 @@ export function validateLabTestUpload(data: LabTestUploadData): ValidationResult
   const result = createValidationResult()
 
   // Required fields
-  validateRequired(data.labName, 'Lab name', result)
-  validateRequired(data.testDate, 'Test date', result)
-  validateRequired(data.coaFile, 'COA file', result)
+  validateRequired(result, 'labName', data.labName, 'Lab name')
+  validateRequired(result, 'testDate', data.testDate, 'Test date')
+  validateRequired(result, 'coaFile', data.coaFile, 'COA file')
 
   // Validate test date
   if (data.testDate) {
-    validateDate(data.testDate, 'Test date', result)
-    validateDateNotInFuture(data.testDate, 'Test date', result)
+    validateDate(result, 'testDate', data.testDate, 'Test date')
+    validateDateNotInFuture(result, 'testDate', data.testDate, 'Test date')
 
     // Warn if test date is more than 30 days old
     const testDate = new Date(data.testDate)
@@ -136,7 +136,7 @@ export function validateLabTestUpload(data: LabTestUploadData): ValidationResult
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     if (testDate < thirtyDaysAgo) {
-      addWarning(result, 'test_date_old', 'Test date is more than 30 days old. Consider retesting for accuracy.')
+      addWarning(result, 'testDate', 'Test date is more than 30 days old. Consider retesting for accuracy.', 'test_date_old')
     }
   }
 
@@ -144,54 +144,54 @@ export function validateLabTestUpload(data: LabTestUploadData): ValidationResult
   if (data.coaFile) {
     // Check file type
     if (!ALLOWED_FILE_TYPES.includes(data.coaFile.type)) {
-      addError(result, 'invalid_file_type', `File type must be PDF or image (PNG/JPG). Got: ${data.coaFile.type}`)
+      addError(result, 'coaFile', `File type must be PDF or image (PNG/JPG). Got: ${data.coaFile.type}`, 'invalid_file_type')
     }
 
     // Check file size
     if (data.coaFile.size > MAX_FILE_SIZE) {
-      addError(result, 'file_too_large', `File size must be less than 10MB. Got: ${(data.coaFile.size / 1024 / 1024).toFixed(2)}MB`)
+      addError(result, 'coaFile', `File size must be less than 10MB. Got: ${(data.coaFile.size / 1024 / 1024).toFixed(2)}MB`, 'file_too_large')
     }
 
     // Warn about small files that might be corrupted
     if (data.coaFile.size < 1024) { // Less than 1KB
-      addWarning(result, 'file_too_small', 'File size is very small. Please verify the file is not corrupted.')
+      addWarning(result, 'coaFile', 'File size is very small. Please verify the file is not corrupted.', 'file_too_small')
     }
   }
 
   // Validate associations
   if (!data.packages?.length && !data.batches?.length) {
-    addError(result, 'no_associations', 'At least one package or batch must be selected for this test')
+    addError(result, 'associations', 'At least one package or batch must be selected for this test', 'no_associations')
   }
 
   // Validate packages array if provided
   if (data.packages && data.packages.length > 0) {
-    validateArrayNotEmpty(data.packages, 'Packages', result)
+    validateArrayNotEmpty(result, 'packages', data.packages, 'Packages')
 
     // Warn if associating with many packages
     if (data.packages.length > 100) {
-      addWarning(result, 'many_packages', `Associating test with ${data.packages.length} packages. Consider if all packages are from the same lot.`)
+      addWarning(result, 'packages', `Associating test with ${data.packages.length} packages. Consider if all packages are from the same lot.`, 'many_packages')
     }
 
     // Check for duplicate packages
     const uniquePackages = new Set(data.packages)
     if (uniquePackages.size !== data.packages.length) {
-      addError(result, 'duplicate_packages', 'Duplicate packages found in selection')
+      addError(result, 'packages', 'Duplicate packages found in selection', 'duplicate_packages')
     }
   }
 
   // Validate sample quantity if provided
   if (data.sampleQuantity !== undefined) {
-    validatePositiveNumber(data.sampleQuantity, 'Sample quantity', result)
+    validatePositiveNumber(result, 'sampleQuantity', data.sampleQuantity, 'Sample quantity')
 
     // Warn about unusual sample sizes
     if (data.sampleQuantity > 1000) {
-      addWarning(result, 'large_sample', 'Sample quantity seems unusually large. Please verify.')
+      addWarning(result, 'sampleQuantity', 'Sample quantity seems unusually large. Please verify.', 'large_sample')
     }
   }
 
   // Validate sample unit if quantity is provided
   if (data.sampleQuantity && !data.sampleUnitOfMeasure) {
-    addError(result, 'missing_unit', 'Sample unit of measure is required when sample quantity is provided')
+    addError(result, 'sampleUnitOfMeasure', 'Sample unit of measure is required when sample quantity is provided', 'missing_unit')
   }
 
   // Validate lab license number format if provided (state-specific)
@@ -199,7 +199,7 @@ export function validateLabTestUpload(data: LabTestUploadData): ValidationResult
     // Basic format check - adjust based on state requirements
     const licensePattern = /^[A-Z0-9]{6,20}$/
     if (!licensePattern.test(data.labLicenseNumber)) {
-      addWarning(result, 'invalid_license_format', 'Lab license number format may be invalid')
+      addWarning(result, 'labLicenseNumber', 'Lab license number format may be invalid', 'invalid_license_format')
     }
   }
 
@@ -218,26 +218,26 @@ export function validateTestResults(
   // Check if any tests were performed
   const hasAnyTests = Object.values(results).some(test => test?.tested === true)
   if (!hasAnyTests) {
-    addError(result, 'no_tests', 'At least one test type must be performed')
+    addError(result, 'tests', 'At least one test type must be performed', 'no_tests')
     return result
   }
 
   // Validate potency results
   if (results.potency?.tested) {
     if (results.potency.passed === undefined) {
-      addError(result, 'potency_status_missing', 'Potency test status (pass/fail) is required')
+      addError(result, 'potency.passed', 'Potency test status (pass/fail) is required', 'potency_status_missing')
     }
 
     // Validate THC percentage
     if (results.potency.thc_percent !== undefined) {
       if (results.potency.thc_percent < 0 || results.potency.thc_percent > 100) {
-        addError(result, 'invalid_thc_percent', 'THC percentage must be between 0 and 100')
+        addError(result, 'potency.thc_percent', 'THC percentage must be between 0 and 100', 'invalid_thc_percent')
       }
 
       // Check THC limits if product type is known
       if (productType && THC_LIMITS[productType] !== null) {
         if (results.potency.thc_percent > THC_LIMITS[productType]) {
-          addWarning(result, 'thc_exceeds_limit', `THC percentage (${results.potency.thc_percent}%) exceeds typical limit for ${productType} (${THC_LIMITS[productType]}%)`)
+          addWarning(result, 'potency.thc_percent', `THC percentage (${results.potency.thc_percent}%) exceeds typical limit for ${productType} (${THC_LIMITS[productType]}%)`, 'thc_exceeds_limit')
         }
       }
     }
@@ -245,21 +245,21 @@ export function validateTestResults(
     // Validate CBD percentage
     if (results.potency.cbd_percent !== undefined) {
       if (results.potency.cbd_percent < 0 || results.potency.cbd_percent > 100) {
-        addError(result, 'invalid_cbd_percent', 'CBD percentage must be between 0 and 100')
+        addError(result, 'potency.cbd_percent', 'CBD percentage must be between 0 and 100', 'invalid_cbd_percent')
       }
     }
 
     // Validate total cannabinoids
     if (results.potency.total_cannabinoids !== undefined) {
       if (results.potency.total_cannabinoids < 0 || results.potency.total_cannabinoids > 100) {
-        addError(result, 'invalid_total_cannabinoids', 'Total cannabinoids must be between 0 and 100%')
+        addError(result, 'potency.total_cannabinoids', 'Total cannabinoids must be between 0 and 100%', 'invalid_total_cannabinoids')
       }
 
       // Check if total is reasonable given THC and CBD
       if (results.potency.thc_percent !== undefined && results.potency.cbd_percent !== undefined) {
         const minTotal = results.potency.thc_percent + results.potency.cbd_percent
         if (results.potency.total_cannabinoids < minTotal) {
-          addError(result, 'invalid_cannabinoid_total', 'Total cannabinoids cannot be less than THC + CBD')
+          addError(result, 'potency.total_cannabinoids', 'Total cannabinoids cannot be less than THC + CBD', 'invalid_cannabinoid_total')
         }
       }
     }
@@ -267,10 +267,10 @@ export function validateTestResults(
     // Validate THC per serving for edibles
     if (results.potency.thc_mg_per_serving !== undefined) {
       if (results.potency.thc_mg_per_serving < 0) {
-        addError(result, 'negative_thc_serving', 'THC per serving cannot be negative')
+        addError(result, 'potency.thc_mg_per_serving', 'THC per serving cannot be negative', 'negative_thc_serving')
       }
       if (productType === 'edible' && results.potency.thc_mg_per_serving > 10) {
-        addWarning(result, 'high_thc_serving', 'THC per serving exceeds 10mg limit for edibles in most states')
+        addWarning(result, 'potency.thc_mg_per_serving', 'THC per serving exceeds 10mg limit for edibles in most states', 'high_thc_serving')
       }
     }
   }
@@ -278,18 +278,18 @@ export function validateTestResults(
   // Validate pesticides results
   if (results.pesticides?.tested) {
     if (results.pesticides.passed === undefined) {
-      addError(result, 'pesticides_status_missing', 'Pesticides test status (pass/fail) is required')
+      addError(result, 'pesticides.passed', 'Pesticides test status (pass/fail) is required', 'pesticides_status_missing')
     }
 
     if (results.pesticides.passed === false && (!results.pesticides.detected || results.pesticides.detected.length === 0)) {
-      addWarning(result, 'pesticides_no_details', 'Failed pesticides test should specify which pesticides were detected')
+      addWarning(result, 'pesticides.detected', 'Failed pesticides test should specify which pesticides were detected', 'pesticides_no_details')
     }
   }
 
   // Validate heavy metals results
   if (results.heavy_metals?.tested) {
     if (results.heavy_metals.passed === undefined) {
-      addError(result, 'heavy_metals_status_missing', 'Heavy metals test status (pass/fail) is required')
+      addError(result, 'heavy_metals.passed', 'Heavy metals test status (pass/fail) is required', 'heavy_metals_status_missing')
     }
 
     // Validate individual metal values if provided
@@ -297,7 +297,7 @@ export function validateTestResults(
     for (const metal of metals) {
       const value = results.heavy_metals[metal]
       if (value !== undefined && value < 0) {
-        addError(result, `negative_${metal}`, `${metal.replace('_ppb', '')} value cannot be negative`)
+        addError(result, `heavy_metals.${metal}`, `${metal.replace('_ppb', '')} value cannot be negative`, `negative_${metal}`)
       }
     }
   }
@@ -305,7 +305,7 @@ export function validateTestResults(
   // Validate microbials results
   if (results.microbials?.tested) {
     if (results.microbials.passed === undefined) {
-      addError(result, 'microbials_status_missing', 'Microbials test status (pass/fail) is required')
+      addError(result, 'microbials.passed', 'Microbials test status (pass/fail) is required', 'microbials_status_missing')
     }
 
     // Validate pathogen results
@@ -313,17 +313,17 @@ export function validateTestResults(
     for (const pathogen of pathogens) {
       const value = results.microbials[pathogen]
       if (value !== undefined && !['detected', 'not_detected'].includes(value)) {
-        addError(result, `invalid_${pathogen}_result`, `${pathogen} result must be 'detected' or 'not_detected'`)
+        addError(result, `microbials.${pathogen}`, `${pathogen} result must be 'detected' or 'not_detected'`, `invalid_${pathogen}_result`)
       }
     }
 
     // Validate yeast/mold count
     if (results.microbials.total_yeast_mold_cfu !== undefined) {
       if (results.microbials.total_yeast_mold_cfu < 0) {
-        addError(result, 'negative_yeast_mold', 'Yeast/mold count cannot be negative')
+        addError(result, 'microbials.total_yeast_mold_cfu', 'Yeast/mold count cannot be negative', 'negative_yeast_mold')
       }
       if (results.microbials.total_yeast_mold_cfu > 10000) {
-        addWarning(result, 'high_yeast_mold', 'Yeast/mold count exceeds typical action limit of 10,000 CFU')
+        addWarning(result, 'microbials.total_yeast_mold_cfu', 'Yeast/mold count exceeds typical action limit of 10,000 CFU', 'high_yeast_mold')
       }
     }
   }
@@ -331,17 +331,17 @@ export function validateTestResults(
   // Validate moisture results
   if (results.moisture?.tested) {
     if (results.moisture.passed === undefined) {
-      addError(result, 'moisture_status_missing', 'Moisture test status (pass/fail) is required')
+      addError(result, 'moisture.passed', 'Moisture test status (pass/fail) is required', 'moisture_status_missing')
     }
 
     if (results.moisture.percentage !== undefined) {
       if (results.moisture.percentage < 0 || results.moisture.percentage > 100) {
-        addError(result, 'invalid_moisture', 'Moisture percentage must be between 0 and 100')
+        addError(result, 'moisture.percentage', 'Moisture percentage must be between 0 and 100', 'invalid_moisture')
       }
 
       // Warn about high moisture for flower
       if (productType === 'flower' && results.moisture.percentage > 15) {
-        addWarning(result, 'high_moisture', 'Moisture content above 15% may lead to mold growth in flower products')
+        addWarning(result, 'moisture.percentage', 'Moisture content above 15% may lead to mold growth in flower products', 'high_moisture')
       }
     }
   }
@@ -349,17 +349,17 @@ export function validateTestResults(
   // Validate water activity results
   if (results.water_activity?.tested) {
     if (results.water_activity.passed === undefined) {
-      addError(result, 'water_activity_status_missing', 'Water activity test status (pass/fail) is required')
+      addError(result, 'water_activity.passed', 'Water activity test status (pass/fail) is required', 'water_activity_status_missing')
     }
 
     if (results.water_activity.value !== undefined) {
       if (results.water_activity.value < 0 || results.water_activity.value > 1) {
-        addError(result, 'invalid_water_activity', 'Water activity must be between 0 and 1')
+        addError(result, 'water_activity.value', 'Water activity must be between 0 and 1', 'invalid_water_activity')
       }
 
       // Warn about high water activity
       if (results.water_activity.value > 0.65) {
-        addWarning(result, 'high_water_activity', 'Water activity above 0.65 may support microbial growth')
+        addWarning(result, 'water_activity.value', 'Water activity above 0.65 may support microbial growth', 'high_water_activity')
       }
     }
   }
@@ -373,7 +373,7 @@ export function validateTestResults(
     })
 
     if (missingTests.length > 0) {
-      addWarning(result, 'missing_required_tests', `The following tests are typically required for ${productType}: ${missingTests.join(', ')}`)
+      addWarning(result, 'requiredTests', `The following tests are typically required for ${productType}: ${missingTests.join(', ')}`, 'missing_required_tests')
     }
   }
 
@@ -383,7 +383,7 @@ export function validateTestResults(
   }).map(([name]) => name)
 
   if (failedTests.length > 0) {
-    addWarning(result, 'has_failed_tests', `The following tests failed: ${failedTests.join(', ')}. Product may not be suitable for sale.`)
+    addWarning(result, 'status', `The following tests failed: ${failedTests.join(', ')}. Product may not be suitable for sale.`, 'has_failed_tests')
   }
 
   return result
@@ -400,17 +400,17 @@ export function validatePackageTestAssociation(
 ): ValidationResult {
   const result = createValidationResult()
 
-  validateRequired(packageId, 'Package ID', result)
-  validateRequired(testId, 'Test ID', result)
+  validateRequired(result, 'packageId', packageId, 'Package ID')
+  validateRequired(result, 'testId', testId, 'Test ID')
 
   // If sample was taken, quantity should be provided
   if (sampleTaken && !sampleQuantity) {
-    addWarning(result, 'missing_sample_quantity', 'Sample quantity should be recorded when sample is taken from package')
+    addWarning(result, 'sampleQuantity', 'Sample quantity should be recorded when sample is taken from package', 'missing_sample_quantity')
   }
 
   // Validate sample quantity if provided
   if (sampleQuantity !== undefined) {
-    validatePositiveNumber(sampleQuantity, 'Sample quantity', result)
+    validatePositiveNumber(result, 'sampleQuantity', sampleQuantity, 'Sample quantity')
   }
 
   return result
@@ -429,7 +429,7 @@ export function validateTestStatusUpdate(
   const validStatuses = ['pending', 'in_progress', 'passed', 'failed', 'conditional', 'retesting']
 
   if (!validStatuses.includes(newStatus)) {
-    addError(result, 'invalid_status', `Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(', ')}`)
+    addError(result, 'status', `Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(', ')}`, 'invalid_status')
   }
 
   // Status transition rules
@@ -439,12 +439,12 @@ export function validateTestStatusUpdate(
   }
 
   if (invalidTransitions[currentStatus]?.includes(newStatus)) {
-    addError(result, 'invalid_transition', `Cannot transition from ${currentStatus} to ${newStatus}`)
+    addError(result, 'status', `Cannot transition from ${currentStatus} to ${newStatus}`, 'invalid_transition')
   }
 
   // If setting to passed/failed, test results should be provided
   if (['passed', 'failed'].includes(newStatus) && !testResults) {
-    addWarning(result, 'missing_results', `Setting status to ${newStatus} without providing test results`)
+    addWarning(result, 'testResults', `Setting status to ${newStatus} without providing test results`, 'missing_results')
   }
 
   // If test results indicate failures but status is passed
@@ -453,7 +453,7 @@ export function validateTestStatusUpdate(
       test?.tested && test?.passed === false
     )
     if (hasFailures) {
-      addError(result, 'status_mismatch', 'Cannot set status to passed when test results contain failures')
+      addError(result, 'status', 'Cannot set status to passed when test results contain failures', 'status_mismatch')
     }
   }
 

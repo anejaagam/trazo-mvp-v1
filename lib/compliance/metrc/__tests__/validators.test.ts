@@ -86,7 +86,7 @@ describe('Validators', () => {
       const result = createValidationResult()
       expect(validateRequired(result, 'field', null)).toBe(false)
       expect(result.isValid).toBe(false)
-      expect(result.errors[0].code).toBe('REQUIRED_FIELD_MISSING')
+      expect(result.errors[0].code).toBe('REQUIRED')
     })
 
     it('should fail for undefined', () => {
@@ -313,7 +313,7 @@ describe('Validators', () => {
       const futureDateStr = futureDate.toISOString().split('T')[0]
 
       expect(validateDateNotInFuture(result, 'field', futureDateStr)).toBe(false)
-      expect(result.errors[0].code).toBe('FUTURE_DATE')
+      expect(result.errors[0].code).toBe('DATE_IN_FUTURE')
     })
   })
 

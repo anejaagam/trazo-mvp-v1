@@ -15,9 +15,27 @@ interface DashboardClientProps {
   organizationId: string
   userId: string
   jurisdictionId: string | null
+  stats: {
+    activeBatches: number
+    totalPlants: number
+    activeAlarms: number
+    lowStockItems: number
+  }
+  environmental: {
+    avgTemp: number
+    avgHumidity: number
+    avgCO2: number
+    podsOnline: number
+    totalPods: number
+  }
+  batches: any[]
+  alarms: any[]
+  growthData: Array<{ name: string; plants: number; batches: number }>
+  totalPlants: number
+  growthPercent: string
 }
 
-export function DashboardClient({ siteId, organizationId, userId, jurisdictionId }: DashboardClientProps) {
+export function DashboardClient({ siteId, organizationId, userId, jurisdictionId, stats, environmental, batches, alarms, growthData, totalPlants, growthPercent }: DashboardClientProps) {
   return (
     <>
       {/* Header */}
@@ -34,26 +52,26 @@ export function DashboardClient({ siteId, organizationId, userId, jurisdictionId
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
           title="Active Batches"
-          value="24"
-          change="+12 from last month"
+          value={stats.activeBatches.toString()}
+          change={stats.activeBatches > 0 ? "In progress" : "None active"}
           icon={Boxes}
         />
         <StatCard
           title="Total Plants"
-          value="2,840"
-          change="+184 from last week"
+          value={stats.totalPlants.toLocaleString()}
+          change={stats.totalPlants > 0 ? "Across all batches" : "No plants"}
           icon={Sprout}
         />
         <StatCard
           title="Active Alarms"
-          value="3"
-          change="-2 from yesterday"
+          value={stats.activeAlarms.toString()}
+          change={stats.activeAlarms === 0 ? "All clear" : "Requires attention"}
           icon={Bell}
         />
         <StatCard
           title="Low Stock Items"
-          value="7"
-          change="+3 from last week"
+          value={stats.lowStockItems.toString()}
+          change={stats.lowStockItems > 0 ? "Needs reorder" : "Stock levels good"}
           icon={Package}
         />
       </div>
@@ -61,10 +79,10 @@ export function DashboardClient({ siteId, organizationId, userId, jurisdictionId
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <div className="lg:col-span-2 flex">
-          <ActivityChart />
+          <ActivityChart data={growthData} totalPlants={totalPlants} growthPercent={growthPercent} />
         </div>
         <div className="space-y-4 flex flex-col">
-          <EnvironmentalStatus />
+          <EnvironmentalStatus environmental={environmental} />
           <QuickActions 
             siteId={siteId}
             organizationId={organizationId}
@@ -76,8 +94,8 @@ export function DashboardClient({ siteId, organizationId, userId, jurisdictionId
 
       {/* Bottom Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <BatchList />
-        <AlertsList />
+        <BatchList batches={batches} />
+        <AlertsList alarms={alarms} />
       </div>
     </>
   )

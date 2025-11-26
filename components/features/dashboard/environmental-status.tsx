@@ -3,34 +3,43 @@
 import { motion } from "framer-motion"
 import { Thermometer, Droplets, Wind, Server } from "lucide-react"
 
-const metrics = [
-  { 
-    icon: Thermometer, 
-    label: "Avg Temperature", 
-    value: "72.5°F",
-    color: "from-orange-500 to-red-500"
-  },
-  { 
-    icon: Droplets, 
-    label: "Avg Humidity", 
-    value: "65.2%",
-    color: "from-blue-500 to-cyan-500"
-  },
-  { 
-    icon: Wind, 
-    label: "Avg CO2", 
-    value: "1250 ppm",
-    color: "from-purple-500 to-pink-500"
-  },
-  { 
-    icon: Server, 
-    label: "Pods Online", 
-    value: "47/48",
-    color: "from-[#00D9A3] to-emerald-500"
-  },
-]
+interface EnvironmentalStatusProps {
+  environmental: {
+    avgTemp: number
+    avgHumidity: number
+    avgCO2: number
+    podsOnline: number
+    totalPods: number
+  }
+}
 
-export function EnvironmentalStatus() {
+export function EnvironmentalStatus({ environmental }: EnvironmentalStatusProps) {
+  const metrics = [
+    { 
+      icon: Thermometer, 
+      label: "Avg Temperature", 
+      value: environmental.avgTemp > 0 ? `${environmental.avgTemp.toFixed(1)}°C` : "--",
+      color: "from-orange-500 to-red-500"
+    },
+    { 
+      icon: Droplets, 
+      label: "Avg Humidity", 
+      value: environmental.avgHumidity > 0 ? `${environmental.avgHumidity.toFixed(1)}%` : "--",
+      color: "from-blue-500 to-cyan-500"
+    },
+    { 
+      icon: Wind, 
+      label: "Avg CO2", 
+      value: environmental.avgCO2 > 0 ? `${Math.round(environmental.avgCO2)} ppm` : "--",
+      color: "from-purple-500 to-pink-500"
+    },
+    { 
+      icon: Server, 
+      label: "Pods Online", 
+      value: `${environmental.podsOnline}/${environmental.totalPods}`,
+      color: "from-[#00D9A3] to-emerald-500"
+    },
+  ]
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}

@@ -3,31 +3,19 @@
 import { motion } from "framer-motion"
 import { AlertCircle, AlertTriangle, Info } from "lucide-react"
 
-const alerts = [
-  { 
-    id: 1, 
-    message: "Pod 12 temperature exceeds threshold", 
-    severity: "high" as const, 
-    time: "2 min ago",
-    label: "High"
-  },
-  { 
-    id: 2, 
-    message: "CO2 tank inventory below minimum", 
-    severity: "medium" as const, 
-    time: "1 hour ago",
-    label: "Medium"
-  },
-  { 
-    id: 3, 
-    message: "Weekly cleaning checklist overdue", 
-    severity: "low" as const, 
-    time: "3 hours ago",
-    label: "Low"
-  },
-]
+interface AlertsListProps {
+  alarms: any[]
+}
 
-const severityConfig = {
+type SeverityType = 'low' | 'medium' | 'high'
+
+const severityConfig: Record<SeverityType, {
+  icon: any
+  color: string
+  bg: string
+  badgeBg: string
+  badgeText: string
+}> = {
   low: { 
     icon: Info, 
     color: "text-blue-600",
@@ -51,7 +39,21 @@ const severityConfig = {
   },
 }
 
-export function AlertsList() {
+function getTimeAgo(date: string): string {
+  const now = new Date()
+  const alarmDate = new Date(date)
+  const diffMs = now.getTime() - alarmDate.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} min ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+}
+
+export function AlertsList({ alarms }: AlertsListProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -68,30 +70,37 @@ export function AlertsList() {
       </div>
 
       <div className="space-y-2">
-        {alerts.map((alert, index) => {
-          const config = severityConfig[alert.severity]
-          const Icon = config.icon
-          return (
-            <motion.div
-              key={alert.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 + index * 0.1 }}
-              className={`flex items-start gap-3 p-3 rounded-lg ${config.bg} hover:bg-opacity-80 transition-colors cursor-pointer group`}
-            >
-              <div className="flex-shrink-0 pt-0.5">
-                <Icon className={`size-4 ${config.color}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-gray-900 text-sm mb-0.5">{alert.message}</p>
-                <p className="text-gray-500 text-xs">{alert.time}</p>
-              </div>
-              <span className={`px-2 py-1 ${config.badgeBg} ${config.badgeText} text-xs rounded flex-shrink-0`}>
-                {alert.label}
-              </span>
-            </motion.div>
-          )
-        })}
+        {alarms.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-4">No active alarms</p>
+        ) : (
+          alarms.map((alarm, index) => {
+            const severity = (alarm.severity || 'medium') as SeverityType
+            const config = severityConfig[severity]
+            const Icon = config.icon
+            const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1)
+            
+            return (
+              <motion.div
+                key={alarm.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 + index * 0.1 }}
+                className={`flex items-start gap-3 p-3 rounded-lg ${config.bg} hover:bg-opacity-80 transition-colors cursor-pointer group`}
+              >
+                <div className="flex-shrink-0 pt-0.5">
+                  <Icon className={`size-4 ${config.color}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-900 text-sm mb-0.5">{alarm.message}</p>
+                  <p className="text-gray-500 text-xs">{getTimeAgo(alarm.created_at)}</p>
+                </div>
+                <span className={`px-2 py-1 ${config.badgeBg} ${config.badgeText} text-xs rounded flex-shrink-0`}>
+                  {severityLabel}
+                </span>
+              </motion.div>
+            )
+          })
+        )}
       </div>
     </motion.div>
   )

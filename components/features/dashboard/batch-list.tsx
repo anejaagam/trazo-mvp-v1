@@ -2,40 +2,27 @@
 
 import { motion } from "framer-motion"
 
-const batches = [
-  { 
-    id: "B-2024-001", 
-    strain: "Blue Dream", 
-    count: 16, 
-    status: "complete" as const, 
-    day: "Day 45",
-    statusLabel: "Complete"
-  },
-  { 
-    id: "B-2024-002", 
-    strain: "OG Kush", 
-    count: 12, 
-    status: "vegetative" as const, 
-    day: "Day 21",
-    statusLabel: "Vegetative"
-  },
-  { 
-    id: "B-2024-003", 
-    strain: "Gelato", 
-    count: 16, 
-    status: "harvest" as const, 
-    day: "Day 3",
-    statusLabel: "Harvest"
-  },
-]
-
-const statusStyles = {
-  complete: { bg: "bg-[#00D9A3]", text: "text-white" },
-  vegetative: { bg: "bg-blue-500", text: "text-white" },
-  harvest: { bg: "bg-purple-500", text: "text-white" },
+interface BatchListProps {
+  batches: any[]
 }
 
-export function BatchList() {
+const statusStyles: Record<string, { bg: string; text: string }> = {
+  germination: { bg: "bg-yellow-500", text: "text-white" },
+  vegetative: { bg: "bg-blue-500", text: "text-white" },
+  flowering: { bg: "bg-purple-500", text: "text-white" },
+  harvest: { bg: "bg-[#00D9A3]", text: "text-white" },
+  complete: { bg: "bg-gray-500", text: "text-white" },
+}
+
+const statusLabels: Record<string, string> = {
+  germination: "Germination",
+  vegetative: "Vegetative",
+  flowering: "Flowering",
+  harvest: "Harvest",
+  complete: "Complete",
+}
+
+export function BatchList({ batches }: BatchListProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -52,29 +39,35 @@ export function BatchList() {
       </div>
 
       <div className="space-y-2">
-        {batches.map((batch, index) => {
-          const style = statusStyles[batch.status]
-          return (
-            <motion.div
-              key={batch.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + index * 0.1 }}
-              className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-            >
-              <div className="flex-1">
-                <p className="text-gray-900 text-sm mb-0.5">{batch.id}</p>
-                <p className="text-gray-500 text-xs">{batch.strain} • {batch.count} plants</p>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <span className={`px-2.5 py-1 ${style.bg} ${style.text} text-xs rounded`}>
-                  {batch.statusLabel}
-                </span>
-                <span className="text-gray-500 text-xs">{batch.day}</span>
-              </div>
-            </motion.div>
-          )
-        })}
+        {batches.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-4">No active batches</p>
+        ) : (
+          batches.map((batch, index) => {
+            const style = statusStyles[batch.status] || statusStyles.vegetative
+            const cultivarName = batch.cultivar?.name || 'Unknown'
+            const plantCount = batch.plants?.[0]?.count || 0
+            
+            return (
+              <motion.div
+                key={batch.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+              >
+                <div className="flex-1">
+                  <p className="text-gray-900 text-sm mb-0.5">{batch.batch_number}</p>
+                  <p className="text-gray-500 text-xs">{cultivarName} • {plantCount} plants</p>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span className={`px-2.5 py-1 ${style.bg} ${style.text} text-xs rounded`}>
+                    {statusLabels[batch.status] || batch.status}
+                  </span>
+                </div>
+              </motion.div>
+            )
+          })
+        )}
       </div>
     </motion.div>
   )

@@ -48,16 +48,16 @@ export default async function LabTestsPage() {
     userRole = userData.role
 
     // Get or create default site
-    const { data: defaultSite, error: siteError } = await getOrCreateDefaultSite(
+    const { data: defaultSiteId, error: siteError } = await getOrCreateDefaultSite(
       organizationId
     )
 
-    if (siteError || !defaultSite) {
+    if (siteError || !defaultSiteId) {
       console.error('Error getting/creating default site:', siteError)
       redirect('/dashboard')
     }
 
-    siteId = defaultSite.id
+    siteId = defaultSiteId
   }
 
   // Check permissions

@@ -149,6 +149,13 @@ export function LabTestsDashboard({
   }, [tests, searchTerm, statusFilter, dateFilter, labFilter, activeTab])
 
   const fetchTests = async () => {
+    // Validate required IDs before querying
+    if (!organizationId || !siteId || organizationId === 'undefined' || siteId === 'undefined') {
+      console.error('Missing required IDs:', { organizationId, siteId })
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const supabase = createClient()
@@ -209,7 +216,13 @@ export function LabTestsDashboard({
       setUniqueLabs(labs)
 
     } catch (error) {
-      console.error('Error fetching tests:', error)
+      // Better error logging - Supabase errors may have message in different properties
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null
+          ? JSON.stringify(error)
+          : String(error)
+      console.error('Error fetching tests:', errorMessage, error)
       toast.error('Failed to load lab tests')
     } finally {
       setLoading(false)

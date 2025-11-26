@@ -195,17 +195,33 @@ export default async function DashboardPage() {
     }
   }
 
-  // Get growth metrics - active batch history over last 12 weeks (max selector option)
+  // Get growth metrics - track plant counts and batches over last 12 weeks
   const twelveWeeksAgo = new Date()
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
   
+  // Get all batches created in the last 12 weeks
   const { data: batchHistory } = await supabase
     .from('batches')
-    .select('created_at, plant_count')
+    .select('id, created_at, plant_count')
     .eq('site_id', siteId)
-    .eq('status', 'active')
     .gte('created_at', twelveWeeksAgo.toISOString())
     .order('created_at', { ascending: true })
+
+  // Get plant counts from batch_plants table for more accurate tracking
+  const batchIds = batchHistory?.map(b => b.id) || []
+  let plantsByBatch: Record<string, number> = {}
+  
+  if (batchIds.length > 0) {
+    const { data: batchPlantCounts } = await supabase
+      .from('batch_plants')
+      .select('batch_id')
+      .in('batch_id', batchIds)
+    
+    // Count plants per batch
+    batchPlantCounts?.forEach(p => {
+      plantsByBatch[p.batch_id] = (plantsByBatch[p.batch_id] || 0) + 1
+    })
+  }
 
   // Aggregate by week (12 weeks of data)
   const weeklyData = []
@@ -223,7 +239,11 @@ export default async function DashboardPage() {
       return created >= weekStart && created < weekEnd
     }) || []
     
-    const plantsThisWeek = batchesThisWeek.reduce((sum, b) => sum + (b.plant_count || 0), 0)
+    // Use plant count from batch_plants if available, otherwise fall back to batch.plant_count
+    const plantsThisWeek = batchesThisWeek.reduce((sum, b) => {
+      const plantCount = plantsByBatch[b.id] || b.plant_count || 0
+      return sum + plantCount
+    }, 0)
     
     weeklyData.push({
       name: i === 0 ? 'This Week' : i === 1 ? 'Last Week' : `Week ${12 - i}`,

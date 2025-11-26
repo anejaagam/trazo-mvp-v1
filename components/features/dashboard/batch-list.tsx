@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from "framer-motion"
+import Link from "next/link"
 
 interface BatchListProps {
   batches: any[]
@@ -35,7 +36,7 @@ export function BatchList({ batches }: BatchListProps) {
           <p className="text-gray-900 text-sm mb-0.5">Recent Batches</p>
           <p className="text-gray-500 text-xs">Latest batch activity and status updates</p>
         </div>
-        <button className="text-[#00D9A3] text-xs hover:underline">View All</button>
+        <Link href="/dashboard/batches" className="text-[#00D9A3] text-xs hover:underline">View All</Link>
       </div>
 
       <div className="space-y-2">

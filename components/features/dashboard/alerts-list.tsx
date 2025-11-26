@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion"
 import { AlertCircle, AlertTriangle, Info } from "lucide-react"
+import Link from "next/link"
 
 interface AlertsListProps {
   alarms: any[]
@@ -66,7 +67,7 @@ export function AlertsList({ alarms }: AlertsListProps) {
           <p className="text-gray-900 text-sm mb-0.5">Recent Alerts</p>
           <p className="text-gray-500 text-xs">System alerts and notifications requiring attention</p>
         </div>
-        <button className="text-[#00D9A3] text-xs hover:underline">View All</button>
+        <Link href="/dashboard/alarms" className="text-[#00D9A3] text-xs hover:underline">View All</Link>
       </div>
 
       <div className="space-y-2">

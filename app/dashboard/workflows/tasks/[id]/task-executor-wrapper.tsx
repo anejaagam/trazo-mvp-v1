@@ -38,6 +38,9 @@ export function TaskExecutorWrapper({ task, template, userRole, additionalPermis
     if (result.error) {
       throw new Error(typeof result.error === 'string' ? result.error : 'Failed to save progress');
     }
+    
+    // Navigate back to workflows after saving
+    router.push('/dashboard/workflows');
   };
 
   const handleClose = () => {

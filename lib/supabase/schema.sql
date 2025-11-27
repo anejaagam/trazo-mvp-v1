@@ -770,7 +770,7 @@ CREATE TABLE tasks (
   sop_template_id UUID REFERENCES sop_templates(id),
   title TEXT NOT NULL,
   description TEXT,
-  status TEXT DEFAULT 'to_do' CHECK (status IN ('to_do', 'in_progress', 'blocked', 'done', 'cancelled', 'approved')),
+  status TEXT DEFAULT 'to_do' CHECK (status IN ('to_do', 'in_progress', 'blocked', 'done', 'cancelled', 'approved', 'awaiting_approval', 'rejected')),
   priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
   
   -- Assignment

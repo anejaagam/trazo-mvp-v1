@@ -1058,15 +1058,15 @@ export default function TaskCreateForm({
           </Alert>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center gap-4">
+          <div className="text-xs text-slate-500 flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            Changes automatically inherit RLS policies—only users with `task:create` may submit.
+          </div>
           <Button type="submit" disabled={!canSubmit}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Task
           </Button>
-        </div>
-        <div className="text-xs text-slate-500 flex items-center gap-2">
-          <Info className="h-4 w-4" />
-          Changes automatically inherit RLS policies—only users with `task:create` may submit.
         </div>
       </div>
     </form>

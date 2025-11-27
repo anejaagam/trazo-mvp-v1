@@ -838,6 +838,11 @@ export async function updateTask(input: UpdateTaskInput) {
 
     if (error) throw error;
 
+    // If task was approved, unlock dependent tasks (approval completes the task)
+    if (updates.status === 'approved') {
+      await cascadeUnlockDependentTasks(id);
+    }
+
     return { data: data as Task, error: null };
   } catch (error) {
     console.error('Error in updateTask:', error);
@@ -915,8 +920,22 @@ export async function completeTask(
       return { data: null, error: new Error('Not authenticated') };
     }
 
+    // Fetch task to check if it requires approval
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('requires_approval')
+      .eq('id', taskId)
+      .single();
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    // Set status based on whether task requires approval
+    const newStatus = existingTask?.requires_approval ? 'awaiting_approval' : 'done';
+
     const updateData: Partial<Task> & { evidence_metadata?: EvidenceAggregation } = {
-      status: 'done',
+      status: newStatus,
       completed_at: new Date().toISOString(),
       completed_by: user.id,
       completion_notes: completionNotes,
@@ -940,8 +959,10 @@ export async function completeTask(
 
     if (error) throw error;
 
-    // Unlock dependent tasks if all their blocking prerequisites are now complete
-    await cascadeUnlockDependentTasks(taskId);
+    // Unlock dependent tasks only if task is fully done (not awaiting approval)
+    if (newStatus === 'done') {
+      await cascadeUnlockDependentTasks(taskId);
+    }
 
     return { data: data as Task, error: null };
   } catch (error) {

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
 import { getMyTasks, getTasks } from '@/lib/supabase/queries/workflows';
@@ -103,12 +104,14 @@ export default async function WorkflowsDashboardPage() {
           </div>
         </div>
       ) : (
-        <WorkflowsDashboardClient 
-          myTasks={myTasks}
-          allTasks={allTasks}
-          canCreateTask={canCreateTask}
-          canManageTaskStatus={canManageTaskStatus}
-        />
+        <Suspense fallback={<div>Loading...</div>}>
+          <WorkflowsDashboardClient 
+            myTasks={myTasks}
+            allTasks={allTasks}
+            canCreateTask={canCreateTask}
+            canManageTaskStatus={canManageTaskStatus}
+          />
+        </Suspense>
       )}
     </div>
   );

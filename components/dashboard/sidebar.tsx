@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useTaskCount } from '@/hooks/use-task-count'
+import { useAlarms } from '@/hooks/use-alarms'
 import { createClient } from '@/lib/supabase/client'
 import { SiteIndicator } from './site-selector'
 
@@ -63,11 +64,13 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [batchBadges, setBatchBadges] = useState<{ active: number; harvest: number }>({ active: 0, harvest: 0 })
   const [lowStockCount, setLowStockCount] = useState<number>(0)
-  const [alarmCount, setAlarmCount] = useState<number>(0)
   const [notificationCount, setNotificationCount] = useState<number>(0)
   
   // Use the task count hook for real-time updates
   const { count: myTaskCount } = useTaskCount({ userId: user.id, realtime: true })
+  
+  // Use the alarms hook for real-time alarm count updates
+  const { activeCount: alarmCount } = useAlarms({ realtime: true, status: 'active' })
 
   useEffect(() => {
     if (typeof window === 'undefined' || !user.organization?.id || !user.id) return
@@ -121,15 +124,6 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         setLowStockCount(lowStockResult.count || 0)
       }
 
-      // Get active alarms count
-      const { count: activeAlarms } = await supabase
-        .from('alarms')
-        .select('*', { count: 'exact', head: true })
-        .is('acknowledged_at', null)
-        .is('resolved_at', null)
-
-      setAlarmCount(activeAlarms || 0)
-
       // Get unread notifications count
       const { count: unreadNotifs } = await supabase
         .from('notifications')
@@ -175,16 +169,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       )
       .subscribe()
 
-    // Set up realtime subscriptions for alarm changes
-    const alarmChannel = supabase
-      .channel('sidebar-alarm-changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'alarms' },
-        () => {
-          loadCounts()
-        }
-      )
-      .subscribe()
+    // Alarm real-time is handled by useAlarms hook
 
     // Set up realtime subscriptions for notification changes
     const notificationChannel = supabase
@@ -201,7 +186,6 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     return () => {
       supabase.removeChannel(inventoryChannel)
       supabase.removeChannel(batchChannel)
-      supabase.removeChannel(alarmChannel)
       supabase.removeChannel(notificationChannel)
     }
   }, [user.organization?.id, user.id])

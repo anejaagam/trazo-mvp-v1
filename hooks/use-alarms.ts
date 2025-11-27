@@ -82,9 +82,11 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
   const [error, setError] = useState<Error | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // Fetch alarms from database
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  // Fetch alarms from database (silent = don't show loading state)
+  const refresh = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -104,7 +106,9 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
       setError(err instanceof Error ? err : new Error('Failed to fetch alarms'));
       setAlarms([]);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [podId, siteId, severity, type, status]);
 
@@ -145,22 +149,26 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
     }
   }, [autoFetch, refresh]);
 
-  // Real-time subscription - supports both pod-level and site-level
+  // Real-time updates via polling (more reliable than postgres_changes with RLS)
+  // Also attempts websocket subscription as backup
   useEffect(() => {
     if (!realtime) return;
 
     setIsSubscribed(true);
     
-    // Use pod-specific subscription if podId is provided, otherwise use site-level
+    // Poll every 5 seconds for alarm changes (silent refresh - no loading state)
+    const pollInterval = setInterval(() => {
+      refresh(true); // silent = true
+    }, 5000);
+
+    // Also try websocket subscription (may work if auth is properly set up)
     const unsubscribe = podId 
       ? subscribeToAlarms(
           podId,
           (newAlarm) => {
-            // Add new alarm to the list
             setAlarms(prev => [newAlarm as AlarmWithDetails, ...prev]);
           },
           (updatedAlarm) => {
-            // Update existing alarm
             setAlarms(prev => 
               prev.map(alarm => 
                 alarm.id === updatedAlarm.id ? (updatedAlarm as AlarmWithDetails) : alarm
@@ -169,17 +177,12 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
           }
         )
       : subscribeToAllAlarms(
-          () => {
-            // On any insert/update, refresh to get full details
-            refresh();
-          },
-          () => {
-            // On any insert/update, refresh to get full details
-            refresh();
-          }
+          () => refresh(true),
+          () => refresh(true)
         );
 
     return () => {
+      clearInterval(pollInterval);
       unsubscribe();
       setIsSubscribed(false);
     };

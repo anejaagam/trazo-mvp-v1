@@ -222,6 +222,8 @@ export function subscribeToAllAlarms(
   const supabase = createClient();
   const channelId = `alarms:all:${Date.now()}:${Math.random().toString(36).slice(2)}`;
   
+  console.log('[Alarms Realtime] Setting up subscription on channel:', channelId);
+  
   const channel = supabase
     .channel(channelId)
     .on(
@@ -232,6 +234,7 @@ export function subscribeToAllAlarms(
         table: 'alarms',
       },
       (payload: RealtimePostgresChangesPayload<Alarm>) => {
+        console.log('[Alarms Realtime] INSERT received:', payload.new);
         if (onInsert) {
           onInsert(payload.new as Alarm);
         }
@@ -245,14 +248,18 @@ export function subscribeToAllAlarms(
         table: 'alarms',
       },
       (payload: RealtimePostgresChangesPayload<Alarm>) => {
+        console.log('[Alarms Realtime] UPDATE received:', payload.new);
         if (onUpdate) {
           onUpdate(payload.new as Alarm);
         }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log('[Alarms Realtime] Subscription status:', status);
+    });
   
   return () => {
+    console.log('[Alarms Realtime] Cleaning up channel:', channelId);
     supabase.removeChannel(channel);
   };
 }

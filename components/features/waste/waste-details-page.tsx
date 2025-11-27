@@ -641,7 +641,7 @@ export function WasteDetailsPage({
           <AlertDescription>Failed to load waste log: {error?.message || 'Not found'}</AlertDescription>
         </Alert>
         <div className="mt-4">
-          <Button variant="outline" onClick={() => router.push('/dashboard/waste')}>
+          <Button variant="ghost" onClick={() => router.push('/dashboard/waste')} className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Waste Logs
           </Button>
@@ -657,7 +657,7 @@ export function WasteDetailsPage({
         <Button 
           variant="ghost" 
           onClick={() => router.push('/dashboard/waste')}
-          className="mb-2"
+          className="mb-2 gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Waste Logs
@@ -701,7 +701,7 @@ export function WasteDetailsPage({
               </Button>
             )}
             {canEdit && (
-              <Button variant="outline" onClick={handleEdit}>
+              <Button variant="ghost" onClick={handleEdit} className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700 hover:bg-emerald-50">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>

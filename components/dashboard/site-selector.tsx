@@ -94,15 +94,15 @@ export function SiteSelector({ className, compact = false }: SiteSelectorProps) 
           {isSwitching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : isAllSitesMode ? (
-            <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+            <LayoutGrid className="h-4 w-4" />
           ) : (
-            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <Building2 className="h-4 w-4 opacity-55" />
           )}
           <span className={cn('max-w-[150px] truncate', compact && 'hidden sm:inline')}>
             {displayName}
           </span>
           {showDropdown && (
-            <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', isOpen && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
           )}
         </Button>
       </DropdownMenuTrigger>

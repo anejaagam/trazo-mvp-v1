@@ -221,11 +221,12 @@ export default async function DashboardPage() {
   const twelveWeeksAgo = new Date()
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
 
-  // Get all batches created in the last 12 weeks
+  // Get only active batches created in the last 12 weeks
   let batchHistoryQuery = supabase
     .from('batches')
     .select('id, created_at, plant_count')
     .eq('organization_id', organizationId)
+    .eq('status', 'active')
     .gte('created_at', twelveWeeksAgo.toISOString())
     .order('created_at', { ascending: true })
 
@@ -252,19 +253,24 @@ export default async function DashboardPage() {
   }
 
   // Aggregate by week (12 weeks of data)
+  // Each week spans 7 days, starting from the oldest week going to current
   const weeklyData = []
   const now = new Date()
+  now.setHours(23, 59, 59, 999) // End of today
+  
   for (let i = 11; i >= 0; i--) {
-    const weekStart = new Date(now)
-    weekStart.setDate(now.getDate() - (i * 7))
-    weekStart.setHours(0, 0, 0, 0)
+    // Calculate week boundaries going backwards from today
+    const weekEnd = new Date(now)
+    weekEnd.setDate(now.getDate() - (i * 7))
+    weekEnd.setHours(23, 59, 59, 999)
     
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekStart.getDate() + 7)
+    const weekStart = new Date(weekEnd)
+    weekStart.setDate(weekEnd.getDate() - 6)
+    weekStart.setHours(0, 0, 0, 0)
     
     const batchesThisWeek = batchHistory?.filter(b => {
       const created = new Date(b.created_at)
-      return created >= weekStart && created < weekEnd
+      return created >= weekStart && created <= weekEnd
     }) || []
     
     // Use plant count from batch_plants if available, otherwise fall back to batch.plant_count
@@ -274,7 +280,7 @@ export default async function DashboardPage() {
     }, 0)
     
     weeklyData.push({
-      name: i === 0 ? 'This Week' : i === 1 ? 'Last Week' : `Week ${12 - i}`,
+      name: i === 0 ? 'This Week' : i === 1 ? 'Last Week' : `${12 - i} wks ago`,
       plants: plantsThisWeek,
       batches: batchesThisWeek.length
     })

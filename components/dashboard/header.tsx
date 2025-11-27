@@ -6,7 +6,6 @@ import {
   User,
   Package,
   ClipboardList,
-  Thermometer,
   FileCheck,
   BarChart3,
   Sprout,
@@ -25,7 +24,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { LogoutButton } from '@/components/auth/logout-button'
 import { ThemeSwitcher } from '@/components/theme-switcher'
-import { GlobalSearch } from '@/components/dashboard/global-search'
 import { SiteSelector } from '@/components/dashboard/site-selector'
 import { useNotifications, useAlarms } from '@/hooks/use-alarms'
 import Link from 'next/link'
@@ -48,10 +46,9 @@ interface DashboardHeaderProps {
 }
 
 const navigationCategories = [
-  { label: 'Batches', href: '/dashboard/batches', icon: Sprout },
+  { label: 'Crops', href: '/dashboard/batches', icon: Sprout },
   { label: 'Inventory', href: '/dashboard/inventory', icon: Package },
   { label: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList },
-  { label: 'Environmental', href: '/dashboard/environmental', icon: Thermometer },
   { label: 'Monitoring', href: '/dashboard/monitoring', icon: BarChart3 },
   { label: 'Compliance', href: '/dashboard/compliance', icon: FileCheck },
   { label: 'Alarms', href: '/dashboard/alarms', icon: AlertTriangle },
@@ -102,15 +99,11 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
   return (
     <header className={`${className} bg-green-900`}>
       <div className="relative flex items-center justify-between h-16 pl-6 pr-0">
-        {/* Left: Search and Site Selector */}
+        {/* Left: Site Selector */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
             <Menu className="h-5 w-5" />
           </Button>
-
-          <div className="hidden md:block">
-            <GlobalSearch />
-          </div>
 
           {/* Site Selector */}
           <div className="border-l border-white/20 pl-4 ml-2">
@@ -118,8 +111,8 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
           </div>
         </div>
 
-        {/* Center: Navigation */}
-        <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+        {/* Center: Navigation - offset to account for sidebar */}
+        <nav className="hidden lg:flex items-center gap-2 absolute left-[calc(50%-120px)] -translate-x-1/2">
           {navigationCategories.map((item) => {
             const Icon = item.icon
             return (
@@ -130,10 +123,10 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-white/80 hover:text-white hover:bg-white/10 gap-2 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
+                  className="text-white/90 hover:text-white bg-white/5 hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-white/10 hover:border-white/25"
                 >
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  <span className="font-medium">{item.label}</span>
                 </Button>
               </Link>
             )
@@ -150,7 +143,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="relative text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]"
+                  className="text-white/90 hover:text-white hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20"
                 >
                   <Bell className="h-7 w-7" />
                   {totalCount > 0 && (

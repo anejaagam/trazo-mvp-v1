@@ -147,6 +147,10 @@ export function TaskBoard({
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [hoveredColumn, setHoveredColumn] = useState<TaskStatus | null>(null);
 
+  // Columns that allow drag-and-drop (excludes completion/approval statuses)
+  const droppableStatuses: TaskStatus[] = ['to_do', 'in_progress', 'blocked'];
+  const isDroppableColumn = (status: TaskStatus) => droppableStatuses.includes(status);
+
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
     const grouped = new Map<TaskStatus, Task[]>();
@@ -190,6 +194,13 @@ export function TaskBoard({
     if (!canManageTaskStatus) return;
     event.preventDefault();
     setHoveredColumn(null);
+    
+    // Only allow drop on droppable columns
+    if (!isDroppableColumn(columnStatus)) {
+      setDraggedTaskId(null);
+      return;
+    }
+    
     const taskId = event.dataTransfer.getData('text/plain') || draggedTaskId;
     if (!taskId) {
       setDraggedTaskId(null);
@@ -215,6 +226,7 @@ export function TaskBoard({
     const blockedInfo = blockedTasks?.[task.id];
     const actionLabel = (() => {
       if (task.status === 'in_progress') return 'Continue';
+      if (task.status === 'awaiting_approval') return 'Approve';
       if (['done', 'approved'].includes(task.status)) return 'Review';
       if (['cancelled', 'rejected'].includes(task.status)) return 'View';
       return 'Start';
@@ -288,11 +300,6 @@ export function TaskBoard({
                     Move to Blocked
                   </DropdownMenuItem>
                 )}
-                {task.status !== 'done' && (
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'done'); }}>
-                    Move to Done
-                  </DropdownMenuItem>
-                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -349,7 +356,11 @@ export function TaskBoard({
 
           <Button
             size="sm"
-            className="w-full mt-2"
+            className={`w-full mt-2 ${
+              task.status !== 'in_progress' && ['Start', 'Review', 'Approve'].includes(actionLabel)
+                ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-300'
+                : ''
+            }`}
             variant={task.status === 'in_progress' ? 'default' : 'outline'}
             onClick={(e) => {
               e.stopPropagation();
@@ -371,13 +382,18 @@ export function TaskBoard({
         {columns.map(column => {
           const columnTasks = tasksByStatus.get(column.id) || [];
           const Icon = column.icon;
+          const canDrop = isDroppableColumn(column.id);
 
           return (
             <div
               key={column.id}
               className={cn(
                 'flex flex-col rounded-lg border transition-colors',
-                hoveredColumn === column.id && canManageTaskStatus ? 'border-blue-500 bg-blue-50' : 'border-transparent'
+                hoveredColumn === column.id && canManageTaskStatus && canDrop 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : hoveredColumn === column.id && canManageTaskStatus && !canDrop
+                    ? 'border-red-300 bg-red-50/50'
+                    : 'border-transparent'
               )}
               onDragOver={(event) => {
                 if (!canManageTaskStatus) return;

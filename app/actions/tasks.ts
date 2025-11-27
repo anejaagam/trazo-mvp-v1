@@ -401,3 +401,179 @@ export async function assignTaskAction(taskId: string, assignedTo: string) {
     return { error: 'Failed to assign task' };
   }
 }
+
+/**
+ * Approve a task that's awaiting approval
+ */
+export async function approveTaskAction(taskId: string, approvalNotes?: string) {
+  const supabase = await createClient();
+  
+  // Check authentication
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+
+  // Get user role
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData) {
+    return { error: 'User not found' };
+  }
+
+  // Check basic permissions - require task:update permission
+  if (!canPerformAction(userData.role, 'task:update').allowed) {
+    return { error: 'Permission denied - insufficient permissions to approve tasks' };
+  }
+
+  try {
+    // Verify task is in awaiting_approval status and get approval_role
+    const { data: task } = await supabase
+      .from('tasks')
+      .select('status, approval_role')
+      .eq('id', taskId)
+      .single();
+
+    if (!task) {
+      return { error: 'Task not found' };
+    }
+
+    if (task.status !== 'awaiting_approval') {
+      return { error: 'Task is not awaiting approval' };
+    }
+
+    // Check if user's role can approve this task
+    // Import ROLE_RANK to compare role hierarchy
+    const { ROLE_RANK } = await import('@/lib/rbac/hierarchy');
+    const userRank = ROLE_RANK[userData.role as keyof typeof ROLE_RANK] ?? 0;
+    const requiredRank = task.approval_role 
+      ? (ROLE_RANK[task.approval_role as keyof typeof ROLE_RANK] ?? 0)
+      : 0;
+
+    // User must have equal or higher rank than the required approval role
+    if (task.approval_role && userRank < requiredRank) {
+      return { 
+        error: `Permission denied - this task requires approval by ${task.approval_role.replace(/_/g, ' ')} or higher` 
+      };
+    }
+
+    // Update task to approved status
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        status: 'approved',
+        approved_at: new Date().toISOString(),
+        approved_by: user.id,
+        completion_notes: approvalNotes 
+          ? `${approvalNotes}` 
+          : undefined
+      })
+      .eq('id', taskId);
+
+    if (error) throw error;
+
+    // Cascade unlock dependent tasks since approval completes the task
+    // This is handled in updateTask but we're doing a direct update here
+    // So we need to call it manually via a status update
+    const result = await updateTask({ id: taskId, status: 'approved' });
+    
+    if (result.error) {
+      console.error('Error cascading task unlock:', result.error);
+    }
+
+    revalidatePath('/dashboard/workflows');
+    revalidatePath(`/dashboard/workflows/tasks/${taskId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in approveTaskAction:', error);
+    return { error: 'Failed to approve task' };
+  }
+}
+
+/**
+ * Reject a task that's awaiting approval
+ */
+export async function rejectTaskAction(taskId: string, rejectionReason: string) {
+  const supabase = await createClient();
+  
+  // Check authentication
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+
+  // Get user role
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!userData) {
+    return { error: 'User not found' };
+  }
+
+  // Check permissions - require task:update permission (managers and above)
+  if (!canPerformAction(userData.role, 'task:update').allowed) {
+    return { error: 'Permission denied - insufficient permissions to reject tasks' };
+  }
+
+  if (!rejectionReason?.trim()) {
+    return { error: 'Rejection reason is required' };
+  }
+
+  try {
+    // Verify task is in awaiting_approval status and get approval_role
+    const { data: task } = await supabase
+      .from('tasks')
+      .select('status, completion_notes, approval_role')
+      .eq('id', taskId)
+      .single();
+
+    if (!task) {
+      return { error: 'Task not found' };
+    }
+
+    if (task.status !== 'awaiting_approval') {
+      return { error: 'Task is not awaiting approval' };
+    }
+
+    // Check if user's role can reject this task (same permission as approve)
+    const { ROLE_RANK } = await import('@/lib/rbac/hierarchy');
+    const userRank = ROLE_RANK[userData.role as keyof typeof ROLE_RANK] ?? 0;
+    const requiredRank = task.approval_role 
+      ? (ROLE_RANK[task.approval_role as keyof typeof ROLE_RANK] ?? 0)
+      : 0;
+
+    // User must have equal or higher rank than the required approval role
+    if (task.approval_role && userRank < requiredRank) {
+      return { 
+        error: `Permission denied - this task requires rejection by ${task.approval_role.replace(/_/g, ' ')} or higher` 
+      };
+    }
+
+    // Update task to rejected status
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        status: 'rejected',
+        completion_notes: task.completion_notes 
+          ? `${task.completion_notes}\n\n--- REJECTED ---\nReason: ${rejectionReason}`
+          : `--- REJECTED ---\nReason: ${rejectionReason}`
+      })
+      .eq('id', taskId);
+
+    if (error) throw error;
+
+    revalidatePath('/dashboard/workflows');
+    revalidatePath(`/dashboard/workflows/tasks/${taskId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error in rejectTaskAction:', error);
+    return { error: 'Failed to reject task' };
+  }
+}

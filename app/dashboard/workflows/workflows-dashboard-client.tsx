@@ -7,7 +7,7 @@ import { TaskList } from '@/components/features/workflows/task-list';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayoutGrid, List, Plus, Filter } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { updateTaskStatusAction } from '@/app/actions/tasks';
 import {
   DropdownMenu,
@@ -90,11 +90,28 @@ export function WorkflowsDashboardClient({
   canManageTaskStatus = false,
 }: WorkflowsDashboardClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [view, setView] = useState<'board' | 'list'>('board');
   const [visibleStatuses, setVisibleStatuses] = useState<TaskStatus[]>(DEFAULT_STATUSES);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [dependencySummary, setDependencySummary] = useState<Record<string, TaskDependencySummary>>({});
+
+  // Show toast for approval denial
+  useEffect(() => {
+    const error = searchParams.get('error');
+    const role = searchParams.get('role');
+    
+    if (error === 'approval_denied') {
+      toast({
+        title: 'Cannot Approve Task',
+        description: `This task requires approval by ${role || 'a higher role'}. You don't have sufficient permissions.`,
+        variant: 'destructive',
+      });
+      // Clear the URL params
+      router.replace('/dashboard/workflows');
+    }
+  }, [searchParams, toast, router]);
 
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
     try {

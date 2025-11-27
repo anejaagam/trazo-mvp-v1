@@ -48,8 +48,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-  <body className={`${playfairDisplay.variable} ${lato.variable} ${helveticaLocal.variable} font-body antialiased`}>
+    <html lang="en" suppressHydrationWarning className="h-full overflow-hidden">
+  <body className={`${playfairDisplay.variable} ${lato.variable} ${helveticaLocal.variable} font-body antialiased h-full overflow-hidden`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

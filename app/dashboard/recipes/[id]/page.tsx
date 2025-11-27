@@ -52,6 +52,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
   const canEdit = canPerformAction(role, 'control:recipe_edit').allowed
   const canClone = canPerformAction(role, 'control:recipe_create').allowed
   const canApply = canPerformAction(role, 'control:recipe_apply').allowed
+  const canDelete = canPerformAction(role, 'control:recipe_delete').allowed
 
   // Fetch recipe with all versions
   const { data: recipe, error } = await getRecipeById(id)
@@ -75,6 +76,7 @@ export default async function RecipeDetailPage({ params }: RecipeDetailPageProps
         canEdit={canEdit}
         canClone={canClone}
         canApply={canApply}
+        canDelete={canDelete}
       />
     </div>
   )

@@ -13,7 +13,8 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -26,7 +27,7 @@ import {
 import { useState, useEffect, useMemo } from 'react'
 import { AssignRecipeDialog } from './assign-recipe-dialog'
 import { createClient } from '@/lib/supabase/client'
-import { publishRecipe, deprecateRecipe, undeprecateRecipe } from '@/app/actions/recipes'
+import { publishRecipe, deprecateRecipe, undeprecateRecipe, deleteRecipe } from '@/app/actions/recipes'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -57,6 +58,7 @@ interface RecipeViewerProps {
   canEdit?: boolean
   canClone?: boolean
   canApply?: boolean
+  canDelete?: boolean
   onClose?: () => void
   onEdit?: () => void
   onClone?: () => void
@@ -68,6 +70,7 @@ export function RecipeViewer({
   canEdit = false,
   canClone = false,
   canApply = false,
+  canDelete = false,
   onClose,
   onEdit,
   onClone
@@ -82,7 +85,9 @@ export function RecipeViewer({
   const [isPublishing, setIsPublishing] = useState(false)
   const [isDeprecating, setIsDeprecating] = useState(false)
   const [isRestoring, setIsRestoring] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [showDeprecateConfirm, setShowDeprecateConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [allActivations, setAllActivations] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
 
@@ -348,6 +353,34 @@ export function RecipeViewer({
     }
   }
 
+  const handleDelete = async () => {
+    setShowDeleteConfirm(false)
+    setIsDeleting(true)
+    try {
+      const { success, error } = await deleteRecipe(recipe.id)
+      
+      if (error) {
+        toast.error(error)
+        return
+      }
+      
+      if (success) {
+        toast.success('Recipe deleted successfully')
+        router.push('/dashboard/recipes')
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete recipe')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Check if recipe can be deleted (not applied, no active activations)
+  const canDeleteRecipe = canDelete && 
+    recipe.status.toLowerCase() !== 'applied' && 
+    (!allActivations || allActivations.filter(a => a.is_active).length === 0)
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'published': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300'
@@ -372,7 +405,7 @@ export function RecipeViewer({
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{recipe.name}</h2>
-              <Badge className={getStatusColor(recipe.status)}>{recipe.status}</Badge>
+              <Badge className={getStatusColor(recipe.status)}>{recipe.status.charAt(0).toUpperCase() + recipe.status.slice(1)}</Badge>
               {recipe.plant_types && recipe.plant_types.length > 0 && (
                 <Badge variant="outline">{recipe.plant_types[0]}</Badge>
               )}
@@ -419,6 +452,17 @@ export function RecipeViewer({
             <Button onClick={() => setAssignDialogOpen(true)}>
               <Calendar className="w-4 h-4 mr-2" />
               Assign Recipe
+            </Button>
+          )}
+          {canDeleteRecipe && (
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeleteConfirm(true)} 
+              disabled={isDeleting}
+              className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-500 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </Button>
           )}
         </div>
@@ -470,6 +514,39 @@ export function RecipeViewer({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Deprecate Recipe
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recipe?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{recipe.name}&quot;?
+            </AlertDialogDescription>
+            <div className="space-y-3 pt-4">
+              <p className="text-sm">
+                This action will:
+              </p>
+              <ul className="list-disc pl-6 space-y-1 text-sm">
+                <li>Archive the recipe (it will no longer appear in the library)</li>
+                <li>Preserve historical records and audit logs</li>
+              </ul>
+              <p className="text-sm text-muted-foreground pt-2">
+                This action cannot be undone easily.
+              </p>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Recipe
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

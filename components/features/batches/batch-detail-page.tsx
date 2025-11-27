@@ -217,23 +217,16 @@ export function BatchDetailPage({
     ) : null
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="-mx-6 -mt-6">
-        <div className="sticky top-0 z-30 border-b bg-white">
-          <div className="mx-auto flex w-full max-w-[96rem] items-center px-8 py-4">
-            <Button
-              variant="ghost"
-              className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700"
-              onClick={() => router.push('/dashboard/batches/active')}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Batches
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto w-full max-w-[96rem] space-y-6 px-8 py-8 sm:px-10 lg:px-16">
+    <div className="min-h-full">
+      <div className="mx-auto w-full space-y-6">
+        <Button
+          variant="ghost"
+          className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700"
+          onClick={() => router.push('/dashboard/batches/active')}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Batches
+        </Button>
         <BatchDetailsHeader
           batch={detail}
           cultivarName={detail.cultivar?.name || detail.cultivar_id || 'Unknown cultivar'}
@@ -643,8 +636,8 @@ function BatchDetailsHeader({
   return (
     <Card className="rounded-xl border bg-white shadow-sm">
       <CardContent className="space-y-6 p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-start gap-3">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
               <Sprout className="h-6 w-6 text-white" />
             </div>
@@ -749,39 +742,62 @@ interface MetrcTagsSummaryCardProps {
 
 function MetrcTagsSummaryCard({ plantCount, tagCount, onManage, assignButton }: MetrcTagsSummaryCardProps) {
   const completion = plantCount > 0 ? Math.round((tagCount / plantCount) * 100) : 0
+  const isComplete = plantCount > 0 && tagCount >= plantCount
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 shadow-sm">
+    <div className={`rounded-xl border p-5 shadow-sm ${
+      isComplete 
+        ? 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50' 
+        : 'border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50'
+    }`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
-            <Tag className="h-5 w-5 text-amber-600" />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+            isComplete ? 'bg-emerald-100' : 'bg-amber-100'
+          }`}>
+            {isComplete ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            ) : (
+              <Tag className="h-5 w-5 text-amber-600" />
+            )}
           </div>
           <div className="flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-3">
               <h3 className="text-base font-semibold text-slate-900">Metrc Plant Tags</h3>
               <Badge
                 variant="outline"
-                className="border-amber-200 bg-white text-amber-700 hover:bg-white hover:text-amber-800"
+                className={isComplete 
+                  ? 'border-emerald-200 bg-white text-emerald-700 hover:bg-white hover:text-emerald-800'
+                  : 'border-amber-200 bg-white text-amber-700 hover:bg-white hover:text-amber-800'
+                }
               >
                 {plantCount > 0
-                  ? `${tagCount} of ${plantCount} plants tagged (${completion}%)`
+                  ? isComplete 
+                    ? `All ${plantCount} plants tagged ✓`
+                    : `${tagCount} of ${plantCount} plants tagged (${completion}%)`
                   : 'No plants assigned'}
               </Badge>
             </div>
-            <Progress value={plantCount > 0 ? (tagCount / plantCount) * 100 : 0} className="h-2 bg-amber-100" />
+            <Progress 
+              value={plantCount > 0 ? (tagCount / plantCount) * 100 : 0} 
+              className={`h-2 ${isComplete ? 'bg-emerald-100' : 'bg-amber-100'}`} 
+            />
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
             variant="outline"
             size="sm"
-            className="gap-2 border border-amber-300 bg-white text-amber-500 hover:border-amber-400 hover:text-amber-600"
+            className={`gap-2 border bg-white ${
+              isComplete 
+                ? 'border-emerald-300 text-emerald-600 hover:border-emerald-400 hover:text-emerald-700'
+                : 'border-amber-300 text-amber-500 hover:border-amber-400 hover:text-amber-600'
+            }`}
             onClick={onManage}
           >
             Manage Tags
           </Button>
-          {assignButton}
+          {!isComplete && assignButton}
         </div>
       </div>
     </div>

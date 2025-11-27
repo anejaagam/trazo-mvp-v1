@@ -26,10 +26,11 @@ export async function getMovements(
       .from('inventory_movements')
       .select(`
         *,
-        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure),
+        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure, storage_location),
         lot:inventory_lots!lot_id(id, lot_code),
-  performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email),
-  approved_by_user:users!inventory_movements_approved_by_fkey(id, full_name, email)
+        batch:batches!batch_id(id, batch_number),
+        performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email),
+        approved_by_user:users!inventory_movements_approved_by_fkey(id, full_name, email)
       `)
       .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })
@@ -68,10 +69,11 @@ export async function getRecentMovements(siteId: string, limit: number = 10) {
       .from('inventory_movements')
       .select(`
         *,
-        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure),
+        item:inventory_items!inner(id, site_id, name, sku, unit_of_measure, storage_location),
         lot:inventory_lots!lot_id(id, lot_code),
-  performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email),
-  approved_by_user:users!inventory_movements_approved_by_fkey(id, full_name, email)
+        batch:batches!batch_id(id, batch_number),
+        performed_by_user:users!inventory_movements_performed_by_fkey(id, full_name, email),
+        approved_by_user:users!inventory_movements_approved_by_fkey(id, full_name, email)
       `)
       .eq('item.site_id', siteId)
       .order('timestamp', { ascending: false })

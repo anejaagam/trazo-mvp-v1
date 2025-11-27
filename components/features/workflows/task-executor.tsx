@@ -390,6 +390,10 @@ export function TaskExecutor({
     setIsSaving(true);
     try {
       await onSaveDraft(evidence, currentStepIndex);
+      toast({
+        title: 'Draft saved',
+        description: 'Your progress has been saved successfully.',
+      });
     } catch (error) {
       console.error('Error saving draft:', error);
       toast({
@@ -610,10 +614,18 @@ export function TaskExecutor({
 
   return (
     <>
-    <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="w-full max-w-4xl bg-white rounded-lg shadow-xl my-8">
+    <div 
+      className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={(e) => {
+        // Close when clicking backdrop (not the modal content)
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="w-full max-w-4xl max-h-[90vh] bg-white rounded-lg shadow-xl my-8 flex flex-col">
         {/* Header */}
-        <div className="border-b border-slate-200 p-6">
+        <div className="border-b border-slate-200 p-6 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-slate-900">{template.name}</h2>
@@ -629,12 +641,13 @@ export function TaskExecutor({
                   size="sm"
                   onClick={handleSaveDraft}
                   disabled={isSaving}
+                  className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {isSaving ? 'Saving...' : 'Save Draft'}
                 </Button>
               )}
-              <Button variant="ghost" size="icon" onClick={onClose}>
+              <Button variant="ghost" size="icon" onClick={onClose} className="text-red-500 hover:text-red-700 hover:bg-red-50">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -669,8 +682,8 @@ export function TaskExecutor({
           )}
         </div>
 
-        {/* Current Step */}
-        <div className="p-6 space-y-6">
+        {/* Current Step - Scrollable Content */}
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Blocking prerequisites banner */}
           {blockingInfo?.blocked && task.status === 'blocked' && (
             <Alert className="border-red-200 bg-red-50">
@@ -876,11 +889,12 @@ export function TaskExecutor({
         </div>
 
         {/* Footer Navigation */}
-        <div className="border-t border-slate-200 p-6 flex items-center justify-between">
+        <div className="border-t border-slate-200 p-6 flex items-center justify-between flex-shrink-0">
           <Button
             variant="outline"
             onClick={handlePrevious}
             disabled={currentStepIndex === 0}
+            className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:text-slate-400 disabled:border-slate-200"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Previous
@@ -892,29 +906,30 @@ export function TaskExecutor({
             )}
           </div>
 
-          {!isLastStep && (
-            <Button
-              onClick={handleNext}
-              disabled={currentStep.evidenceRequired && !hasEvidence}
-            >
-              Next Step
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Skip Step (allowed only if evidence not required OR already provided) */}
+            {!isLastStep && (!currentStep.evidenceRequired || hasEvidence) && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSkipStep}
+                className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                Skip Step
+              </Button>
+            )}
 
-          {/* Skip Step (allowed only if evidence not required OR already provided) */}
-          {!isLastStep && (!currentStep.evidenceRequired || hasEvidence) && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSkipStep}
-              className="ml-2"
-            >
-              Skip Step
-            </Button>
-          )}
+            {!isLastStep && (
+              <Button
+                onClick={handleNext}
+                disabled={currentStep.evidenceRequired && !hasEvidence}
+              >
+                Next Step
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
 
-          {isLastStep && !showDualSignoffPanel && (
+            {isLastStep && !showDualSignoffPanel && (
             <Button
               onClick={handleComplete}
               disabled={(currentStep.evidenceRequired && !hasEvidence) || isCompleting}
@@ -923,7 +938,8 @@ export function TaskExecutor({
               <CheckCircle2 className="w-4 h-4 mr-2" />
               {needsDualSignoffCompletion ? 'Begin Dual Sign-off' : (isCompleting ? 'Completing...' : 'Complete Task')}
             </Button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

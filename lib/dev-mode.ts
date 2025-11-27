@@ -56,7 +56,7 @@ export const DEV_MOCK_USER = {
   },
   site_assignments: [
     {
-      site_id: 'a05980d4-4750-4e2d-bec9-720076fabd30', // Main site
+      site_id: 'a05980d4-4750-4e2d-bec9-720076fabd30', // Main Facility - matches batches and test data
       site_name: 'Main Facility'
     }
   ]

@@ -453,7 +453,11 @@ export function RecipeAuthor({
       if (!onCancel) {
         router.push('/dashboard/recipes')
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Don't show error toast for Next.js redirect errors (they're expected)
+      if (error?.digest?.startsWith('NEXT_REDIRECT')) {
+        return
+      }
       toast.error('Failed to save recipe')
       console.error('Save error:', error)
     } finally {
@@ -491,6 +495,7 @@ export function RecipeAuthor({
             variant="outline" 
             onClick={() => handleSave(false)}
             disabled={isSaving}
+            className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
           >
             <Save className="w-4 h-4 mr-2" />
             Save Draft

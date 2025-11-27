@@ -1,10 +1,13 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
 import { getPublishedTemplates, getTasks } from '@/lib/supabase/queries/workflows';
 import { getActiveBatches } from '@/lib/supabase/queries/batches';
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites';
 import { getServerSiteId } from '@/lib/site/server';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 type BatchResultRow = {
   id: string;
@@ -79,11 +82,19 @@ export default async function NewTaskPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create Task</h1>
-          <p className="text-muted-foreground">Create and assign a new operational or workflow task.</p>
-        </div>
+      <Button
+        variant="ghost"
+        className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700"
+        asChild
+      >
+        <Link href="/dashboard/workflows">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Workflows
+        </Link>
+      </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Create Task</h1>
+        <p className="text-muted-foreground">Create and assign a new operational or workflow task.</p>
       </div>
       <TaskCreateForm
         siteId={site_id}

@@ -122,6 +122,7 @@ export function AdHocTaskExecutor({
                 variant="outline"
                 onClick={handleSaveDraft}
                 disabled={isSaving || isCompleting}
+                className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? 'Saving...' : 'Save Draft'}

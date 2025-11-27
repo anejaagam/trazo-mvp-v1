@@ -2,7 +2,7 @@
  * Unified Notification Center Component
  *
  * Displays both critical alarms and informational notifications in a single view
- * Supports filtering by category (All, Alarms, Inventory, Batches, Tasks)
+ * Supports filtering by category (All, Alarms, Inventory, Crops, Tasks)
  *
  * Created: Phase 3 - Alarms & Notifications v2
  */
@@ -43,7 +43,7 @@ function getCategoryIcon(category: string) {
   switch (category) {
     case 'inventory':
       return <Package className="h-4 w-4" />;
-    case 'batch':
+    case 'crops':
       return <Sprout className="h-4 w-4" />;
     case 'task':
       return <ClipboardList className="h-4 w-4" />;
@@ -241,7 +241,7 @@ export function UnifiedNotificationCenter({
     activeTab === 'alarms' ? [] : notifications;
 
   const filteredAlarms =
-    activeTab === 'inventory' || activeTab === 'batch' || activeTab === 'task'
+    activeTab === 'inventory' || activeTab === 'crop' || activeTab === 'task'
       ? []
       : alarms;
 
@@ -295,9 +295,9 @@ export function UnifiedNotificationCenter({
             <Package className="h-4 w-4 mr-2" />
             Inventory
           </TabsTrigger>
-          <TabsTrigger value="batch">
+          <TabsTrigger value="crop">
             <Sprout className="h-4 w-4 mr-2" />
-            Batches
+            Crops
           </TabsTrigger>
           <TabsTrigger value="task">
             <ClipboardList className="h-4 w-4 mr-2" />

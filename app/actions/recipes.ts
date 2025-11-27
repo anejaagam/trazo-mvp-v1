@@ -7,6 +7,7 @@ import {
   updateRecipe,
   deprecateRecipe as deprecateRecipeQuery,
   undeprecateRecipe as undeprecateRecipeQuery,
+  deleteRecipe as deleteRecipeQuery,
 } from '@/lib/supabase/queries/recipes'
 import { createClient } from '@/lib/supabase/server'
 import { logAuditEvent } from '@/lib/supabase/queries/audit'
@@ -352,6 +353,119 @@ export async function getActiveRecipesForScopes(
     console.error('Unexpected error in getActiveRecipesForScopes:', err)
     return {
       data: null,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
+  }
+}
+
+/**
+ * Server action to delete a recipe
+ * - Draft recipes: permanently deleted
+ * - Published/deprecated recipes: archived (soft delete)
+ * - Applied recipes: cannot be deleted
+ */
+export async function deleteRecipe(
+  recipeId: string
+): Promise<{
+  success: boolean
+  error: string | null
+}> {
+  try {
+    const supabase = await createClient()
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    const user = authData?.user
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: 'User not authenticated',
+      }
+    }
+
+    // First, check the recipe status
+    const { data: recipe, error: fetchError } = await supabase
+      .from('recipes')
+      .select('id, name, status')
+      .eq('id', recipeId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching recipe for deletion:', fetchError)
+      return {
+        success: false,
+        error: 'Recipe not found',
+      }
+    }
+
+    const status = recipe.status.toLowerCase()
+
+    // Check if recipe is applied - prevent deletion
+    if (status === 'applied') {
+      return {
+        success: false,
+        error: 'Cannot delete an applied recipe. Deactivate all applications first.',
+      }
+    }
+
+    // Check if recipe has active activations
+    const { data: activeActivations, error: activationsError } = await supabase
+      .from('recipe_activations')
+      .select('id')
+      .eq('recipe_id', recipeId)
+      .eq('is_active', true)
+      .limit(1)
+
+    if (activationsError) {
+      console.error('Error checking recipe activations:', activationsError)
+    }
+
+    if (activeActivations && activeActivations.length > 0) {
+      return {
+        success: false,
+        error: 'Cannot delete a recipe with active applications. Deactivate all applications first.',
+      }
+    }
+
+    // Determine delete type based on status
+    // Draft recipes are permanently deleted, published/deprecated are archived
+    const isDraft = status === 'draft'
+    const { data, error } = await deleteRecipeQuery(recipeId, isDraft)
+
+    if (error) {
+      console.error('Error deleting recipe:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete recipe',
+      }
+    }
+
+    // Log audit event
+    try {
+      await logAuditEvent(
+        user.id,
+        'recipe',
+        recipeId,
+        isDraft ? 'recipe.permanently_deleted' : 'recipe.archived',
+        {
+          status: {
+            from: recipe.status,
+            to: isDraft ? 'deleted' : 'archived',
+          },
+        },
+        {
+          recipe_name: recipe.name,
+          deletion_type: isDraft ? 'permanent' : 'soft',
+        }
+      )
+    } catch (auditError) {
+      console.error('Failed to log recipe deletion audit event:', auditError)
+    }
+
+    return { success: true, error: null }
+  } catch (err) {
+    console.error('Unexpected error in deleteRecipe:', err)
+    return {
+      success: false,
       error: err instanceof Error ? err.message : 'An unexpected error occurred',
     }
   }

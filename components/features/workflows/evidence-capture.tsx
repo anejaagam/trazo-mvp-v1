@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @next/next/no-img-element */
 import { useState, useRef } from 'react';
 import Image from 'next/image';
+import SignatureCanvas from 'react-signature-canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,7 +58,7 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
     Array.isArray(existingValue) ? existingValue : []
   );
   const [qrScanning, setQrScanning] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const signatureRef = useRef<SignatureCanvas>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const hasExistingValue =
@@ -151,62 +152,23 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
     onCapture(value);
   };
 
-  const startSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-
-    let isDrawingNow = false;
-
-    const startDrawing = (e: MouseEvent | TouchEvent) => {
-      isDrawingNow = true;
-      const rect = canvas.getBoundingClientRect();
-      const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-      const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    };
-
-    const draw = (e: MouseEvent | TouchEvent) => {
-      if (!isDrawingNow) return;
-      const rect = canvas.getBoundingClientRect();
-      const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-      const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    };
-
-    const stopDrawing = () => {
-      isDrawingNow = false;
-    };
-
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('touchstart', startDrawing);
-    canvas.addEventListener('touchmove', draw);
-    canvas.addEventListener('touchend', stopDrawing);
-  };
-
   const clearSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    signatureRef.current?.clear();
   };
 
   const submitSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL();
-    onCapture(dataUrl);
+    if (signatureRef.current?.isEmpty()) {
+      toast({
+        title: 'Signature required',
+        description: 'Please sign in the box before submitting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const dataUrl = signatureRef.current?.toDataURL();
+    if (dataUrl) {
+      onCapture(dataUrl);
+    }
   };
 
   const simulateQRScan = () => {
@@ -395,23 +357,22 @@ export function EvidenceCapture({ type, config, onCapture, existingValue }: Evid
               <p className="text-xs text-blue-900">Large signatures (&gt;50KB) may be reduced ~30% for efficiency. Small signatures are stored as-is.</p>
             </div>
           )}
-          <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
-            <canvas
-              ref={canvasRef}
-              width={600}
-              height={200}
-              className="w-full bg-white cursor-crosshair"
-              onMouseEnter={startSignature}
-              onTouchStart={startSignature}
+          <div className="border-2 border-dashed border-slate-300 rounded-lg bg-slate-50 overflow-hidden">
+            <SignatureCanvas
+              ref={signatureRef}
+              canvasProps={{
+                className: 'w-full h-40 cursor-crosshair',
+              }}
+              backgroundColor="rgb(249, 250, 251)"
             />
           </div>
           
           <div className="flex gap-2">
-            <Button variant="outline" onClick={clearSignature}>
+            <Button variant="outline" onClick={clearSignature} className="text-red-500 border-red-300 hover:bg-red-50 hover:text-red-700">
               <X className="w-4 h-4 mr-2" />
               Clear
             </Button>
-            <Button onClick={submitSignature} className="flex-1">
+            <Button onClick={submitSignature} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
               <PenTool className="w-4 h-4 mr-2" />
               Submit Signature
             </Button>

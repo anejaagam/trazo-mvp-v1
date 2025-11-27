@@ -283,7 +283,12 @@ export interface Cultivar {
   flowering_days?: number | null;
   harvest_notes?: string | null;
   grow_characteristics?: string | null;
-  
+
+  // Metrc compliance fields
+  metrc_strain_id?: number | null;
+  metrc_sync_status?: 'not_synced' | 'synced' | 'sync_failed' | null;
+  metrc_last_synced_at?: string | null;
+
   // Domain-specific fields from migration
   // Produce fields
   category?: ProduceCategory;

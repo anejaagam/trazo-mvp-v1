@@ -16,6 +16,10 @@ export interface PackageSyncResult {
   packagesUpdated: number
   errors: string[]
   syncLogId?: string
+  // Generic sync result fields (for non-package sync types)
+  synced?: number
+  created?: number
+  updated?: number
 }
 
 /**

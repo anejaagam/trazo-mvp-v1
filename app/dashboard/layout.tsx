@@ -75,7 +75,7 @@ export default async function DashboardLayout({
     .from('users')
     .select(`
       *,
-      organization:organizations(*)
+      organization:organizations!users_organization_id_fkey(*)
     `)
     .eq('id', user.id)
     .single()

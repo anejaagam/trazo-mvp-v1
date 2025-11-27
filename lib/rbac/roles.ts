@@ -145,9 +145,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:complete',
       'task:retain_original_evidence',
       
-      // Inventory viewing and consumption
+      // Full inventory management
       'inventory:view',
+      'inventory:create',
+      'inventory:update',
+      'inventory:delete',
       'inventory:consume',
+      'inventory:waste',
+      'inventory:transfer',
       
       // Waste management
       'waste:view',

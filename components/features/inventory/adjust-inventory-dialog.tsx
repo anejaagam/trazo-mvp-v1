@@ -112,41 +112,7 @@ export function AdjustInventoryDialog({
     },
   })
 
-  // Load items on mount
-  useEffect(() => {
-    if (open) {
-      loadItems()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, siteId])
-
-  // Set pre-selected item
-  useEffect(() => {
-    if (preSelectedItem) {
-      form.setValue('item_id', preSelectedItem.id)
-      setSelectedItem(preSelectedItem)
-      loadLotsForItem(preSelectedItem.id)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preSelectedItem])
-
-  // Load lots when item changes
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'item_id' && value.item_id) {
-        const item = items.find(i => i.id === value.item_id)
-        setSelectedItem(item || null)
-        loadLotsForItem(value.item_id)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form, items])
-
-  // Check permission
-  if (!can('inventory:update')) {
-    return null
-  }
-
+  // Define loadItems and loadLotsForItem BEFORE useEffect hooks that use them
   const loadItems = async () => {
     setIsLoadingItems(true)
     setError(null)
@@ -203,6 +169,41 @@ export function AdjustInventoryDialog({
     } finally {
       setIsLoadingLots(false)
     }
+  }
+
+  // Load items on mount
+  useEffect(() => {
+    if (open) {
+      loadItems()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, siteId])
+
+  // Set pre-selected item
+  useEffect(() => {
+    if (preSelectedItem) {
+      form.setValue('item_id', preSelectedItem.id)
+      setSelectedItem(preSelectedItem)
+      loadLotsForItem(preSelectedItem.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preSelectedItem])
+
+  // Load lots when item changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'item_id' && value.item_id) {
+        const item = items.find(i => i.id === value.item_id)
+        setSelectedItem(item || null)
+        loadLotsForItem(value.item_id)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form, items])
+
+  // Check permission
+  if (!can('inventory:update')) {
+    return null
   }
 
   const getReasonLabel = (reason: AdjustmentReason): string => {

@@ -14,12 +14,13 @@ export async function getOrCreateDefaultSite(organizationId: string) {
   try {
     const supabase = await createClient()
     
-    // First, try to get an existing site
+    // First, try to get an existing site (ordered by created_at for consistency)
     const { data: existingSites, error: fetchError } = await supabase
       .from('sites')
       .select('id')
       .eq('organization_id', organizationId)
       .eq('is_active', true)
+      .order('created_at', { ascending: true })
       .limit(1)
     
     if (fetchError) throw fetchError

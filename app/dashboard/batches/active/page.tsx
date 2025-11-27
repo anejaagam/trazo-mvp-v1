@@ -63,9 +63,21 @@ export default async function ActiveBatchesPage() {
     if (contextSiteId && contextSiteId !== 'all') {
       siteId = contextSiteId
     } else {
-      // Fallback to default site if no site selected or "all sites" mode
-      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
-      siteId = defaultSiteId || organizationId
+      // Fallback: First try user's site assignment, then default site
+      const { data: siteAssignment } = await supabase
+        .from('user_site_assignments')
+        .select('site_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .single()
+      
+      if (siteAssignment?.site_id) {
+        siteId = siteAssignment.site_id
+      } else {
+        const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+        siteId = defaultSiteId || organizationId
+      }
     }
   }
 

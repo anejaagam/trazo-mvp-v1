@@ -101,7 +101,7 @@ export function FleetGridView({ snapshots, onPodClick }: FleetGridViewProps) {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{snapshot.pod.name}</h3>
+                    <h3 className="font-semibold text-xl truncate">{snapshot.pod.name}</h3>
                     {hasAlarms ? (
                       <Badge variant="destructive" className="gap-1 h-5 text-xs">
                         <AlertCircle className="h-3 w-3" />

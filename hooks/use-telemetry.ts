@@ -328,6 +328,35 @@ export function usePodSnapshots(
     };
   }, [siteId, realtime, refresh]);
 
+  // Also subscribe to alarm changes to update alarm counts in real-time
+  useEffect(() => {
+    if (!realtime || !siteId) return;
+
+    const { createClient } = require('@/lib/supabase/client');
+    const supabase = createClient();
+    
+    // Subscribe to alarm changes (insert, update, delete) for this site
+    const channel = supabase
+      .channel(`alarms-${siteId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'alarms',
+        },
+        () => {
+          // Refresh snapshots when any alarm changes
+          refresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [siteId, realtime, refresh]);
+
   return {
     snapshots,
     loading,

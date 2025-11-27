@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { email, full_name, role, organization_id, site_ids } = body;
+    const { email, full_name, role, organization_id, site_ids, default_site_id } = body;
 
     // Validate inputs
     if (!email || !full_name || !role || !organization_id) {
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
       role: role as RoleKey,
       organization_id,
       site_ids: site_ids || undefined,
+      default_site_id: default_site_id || undefined,
     });
 
     return NextResponse.json({ success: true, data: result });

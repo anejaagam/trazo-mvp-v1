@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useTaskCount } from '@/hooks/use-task-count'
 import { createClient } from '@/lib/supabase/client'
+import { SiteIndicator } from './site-selector'
 
 interface DashboardSidebarProps {
   user: {
@@ -563,6 +564,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         <div className="text-xs text-muted-foreground capitalize">
           {user.organization?.jurisdiction?.replace('_', ' ')} • {user.role?.replace('_', ' ')}
         </div>
+        <SiteIndicator className="mt-2" />
       </div>
 
       {/* Navigation */}

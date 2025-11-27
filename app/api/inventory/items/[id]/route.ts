@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import type { UpdateInventoryItem } from '@/types/inventory'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -34,10 +36,10 @@ export async function PATCH(
       )
     }
 
-    // Get user role
+    // Get user role and default site
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, default_site_id')
       .eq('id', user.id)
       .single()
 
@@ -54,6 +56,28 @@ export async function PATCH(
         { error: 'Insufficient permissions' },
         { status: 403 }
       )
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
+
+    // Validate item belongs to current site context
+    if (currentSiteId) {
+      const { data: item } = await supabase
+        .from('inventory_items')
+        .select('site_id')
+        .eq('id', id)
+        .single()
+
+      if (item && item.site_id !== currentSiteId) {
+        return NextResponse.json(
+          { error: 'Item does not belong to the selected site' },
+          { status: 403 }
+        )
+      }
     }
 
     // Parse request body
@@ -113,10 +137,10 @@ export async function DELETE(
       )
     }
 
-    // Get user role
+    // Get user role and default site
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, default_site_id')
       .eq('id', user.id)
       .single()
 
@@ -133,6 +157,28 @@ export async function DELETE(
         { error: 'Insufficient permissions' },
         { status: 403 }
       )
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
+
+    // Validate item belongs to current site context
+    if (currentSiteId) {
+      const { data: item } = await supabase
+        .from('inventory_items')
+        .select('site_id')
+        .eq('id', id)
+        .single()
+
+      if (item && item.site_id !== currentSiteId) {
+        return NextResponse.json(
+          { error: 'Item does not belong to the selected site' },
+          { status: 403 }
+        )
+      }
     }
 
     // Soft delete (set is_active to false)

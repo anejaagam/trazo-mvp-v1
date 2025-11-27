@@ -4,7 +4,6 @@
  * Syncs TRAZO rooms and pods to Metrc as locations
  */
 
-import { MetrcClient } from '../client'
 import { createClient } from '@/lib/supabase/server'
 import { createSyncLogEntry, updateSyncLogEntry } from '@/lib/supabase/queries/compliance'
 import {
@@ -12,6 +11,7 @@ import {
   validateTrazoLocationForMetrcSync,
   checkDuplicateLocationName,
 } from '../validation/location-rules'
+import { createMetrcClientForSite } from '../services'
 import type { MetrcLocationCreate } from '../types'
 
 export interface LocationSyncResult {
@@ -94,16 +94,11 @@ export async function syncRoomToMetrc(
       result.warnings.push(`${w.field}: ${w.message}`)
     })
 
-    // Get API keys for the site
-    const { data: apiKey, error: apiKeyError } = await supabase
-      .from('compliance_api_keys')
-      .select('*')
-      .eq('site_id', siteId)
-      .eq('is_active', true)
-      .single()
+    // Get Metrc client for the site (uses new site-aware credential system)
+    const { client: metrcClient, credentials, error: credError } = await createMetrcClientForSite(siteId, supabase)
 
-    if (apiKeyError || !apiKey) {
-      throw new Error('No active Metrc API key found for this site')
+    if (credError || !metrcClient || !credentials) {
+      throw new Error(credError || 'Failed to get Metrc credentials for this site')
     }
 
     // Create sync log entry
@@ -131,15 +126,6 @@ export async function syncRoomToMetrc(
         .update({ metrc_sync_status: 'syncing' })
         .eq('id', roomId),
     ])
-
-    // Initialize Metrc client
-    const metrcClient = new MetrcClient({
-      vendorApiKey: apiKey.vendor_api_key,
-      userApiKey: apiKey.user_api_key,
-      facilityLicenseNumber: apiKey.facility_license_number,
-      state: apiKey.state_code,
-      isSandbox: apiKey.is_sandbox,
-    })
 
     // Check for duplicate location names in Metrc
     const existingLocations = await metrcClient.locations.listActive()
@@ -362,16 +348,11 @@ export async function syncPodToMetrc(
       result.warnings.push(`${w.field}: ${w.message}`)
     })
 
-    // Get API keys for the site
-    const { data: apiKey, error: apiKeyError } = await supabase
-      .from('compliance_api_keys')
-      .select('*')
-      .eq('site_id', siteId)
-      .eq('is_active', true)
-      .single()
+    // Get Metrc client for the site (uses new site-aware credential system)
+    const { client: metrcClient, credentials, error: credError } = await createMetrcClientForSite(siteId, supabase)
 
-    if (apiKeyError || !apiKey) {
-      throw new Error('No active Metrc API key found for this site')
+    if (credError || !metrcClient || !credentials) {
+      throw new Error(credError || 'Failed to get Metrc credentials for this site')
     }
 
     // Create sync log entry
@@ -399,15 +380,6 @@ export async function syncPodToMetrc(
         .update({ metrc_sync_status: 'syncing' })
         .eq('id', podId),
     ])
-
-    // Initialize Metrc client
-    const metrcClient = new MetrcClient({
-      vendorApiKey: apiKey.vendor_api_key,
-      userApiKey: apiKey.user_api_key,
-      facilityLicenseNumber: apiKey.facility_license_number,
-      state: apiKey.state_code,
-      isSandbox: apiKey.is_sandbox,
-    })
 
     // Check for duplicate location names in Metrc
     const existingLocations = await metrcClient.locations.listActive()

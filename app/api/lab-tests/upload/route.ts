@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createLabTest } from '@/lib/compliance/metrc/sync/lab-test-sync'
 import type { TestResultsData } from '@/lib/compliance/metrc/validation/lab-test-rules'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +24,23 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    // Get user's default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
 
     // Parse request body
     const body = await request.json()
@@ -43,11 +62,22 @@ export async function POST(request: NextRequest) {
       batchIds
     } = body
 
+    // Use provided siteId or fall back to current site context
+    const effectiveSiteId = siteId || currentSiteId
+
     // Validate required fields
-    if (!organizationId || !siteId || !labName || !testDate || !coaFileUrl || !coaFileName) {
+    if (!organizationId || !effectiveSiteId || !labName || !testDate || !coaFileUrl || !coaFileName) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      )
+    }
+
+    // Validate siteId matches current site context (if context is set)
+    if (currentSiteId && siteId && siteId !== currentSiteId) {
+      return NextResponse.json(
+        { error: 'Provided siteId does not match current site context' },
+        { status: 403 }
       )
     }
 
@@ -69,7 +99,7 @@ export async function POST(request: NextRequest) {
     // Create the lab test
     const result = await createLabTest({
       organizationId,
-      siteId,
+      siteId: effectiveSiteId,
       labName,
       labLicenseNumber,
       testDate,

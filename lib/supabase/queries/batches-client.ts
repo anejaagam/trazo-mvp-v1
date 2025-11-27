@@ -10,6 +10,7 @@
  */
 
 import { createClient } from '@/lib/supabase/client'
+import { ALL_SITES_ID } from '@/lib/site/types'
 import type {
   DomainBatch,
   BatchFilters,
@@ -134,8 +135,12 @@ export async function getBatches(
         .from('batches')
         .select(buildBatchSelect(options))
         .eq('organization_id', orgId)
-        .eq('site_id', siteId)
         .order('created_at', { ascending: false })
+
+      // Only filter by site_id if not in all-sites mode
+      if (siteId !== ALL_SITES_ID) {
+        query = query.eq('site_id', siteId)
+      }
 
       if (options.includeDomainFilter && filters?.domain_type) {
         if (Array.isArray(filters.domain_type)) {

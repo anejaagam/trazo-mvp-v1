@@ -566,6 +566,43 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     action: 'integrations'
   },
 
+  // Developer Dashboard permissions (platform developers only)
+  'dev:dashboard': {
+    key: 'dev:dashboard',
+    name: 'View Dev Dashboard',
+    description: 'Access the developer dashboard overview',
+    resource: 'dev',
+    action: 'dashboard'
+  },
+  'dev:errors': {
+    key: 'dev:errors',
+    name: 'View Error Logs',
+    description: 'View and manage platform-wide error logs',
+    resource: 'dev',
+    action: 'errors'
+  },
+  'dev:users_approve': {
+    key: 'dev:users_approve',
+    name: 'Approve Organizations',
+    description: 'Approve or reject organization applications',
+    resource: 'dev',
+    action: 'users_approve'
+  },
+  'dev:logs': {
+    key: 'dev:logs',
+    name: 'View Audit Logs',
+    description: 'View developer audit logs',
+    resource: 'dev',
+    action: 'logs'
+  },
+  'dev:metrics': {
+    key: 'dev:metrics',
+    name: 'View Platform Metrics',
+    description: 'View platform-wide metrics and statistics',
+    resource: 'dev',
+    action: 'metrics'
+  },
+
   // Wildcard permission
   '*': {
     key: '*',

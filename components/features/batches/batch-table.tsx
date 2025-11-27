@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Eye, Edit, Trash2, Beaker, Leaf, ChefHat } from 'lucide-react'
+import { MoreVertical, Eye, Edit, Trash2, Beaker, Leaf, ChefHat, Building2 } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -42,6 +42,8 @@ interface BatchTableProps {
   plantType: PlantType
   selectedBatchIds?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
+  showSiteColumn?: boolean
+  siteNames?: Record<string, string>
 }
 
 export function BatchTable({
@@ -54,6 +56,8 @@ export function BatchTable({
   plantType,
   selectedBatchIds: externalSelectedIds,
   onSelectionChange,
+  showSiteColumn = false,
+  siteNames = {},
 }: BatchTableProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -170,6 +174,7 @@ export function BatchTable({
                 />
               </TableHead>
               <TableHead>Batch</TableHead>
+              {showSiteColumn && <TableHead>Site</TableHead>}
               <TableHead>Stage</TableHead>
               <TableHead>Key Metric</TableHead>
               <TableHead>Pods</TableHead>
@@ -181,7 +186,7 @@ export function BatchTable({
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={showSiteColumn ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">
                   Loading batches…
                 </TableCell>
               </TableRow>
@@ -239,6 +244,16 @@ export function BatchTable({
                         </div>
                       </div>
                     </TableCell>
+                    {showSiteColumn && (
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-sm">
+                            {siteNames[batch.site_id] || batch.site_id.slice(0, 8)}
+                          </span>
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Badge variant={getStageVariant(batch.stage)}>{batch.stage.replace('_', ' ')}</Badge>
                     </TableCell>

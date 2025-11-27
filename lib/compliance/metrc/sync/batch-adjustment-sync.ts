@@ -4,10 +4,10 @@
  * Auto-syncs plant count changes to Metrc
  */
 
-import { MetrcClient } from '../client'
 import { createClient } from '@/lib/supabase/server'
 import { createSyncLogEntry, updateSyncLogEntry } from '@/lib/supabase/queries/compliance'
 import { validatePlantCountAdjustment } from '../validation/batch-rules'
+import { createMetrcClientForSite } from '../services'
 import type { MetrcPlantBatchAdjustment } from '../types'
 
 export interface AdjustmentSyncResult {
@@ -78,16 +78,11 @@ export async function syncPlantCountAdjustmentToMetrc(
       return result
     }
 
-    // Get API keys
-    const { data: apiKey, error: apiKeyError } = await supabase
-      .from('compliance_api_keys')
-      .select('*')
-      .eq('site_id', mapping.site_id)
-      .eq('is_active', true)
-      .single()
+    // Get Metrc client for the site (uses new site-aware credential system)
+    const { client: metrcClient, credentials, error: credError } = await createMetrcClientForSite(mapping.site_id, supabase)
 
-    if (apiKeyError || !apiKey) {
-      throw new Error('No active Metrc API key found for this site')
+    if (credError || !metrcClient || !credentials) {
+      throw new Error(credError || 'Failed to get Metrc credentials for this site')
     }
 
     // Map reason to Metrc format
@@ -132,15 +127,6 @@ export async function syncPlantCountAdjustmentToMetrc(
 
     await updateSyncLogEntry(syncLog.id, {
       status: 'in_progress',
-    })
-
-    // Initialize Metrc client
-    const metrcClient = new MetrcClient({
-      vendorApiKey: apiKey.vendor_api_key,
-      userApiKey: apiKey.user_api_key,
-      facilityLicenseNumber: apiKey.facility_license_number,
-      state: apiKey.state_code,
-      isSandbox: apiKey.is_sandbox,
     })
 
     // Build Metrc adjustment payload

@@ -2,7 +2,7 @@
 
 /**
  * UserSiteAssignmentDialog Component
- * Dialog for managing user site assignments
+ * Dialog for managing user site assignments and default site
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,8 +18,15 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 
 interface Site {
   id: string;
@@ -46,6 +53,8 @@ export function UserSiteAssignmentDialog({
   const [sites, setSites] = useState<Site[]>([]);
   const [assignedSiteIds, setAssignedSiteIds] = useState<string[]>([]);
   const [originalAssignedSiteIds, setOriginalAssignedSiteIds] = useState<string[]>([]);
+  const [defaultSiteId, setDefaultSiteId] = useState<string | null>(null);
+  const [originalDefaultSiteId, setOriginalDefaultSiteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingSites, setLoadingSites] = useState(false);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
@@ -65,13 +74,15 @@ export function UserSiteAssignmentDialog({
       setSites(sitesData.sites || []);
       setLoadingSites(false);
 
-      // Fetch current site assignments
+      // Fetch current site assignments and default site
       const assignmentsResponse = await fetch(`/api/admin/users/${userId}/sites`);
       if (!assignmentsResponse.ok) throw new Error('Failed to fetch site assignments');
       const assignmentsData = await assignmentsResponse.json();
       const siteIds = assignmentsData.assignments?.map((a: { site_id: string }) => a.site_id) || [];
       setAssignedSiteIds(siteIds);
       setOriginalAssignedSiteIds(siteIds);
+      setDefaultSiteId(assignmentsData.default_site_id || null);
+      setOriginalDefaultSiteId(assignmentsData.default_site_id || null);
       setLoadingAssignments(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -88,16 +99,24 @@ export function UserSiteAssignmentDialog({
   }, [open, fetchData]);
 
   const toggleSite = (siteId: string) => {
-    setAssignedSiteIds(prev =>
-      prev.includes(siteId)
+    setAssignedSiteIds(prev => {
+      const newSites = prev.includes(siteId)
         ? prev.filter(id => id !== siteId)
-        : [...prev, siteId]
-    );
+        : [...prev, siteId];
+
+      // If removing the default site, clear it
+      if (!newSites.includes(siteId) && defaultSiteId === siteId) {
+        setDefaultSiteId(newSites.length > 0 ? newSites[0] : null);
+      }
+
+      return newSites;
+    });
   };
 
   const toggleAllSites = () => {
     if (assignedSiteIds.length === sites.length) {
       setAssignedSiteIds([]);
+      setDefaultSiteId(null);
     } else {
       setAssignedSiteIds(sites.map(s => s.id));
     }
@@ -114,7 +133,7 @@ export function UserSiteAssignmentDialog({
       const sitesToAdd = assignedSiteIds.filter(id => !originalAssignedSiteIds.includes(id));
       const sitesToRemove = originalAssignedSiteIds.filter(id => !assignedSiteIds.includes(id));
 
-      // Update site assignments
+      // Update site assignments and default site
       const response = await fetch(`/api/admin/users/${userId}/sites`, {
         method: 'PATCH',
         headers: {
@@ -123,6 +142,7 @@ export function UserSiteAssignmentDialog({
         body: JSON.stringify({
           add_site_ids: sitesToAdd,
           remove_site_ids: sitesToRemove,
+          default_site_id: defaultSiteId,
         }),
       });
 
@@ -146,12 +166,19 @@ export function UserSiteAssignmentDialog({
     if (!loading) {
       setAssignedSiteIds([]);
       setOriginalAssignedSiteIds([]);
+      setDefaultSiteId(null);
+      setOriginalDefaultSiteId(null);
       setSites([]);
       onClose();
     }
   };
 
-  const hasChanges = JSON.stringify([...assignedSiteIds].sort()) !== JSON.stringify([...originalAssignedSiteIds].sort());
+  const hasAssignmentChanges = JSON.stringify([...assignedSiteIds].sort()) !== JSON.stringify([...originalAssignedSiteIds].sort());
+  const hasDefaultSiteChange = defaultSiteId !== originalDefaultSiteId;
+  const hasChanges = hasAssignmentChanges || hasDefaultSiteChange;
+
+  // Get sites available for default selection (only assigned sites)
+  const assignedSites = sites.filter(s => assignedSiteIds.includes(s.id));
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -171,46 +198,80 @@ export function UserSiteAssignmentDialog({
           ) : (
             <>
               {sites.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Assigned Sites</Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleAllSites}
-                      disabled={loading}
-                      className="h-auto p-1 text-xs"
-                    >
-                      {assignedSiteIds.length === sites.length ? 'Deselect All' : 'Select All'}
-                    </Button>
-                  </div>
-                  <ScrollArea className="h-48 rounded-md border p-3">
-                    <div className="space-y-3">
-                      {sites.map((site) => (
-                        <div key={site.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`site-${site.id}`}
-                            checked={assignedSiteIds.includes(site.id)}
-                            onCheckedChange={() => toggleSite(site.id)}
-                            disabled={loading}
-                          />
-                          <label
-                            htmlFor={`site-${site.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {site.name}
-                          </label>
-                        </div>
-                      ))}
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Assigned Sites</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleAllSites}
+                        disabled={loading}
+                        className="h-auto p-1 text-xs"
+                      >
+                        {assignedSiteIds.length === sites.length ? 'Deselect All' : 'Select All'}
+                      </Button>
                     </div>
-                  </ScrollArea>
-                  <p className="text-xs text-muted-foreground">
-                    {assignedSiteIds.length === 0
-                      ? 'No sites assigned. User will use default site.'
-                      : `${assignedSiteIds.length} site${assignedSiteIds.length > 1 ? 's' : ''} assigned`}
-                  </p>
-                </div>
+                    <ScrollArea className="h-40 rounded-md border p-3">
+                      <div className="space-y-3">
+                        {sites.map((site) => (
+                          <div key={site.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`site-${site.id}`}
+                              checked={assignedSiteIds.includes(site.id)}
+                              onCheckedChange={() => toggleSite(site.id)}
+                              disabled={loading}
+                            />
+                            <label
+                              htmlFor={`site-${site.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+                            >
+                              {site.name}
+                              {defaultSiteId === site.id && (
+                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                    <p className="text-xs text-muted-foreground">
+                      {assignedSiteIds.length === 0
+                        ? 'No sites assigned. User will not be able to access any site-specific data.'
+                        : `${assignedSiteIds.length} site${assignedSiteIds.length > 1 ? 's' : ''} assigned`}
+                    </p>
+                  </div>
+
+                  {/* Default Site Selection */}
+                  {assignedSites.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        Default Site
+                      </Label>
+                      <Select
+                        value={defaultSiteId || ''}
+                        onValueChange={(value) => setDefaultSiteId(value || null)}
+                        disabled={loading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select default site" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {assignedSites.map((site) => (
+                            <SelectItem key={site.id} value={site.id}>
+                              {site.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        The default site is automatically selected when the user logs in.
+                      </p>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   No sites available in this organization
@@ -228,8 +289,8 @@ export function UserSiteAssignmentDialog({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading || loadingSites || loadingAssignments || !hasChanges}
             >
               {loading ? (

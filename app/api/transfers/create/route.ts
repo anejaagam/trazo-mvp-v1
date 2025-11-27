@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createOutgoingTransfer } from '@/lib/compliance/metrc/sync/transfer-manifest-sync'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function POST(request: Request) {
   try {
@@ -13,11 +15,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get user's organization and default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
+
+    if (!currentSiteId) {
+      return NextResponse.json(
+        { success: false, message: 'No site context available. Please select a site.' },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json()
 
     const result = await createOutgoingTransfer({
       ...body,
       createdBy: user.id,
+      siteId: currentSiteId,
     })
 
     if (!result.success) {

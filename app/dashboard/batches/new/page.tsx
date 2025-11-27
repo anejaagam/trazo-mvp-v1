@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { getServerSiteId } from '@/lib/site/server'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 import { BatchWizard } from '@/components/features/batches/batch-wizard'
 
@@ -45,16 +46,12 @@ export default async function NewBatchPage() {
     organizationId = userRecord.organization_id
     userId = user.id
 
-    const { data: siteAssignments } = await supabase
-      .from('user_site_assignments')
-      .select('site_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-
-    if (siteAssignments?.[0]?.site_id) {
-      siteId = siteAssignments[0].site_id
+    // Get site_id from site context (cookie-based)
+    const contextSiteId = await getServerSiteId()
+    if (contextSiteId && contextSiteId !== 'all') {
+      siteId = contextSiteId
     } else {
+      // Fallback to default site if no site selected or "all sites" mode
       const { data: defaultSiteId } = await getOrCreateDefaultSite(userRecord.organization_id)
       siteId = defaultSiteId || userRecord.organization_id
     }

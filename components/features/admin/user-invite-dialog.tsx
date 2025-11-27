@@ -2,7 +2,7 @@
 
 /**
  * UserInviteDialog Component
- * Dialog for inviting new users with role and site assignment
+ * Dialog for inviting new users with role, site assignment, and default site
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -27,6 +27,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { Star } from 'lucide-react';
 import { ROLES } from '@/lib/rbac/roles';
 import type { RoleKey } from '@/lib/rbac/types';
 import { canAssignRole } from '@/lib/rbac/hierarchy';
@@ -55,6 +56,7 @@ export function UserInviteDialog({
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<RoleKey | ''>('');
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
+  const [defaultSiteId, setDefaultSiteId] = useState<string | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingSites, setLoadingSites] = useState(false);
@@ -82,18 +84,35 @@ export function UserInviteDialog({
   }, [open, organizationId, fetchSites]);
 
   const toggleSite = (siteId: string) => {
-    setSelectedSiteIds(prev =>
-      prev.includes(siteId)
+    setSelectedSiteIds(prev => {
+      const newSites = prev.includes(siteId)
         ? prev.filter(id => id !== siteId)
-        : [...prev, siteId]
-    );
+        : [...prev, siteId];
+
+      // If removing the default site, update default to first remaining or null
+      if (!newSites.includes(siteId) && defaultSiteId === siteId) {
+        setDefaultSiteId(newSites.length > 0 ? newSites[0] : null);
+      }
+
+      // If adding first site and no default set, make it the default
+      if (newSites.length === 1 && !defaultSiteId) {
+        setDefaultSiteId(newSites[0]);
+      }
+
+      return newSites;
+    });
   };
 
   const toggleAllSites = () => {
     if (selectedSiteIds.length === sites.length) {
       setSelectedSiteIds([]);
+      setDefaultSiteId(null);
     } else {
-      setSelectedSiteIds(sites.map(s => s.id));
+      const allSiteIds = sites.map(s => s.id);
+      setSelectedSiteIds(allSiteIds);
+      if (!defaultSiteId && allSiteIds.length > 0) {
+        setDefaultSiteId(allSiteIds[0]);
+      }
     }
   };
 
@@ -107,7 +126,7 @@ export function UserInviteDialog({
 
     try {
       setLoading(true);
-      
+
       // Call API route instead of direct server function
       const response = await fetch('/api/admin/users/invite', {
         method: 'POST',
@@ -120,6 +139,7 @@ export function UserInviteDialog({
           role: role as RoleKey,
           organization_id: organizationId,
           site_ids: selectedSiteIds.length > 0 ? selectedSiteIds : undefined,
+          default_site_id: defaultSiteId || undefined,
         }),
       });
 
@@ -130,13 +150,14 @@ export function UserInviteDialog({
       }
 
       toast.success(`Invitation sent to ${email}`);
-      
+
       // Reset form
       setEmail('');
       setFullName('');
       setRole('');
       setSelectedSiteIds([]);
-      
+      setDefaultSiteId(null);
+
       onInvited?.();
       onClose();
     } catch (error) {
@@ -152,17 +173,21 @@ export function UserInviteDialog({
       setFullName('');
       setRole('');
       setSelectedSiteIds([]);
+      setDefaultSiteId(null);
       onClose();
     }
   };
 
+  // Get sites available for default selection (only assigned sites)
+  const assignedSites = sites.filter(s => selectedSiteIds.includes(s.id));
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Invite User</DialogTitle>
           <DialogDescription>
-            Send an invitation with a role assignment
+            Send an invitation with a role and site assignment
           </DialogDescription>
         </DialogHeader>
 
@@ -222,50 +247,84 @@ export function UserInviteDialog({
 
           {/* Site Assignment Section */}
           {sites.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Site Access (Optional)</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleAllSites}
-                  disabled={loading || loadingSites}
-                  className="h-auto p-1 text-xs"
-                >
-                  {selectedSiteIds.length === sites.length ? 'Deselect All' : 'Select All'}
-                </Button>
-              </div>
-              <ScrollArea className="h-32 rounded-md border p-3">
-                <div className="space-y-2">
-                  {loadingSites ? (
-                    <p className="text-sm text-muted-foreground">Loading sites...</p>
-                  ) : (
-                    sites.map((site) => (
-                      <div key={site.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`site-${site.id}`}
-                          checked={selectedSiteIds.includes(site.id)}
-                          onCheckedChange={() => toggleSite(site.id)}
-                          disabled={loading}
-                        />
-                        <label
-                          htmlFor={`site-${site.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {site.name}
-                        </label>
-                      </div>
-                    ))
-                  )}
+            <>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Site Access</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleAllSites}
+                    disabled={loading || loadingSites}
+                    className="h-auto p-1 text-xs"
+                  >
+                    {selectedSiteIds.length === sites.length ? 'Deselect All' : 'Select All'}
+                  </Button>
                 </div>
-              </ScrollArea>
-              <p className="text-xs text-muted-foreground">
-                {selectedSiteIds.length === 0
-                  ? 'No sites selected. User will be assigned to default site.'
-                  : `${selectedSiteIds.length} site${selectedSiteIds.length > 1 ? 's' : ''} selected`}
-              </p>
-            </div>
+                <ScrollArea className="h-28 rounded-md border p-3">
+                  <div className="space-y-2">
+                    {loadingSites ? (
+                      <p className="text-sm text-muted-foreground">Loading sites...</p>
+                    ) : (
+                      sites.map((site) => (
+                        <div key={site.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`site-${site.id}`}
+                            checked={selectedSiteIds.includes(site.id)}
+                            onCheckedChange={() => toggleSite(site.id)}
+                            disabled={loading}
+                          />
+                          <label
+                            htmlFor={`site-${site.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+                          >
+                            {site.name}
+                            {defaultSiteId === site.id && (
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            )}
+                          </label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground">
+                  {selectedSiteIds.length === 0
+                    ? 'No sites selected. User will not have access to any site.'
+                    : `${selectedSiteIds.length} site${selectedSiteIds.length > 1 ? 's' : ''} selected`}
+                </p>
+              </div>
+
+              {/* Default Site Selection */}
+              {assignedSites.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Star className="h-4 w-4" />
+                    Default Site
+                  </Label>
+                  <Select
+                    value={defaultSiteId || ''}
+                    onValueChange={(value) => setDefaultSiteId(value || null)}
+                    disabled={loading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select default site" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignedSites.map((site) => (
+                        <SelectItem key={site.id} value={site.id}>
+                          {site.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The default site is automatically selected when the user logs in.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           <div className="bg-slate-50 p-3 rounded-lg text-sm space-y-1">

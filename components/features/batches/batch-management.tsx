@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Filter, Factory, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Filter, Factory, AlertTriangle, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,9 +12,11 @@ import { usePermissions } from '@/hooks/use-permissions'
 import type { RoleKey } from '@/lib/rbac/types'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
+import { isAllSitesMode } from '@/lib/site/types'
 import type { BatchFilters, BatchStage, BatchStatus } from '@/types/batch'
 import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
 import { getBatches } from '@/lib/supabase/queries/batches-client'
+import { createClient } from '@/lib/supabase/client'
 import { BatchTable } from './batch-table'
 import { BatchModal } from './batch-modal'
 import { CultivarManagement } from './cultivar-management'
@@ -96,6 +98,7 @@ export function BatchManagement({
 }: BatchManagementProps) {
   const { can } = usePermissions(userRole as RoleKey, [])
   const jurisdictionState = useJurisdiction(jurisdictionId)
+  const isAggregateView = isAllSitesMode(siteId)
 
   const [batches, setBatches] = useState<BatchListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -103,6 +106,7 @@ export function BatchManagement({
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCultivarDialog, setShowCultivarDialog] = useState(false)
   const [selectedBatchIds, setSelectedBatchIds] = useState<Set<string>>(new Set())
+  const [siteNames, setSiteNames] = useState<Record<string, string>>({})
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<BatchStatus | 'all'>('all')
@@ -167,6 +171,33 @@ export function BatchManagement({
     fetchBatches()
   }, [fetchBatches])
 
+  // Fetch site names when in aggregate view
+  useEffect(() => {
+    if (!isAggregateView) return
+
+    const fetchSiteNames = async () => {
+      try {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('sites')
+          .select('id, name')
+          .eq('organization_id', organizationId)
+
+        if (data) {
+          const names: Record<string, string> = {}
+          data.forEach((site) => {
+            names[site.id] = site.name
+          })
+          setSiteNames(names)
+        }
+      } catch (err) {
+        console.error('Error fetching site names:', err)
+      }
+    }
+
+    fetchSiteNames()
+  }, [isAggregateView, organizationId])
+
   const activeBatches = useMemo(() => batches.filter((batch) => batch.status === 'active'), [batches])
   const quarantined = useMemo(
     () => batches.filter((batch) => batch.status === 'quarantined'),
@@ -224,6 +255,16 @@ export function BatchManagement({
 
   return (
     <div className="space-y-6">
+      {isAggregateView && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <Building2 className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900">Viewing All Sites</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Showing batches from all sites in your organization. Select a specific site to create new batches or make changes.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {complianceMessage && (
         <Alert>
           <AlertTitle>Jurisdiction Controls</AlertTitle>
@@ -329,7 +370,7 @@ export function BatchManagement({
               >
                 Export {selectedBatchIds.size > 0 ? `(${selectedBatchIds.size})` : ''}
               </Button>
-              {can('batch:create') && (
+              {can('batch:create') && !isAggregateView && (
                 <Button onClick={() => setShowCreateModal(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Batch
@@ -392,6 +433,8 @@ export function BatchManagement({
         plantType={plantType}
         selectedBatchIds={selectedBatchIds}
         onSelectionChange={setSelectedBatchIds}
+        showSiteColumn={isAggregateView}
+        siteNames={siteNames}
       />
 
       {showCreateModal && (

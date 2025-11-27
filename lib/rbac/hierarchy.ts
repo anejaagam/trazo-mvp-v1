@@ -2,6 +2,7 @@ import type { RoleKey } from './types'
 
 // Define a simple role hierarchy for assignment constraints
 export const ROLE_RANK: Record<RoleKey, number> = {
+  developer: 200, // Highest rank - platform developers
   org_admin: 100,
   site_manager: 80,
   head_grower: 70,

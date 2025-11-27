@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 import { FleetMonitoringDashboard } from '@/components/features/monitoring/fleet-monitoring-dashboard'
 import { NotificationsPanel } from '@/components/features/monitoring/notifications-panel'
 
@@ -55,28 +57,20 @@ export default async function MonitoringPage() {
     userRole = userData.role
     organizationId = userData.organization_id
     userId = user.id
-    
-    // IMPORTANT FIX: org_admin users should see ALL pods across ALL sites in their organization
-    if (userRole === 'org_admin') {
-      useOrgLevel = true
-      siteId = null // Don't limit to one site for org admins
-      logDevMode('org_admin detected - fetching all organization pods')
-    } else {
-      // For non-org_admin users, get their site assignments
-      const { data: siteAssignments } = await supabase
-        .from('user_site_assignments')
-        .select('site_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
 
-      // Get site_id from user_site_assignments or get/create default site
-      if (siteAssignments?.[0]?.site_id) {
-        siteId = siteAssignments[0].site_id
-      } else {
-        const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
-        siteId = defaultSiteId || organizationId
-      }
+    // Get site_id from site context (cookie-based)
+    const contextSiteId = await getServerSiteId()
+
+    // Check if user is in "All Sites" mode (only org_admin can use this)
+    if (contextSiteId === ALL_SITES_ID && userRole === 'org_admin') {
+      useOrgLevel = true
+      siteId = null // Show all pods across all sites
+    } else if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
+      siteId = contextSiteId
+    } else {
+      // Fallback to default site
+      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+      siteId = defaultSiteId || organizationId
     }
   }
 

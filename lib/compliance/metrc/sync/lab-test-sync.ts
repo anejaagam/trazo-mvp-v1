@@ -14,7 +14,7 @@ import {
   type LabTestUploadData,
   type TestResultsData
 } from '../validation/lab-test-rules'
-import { MetrcClient } from '../client'
+import { createMetrcClientForSite } from '../services'
 
 // Define types locally
 type LabTestResult = {
@@ -208,26 +208,14 @@ export async function createLabTest(
     result.testId = labTest.id
     result.testNumber = labTest.test_number
 
-    // Check if Metrc sync is needed (if organization has Metrc configured)
-    const { data: apiKeys } = await supabase
-      .from('compliance_api_keys')
-      .select('*')
-      .eq('organization_id', params.organizationId)
-      .eq('compliance_system', 'metrc')
-      .eq('is_active', true)
-      .single()
+    // Check if Metrc sync is available for this site
+    const { client: metrcClient, credentials, error: credError } = await createMetrcClientForSite(params.siteId, supabase)
 
-    if (apiKeys) {
-      // Prepare for Metrc sync (currently commented for safety)
+    if (metrcClient && credentials) {
+      // Metrc credentials available - prepare for sync (currently disabled for safety)
       // This would sync the test results to Metrc's testing endpoints
 
       /*
-      const metrcClient = new MetrcClient({
-        vendorApiKey: apiKeys.vendor_api_key,
-        userApiKey: apiKeys.user_api_key,
-        sandbox: apiKeys.is_sandbox || false
-      })
-
       // Metrc API call would go here
       // POST /labtests/v2/results
       const metrcPayload = {

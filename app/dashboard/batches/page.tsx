@@ -4,6 +4,8 @@ import { BatchManagement } from '@/components/features/batches/batch-management'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
 
 export default async function BatchesPage() {
@@ -50,14 +52,6 @@ export default async function BatchesPage() {
       redirect('/dashboard')
     }
 
-    // Get site assignments
-    const { data: siteAssignments } = await supabase
-      .from('user_site_assignments')
-      .select('site_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-
     userRole = userData.role
     organizationId = userData.organization_id
     userId = user.id
@@ -70,11 +64,17 @@ export default async function BatchesPage() {
 
     jurisdictionId = (org?.jurisdiction as JurisdictionId) || null
     plantType = (org?.plant_type as PlantType) || 'cannabis'
-    
-    // Get site_id from user_site_assignments or get/create default site
-    if (siteAssignments?.[0]?.site_id) {
-      siteId = siteAssignments[0].site_id
+
+    // Get site_id from site context (cookie-based)
+    const contextSiteId = await getServerSiteId()
+    if (contextSiteId === ALL_SITES_ID) {
+      // Org admin viewing all sites - pass the special ID
+      // Components will handle aggregate data fetching
+      siteId = ALL_SITES_ID
+    } else if (contextSiteId) {
+      siteId = contextSiteId
     } else {
+      // Fallback to default site if no site selected
       const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
       siteId = defaultSiteId || organizationId
     }

@@ -265,3 +265,134 @@ export async function getFacilityByLicense(
 
   return result.facilities.find((f) => f.licenseNumber === licenseNumber) || null
 }
+
+/**
+ * Site Metrc credential information
+ */
+export interface SiteMetrcCredentials {
+  stateCode: string
+  userApiKey: string
+  facilityLicenseNumber: string
+  isSandbox: boolean
+  credentialId: string
+}
+
+/**
+ * Result of getting site credentials
+ */
+export interface GetSiteCredentialsResult {
+  success: boolean
+  credentials?: SiteMetrcCredentials
+  error?: string
+}
+
+/**
+ * Get Metrc credentials for a site
+ * Uses the new architecture: site -> metrc_credential_id -> metrc_org_credentials
+ *
+ * @param siteId - The site ID to get credentials for
+ * @param supabase - Optional Supabase client (will create one if not provided)
+ * @returns Credentials needed to create a MetrcClient for this site
+ */
+export async function getSiteMetrcCredentials(
+  siteId: string,
+  supabase?: any
+): Promise<GetSiteCredentialsResult> {
+  // Use provided client or create a new one
+  const client = supabase || (await import('@/lib/supabase/server').then(m => m.createClient()))
+
+  try {
+    // Get site with credential reference
+    const { data: site, error: siteError } = await client
+      .from('sites')
+      .select('id, metrc_license_number, metrc_credential_id')
+      .eq('id', siteId)
+      .single()
+
+    if (siteError || !site) {
+      return {
+        success: false,
+        error: 'Site not found',
+      }
+    }
+
+    if (!site.metrc_license_number) {
+      return {
+        success: false,
+        error: 'Site is not linked to a Metrc facility. Please link the site first.',
+      }
+    }
+
+    if (!site.metrc_credential_id) {
+      return {
+        success: false,
+        error: 'Site has no Metrc credentials configured. Please set up credentials first.',
+      }
+    }
+
+    // Get credentials from metrc_org_credentials
+    const { data: credential, error: credError } = await client
+      .from('metrc_org_credentials')
+      .select('id, state_code, user_api_key, is_sandbox, is_active')
+      .eq('id', site.metrc_credential_id)
+      .single()
+
+    if (credError || !credential) {
+      return {
+        success: false,
+        error: 'Metrc credentials not found for this site',
+      }
+    }
+
+    if (!credential.is_active) {
+      return {
+        success: false,
+        error: 'Metrc credentials are inactive. Please reactivate them first.',
+      }
+    }
+
+    return {
+      success: true,
+      credentials: {
+        stateCode: credential.state_code,
+        userApiKey: credential.user_api_key,
+        facilityLicenseNumber: site.metrc_license_number,
+        isSandbox: credential.is_sandbox,
+        credentialId: credential.id,
+      },
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to get credentials: ${(error as Error).message}`,
+    }
+  }
+}
+
+/**
+ * Create a Metrc client for a site
+ * This is a convenience function that combines getSiteMetrcCredentials and createMetrcClient
+ *
+ * @param siteId - The site ID to create a client for
+ * @param supabase - Optional Supabase client
+ * @returns Configured MetrcClient or error
+ */
+export async function createMetrcClientForSite(
+  siteId: string,
+  supabase?: any
+): Promise<{ client?: MetrcClient; credentials?: SiteMetrcCredentials; error?: string }> {
+  const result = await getSiteMetrcCredentials(siteId, supabase)
+
+  if (!result.success || !result.credentials) {
+    return { error: result.error }
+  }
+
+  const client = createMetrcClient(
+    result.credentials.stateCode,
+    result.credentials.userApiKey,
+    result.credentials.facilityLicenseNumber,
+    result.credentials.isSandbox
+  )
+
+  return { client, credentials: result.credentials }
+}

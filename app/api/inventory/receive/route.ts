@@ -1,11 +1,15 @@
 /**
  * API Route: Receive Inventory (Create Lot)
  * POST /api/inventory/receive
+ *
+ * Site context: Uses cookie-based site context if site_id not provided in body.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 import type { InsertInventoryLot, InsertInventoryMovement } from '@/types/inventory'
 
 interface ReceiveInventoryRequest {
@@ -23,7 +27,7 @@ interface ReceiveInventoryRequest {
   storage_location?: string | null
   notes?: string | null
   organization_id: string
-  site_id: string
+  site_id?: string
   batch_id?: string | null
 }
 
@@ -40,10 +44,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user role
+    // Get user role and default site
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, default_site_id')
       .eq('id', user.id)
       .single()
 
@@ -64,6 +68,45 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: ReceiveInventoryRequest = await request.json()
+
+    // Determine site_id: use body.site_id if provided, otherwise use cookie context or default
+    let siteId = body.site_id
+    if (!siteId) {
+      const contextSiteId = await getServerSiteId()
+      if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
+        siteId = contextSiteId
+      } else {
+        siteId = userData.default_site_id
+      }
+    }
+
+    if (!siteId) {
+      return NextResponse.json(
+        { error: 'No site context available. Please select a site.' },
+        { status: 400 }
+      )
+    }
+
+    // Verify the item belongs to the selected site
+    const { data: item, error: itemError } = await supabase
+      .from('inventory_items')
+      .select('site_id')
+      .eq('id', body.item_id)
+      .single()
+
+    if (itemError || !item) {
+      return NextResponse.json(
+        { error: 'Item not found' },
+        { status: 404 }
+      )
+    }
+
+    if (item.site_id !== siteId) {
+      return NextResponse.json(
+        { error: 'Item does not belong to the selected site' },
+        { status: 403 }
+      )
+    }
 
     // Validate required fields
     if (!body.item_id || !body.quantity_received || !body.lot_code || !body.received_date) {

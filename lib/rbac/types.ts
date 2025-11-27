@@ -39,6 +39,7 @@ export type RoleKey =
   | 'executive_viewer'
   | 'installer_tech'
   | 'support'
+  | 'developer'
 
 export type PermissionKey = 
   // Dashboard
@@ -137,6 +138,13 @@ export type PermissionKey =
   | 'equipment:control:manual'
   | 'equipment:control:auto'
   | 'equipment:override'
+  
+  // Developer permissions
+  | 'dev:dashboard'
+  | 'dev:errors'
+  | 'dev:users_approve'
+  | 'dev:logs'
+  | 'dev:metrics'
   
   // Organization permissions
   | 'org:settings'

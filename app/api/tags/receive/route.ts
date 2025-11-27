@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { receiveTagsBatch } from '@/lib/supabase/queries/harvest-plants'
 import { validateTagReceipt } from '@/lib/compliance/metrc/validation/plant-harvest-rules'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function POST(request: Request) {
   try {
@@ -17,13 +19,44 @@ export async function POST(request: Request) {
       )
     }
 
+    // Get user's organization and default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
+
     const body = await request.json()
     const { organization_id, site_id, tags, order_batch_number } = body
 
-    if (!organization_id || !site_id || !tags) {
+    // Use provided site_id or fall back to current site context
+    const effectiveSiteId = site_id || currentSiteId
+
+    if (!organization_id || !effectiveSiteId || !tags) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
+      )
+    }
+
+    // Validate site_id matches current context if context is set
+    if (currentSiteId && site_id && site_id !== currentSiteId) {
+      return NextResponse.json(
+        { success: false, message: 'Provided site_id does not match current site context' },
+        { status: 403 }
       )
     }
 
@@ -46,7 +79,7 @@ export async function POST(request: Request) {
     const tagsWithContext = tags.map((tag: any) => ({
       ...tag,
       organization_id,
-      site_id,
+      site_id: effectiveSiteId,
       order_batch_number,
     }))
 

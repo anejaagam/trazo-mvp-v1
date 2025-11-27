@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { getRecipes } from '@/lib/supabase/queries/recipes'
+import { getServerSiteId } from '@/lib/site/server'
 import { RecipeLibraryWrapper } from '@/components/features/recipes/recipe-library-wrapper'
 import type { RoleKey } from '@/lib/rbac/types'
 
@@ -50,16 +51,9 @@ export default async function RecipesPage() {
 
   const plantType = orgData?.plant_type // 'cannabis' or 'produce'
 
-  // Get user's primary site (optional - for future use)
-  const { data: userSite } = await supabase
-    .from('user_site_assignments')
-    .select('site_id')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .limit(1)
-    .single()
-
-  const siteId = userSite?.site_id
+  // Get site_id from site context (cookie-based)
+  const contextSiteId = await getServerSiteId()
+  const siteId = (contextSiteId && contextSiteId !== 'all') ? contextSiteId : undefined
 
   // Load recipes
   const { data: recipes, error } = await getRecipes(userData.organization_id)

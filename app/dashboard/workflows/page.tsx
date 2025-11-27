@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
 import { getMyTasks, getTasks } from '@/lib/supabase/queries/workflows';
+import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites';
+import { getServerSiteId } from '@/lib/site/server';
 import { WorkflowsDashboardClient } from './workflows-dashboard-client';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -29,15 +31,17 @@ export default async function WorkflowsDashboardPage() {
     redirect('/dashboard');
   }
 
-  // Get user's site assignment
-  const { data: siteAssignment } = await supabase
-    .from('user_site_assignments')
-    .select('site_id')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .single();
+  // Get site_id from site context (cookie-based)
+  const contextSiteId = await getServerSiteId();
+  let site_id: string | null = null;
 
-  const site_id = siteAssignment?.site_id;
+  if (contextSiteId && contextSiteId !== 'all') {
+    site_id = contextSiteId;
+  } else {
+    // Fallback to default site if no site selected or "all sites" mode
+    const { data: defaultSiteId } = await getOrCreateDefaultSite(userData.organization_id);
+    site_id = defaultSiteId || null;
+  }
 
   // Check permissions
   const permissionCheck = canPerformAction(userData.role, 'task:view');

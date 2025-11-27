@@ -15,7 +15,7 @@ export async function GET(
   try {
     const supabase = await createClient()
     const { id: userId } = await context.params
-    
+
     // Get current user
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -39,21 +39,32 @@ export async function GET(
       )
     }
 
-    // Fetch user site assignments
-    const { data: assignments, error } = await supabase
-      .from('user_site_assignments')
-      .select('id, user_id, site_id')
-      .eq('user_id', userId)
+    // Fetch user site assignments and default_site_id
+    const [{ data: assignments, error: assignmentError }, { data: targetUser, error: userError }] = await Promise.all([
+      supabase
+        .from('user_site_assignments')
+        .select('id, user_id, site_id')
+        .eq('user_id', userId)
+        .eq('is_active', true),
+      supabase
+        .from('users')
+        .select('default_site_id')
+        .eq('id', userId)
+        .single()
+    ])
 
-    if (error) {
-      console.error('Error fetching user site assignments:', error)
+    if (assignmentError) {
+      console.error('Error fetching user site assignments:', assignmentError)
       return NextResponse.json(
         { error: 'Failed to fetch site assignments' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ assignments: assignments || [] })
+    return NextResponse.json({
+      assignments: assignments || [],
+      default_site_id: targetUser?.default_site_id || null
+    })
   } catch (error) {
     console.error('Error in GET /api/admin/users/[id]/sites:', error)
     return NextResponse.json(
@@ -71,7 +82,7 @@ export async function PATCH(
     const supabase = await createClient()
     const { id: userId } = await context.params
     const body = await request.json()
-    const { add_site_ids = [], remove_site_ids = [] } = body
+    const { add_site_ids = [], remove_site_ids = [], default_site_id } = body
 
     // Get current user
     const { data: { user } } = await supabase.auth.getUser()
@@ -100,7 +111,7 @@ export async function PATCH(
     if (remove_site_ids.length > 0) {
       const { error: removeError } = await supabase
         .from('user_site_assignments')
-        .delete()
+        .update({ is_active: false })
         .eq('user_id', userId)
         .in('site_id', remove_site_ids)
 
@@ -118,12 +129,16 @@ export async function PATCH(
       const newAssignments = add_site_ids.map((site_id: string) => ({
         user_id: userId,
         site_id,
-        assigned_at: new Date().toISOString()
+        assigned_by: user.id,
+        is_active: true
       }))
 
       const { error: addError } = await supabase
         .from('user_site_assignments')
-        .insert(newAssignments)
+        .upsert(newAssignments, {
+          onConflict: 'user_id,site_id',
+          ignoreDuplicates: false
+        })
 
       if (addError) {
         console.error('Error adding site assignments:', addError)
@@ -134,11 +149,53 @@ export async function PATCH(
       }
     }
 
-    // Fetch updated assignments
-    const { data: assignments, error: fetchError } = await supabase
-      .from('user_site_assignments')
-      .select('id, user_id, site_id')
-      .eq('user_id', userId)
+    // Update default_site_id if provided
+    if (default_site_id !== undefined) {
+      // Verify the default site is one of the user's assigned sites (or null to clear)
+      if (default_site_id !== null) {
+        const { data: hasAssignment } = await supabase
+          .from('user_site_assignments')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('site_id', default_site_id)
+          .eq('is_active', true)
+          .single()
+
+        if (!hasAssignment) {
+          return NextResponse.json(
+            { error: 'Default site must be one of the user\'s assigned sites' },
+            { status: 400 }
+          )
+        }
+      }
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ default_site_id })
+        .eq('id', userId)
+
+      if (updateError) {
+        console.error('Error updating default site:', updateError)
+        return NextResponse.json(
+          { error: 'Failed to update default site' },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Fetch updated assignments and default site
+    const [{ data: assignments, error: fetchError }, { data: updatedUser }] = await Promise.all([
+      supabase
+        .from('user_site_assignments')
+        .select('id, user_id, site_id')
+        .eq('user_id', userId)
+        .eq('is_active', true),
+      supabase
+        .from('users')
+        .select('default_site_id')
+        .eq('id', userId)
+        .single()
+    ])
 
     if (fetchError) {
       console.error('Error fetching updated assignments:', fetchError)
@@ -148,9 +205,10 @@ export async function PATCH(
       )
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      assignments: assignments || []
+      assignments: assignments || [],
+      default_site_id: updatedUser?.default_site_id || null
     })
   } catch (error) {
     console.error('Error in PATCH /api/admin/users/[id]/sites:', error)

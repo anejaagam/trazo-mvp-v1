@@ -50,6 +50,7 @@ export interface UserInvite {
   role: RoleKey;
   organization_id: string;
   site_ids?: string[];
+  default_site_id?: string;
 }
 
 /**

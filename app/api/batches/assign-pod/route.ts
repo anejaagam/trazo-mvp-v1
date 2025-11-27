@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { syncPodAndBatchRecipes } from '@/lib/recipes/recipe-sync'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +17,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get user's default site for context validation
+    const userSupabase = await createClient()
+    const { data: userData } = await userSupabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', userId)
+      .single()
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData?.default_site_id
+
     const supabase = createServiceClient('US')
+
+    // Validate batch belongs to current site context
+    if (currentSiteId) {
+      const { data: batch } = await supabase
+        .from('batches')
+        .select('site_id')
+        .eq('id', batchId)
+        .single()
+
+      if (batch && batch.site_id !== currentSiteId) {
+        return NextResponse.json(
+          { error: 'Batch does not belong to the selected site' },
+          { status: 403 }
+        )
+      }
+    }
 
     const timestamp = new Date().toISOString()
 

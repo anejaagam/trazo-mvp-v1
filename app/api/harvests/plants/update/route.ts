@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { updateHarvestPlantRecord } from '@/lib/supabase/queries/harvest-plants'
 import { validatePlantDryWeightUpdate } from '@/lib/compliance/metrc/validation/plant-harvest-rules'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function PUT(request: Request) {
   try {
@@ -16,6 +18,26 @@ export async function PUT(request: Request) {
         { status: 401 }
       )
     }
+
+    // Get user's default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
 
     const body = await request.json()
     const {
@@ -36,10 +58,10 @@ export async function PUT(request: Request) {
       )
     }
 
-    // Get current record to validate against wet weight
+    // Get current record to validate against wet weight and site context
     const { data: currentRecord } = await supabase
       .from('harvest_plant_records')
-      .select('wet_weight_g')
+      .select('wet_weight_g, batch_id, batches!inner(site_id)')
       .eq('id', record_id)
       .single()
 
@@ -47,6 +69,14 @@ export async function PUT(request: Request) {
       return NextResponse.json(
         { success: false, message: 'Plant record not found' },
         { status: 404 }
+      )
+    }
+
+    // Validate plant record belongs to current site context via batch
+    if (currentSiteId && (currentRecord.batches as any)?.site_id !== currentSiteId) {
+      return NextResponse.json(
+        { success: false, message: 'Plant record does not belong to the selected site' },
+        { status: 403 }
       )
     }
 

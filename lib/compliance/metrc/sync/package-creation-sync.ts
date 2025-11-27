@@ -4,7 +4,6 @@
  * Syncs package creation from harvests to Metrc
  */
 
-import { MetrcClient } from '../client'
 import { createClient } from '@/lib/supabase/server'
 import { createSyncLogEntry, updateSyncLogEntry } from '@/lib/supabase/queries/compliance'
 import {
@@ -12,6 +11,7 @@ import {
   validateHarvestPackageCreateBatch,
 } from '../validation/harvest-rules'
 import { validatePackageProduct } from '../validation/item-rules'
+import { createMetrcClientForSite } from '../services'
 import type { MetrcHarvestPackageCreate } from '../types'
 
 export interface PackageCreationResult {
@@ -184,18 +184,13 @@ export async function createPackagesFromHarvest(
       result.warnings.push(`${w.field}: ${w.message}`)
     })
 
-    // Get API keys
-    const { data: apiKey, error: apiKeyError } = await supabase
-      .from('compliance_api_keys')
-      .select('*')
-      .eq('site_id', batch.site_id)
-      .eq('is_active', true)
-      .single()
+    // Get Metrc client for the site (uses new site-aware credential system)
+    const { client: metrcClient, credentials, error: credError } = await createMetrcClientForSite(batch.site_id, supabase)
 
-    if (apiKeyError || !apiKey) {
+    if (credError || !metrcClient || !credentials) {
       result.success = true
       result.synced = false
-      result.warnings.push('No active Metrc API key - packages created locally only')
+      result.warnings.push(credError || 'No active Metrc credentials - packages created locally only')
       return result
     }
 
@@ -218,15 +213,6 @@ export async function createPackagesFromHarvest(
 
     await updateSyncLogEntry(syncLog.id, {
       status: 'in_progress',
-    })
-
-    // Initialize Metrc client
-    const metrcClient = new MetrcClient({
-      vendorApiKey: apiKey.vendor_api_key,
-      userApiKey: apiKey.user_api_key,
-      facilityLicenseNumber: apiKey.facility_license_number,
-      state: apiKey.state_code,
-      isSandbox: apiKey.is_sandbox,
     })
 
     // NOTE: In production, this would call the actual Metrc API

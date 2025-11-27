@@ -5,8 +5,8 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
-import { MetrcClient } from '../client'
 import { validateTransferManifest, validateTransferReceipt } from '../validation/transfer-rules'
+import { createMetrcClientForSite } from '../services'
 import type { MetrcTransferCreate, MetrcTransferDestinationCreate, MetrcTransferPackageCreate } from '../types'
 
 export interface TransferManifestResult {
@@ -186,30 +186,16 @@ export async function createOutgoingTransfer(params: {
       .update({ status: 'in_transit', updated_at: new Date().toISOString() })
       .in('id', params.packages.map((p) => p.packageId))
 
-    // 8. Get API keys for Metrc sync
-    const { data: apiKey } = await supabase
-      .from('compliance_api_keys')
-      .select('*')
-      .eq('site_id', params.siteId)
-      .eq('is_active', true)
-      .single()
+    // 8. Get Metrc client for the site (uses new site-aware credential system)
+    const { client: metrcClient, credentials, error: credError } = await createMetrcClientForSite(params.siteId, supabase)
 
-    if (!apiKey) {
+    if (credError || !metrcClient || !credentials) {
       result.success = true
-      result.warnings.push('No active Metrc API key. Manifest created locally only.')
+      result.warnings.push(credError || 'No active Metrc credentials. Manifest created locally only.')
       return result
     }
 
-    // 9. Initialize Metrc client
-    const metrcClient = new MetrcClient({
-      vendorApiKey: apiKey.vendor_api_key,
-      userApiKey: apiKey.user_api_key,
-      facilityLicenseNumber: apiKey.facility_license_number,
-      state: apiKey.state_code,
-      isSandbox: apiKey.is_sandbox,
-    })
-
-    // 10. Build Metrc transfer payload
+    // 9. Build Metrc transfer payload
     const metrcPackages: MetrcTransferPackageCreate[] = params.packages.map((pkg) => ({
       PackageLabel: pkg.packageLabel,
       Quantity: pkg.quantity,

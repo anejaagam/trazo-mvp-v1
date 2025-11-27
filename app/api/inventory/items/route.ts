@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 import type { InsertInventoryItem } from '@/types/inventory'
 
 export async function POST(request: NextRequest) {
@@ -21,10 +23,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user role
+    // Get user role and default site
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, default_site_id')
       .eq('id', user.id)
       .single()
 
@@ -54,11 +56,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Determine site_id: use body.site_id if provided, otherwise use cookie context or default
+    let siteId = body.site_id
+    if (!siteId) {
+      const contextSiteId = await getServerSiteId()
+      if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
+        siteId = contextSiteId
+      } else {
+        // Fall back to user's default site
+        siteId = userData.default_site_id
+      }
+    }
+
+    if (!siteId) {
+      return NextResponse.json(
+        { error: 'No site context available. Please select a site.' },
+        { status: 400 }
+      )
+    }
+
     // Create inventory item
     const { data: item, error: createError } = await supabase
       .from('inventory_items')
       .insert({
         ...body,
+        site_id: siteId,
         created_by: user.id,
         updated_by: user.id,
       })
@@ -89,6 +111,9 @@ export async function POST(request: NextRequest) {
 /**
  * API Route: Get Inventory Items
  * GET /api/inventory/items?site_id=xxx&item_type=xxx
+ *
+ * Site context: Uses cookie-based site context if site_id not provided.
+ * For org_admin in "all sites" mode, returns items across all organization sites.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -103,10 +128,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user role
+    // Get user role, organization, and default site
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, organization_id, default_site_id')
       .eq('id', user.id)
       .single()
 
@@ -127,13 +152,35 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
-    const siteId = searchParams.get('site_id')
+    let siteId = searchParams.get('site_id')
     const itemType = searchParams.get('item_type')
     const search = searchParams.get('search')
 
+    // If no site_id in query, use cookie context
     if (!siteId) {
+      const contextSiteId = await getServerSiteId()
+      siteId = contextSiteId
+    }
+
+    // Determine if this is "all sites" mode
+    const isAllSitesMode = siteId === ALL_SITES_ID || siteId === 'all'
+
+    // Only org_admin can use "all sites" mode
+    if (isAllSitesMode && userData.role !== 'org_admin') {
       return NextResponse.json(
-        { error: 'Missing required parameter: site_id' },
+        { error: 'Only organization admins can view all sites' },
+        { status: 403 }
+      )
+    }
+
+    // Fall back to default site if no context
+    if (!siteId && !isAllSitesMode) {
+      siteId = userData.default_site_id
+    }
+
+    if (!siteId && !isAllSitesMode) {
+      return NextResponse.json(
+        { error: 'No site context available. Please select a site.' },
         { status: 400 }
       )
     }
@@ -141,12 +188,19 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from('inventory_items')
-      .select('*')
-      .eq('site_id', siteId)
+      .select('*, sites!inner(organization_id)')
       .eq('is_active', true)
       .order('name', { ascending: true })
 
-    // Apply filters
+    // Apply site filter
+    if (isAllSitesMode) {
+      // Filter by organization for "all sites" mode
+      query = query.eq('sites.organization_id', userData.organization_id)
+    } else {
+      query = query.eq('site_id', siteId)
+    }
+
+    // Apply additional filters
     if (itemType && itemType !== 'all') {
       query = query.eq('item_type', itemType)
     }

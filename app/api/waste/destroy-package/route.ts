@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { destroyPackageWaste } from '@/lib/compliance/metrc/sync/waste-destruction-sync'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +14,23 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
     }
+
+    // Get user's default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 })
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
 
     const body = await request.json()
     const {
@@ -42,6 +61,22 @@ export async function POST(request: Request) {
         { success: false, message: 'Missing required fields' },
         { status: 400 }
       )
+    }
+
+    // Validate package belongs to current site context
+    if (currentSiteId) {
+      const { data: pkg } = await supabase
+        .from('packages')
+        .select('site_id')
+        .eq('id', packageId)
+        .single()
+
+      if (pkg && pkg.site_id !== currentSiteId) {
+        return NextResponse.json(
+          { success: false, message: 'Package does not belong to the selected site' },
+          { status: 403 }
+        )
+      }
     }
 
     // Destroy package waste

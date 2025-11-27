@@ -72,12 +72,38 @@ export function LoginForm() {
         // Update last_sign_in and activate invited users
         // This handles the case where invited users are logging in for the first time
         try {
-          // First check current status
+          // First check current status and organization
           const { data: userData } = await supabase
             .from('users')
-            .select('status')
+            .select('status, organization_id, role')
             .eq('id', data.user.id)
             .single();
+
+          // Skip approval check for developers (they don't belong to organizations)
+          if (userData?.role !== 'developer' && userData?.organization_id) {
+            // Check organization approval status
+            const { data: orgData } = await supabase
+              .from('organizations')
+              .select('approval_status, name')
+              .eq('id', userData.organization_id)
+              .single();
+
+            if (orgData?.approval_status === 'pending') {
+              // Organization not yet approved - sign out and show message
+              await supabase.auth.signOut();
+              setError('Your organization is pending approval. You will be notified once approved.');
+              setLoading(false);
+              return;
+            }
+
+            if (orgData?.approval_status === 'rejected') {
+              // Organization was rejected - sign out and show message
+              await supabase.auth.signOut();
+              setError('Your organization was not approved for access. Please contact support for more information.');
+              setLoading(false);
+              return;
+            }
+          }
           
           // Update user with new login time and activate if invited
           await supabase

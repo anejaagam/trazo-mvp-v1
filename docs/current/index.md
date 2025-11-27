@@ -60,6 +60,7 @@ This directory contains detailed documentation of the current TRAZO MVP project 
 - **[Monitoring Feature](./2-features/feature-monitoring.md)** - Telemetry & monitoring (Phase 10 - DEPLOYED)
 - **[Recipe Management Feature](./2-features/feature-recipes.md)** - Environmental control & recipes (Phase 11 - DEPLOYED)
 - **[Recipe Removal Feature](./feature-recipe-removal.md)** - Remove recipes from pods via monitoring dashboard
+- **[Developer Dashboard](./feature-dev-dashboard.md)** - Internal tool for org approvals, error monitoring & audit logs
 - **[Compliance Engine](./compliance-setup.md)** - Metrc API integration for cannabis compliance (Phase 14.1 - READY)
 - **[Semi-Autonomous Batch Sync](../compliance/SEMI_AUTONOMOUS_BATCH_SYNC.md)** - Auto-resolve Metrc locations from pod assignments (Phase 14.3 - COMPLETE)
 - **[Lab Testing (COA Management)](../compliance/WEEK_8_LAB_TESTING_COMPLETE.md)** - Certificate of Analysis upload and tracking (Phase 3.5 Week 8 - COMPLETE)

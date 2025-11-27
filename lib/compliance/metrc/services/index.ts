@@ -10,8 +10,12 @@ export {
   createMetrcClient,
   getFacilityByLicense,
   isInTestMode,
+  getSiteMetrcCredentials,
+  createMetrcClientForSite,
   type MetrcFacility,
   type CredentialValidationResult,
+  type SiteMetrcCredentials,
+  type GetSiteCredentialsResult,
 } from './credential-service'
 
 export {

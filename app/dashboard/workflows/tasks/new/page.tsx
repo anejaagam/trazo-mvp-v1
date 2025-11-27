@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
 import { getPublishedTemplates, getTasks } from '@/lib/supabase/queries/workflows';
 import { getActiveBatches } from '@/lib/supabase/queries/batches';
+import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites';
+import { getServerSiteId } from '@/lib/site/server';
 
 type BatchResultRow = {
   id: string;
@@ -30,14 +32,18 @@ export default async function NewTaskPage() {
   const permissionCheck = canPerformAction(userData.role, 'task:create');
   if (!permissionCheck.allowed) redirect('/dashboard/workflows');
 
-  // Get user's active site assignment
-  const { data: siteAssignment } = await supabase
-    .from('user_site_assignments')
-    .select('site_id')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .single();
-  const site_id = siteAssignment?.site_id;
+  // Get site_id from site context (cookie-based)
+  const contextSiteId = await getServerSiteId();
+  let site_id: string | null = null;
+
+  if (contextSiteId && contextSiteId !== 'all') {
+    site_id = contextSiteId;
+  } else {
+    // Fallback to default site if no site selected or "all sites" mode
+    const { data: defaultSiteId } = await getOrCreateDefaultSite(userData.organization_id);
+    site_id = defaultSiteId || null;
+  }
+
   if (!site_id) {
     // Site required for task creation
     redirect('/dashboard/workflows');

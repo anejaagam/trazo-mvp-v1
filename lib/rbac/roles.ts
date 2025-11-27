@@ -341,6 +341,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'system:test',
     ],
   },
+
+  developer: {
+    id: 'developer',
+    name: 'Developer',
+    description: 'Platform developer with full access for debugging and organization approval',
+    isSystemRole: true,
+    permissions: ['*'], // Full access to everything including dev-specific features
+  },
 }
 
 // Helper functions
@@ -372,6 +380,7 @@ export const ROLE_HIERARCHY = {
   operational: ['head_grower', 'operator'],
   specialized: ['compliance_qa', 'executive_viewer'],
   temporary: ['installer_tech', 'support'],
+  developer: ['developer'],
 } as const
 
 export function getRolesByCategory(category: keyof typeof ROLE_HIERARCHY): Role[] {

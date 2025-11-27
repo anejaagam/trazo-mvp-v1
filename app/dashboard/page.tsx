@@ -3,10 +3,12 @@ import { Boxes, Sprout, Bell, Package } from 'lucide-react'
 import { WelcomeBanner } from '@/components/features/onboarding/welcome-banner'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardClient } from './dashboard-client'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
-type UserRow = { 
+type UserRow = {
   role: string | null
-  organization: { 
+  organization: {
     jurisdiction: string | null
     id: string
   } | null
@@ -32,15 +34,9 @@ export default async function DashboardPage() {
   const organizationId = userData?.organization_id ?? ''
   const userId = user.id
 
-  // Get site assignments
-  const { data: siteAssignments } = await supabase
-    .from('user_site_assignments')
-    .select('site_id')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .limit(1)
-
-  const siteId = siteAssignments?.[0]?.site_id ?? ''
+  // Get current site from site context (cookie-based)
+  const siteId = await getServerSiteId() ?? ''
+  const isAllSitesMode = siteId === ALL_SITES_ID
 
   // Get organization data
   const { data: org } = await supabase
@@ -51,11 +47,17 @@ export default async function DashboardPage() {
 
   const jurisdictionId = org?.jurisdiction ?? null
 
-  // Get all batches for this site
-  const { data: allBatches, error: batchError } = await supabase
+  // Get all batches for this site (or all sites if in "all sites" mode)
+  let batchQuery = supabase
     .from('batches')
-    .select('id, batch_number, status, cultivar_id, created_at')
-    .eq('site_id', siteId)
+    .select('id, batch_number, status, cultivar_id, created_at, site_id')
+    .eq('organization_id', organizationId)
+
+  if (!isAllSitesMode && siteId) {
+    batchQuery = batchQuery.eq('site_id', siteId)
+  }
+
+  const { data: allBatches, error: batchError } = await batchQuery
   
   // Filter active batches (use 'active' status instead of growth stages)
   const activeBatches = allBatches?.filter(b => 
@@ -101,7 +103,7 @@ export default async function DashboardPage() {
   }, 0)
 
   // Get active alarms - need to join through pods to satisfy RLS policy
-  const { data: activeAlarms, error: alarmsError } = await supabase
+  let alarmsQuery = supabase
     .from('alarms')
     .select(`
       *,
@@ -110,15 +112,23 @@ export default async function DashboardPage() {
         rooms!inner(
           id,
           sites!inner(
-            id
+            id,
+            organization_id
           )
         )
       )
     `)
-    .eq('pods.rooms.sites.id', siteId)
     .eq('status', 'active')
     .order('triggered_at', { ascending: false })
     .limit(3)
+
+  if (!isAllSitesMode && siteId) {
+    alarmsQuery = alarmsQuery.eq('pods.rooms.sites.id', siteId)
+  } else {
+    alarmsQuery = alarmsQuery.eq('pods.rooms.sites.organization_id', organizationId)
+  }
+
+  const { data: activeAlarms, error: alarmsError } = await alarmsQuery
   
   const activeAlarmsCount = activeAlarms?.length || 0
 
@@ -128,25 +138,37 @@ export default async function DashboardPage() {
     .select('id, name, current_quantity, minimum_quantity, site_id')
     .eq('organization_id', organizationId)
     .eq('is_active', true)
-  
-  // Filter to this site and low stock items
-  const siteInventory = allInventory?.filter(item => item.site_id === siteId) || []
-  const lowStockItems = siteInventory.filter(item => 
+
+  // Filter to this site (or all sites) and low stock items
+  const siteInventory = isAllSitesMode
+    ? allInventory || []
+    : allInventory?.filter(item => item.site_id === siteId) || []
+  const lowStockItems = siteInventory.filter(item =>
     item.minimum_quantity && item.current_quantity <= item.minimum_quantity
   ) || []
   const lowStockCount = lowStockItems.length
 
   // Get environmental data from latest telemetry readings
-  const { data: pods } = await supabase
+  let podsQuery = supabase
     .from('pods')
     .select(`
       id,
       rooms!inner(
-        site_id
+        site_id,
+        sites!inner(
+          organization_id
+        )
       )
     `)
-    .eq('rooms.site_id', siteId)
     .eq('is_active', true)
+
+  if (!isAllSitesMode && siteId) {
+    podsQuery = podsQuery.eq('rooms.site_id', siteId)
+  } else {
+    podsQuery = podsQuery.eq('rooms.sites.organization_id', organizationId)
+  }
+
+  const { data: pods } = await podsQuery
 
   const podIds = pods?.map(p => p.id) || []
   
@@ -198,14 +220,20 @@ export default async function DashboardPage() {
   // Get growth metrics - track plant counts and batches over last 12 weeks
   const twelveWeeksAgo = new Date()
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
-  
+
   // Get all batches created in the last 12 weeks
-  const { data: batchHistory } = await supabase
+  let batchHistoryQuery = supabase
     .from('batches')
     .select('id, created_at, plant_count')
-    .eq('site_id', siteId)
+    .eq('organization_id', organizationId)
     .gte('created_at', twelveWeeksAgo.toISOString())
     .order('created_at', { ascending: true })
+
+  if (!isAllSitesMode && siteId) {
+    batchHistoryQuery = batchHistoryQuery.eq('site_id', siteId)
+  }
+
+  const { data: batchHistory } = await batchHistoryQuery
 
   // Get plant counts from batch_plants table for more accurate tracking
   const batchIds = batchHistory?.map(b => b.id) || []

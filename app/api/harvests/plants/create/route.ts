@@ -8,6 +8,8 @@ import {
   validatePlantHarvestCreate,
   validatePlantHarvestBatch,
 } from '@/lib/compliance/metrc/validation/plant-harvest-rules'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export async function POST(request: Request) {
   try {
@@ -23,6 +25,26 @@ export async function POST(request: Request) {
       )
     }
 
+    // Get user's default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    // Get site context
+    const contextSiteId = await getServerSiteId()
+    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
+      ? contextSiteId
+      : userData.default_site_id
+
     const body = await request.json()
 
     // Support both single plant and batch creation
@@ -37,6 +59,22 @@ export async function POST(request: Request) {
           { success: false, message: 'Missing required fields' },
           { status: 400 }
         )
+      }
+
+      // Validate batch belongs to current site context
+      if (currentSiteId) {
+        const { data: batch } = await supabase
+          .from('batches')
+          .select('site_id')
+          .eq('id', batch_id)
+          .single()
+
+        if (batch && batch.site_id !== currentSiteId) {
+          return NextResponse.json(
+            { success: false, message: 'Batch does not belong to the selected site' },
+            { status: 403 }
+          )
+        }
       }
 
       // Validate batch
@@ -86,6 +124,22 @@ export async function POST(request: Request) {
           { success: false, message: 'Missing required fields' },
           { status: 400 }
         )
+      }
+
+      // Validate batch belongs to current site context
+      if (currentSiteId) {
+        const { data: batch } = await supabase
+          .from('batches')
+          .select('site_id')
+          .eq('id', batch_id)
+          .single()
+
+        if (batch && batch.site_id !== currentSiteId) {
+          return NextResponse.json(
+            { success: false, message: 'Batch does not belong to the selected site' },
+            { status: 403 }
+          )
+        }
       }
 
       // Validate

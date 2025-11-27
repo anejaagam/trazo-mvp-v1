@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createProductionBatch } from '@/lib/compliance/metrc/sync/production-batch-sync'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 import type { ProductionType } from '@/lib/compliance/metrc/validation/production-batch-rules'
 
 export async function POST(request: Request) {
@@ -15,8 +17,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get user's organization and default site
+    const { data: userData } = await supabase
+      .from('users')
+      .select('organization_id, default_site_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     const body = await request.json()
-    const {
+    let {
       siteId,
       organizationId,
       productionType,
@@ -28,11 +41,26 @@ export async function POST(request: Request) {
       notes,
     } = body
 
+    // Use cookie context if siteId not provided
+    if (!siteId) {
+      const contextSiteId = await getServerSiteId()
+      if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
+        siteId = contextSiteId
+      } else {
+        siteId = userData.default_site_id
+      }
+    }
+
+    // Use user's organization if not provided
+    if (!organizationId) {
+      organizationId = userData.organization_id
+    }
+
     // Validate required fields
     if (!siteId || !organizationId || !productionType || !startedAt) {
       return NextResponse.json(
         {
-          error: 'Missing required fields: siteId, organizationId, productionType, startedAt',
+          error: 'Missing required fields: productionType, startedAt. Site context required.',
         },
         { status: 400 }
       )

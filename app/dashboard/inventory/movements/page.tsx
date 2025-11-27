@@ -4,6 +4,7 @@ import { canPerformAction } from '@/lib/rbac/guards'
 import { MovementsLog } from '@/components/features/inventory/movements-log'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { getServerSiteId } from '@/lib/site/server'
 
 export default async function InventoryMovementsPage() {
   let userRole: string
@@ -41,22 +42,15 @@ export default async function InventoryMovementsPage() {
       redirect('/dashboard')
     }
 
-    // Then get site assignments separately
-    const { data: siteAssignments } = await supabase
-      .from('user_site_assignments')
-      .select('site_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-
     userRole = userData.role
     organizationId = userData.organization_id
-    
-    // Get site_id from user_site_assignments or get/create default site
-    if (siteAssignments?.[0]?.site_id) {
-      siteId = siteAssignments[0].site_id
+
+    // Get site_id from site context (cookie-based)
+    const contextSiteId = await getServerSiteId()
+    if (contextSiteId && contextSiteId !== 'all') {
+      siteId = contextSiteId
     } else {
-      // No site assignment, get or create a default site for the organization
+      // Fallback to default site if no site selected or "all sites" mode
       const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
       siteId = defaultSiteId || organizationId
     }

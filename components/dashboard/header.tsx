@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge'
 import { LogoutButton } from '@/components/auth/logout-button'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { GlobalSearch } from '@/components/dashboard/global-search'
+import { SiteSelector } from '@/components/dashboard/site-selector'
 import { useNotifications, useAlarms } from '@/hooks/use-alarms'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -101,7 +102,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
   return (
     <header className={`${className} bg-green-900`}>
       <div className="relative flex items-center justify-between h-16 pl-6 pr-0">
-        {/* Left: Search */}
+        {/* Left: Search and Site Selector */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
             <Menu className="h-5 w-5" />
@@ -109,6 +110,11 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
 
           <div className="hidden md:block">
             <GlobalSearch />
+          </div>
+
+          {/* Site Selector */}
+          <div className="border-l border-white/20 pl-4 ml-2">
+            <SiteSelector className="text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]" />
           </div>
         </div>
 

@@ -11,6 +11,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { canPerformAction } from '@/lib/rbac/guards';
+import { getServerSiteId } from '@/lib/site/server';
+import { ALL_SITES_ID } from '@/lib/site/types';
 import { UnifiedNotificationCenter } from '@/components/features/alarms/unified-notification-center';
 import { AlarmsDashboard } from '@/components/features/alarms/alarms-dashboard-client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -54,16 +56,11 @@ export default async function AlarmsPage() {
   const userRole = userData.role;
   const organizationId = userData.organization_id || '';
 
-  // Get user's site assignment (if any)
-  const { data: siteAssignment } = await supabase
-    .from('user_site_assignments')
-    .select('site_id')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .limit(1)
-    .single();
+  // Get site_id from site context (cookie-based)
+  const contextSiteId = await getServerSiteId();
 
-  const siteId = siteAssignment?.site_id || null;
+  // For "All Sites" mode, pass null so alarms from all sites are shown
+  const siteId = (contextSiteId === ALL_SITES_ID || !contextSiteId) ? null : contextSiteId;
 
   console.log('[Alarms Page] User:', user.id, 'Role:', userRole, 'Site:', siteId);
 

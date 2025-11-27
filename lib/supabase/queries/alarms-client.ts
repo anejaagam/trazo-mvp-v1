@@ -208,6 +208,56 @@ export function subscribeToAlarms(
 }
 
 /**
+ * Subscribe to all alarm updates (site-level, no filter)
+ * Used for site-wide monitoring dashboards
+ * 
+ * @param onInsert - Callback for new alarms
+ * @param onUpdate - Callback for alarm updates
+ * @returns Cleanup function
+ */
+export function subscribeToAllAlarms(
+  onInsert?: (alarm: Alarm) => void,
+  onUpdate?: (alarm: Alarm) => void
+): () => void {
+  const supabase = createClient();
+  const channelId = `alarms:all:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  
+  const channel = supabase
+    .channel(channelId)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'alarms',
+      },
+      (payload: RealtimePostgresChangesPayload<Alarm>) => {
+        if (onInsert) {
+          onInsert(payload.new as Alarm);
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'alarms',
+      },
+      (payload: RealtimePostgresChangesPayload<Alarm>) => {
+        if (onUpdate) {
+          onUpdate(payload.new as Alarm);
+        }
+      }
+    )
+    .subscribe();
+  
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
  * Subscribe to notifications for a user (client-side)
  * 
  * @param userId - UUID of the user

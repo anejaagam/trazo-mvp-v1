@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   subscribeToAlarms,
+  subscribeToAllAlarms,
   acknowledgeAlarmClient,
   getAlarmsClient,
   getAlarmCountsBySeverityClient,
@@ -144,33 +145,45 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
     }
   }, [autoFetch, refresh]);
 
-  // Real-time subscription
+  // Real-time subscription - supports both pod-level and site-level
   useEffect(() => {
-    if (!realtime || !podId) return;
+    if (!realtime) return;
 
     setIsSubscribed(true);
     
-    const unsubscribe = subscribeToAlarms(
-      podId,
-      (newAlarm) => {
-        // Add new alarm to the list
-        setAlarms(prev => [newAlarm as AlarmWithDetails, ...prev]);
-      },
-      (updatedAlarm) => {
-        // Update existing alarm
-        setAlarms(prev => 
-          prev.map(alarm => 
-            alarm.id === updatedAlarm.id ? (updatedAlarm as AlarmWithDetails) : alarm
-          )
+    // Use pod-specific subscription if podId is provided, otherwise use site-level
+    const unsubscribe = podId 
+      ? subscribeToAlarms(
+          podId,
+          (newAlarm) => {
+            // Add new alarm to the list
+            setAlarms(prev => [newAlarm as AlarmWithDetails, ...prev]);
+          },
+          (updatedAlarm) => {
+            // Update existing alarm
+            setAlarms(prev => 
+              prev.map(alarm => 
+                alarm.id === updatedAlarm.id ? (updatedAlarm as AlarmWithDetails) : alarm
+              )
+            );
+          }
+        )
+      : subscribeToAllAlarms(
+          () => {
+            // On any insert/update, refresh to get full details
+            refresh();
+          },
+          () => {
+            // On any insert/update, refresh to get full details
+            refresh();
+          }
         );
-      }
-    );
 
     return () => {
       unsubscribe();
       setIsSubscribed(false);
     };
-  }, [podId, realtime]);
+  }, [podId, realtime, refresh]);
 
   // Calculate derived values
   const activeAlarms = alarms.filter(
@@ -405,6 +418,8 @@ interface UseAlarmSummaryOptions {
   siteId: string;
   /** Refresh interval in seconds (default: 30) */
   refreshInterval?: number;
+  /** Enable real-time subscriptions (default: true) */
+  realtime?: boolean;
 }
 
 interface UseAlarmSummaryReturn {
@@ -423,7 +438,7 @@ interface UseAlarmSummaryReturn {
 export function useAlarmSummary(
   options: UseAlarmSummaryOptions
 ): UseAlarmSummaryReturn {
-  const { siteId, refreshInterval = 30 } = options;
+  const { siteId, refreshInterval = 30, realtime = true } = options;
   
   const [counts, setCounts] = useState<Record<AlarmSeverity, number>>({
     critical: 0,
@@ -456,7 +471,21 @@ export function useAlarmSummary(
     refresh();
   }, [refresh]);
 
-  // Auto-refresh interval
+  // Real-time subscription for immediate updates
+  useEffect(() => {
+    if (!realtime) return;
+
+    const unsubscribe = subscribeToAllAlarms(
+      () => refresh(), // On insert
+      () => refresh()  // On update
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [realtime, refresh]);
+
+  // Auto-refresh interval (backup)
   useEffect(() => {
     if (refreshInterval > 0) {
       const interval = setInterval(refresh, refreshInterval * 1000);

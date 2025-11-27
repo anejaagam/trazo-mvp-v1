@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   subscribeToAlarms,
+  subscribeToAllAlarms,
   acknowledgeAlarmClient,
   getAlarmsClient,
   getAlarmCountsBySeverityClient,
@@ -81,9 +82,11 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
   const [error, setError] = useState<Error | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // Fetch alarms from database
-  const refresh = useCallback(async () => {
-    setLoading(true);
+  // Fetch alarms from database (silent = don't show loading state)
+  const refresh = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -103,7 +106,9 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
       setError(err instanceof Error ? err : new Error('Failed to fetch alarms'));
       setAlarms([]);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [podId, siteId, severity, type, status]);
 
@@ -144,33 +149,44 @@ export function useAlarms(options: UseAlarmsOptions = {}): UseAlarmsReturn {
     }
   }, [autoFetch, refresh]);
 
-  // Real-time subscription
+  // Real-time updates via polling (more reliable than postgres_changes with RLS)
+  // Also attempts websocket subscription as backup
   useEffect(() => {
-    if (!realtime || !podId) return;
+    if (!realtime) return;
 
     setIsSubscribed(true);
     
-    const unsubscribe = subscribeToAlarms(
-      podId,
-      (newAlarm) => {
-        // Add new alarm to the list
-        setAlarms(prev => [newAlarm as AlarmWithDetails, ...prev]);
-      },
-      (updatedAlarm) => {
-        // Update existing alarm
-        setAlarms(prev => 
-          prev.map(alarm => 
-            alarm.id === updatedAlarm.id ? (updatedAlarm as AlarmWithDetails) : alarm
-          )
+    // Poll every 5 seconds for alarm changes (silent refresh - no loading state)
+    const pollInterval = setInterval(() => {
+      refresh(true); // silent = true
+    }, 5000);
+
+    // Also try websocket subscription (may work if auth is properly set up)
+    const unsubscribe = podId 
+      ? subscribeToAlarms(
+          podId,
+          (newAlarm) => {
+            setAlarms(prev => [newAlarm as AlarmWithDetails, ...prev]);
+          },
+          (updatedAlarm) => {
+            setAlarms(prev => 
+              prev.map(alarm => 
+                alarm.id === updatedAlarm.id ? (updatedAlarm as AlarmWithDetails) : alarm
+              )
+            );
+          }
+        )
+      : subscribeToAllAlarms(
+          () => refresh(true),
+          () => refresh(true)
         );
-      }
-    );
 
     return () => {
+      clearInterval(pollInterval);
       unsubscribe();
       setIsSubscribed(false);
     };
-  }, [podId, realtime]);
+  }, [podId, realtime, refresh]);
 
   // Calculate derived values
   const activeAlarms = alarms.filter(
@@ -405,6 +421,8 @@ interface UseAlarmSummaryOptions {
   siteId: string;
   /** Refresh interval in seconds (default: 30) */
   refreshInterval?: number;
+  /** Enable real-time subscriptions (default: true) */
+  realtime?: boolean;
 }
 
 interface UseAlarmSummaryReturn {
@@ -423,7 +441,7 @@ interface UseAlarmSummaryReturn {
 export function useAlarmSummary(
   options: UseAlarmSummaryOptions
 ): UseAlarmSummaryReturn {
-  const { siteId, refreshInterval = 30 } = options;
+  const { siteId, refreshInterval = 30, realtime = true } = options;
   
   const [counts, setCounts] = useState<Record<AlarmSeverity, number>>({
     critical: 0,
@@ -456,7 +474,21 @@ export function useAlarmSummary(
     refresh();
   }, [refresh]);
 
-  // Auto-refresh interval
+  // Real-time subscription for immediate updates
+  useEffect(() => {
+    if (!realtime) return;
+
+    const unsubscribe = subscribeToAllAlarms(
+      () => refresh(), // On insert
+      () => refresh()  // On update
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [realtime, refresh]);
+
+  // Auto-refresh interval (backup)
   useEffect(() => {
     if (refreshInterval > 0) {
       const interval = setInterval(refresh, refreshInterval * 1000);

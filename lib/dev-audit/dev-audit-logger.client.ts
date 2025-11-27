@@ -57,7 +57,10 @@ export async function getDevAuditLogsClient(
 
     let query = supabase
       .from('dev_audit_logs')
-      .select('*')
+      .select(`
+        *,
+        developer:users!dev_audit_logs_developer_id_users_fkey(email, full_name)
+      `)
       .order('created_at', { ascending: false })
       .limit(limit)
 

@@ -85,18 +85,18 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
   };
   
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-4">
+    <Card className="p-3 hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-3">
         {/* Severity Indicator */}
         <div className={`w-1 h-full rounded ${severityColors[alarm.severity]}`} />
         
         {/* Icon */}
-        <div className={`p-2 rounded-lg ${
+        <div className={`p-1.5 rounded-lg ${
           isActive ? 'bg-red-50' : 
           isAcknowledged ? 'bg-amber-50' : 
           'bg-green-50'
         }`}>
-          <Icon className={`w-5 h-5 ${
+          <Icon className={`w-4 h-4 ${
             isActive ? 'text-red-600' : 
             isAcknowledged ? 'text-amber-600' : 
             'text-green-600'
@@ -108,7 +108,7 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
           <div className="flex items-start justify-between gap-4 mb-2">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h3 className="font-semibold text-gray-900">{alarm.message}</h3>
+                <span className="text-sm font-medium text-gray-900">{alarm.message}</span>
                 <Badge 
                   variant="outline" 
                   className={severityTextColors[alarm.severity]}
@@ -131,14 +131,14 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
           </div>
           
           {/* Details */}
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
+          <div className="flex flex-wrap gap-4 text-xs text-gray-600 mb-2">
             <div className="flex items-center gap-1">
               <span className="font-medium">Pod:</span>
-              <span>{alarm.pod.name}</span>
+              <span>{alarm.pod?.name || 'Unknown'}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="font-medium">Room:</span>
-              <span>{alarm.room.name}</span>
+              <span>{alarm.room?.name || 'Unknown'}</span>
             </div>
             {alarm.actual_value !== null && alarm.threshold_value !== null && (
               <div className="flex items-center gap-1">
@@ -157,14 +157,14 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
           </div>
           
           {/* Timestamps */}
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-3">
+          <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-2">
             <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
+              <Clock className="w-3 h-3" />
               <span>Raised {formatDistanceToNow(new Date(alarm.triggered_at), { addSuffix: true })}</span>
             </div>
             {alarm.acknowledged_at && (
               <div className="flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 className="w-3 h-3" />
                 <span>
                   Ack&apos;d {formatDistanceToNow(new Date(alarm.acknowledged_at), { addSuffix: true })}
                   {alarm.acknowledged_by_user && ` by ${alarm.acknowledged_by_user.full_name || alarm.acknowledged_by_user.email}`}
@@ -173,7 +173,7 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
             )}
             {alarm.resolved_at && (
               <div className="flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <CheckCircle2 className="w-3 h-3 text-green-600" />
                 <span>
                   Resolved {formatDistanceToNow(new Date(alarm.resolved_at), { addSuffix: true })}
                   {alarm.resolved_by_user && ` by ${alarm.resolved_by_user.full_name || alarm.resolved_by_user.email}`}
@@ -211,6 +211,7 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
                   variant="outline"
                   onClick={handleAcknowledge}
                   disabled={isAcknowledging}
+                  className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
                 >
                   {isAcknowledging ? 'Acknowledging...' : 'Acknowledge'}
                 </Button>
@@ -218,9 +219,10 @@ export function AlarmCard({ alarm, onAcknowledge, onResolve }: AlarmCardProps) {
               {onResolve && (
                 <Button
                   size="sm"
-                  variant={isAcknowledged ? 'default' : 'outline'}
+                  variant="outline"
                   onClick={handleResolve}
                   disabled={isResolving}
+                  className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
                 >
                   {isResolving ? 'Resolving...' : 'Resolve'}
                 </Button>

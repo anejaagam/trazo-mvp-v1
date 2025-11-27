@@ -103,7 +103,7 @@ export default async function EditWastePage({
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Link href={`/dashboard/waste/${id}`}>
-            <Button variant="outline" size="sm">
+            <Button variant="ghost" size="sm" className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Details
             </Button>
@@ -162,7 +162,7 @@ export default async function EditWastePage({
       {/* Header with Back Button */}
       <div className="flex items-center gap-4">
         <Link href={`/dashboard/waste/${id}`}>
-          <Button variant="outline" size="sm">
+          <Button variant="ghost" size="sm" className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Details
           </Button>

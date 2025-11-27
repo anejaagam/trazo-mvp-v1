@@ -546,6 +546,11 @@ export interface Notification {
   delivered_at: string | null;
   read_at: string | null;
   status: NotificationStatus;
+  metadata?: {
+    task_id?: string;
+    task_status?: string;
+    [key: string]: unknown;
+  } | null;
 }
 
 export interface InsertNotification {

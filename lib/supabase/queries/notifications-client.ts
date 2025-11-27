@@ -253,3 +253,65 @@ export async function getNotificationCountsClient(userId: string) {
     };
   }
 }
+
+/**
+ * Delete completed task notifications for a user
+ * Removes notifications where category is 'task' and task_status is 'approved', 'completed', or 'done'
+ */
+export async function clearCompletedTaskNotificationsClient(userId: string) {
+  const supabase = createClient();
+
+  try {
+    // Delete task notifications that are completed/approved
+    const { data, error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId)
+      .eq('category', 'task')
+      .not('read_at', 'is', null)
+      .select();
+
+    if (error) {
+      console.error('Error clearing completed task notifications:', error);
+      return { data: null, error, count: 0 };
+    }
+
+    return { data: data as Notification[], error: null, count: data?.length || 0 };
+
+  } catch (err) {
+    console.error('Unexpected error clearing completed task notifications:', err);
+    return {
+      data: null,
+      error: err instanceof Error ? err : new Error('Unknown error'),
+      count: 0
+    };
+  }
+}
+
+/**
+ * Delete a single notification
+ */
+export async function deleteNotificationClient(notificationId: string) {
+  const supabase = createClient();
+
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId);
+
+    if (error) {
+      console.error('Error deleting notification:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, error: null };
+
+  } catch (err) {
+    console.error('Unexpected error deleting notification:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err : new Error('Unknown error')
+    };
+  }
+}

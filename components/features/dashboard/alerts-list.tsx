@@ -8,7 +8,8 @@ interface AlertsListProps {
   alarms: any[]
 }
 
-type SeverityType = 'low' | 'medium' | 'high'
+// Database uses: 'info', 'warning', 'critical'
+type SeverityType = 'info' | 'warning' | 'critical'
 
 const severityConfig: Record<SeverityType, {
   icon: any
@@ -16,27 +17,31 @@ const severityConfig: Record<SeverityType, {
   bg: string
   badgeBg: string
   badgeText: string
+  label: string
 }> = {
-  low: { 
+  info: { 
     icon: Info, 
     color: "text-blue-600",
     bg: "bg-blue-50",
     badgeBg: "bg-blue-100",
-    badgeText: "text-blue-700"
+    badgeText: "text-blue-700",
+    label: "Info"
   },
-  medium: { 
+  warning: { 
     icon: AlertTriangle, 
     color: "text-yellow-600",
     bg: "bg-yellow-50",
     badgeBg: "bg-yellow-400",
-    badgeText: "text-yellow-900"
+    badgeText: "text-yellow-900",
+    label: "Warning"
   },
-  high: { 
+  critical: { 
     icon: AlertCircle, 
     color: "text-red-600",
     bg: "bg-red-50",
     badgeBg: "bg-red-500",
-    badgeText: "text-white"
+    badgeText: "text-white",
+    label: "Critical"
   },
 }
 
@@ -75,10 +80,9 @@ export function AlertsList({ alarms }: AlertsListProps) {
           <p className="text-gray-500 text-sm text-center py-4">No active alarms</p>
         ) : (
           alarms.map((alarm, index) => {
-            const severity = (alarm.severity || 'medium') as SeverityType
-            const config = severityConfig[severity]
+            const severity = (alarm.severity || 'warning') as SeverityType
+            const config = severityConfig[severity] || severityConfig.warning
             const Icon = config.icon
-            const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1)
             
             return (
               <motion.div
@@ -93,10 +97,10 @@ export function AlertsList({ alarms }: AlertsListProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-900 text-sm mb-0.5">{alarm.message}</p>
-                  <p className="text-gray-500 text-xs">{getTimeAgo(alarm.created_at)}</p>
+                  <p className="text-gray-500 text-xs">{getTimeAgo(alarm.triggered_at || alarm.created_at)}</p>
                 </div>
                 <span className={`px-2 py-1 ${config.badgeBg} ${config.badgeText} text-xs rounded flex-shrink-0`}>
-                  {severityLabel}
+                  {config.label}
                 </span>
               </motion.div>
             )

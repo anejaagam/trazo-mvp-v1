@@ -7,7 +7,7 @@ import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 import { getServerSiteId } from '@/lib/site/server'
 import { ALL_SITES_ID } from '@/lib/site/types'
 import { FleetMonitoringDashboard } from '@/components/features/monitoring/fleet-monitoring-dashboard'
-import { NotificationsPanel } from '@/components/features/monitoring/notifications-panel'
+import { MonitoringAlarmsPanel } from '@/components/features/monitoring/monitoring-alarms-panel'
 
 export const metadata: Metadata = {
   title: 'Fleet Monitoring | TRAZO',
@@ -65,12 +65,24 @@ export default async function MonitoringPage() {
     if (contextSiteId === ALL_SITES_ID && userRole === 'org_admin') {
       useOrgLevel = true
       siteId = null // Show all pods across all sites
-    } else if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
+    } else if (userRole === 'org_admin' && contextSiteId && contextSiteId !== ALL_SITES_ID) {
+      // org_admin with a specific site selected
       siteId = contextSiteId
     } else {
-      // Fallback to default site
-      const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
-      siteId = defaultSiteId || organizationId
+      // Non-org_admin: Always use their default_site_id, ignore cookie
+      const { data: userSiteData } = await supabase
+        .from('users')
+        .select('default_site_id')
+        .eq('id', user.id)
+        .single()
+      
+      if (userSiteData?.default_site_id) {
+        siteId = userSiteData.default_site_id
+      } else {
+        // Fallback to default site creation
+        const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
+        siteId = defaultSiteId || organizationId
+      }
     }
   }
 
@@ -83,7 +95,7 @@ export default async function MonitoringPage() {
             Real-time environmental conditions across all cultivation pods
           </p>
         </div>
-        <NotificationsPanel userId={userId} />
+        <MonitoringAlarmsPanel siteId={siteId} />
       </div>
 
       <FleetMonitoringDashboard

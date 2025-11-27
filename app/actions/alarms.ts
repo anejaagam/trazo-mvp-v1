@@ -146,6 +146,7 @@ export async function resolveAlarm(
     
     // Auto-acknowledge if not already acknowledged
     const updates: Partial<Alarm> = {
+      status: 'resolved',
       resolved_at: new Date().toISOString(),
       resolved_by: user.id,
       resolution_note: resolutionNote || null,

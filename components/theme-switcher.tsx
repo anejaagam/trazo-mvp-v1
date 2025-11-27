@@ -21,12 +21,17 @@ const ThemeSwitcher = () => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
-
   const MAIN_ICON_SIZE = 28; // Larger size for the main button
   const DROPDOWN_ICON_SIZE = 16; // Smaller size for dropdown items
+
+  // Show placeholder with same dimensions to prevent layout shift
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size={"sm"} className="text-white/90 hover:text-white hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20">
+        <Sun size={MAIN_ICON_SIZE} className="opacity-100" />
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>

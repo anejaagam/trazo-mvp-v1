@@ -118,7 +118,7 @@ export default async function DashboardPage() {
         )
       )
     `)
-    .eq('status', 'active')
+    .in('status', ['triggered', 'escalated'])
     .order('triggered_at', { ascending: false })
     .limit(3)
 
@@ -130,7 +130,33 @@ export default async function DashboardPage() {
 
   const { data: activeAlarms, error: alarmsError } = await alarmsQuery
   
-  const activeAlarmsCount = activeAlarms?.length || 0
+  // Get total alarm count (excluding info severity for the stat card)
+  let alarmCountQuery = supabase
+    .from('alarms')
+    .select(`
+      id,
+      pods!inner(
+        id,
+        rooms!inner(
+          id,
+          sites!inner(
+            id,
+            organization_id
+          )
+        )
+      )
+    `)
+    .in('status', ['triggered', 'escalated'])
+    .in('severity', ['warning', 'critical'])
+
+  if (!isAllSitesMode && siteId) {
+    alarmCountQuery = alarmCountQuery.eq('pods.rooms.sites.id', siteId)
+  } else {
+    alarmCountQuery = alarmCountQuery.eq('pods.rooms.sites.organization_id', organizationId)
+  }
+
+  const { data: alarmCountData } = await alarmCountQuery
+  const activeAlarmsCount = alarmCountData?.length || 0
 
   // Get inventory items - filter by organization_id instead of site_id for RLS
   const { data: allInventory, error: inventoryError } = await supabase

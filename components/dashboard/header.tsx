@@ -81,7 +81,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
   }, [user.id, user.organization?.id])
 
   // Use hooks to get real-time counts
-  const { activeCount: alarmCount } = useAlarms({
+  const { activeCount: alarmCount, alarms } = useAlarms({
     realtime: true,
     status: 'active',
   })
@@ -137,7 +137,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 >
                   <Bell className="h-7 w-7" />
                   {totalCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 border-0 text-[10px]">
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 hover:bg-red-500 border-0 text-[10px] pointer-events-none">
                       {totalCount > 9 ? '9+' : totalCount}
                     </Badge>
                   )}
@@ -155,16 +155,66 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
               <DropdownMenuSeparator />
 
               {alarmCount > 0 && (
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/alarms" className="flex items-center gap-2 py-3 cursor-pointer">
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                    <div className="flex-1">
-                      <div className="font-medium text-red-600">{alarmCount} Active Alarm{alarmCount !== 1 ? 's' : ''}</div>
-                      <div className="text-xs text-muted-foreground">Requires immediate attention</div>
-                    </div>
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuLabel className="text-red-600 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    {alarmCount} Active Alarm{alarmCount !== 1 ? 's' : ''}
+                  </DropdownMenuLabel>
+                  {alarms.slice(0, 3).map((alarm) => {
+                    const isCritical = alarm.severity === 'critical';
+                    const isWarning = alarm.severity === 'warning';
+                    const podName = alarm.pod?.name || 'Unknown Pod';
+                    const roomName = alarm.room?.name || '';
+                    const location = roomName ? `${roomName} → ${podName}` : podName;
+                    
+                    return (
+                      <DropdownMenuItem key={alarm.id} asChild className="p-0 focus:bg-transparent">
+                        <Link
+                          href="/dashboard/alarms"
+                          className={`flex flex-col items-start gap-1 py-3 px-3 cursor-pointer w-full ${
+                            isCritical
+                              ? 'bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 hover:from-red-100 hover:to-orange-100'
+                              : isWarning
+                                ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-500 hover:from-yellow-100 hover:to-amber-100'
+                                : 'bg-blue-50/50 border-l-4 border-blue-400 hover:bg-blue-100/50'
+                          }`}
+                        >
+                          <div className={`font-medium text-sm ${
+                            isCritical ? 'text-red-900' : isWarning ? 'text-yellow-900' : 'text-blue-900'
+                          }`}>
+                            {alarm.message}
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge 
+                              variant={isCritical ? 'destructive' : 'outline'} 
+                              className={`text-xs capitalize ${
+                                isCritical 
+                                  ? 'bg-red-600 text-white' 
+                                  : isWarning
+                                    ? 'bg-yellow-100 text-yellow-900 border-yellow-400'
+                                    : 'bg-blue-100 text-blue-900 border-blue-400'
+                              }`}
+                            >
+                              {alarm.severity}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{location}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(alarm.triggered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {alarmCount > 3 && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/alarms" className="text-center py-2 text-sm text-red-600 font-medium cursor-pointer">
+                        + {alarmCount - 3} more alarm{alarmCount - 3 !== 1 ? 's' : ''}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                </>
               )}
 
               {notifications.slice(0, 3).map((notification) => {
@@ -172,17 +222,17 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 const isMediumUrgency = notification.urgency === 'medium';
                 
                 return (
-                  <DropdownMenuItem key={notification.id} asChild>
+                  <DropdownMenuItem key={notification.id} asChild className="p-0 focus:bg-transparent">
                     <Link
                       href={notification.link_url || '/dashboard/alarms'}
-                      className={`flex flex-col items-start gap-2 py-3 px-3 cursor-pointer relative overflow-hidden ${
+                      className={`flex flex-col items-start gap-2 py-3 px-3 cursor-pointer relative overflow-hidden w-full ${
                         !notification.read_at && isHighUrgency
-                          ? 'bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500'
+                          ? 'bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 hover:from-red-100 hover:to-orange-100'
                           : !notification.read_at && isMediumUrgency
-                            ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-500'
+                            ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-l-4 border-yellow-500 hover:from-yellow-100 hover:to-amber-100'
                             : !notification.read_at
-                              ? 'bg-blue-50/50 border-l-4 border-blue-500'
-                              : ''
+                              ? 'bg-blue-50/50 border-l-4 border-blue-500 hover:bg-blue-100/50'
+                              : 'hover:bg-gray-100'
                       }`}
                     >
                       <div className={`font-semibold text-sm ${

@@ -168,7 +168,7 @@ export function WasteRecordingForm({
       waste_type: 'other',
       disposal_method: 'landfill',
       unit_of_measure: 'kg',
-      quantity: 0,
+      quantity: '' as unknown as number,
       disposed_at: (() => {
         const now = new Date()
         const year = now.getFullYear()
@@ -635,9 +635,10 @@ export function WasteRecordingForm({
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="0.00"
+                      placeholder="Enter quantity"
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      value={field.value === 0 || field.value ? field.value : ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -939,7 +940,8 @@ export function WasteRecordingForm({
             <div className="flex items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
+                className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700 hover:bg-emerald-50"
                 onClick={() => document.getElementById('photo-upload')?.click()}
                 disabled={uploadingPhoto}
               >
@@ -1248,7 +1250,7 @@ export function WasteRecordingForm({
           <div className="flex justify-between">
             <div>
               {step > 1 && (
-                <Button type="button" variant="outline" onClick={handleBack}>
+                <Button type="button" variant="ghost" onClick={handleBack} className="gap-2 px-4 text-emerald-600 transition duration-300 hover:text-emerald-700 hover:bg-emerald-50">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>

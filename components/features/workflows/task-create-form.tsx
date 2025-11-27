@@ -384,7 +384,6 @@ export default function TaskCreateForm({
       schedule_mode: scheduleMode,
       recurring_pattern: scheduleMode === 'recurring' ? recurringPattern : undefined,
       recurring_config: recurringConfig,
-      requires_execution: requiresExecution || undefined,
       requires_approval: requiresApproval || undefined,
       approval_role: requiresApproval ? approvalRole : undefined,
       batch_id: batchId || undefined,

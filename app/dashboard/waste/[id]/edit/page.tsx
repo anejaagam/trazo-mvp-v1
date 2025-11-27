@@ -24,8 +24,9 @@ import { isEditable } from '@/types/waste'
 export default async function EditWastePage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   let userRole: string
   let siteId: string
   let organizationId: string
@@ -89,7 +90,7 @@ export default async function EditWastePage({
       performer:users!waste_logs_performed_by_fkey(id, full_name),
       witness:users!waste_logs_witnessed_by_fkey(id, full_name)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (wasteError || !wasteLog) {
@@ -101,7 +102,7 @@ export default async function EditWastePage({
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href={`/dashboard/waste/${params.id}`}>
+          <Link href={`/dashboard/waste/${id}`}>
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Details
@@ -116,7 +117,7 @@ export default async function EditWastePage({
           </AlertDescription>
         </Alert>
 
-        <Link href={`/dashboard/waste/${params.id}`}>
+        <Link href={`/dashboard/waste/${id}`}>
           <Button>View Details</Button>
         </Link>
       </div>
@@ -125,7 +126,7 @@ export default async function EditWastePage({
 
   // Fetch available batches (active batches only)
   const { data: batches } = await getBatches(organizationId, siteId, {
-    status: ['active', 'in_progress'],
+    status: ['active'],
   })
 
   // Fetch available inventory items
@@ -160,7 +161,7 @@ export default async function EditWastePage({
     <div className="space-y-6">
       {/* Header with Back Button */}
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/waste/${params.id}`}>
+        <Link href={`/dashboard/waste/${id}`}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Details

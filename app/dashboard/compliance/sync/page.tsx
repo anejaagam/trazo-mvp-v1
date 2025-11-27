@@ -81,7 +81,7 @@ export default async function ComplianceSyncPage() {
           <MetrcSyncDashboard
             sites={sites || []}
             syncLogs={syncLogs}
-            canSync={canPerformAction(userData.role, 'compliance:sync')}
+            canSync={canPerformAction(userData.role, 'compliance:sync').allowed}
           />
         </TabsContent>
 

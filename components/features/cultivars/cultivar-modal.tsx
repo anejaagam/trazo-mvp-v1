@@ -202,7 +202,7 @@ export function CultivarModal({ open, onOpenChange, cultivar, onSave, plantType 
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
+        <Form {...(form as any)}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {plantType === 'cannabis' ? (
               <CannabisFields form={cannabisForm} disabled={isEdit && isLocked} />

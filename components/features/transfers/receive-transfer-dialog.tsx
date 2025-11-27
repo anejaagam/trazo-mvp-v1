@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -163,7 +163,7 @@ export function ReceiveTransferDialog({
               id="receivedDateTime"
               type="datetime-local"
               value={receivedDateTime}
-              onChange={(e) => setReceivedDateTime(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReceivedDateTime(e.target.value)}
             />
           </div>
 
@@ -211,7 +211,7 @@ export function ReceiveTransferDialog({
                             step="0.01"
                             placeholder={pkg.quantity.toString()}
                             value={status.receivedQuantity ?? ''}
-                            onChange={(e) =>
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                               updateReceivedQuantity(pkg.packageLabel, Number(e.target.value))
                             }
                             className="h-8"

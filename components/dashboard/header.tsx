@@ -98,18 +98,8 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
 
   return (
     <header className={`${className} bg-green-900`}>
-      <div className="relative flex items-center justify-between h-16 pl-6 pr-0">
+      <div className="relative flex items-center justify-between h-16 pl-0 pr-0">
         {/* Left: Site Selector */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
-            <Menu className="h-5 w-5" />
-          </Button>
-
-          {/* Site Selector */}
-          <div className="border-l border-white/20 pl-4 ml-2">
-            <SiteSelector className="text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]" />
-          </div>
-        </div>
 
         {/* Center: Navigation - offset to account for sidebar */}
         <nav className="hidden lg:flex items-center gap-2 absolute left-[calc(50%-120px)] -translate-x-1/2">
@@ -178,8 +168,8 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
               )}
 
               {notifications.slice(0, 3).map((notification) => {
-                const isHighUrgency = notification.urgency === 'high' || notification.severity === 'critical';
-                const isMediumUrgency = notification.urgency === 'medium' || notification.severity === 'warning';
+                const isHighUrgency = notification.urgency === 'high';
+                const isMediumUrgency = notification.urgency === 'medium';
                 
                 return (
                   <DropdownMenuItem key={notification.id} asChild>
@@ -215,7 +205,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                         >
                           {notification.category}
                         </Badge>
-                        {(notification.urgency || notification.severity) && (
+                        {notification.urgency && (
                           <Badge 
                             variant="secondary" 
                             className={`text-xs uppercase font-semibold ${
@@ -224,7 +214,7 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                               'bg-blue-100 text-blue-800'
                             }`}
                           >
-                            {notification.urgency || notification.severity}
+                            {notification.urgency}
                           </Badge>
                         )}
                         <span className="text-xs text-muted-foreground">
@@ -258,11 +248,21 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
             </DropdownMenuContent>
             </DropdownMenu>
 
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
+            <Menu className="h-5 w-5" />
+          </Button>
+
+          {/* Site Selector */}
+          <div className="">
+            <SiteSelector className="text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]" />
+          </div>
+        </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="text-white hover:bg-white/10 gap-1.5 h-9 !bg-transparent dark:!bg-transparent dark:hover:!bg-white/10 rounded-md px-2"
+                  className="text-white/90 hover:text-white hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20"
                 >
                   <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center">
                     <User className="h-4 w-4" />

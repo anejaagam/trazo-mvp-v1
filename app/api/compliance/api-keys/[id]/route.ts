@@ -9,9 +9,10 @@ import { deleteComplianceApiKey } from '@/lib/supabase/queries/compliance'
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createClient()
 
     const {
@@ -38,7 +39,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { error } = await deleteComplianceApiKey(params.id)
+    const { error } = await deleteComplianceApiKey(id)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

@@ -192,15 +192,14 @@ export default async function BatchPage(props: BatchPageProps) {
         })
       }
 
-      const targetSummary =
+      const targetSummary: Record<string, number> =
         row.movement_type === 'receive' ? receivedSummary : consumedSummary
-      targetSummary[row.item.item_type] = (targetSummary[row.item.item_type] || 0) + quantity
+      const itemType = row.item.item_type as string
+      targetSummary[itemType] = (targetSummary[itemType] || 0) + quantity
     })
 
     batchDetail.inventory_usage = {
       entries: Array.from(entriesMap.values()),
-      total_items_consumed: Object.keys(consumedSummary).length,
-      total_items_received: Object.keys(receivedSummary).length,
       summary: {
         consumed_by_type: consumedSummary,
         received_by_type: receivedSummary,

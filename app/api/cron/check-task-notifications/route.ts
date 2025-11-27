@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
     console.log('[CRON] Task notification check complete:', result)
     
     return NextResponse.json({
-      success: true,
       ...result,
+      success: true,
       timestamp: new Date().toISOString()
     })
   } catch (error) {

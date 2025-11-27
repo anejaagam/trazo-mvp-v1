@@ -5,6 +5,7 @@ import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
 import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export default async function InventoryItemsPage() {
   let userId: string
@@ -50,10 +51,14 @@ export default async function InventoryItemsPage() {
 
     // Get site_id from site context (cookie-based)
     const contextSiteId = await getServerSiteId()
-    if (contextSiteId && contextSiteId !== 'all') {
+    if (contextSiteId === ALL_SITES_ID) {
+      // Org admin viewing all sites - pass the special ID
+      // Components will handle aggregate data fetching
+      siteId = ALL_SITES_ID
+    } else if (contextSiteId) {
       siteId = contextSiteId
     } else {
-      // Fallback to default site if no site selected or "all sites" mode
+      // Fallback to default site if no site selected
       const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
       siteId = defaultSiteId || organizationId
     }

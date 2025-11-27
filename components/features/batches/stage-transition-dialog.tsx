@@ -14,7 +14,7 @@ import { Info, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
 import type { JurisdictionId } from '@/lib/jurisdiction/types'
 import type { BatchStage } from '@/types/batch'
-import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
+import type { BatchDetail } from '@/lib/supabase/queries/batches-client'
 import { transitionBatchStage } from '@/lib/supabase/queries/batches-client'
 import { toast } from 'sonner'
 import { isDevModeActive } from '@/lib/dev-mode'
@@ -23,13 +23,17 @@ import {
   requiresMetrcPhaseChange
 } from '@/lib/compliance/metrc/validation/phase-transition-rules'
 
+interface RecipeStage {
+  stage_type?: string | null | undefined
+}
+
 const schema = z.object({
   newStage: z.string().min(1, 'Select a stage'),
   notes: z.string().optional().nullable(),
 })
 
 interface StageTransitionDialogProps {
-  batch: BatchListItem
+  batch: BatchDetail
   isOpen: boolean
   onClose: () => void
   onTransition: () => void
@@ -119,22 +123,22 @@ export function StageTransitionDialog({
   const stageOptions = useMemo(() => {
     // If batch has an active recipe, show next stages from the recipe
     if (batch.active_recipe && batch.active_recipe_detail?.stages) {
-      const stages = batch.active_recipe_detail.stages
+      const stages: RecipeStage[] = batch.active_recipe_detail.stages
       const currentStageIndex = stages.findIndex(
-        (s) => s.stage_type === batch.stage
+        (s: RecipeStage) => s.stage_type === batch.stage
       )
       
       // If current stage found in recipe, show subsequent stages
       if (currentStageIndex !== -1 && currentStageIndex < stages.length - 1) {
         return stages
           .slice(currentStageIndex + 1)
-          .map((s) => s.stage_type)
+          .map((s: RecipeStage) => s.stage_type)
           .filter((stage): stage is string => stage !== null && stage !== undefined)
       }
       
       // If current stage not in recipe or is last stage, show all recipe stages except current
       return stages
-        .map((s) => s.stage_type)
+        .map((s: RecipeStage) => s.stage_type)
         .filter((stage): stage is string => 
           stage !== null && stage !== undefined && stage !== batch.stage
         )
@@ -187,7 +191,7 @@ export function StageTransitionDialog({
   }
 
   const getMetrcPhaseLabel = (stage: string): string | null => {
-    const phase = mapStageToMetrcPhase(stage)
+    const phase = mapStageToMetrcPhase(stage as BatchStage)
     return phase ? `Metrc: ${phase}` : null
   }
 

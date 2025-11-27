@@ -355,7 +355,7 @@ function ReceiveTagsDialog({
   }
 
   return (
-    <Dialog open={open} onValueChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
           <Upload className="h-4 w-4 mr-2" />

@@ -74,7 +74,7 @@ export default async function RecordWastePage() {
 
   // Fetch available batches (active batches only)
   const { data: batches } = await getBatches(organizationId, siteId, {
-    status: ['active', 'in_progress'],
+    status: ['active'],
   })
 
   // Fetch available inventory items

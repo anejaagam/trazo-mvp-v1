@@ -95,7 +95,7 @@ export function AssignTagsDialog({
       
       // Get available video devices
       const devices = await reader.listVideoInputDevices()
-      const selectedDeviceId = devices.length > 0 ? devices[0].deviceId : undefined
+      const selectedDeviceId = devices.length > 0 ? devices[0].deviceId : null
       
       // Start continuous scanning
       await reader.decodeFromVideoDevice(

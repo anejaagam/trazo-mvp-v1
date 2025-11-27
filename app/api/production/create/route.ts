@@ -1,37 +1,18 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createProductionBatch } from '@/lib/compliance/metrc/sync/production-batch-sync'
-import { getServerSiteId } from '@/lib/site/server'
-import { ALL_SITES_ID } from '@/lib/site/types'
+import {
+  authenticateWithSite,
+  isAuthError,
+  authErrorResponse,
+} from '@/lib/api/auth'
 import type { ProductionType } from '@/lib/compliance/metrc/validation/production-batch-rules'
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-
-    // Check authentication
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user's organization and default site
-    const { data: userData } = await supabase
-      .from('users')
-      .select('organization_id, default_site_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
     const body = await request.json()
-    let {
-      siteId,
-      organizationId,
+    const {
+      siteId: requestSiteId,
+      organizationId: requestOrgId,
       productionType,
       startedAt,
       expectedYield,
@@ -41,26 +22,26 @@ export async function POST(request: Request) {
       notes,
     } = body
 
-    // Use cookie context if siteId not provided
-    if (!siteId) {
-      const contextSiteId = await getServerSiteId()
-      if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
-        siteId = contextSiteId
-      } else {
-        siteId = userData.default_site_id
-      }
+    // Authenticate and validate site access
+    const authResult = await authenticateWithSite({
+      requestSiteId,
+      permission: 'batch:create',
+      allowAllSites: false, // Must select specific site for mutations
+    })
+
+    if (isAuthError(authResult)) {
+      return authErrorResponse(authResult)
     }
 
-    // Use user's organization if not provided
-    if (!organizationId) {
-      organizationId = userData.organization_id
-    }
+    const { user, siteContext } = authResult
+    const siteId = siteContext.siteId
+    const organizationId = requestOrgId || user.organizationId
 
     // Validate required fields
-    if (!siteId || !organizationId || !productionType || !startedAt) {
+    if (!productionType || !startedAt) {
       return NextResponse.json(
         {
-          error: 'Missing required fields: productionType, startedAt. Site context required.',
+          error: 'Missing required fields: productionType, startedAt',
         },
         { status: 400 }
       )
@@ -82,7 +63,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create production batch
+    // Create production batch with validated site context
     const result = await createProductionBatch({
       siteId,
       organizationId,

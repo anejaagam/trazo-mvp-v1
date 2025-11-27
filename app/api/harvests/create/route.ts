@@ -1,40 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createHarvest } from '@/lib/supabase/queries/harvests'
-import { getServerSiteId } from '@/lib/site/server'
-import { ALL_SITES_ID } from '@/lib/site/types'
+import {
+  authenticateWithSite,
+  isAuthError,
+  authErrorResponse,
+  validateResourceSite,
+} from '@/lib/api/auth'
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-
-    // Check authentication
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user's organization and default site
-    const { data: userData } = await supabase
-      .from('users')
-      .select('organization_id, default_site_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
     const body = await request.json()
-    let {
+    const {
       batchId,
-      organizationId,
+      organizationId: requestOrgId,
       wetWeight,
       dryWeight,
       wasteWeight,
@@ -46,26 +25,29 @@ export async function POST(request: Request) {
       notes,
     } = body
 
-    // Use user's organization if not provided
-    if (!organizationId) {
-      organizationId = userData.organization_id
-    }
-
-    // Validate required fields
-    if (!batchId || !organizationId || !wetWeight || !plantCount || !harvestedAt) {
+    // Validate required fields first
+    if (!batchId || !wetWeight || !plantCount || !harvestedAt) {
       return NextResponse.json(
         { error: 'Missing required fields: batchId, wetWeight, plantCount, harvestedAt' },
         { status: 400 }
       )
     }
 
-    // Get site context and verify batch belongs to current site
-    const contextSiteId = await getServerSiteId()
-    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
-      ? contextSiteId
-      : userData.default_site_id
+    // Authenticate and validate site access
+    const authResult = await authenticateWithSite({
+      permission: 'batch:update',
+      allowAllSites: false, // Must select specific site for mutations
+    })
 
-    // Verify the batch belongs to the current site context
+    if (isAuthError(authResult)) {
+      return authErrorResponse(authResult)
+    }
+
+    const { user, siteContext } = authResult
+    const organizationId = requestOrgId || user.organizationId
+    const supabase = await createClient()
+
+    // Verify the batch exists and get its site
     const { data: batch, error: batchError } = await supabase
       .from('batches')
       .select('site_id')
@@ -79,10 +61,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Ensure batch belongs to current site (unless org_admin in "all sites" mode)
-    if (currentSiteId && batch.site_id !== currentSiteId) {
+    // Validate batch belongs to user's current site
+    const resourceCheck = validateResourceSite(batch.site_id, siteContext)
+    if (!resourceCheck.valid) {
       return NextResponse.json(
-        { error: 'Batch does not belong to the selected site' },
+        { error: resourceCheck.error },
         { status: 403 }
       )
     }

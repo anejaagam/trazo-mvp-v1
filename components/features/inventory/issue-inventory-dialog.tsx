@@ -40,7 +40,7 @@ import {
 } from '@/lib/supabase/queries/inventory-lots-client'
 import { getBatches } from '@/lib/supabase/queries/batches-client'
 import type { InventoryItemWithStock } from '@/types/inventory'
-import type { BatchListItem } from '@/types/batch'
+import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
 import { isDevModeActive } from '@/lib/dev-mode'
 import type { RoleKey } from '@/lib/rbac/types'
 

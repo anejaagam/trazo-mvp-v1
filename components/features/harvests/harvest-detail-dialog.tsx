@@ -673,7 +673,7 @@ export function HarvestDetailDialog({
                                       </div>
                                     ))}
                                   </div>
-                                  {idx < harvest.packages.length - 1 && (
+                                  {idx < (harvest.packages?.length ?? 0) - 1 && (
                                     <div className="ml-4 border-l-2 h-6"></div>
                                   )}
                                 </>

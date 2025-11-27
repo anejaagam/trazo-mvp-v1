@@ -332,8 +332,8 @@ export interface MonthlyWaste {
   month: string
   total_waste_kg: number
   waste_count: number
-  by_type: Record<WasteType, number>
-  by_source: Record<SourceType, number>
+  by_type: Partial<Record<WasteType, number>>
+  by_source: Partial<Record<SourceType, number>>
 }
 
 /**

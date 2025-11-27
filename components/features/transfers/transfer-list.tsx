@@ -251,7 +251,13 @@ export function TransferList({ organizationId, siteId, onTransferSelect }: Trans
                           <ReceiveTransferDialog
                             manifestId={transfer.id}
                             manifestNumber={transfer.manifest_number}
-                            packages={transfer.packages || []}
+                            packages={(transfer.packages || []).map(pkg => ({
+                              id: pkg.id,
+                              packageLabel: pkg.package_label,
+                              itemName: pkg.item_name,
+                              quantity: pkg.quantity,
+                              unitOfMeasure: pkg.unit_of_measure,
+                            }))}
                             onReceived={loadTransfers}
                             trigger={
                               <Button size="sm" variant="outline">

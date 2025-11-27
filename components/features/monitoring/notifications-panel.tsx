@@ -288,9 +288,9 @@ export function NotificationsPanel({ userId }: NotificationsPanelProps) {
                                     : 'bg-blue-50 text-blue-700 border-blue-300'
                               }`}
                             >
-                              {getUrgencyIcon(notification.urgency, notification.severity)}
+                              {getUrgencyIcon(notification.urgency || 'medium', undefined)}
                               <span className="uppercase tracking-wide">
-                                {notification.urgency || notification.severity}
+                                {notification.urgency}
                               </span>
                             </Badge>
 

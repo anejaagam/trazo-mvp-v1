@@ -9,8 +9,9 @@ import { getServerSiteId } from '@/lib/site/server'
 export default async function WasteLogDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   let userRole: string
   let siteId: string
   let userId: string
@@ -24,7 +25,7 @@ export default async function WasteLogDetailPage({
     
     return (
       <WasteDetailsPage
-        wasteLogId={params.id}
+        wasteLogId={id}
         userId={userId}
         userRole={userRole}
         siteId={siteId}
@@ -73,7 +74,7 @@ export default async function WasteLogDetailPage({
 
   return (
     <WasteDetailsPage
-      wasteLogId={params.id}
+      wasteLogId={id}
       userId={userId}
       userRole={userRole}
       siteId={siteId}

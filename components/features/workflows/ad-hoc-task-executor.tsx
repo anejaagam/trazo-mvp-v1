@@ -29,10 +29,10 @@ export function AdHocTaskExecutor({
     setIsCompleting(true);
     try {
       const evidence: TaskEvidence[] = notes ? [{
-        step_id: 'ad-hoc-notes',
+        stepId: 'ad-hoc-notes',
+        type: 'text',
+        value: notes,
         timestamp: new Date().toISOString(),
-        notes,
-        captured_by: task.assignee_id || '',
       }] : [];
       
       await onComplete(evidence);
@@ -48,10 +48,10 @@ export function AdHocTaskExecutor({
     setIsSaving(true);
     try {
       const evidence: TaskEvidence[] = notes ? [{
-        step_id: 'ad-hoc-notes',
+        stepId: 'ad-hoc-notes',
+        type: 'text',
+        value: notes,
         timestamp: new Date().toISOString(),
-        notes,
-        captured_by: task.assignee_id || '',
       }] : [];
       
       await onSaveDraft(evidence, 0);

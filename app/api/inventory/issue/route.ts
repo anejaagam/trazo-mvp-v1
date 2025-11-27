@@ -3,13 +3,17 @@
  * POST /api/inventory/issue
  *
  * Site context: Uses cookie-based site context if site_id not provided in body.
+ * Validates user has access to the site via site_assignments.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { canPerformAction } from '@/lib/rbac/guards'
-import { getServerSiteId } from '@/lib/site/server'
-import { ALL_SITES_ID } from '@/lib/site/types'
+import {
+  authenticateWithSite,
+  isAuthError,
+  authErrorResponse,
+  validateResourceSite,
+} from '@/lib/api/auth'
 import type { InsertInventoryMovement } from '@/types/inventory'
 
 interface IssueInventoryRequest {
@@ -32,61 +36,24 @@ interface IssueInventoryRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Get user role and default site
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role, default_site_id')
-      .eq('id', user.id)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check permissions
-    if (!canPerformAction(userData.role, 'inventory:update')) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      )
-    }
-
-    // Parse request body
+    // Parse request body first
     const body: IssueInventoryRequest = await request.json()
 
-    // Determine site_id: use body.site_id if provided, otherwise use cookie context or default
-    let siteId = body.site_id
-    if (!siteId) {
-      const contextSiteId = await getServerSiteId()
-      if (contextSiteId && contextSiteId !== ALL_SITES_ID) {
-        siteId = contextSiteId
-      } else {
-        siteId = userData.default_site_id
-      }
+    // Authenticate and validate site access
+    const authResult = await authenticateWithSite({
+      requestSiteId: body.site_id,
+      permission: 'inventory:update',
+      allowAllSites: false, // Must select specific site for mutations
+    })
+
+    if (isAuthError(authResult)) {
+      return authErrorResponse(authResult)
     }
 
-    if (!siteId) {
-      return NextResponse.json(
-        { error: 'No site context available. Please select a site.' },
-        { status: 400 }
-      )
-    }
+    const { user, siteContext } = authResult
+    const supabase = await createClient()
 
-    // Verify the item belongs to the selected site
+    // Verify the item exists and belongs to the current site
     const { data: itemCheck, error: itemCheckError } = await supabase
       .from('inventory_items')
       .select('site_id')
@@ -100,9 +67,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (itemCheck.site_id !== siteId) {
+    // Validate item belongs to user's current site
+    const resourceCheck = validateResourceSite(itemCheck.site_id, siteContext)
+    if (!resourceCheck.valid) {
       return NextResponse.json(
-        { error: 'Item does not belong to the selected site' },
+        { error: resourceCheck.error },
         { status: 403 }
       )
     }

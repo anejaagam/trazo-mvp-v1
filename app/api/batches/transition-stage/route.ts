@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { transitionBatchStage } from '@/lib/supabase/queries/batches'
 import { willTriggerMetrcPhaseSync } from '@/lib/compliance/metrc/sync/batch-phase-sync'
-import { getServerSiteId } from '@/lib/site/server'
-import { ALL_SITES_ID } from '@/lib/site/types'
+import {
+  authenticateWithSite,
+  isAuthError,
+  authErrorResponse,
+  validateResourceSite,
+} from '@/lib/api/auth'
 
 /**
  * POST /api/batches/transition-stage
@@ -13,37 +17,6 @@ import { ALL_SITES_ID } from '@/lib/site/types'
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient()
-
-    // Authenticate user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user's default site
-    const { data: userData } = await supabase
-      .from('users')
-      .select('organization_id, default_site_id')
-      .eq('id', user.id)
-      .single()
-
-    if (!userData) {
-      return NextResponse.json(
-        { success: false, message: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    // Get site context
-    const contextSiteId = await getServerSiteId()
-    const currentSiteId = (contextSiteId && contextSiteId !== ALL_SITES_ID)
-      ? contextSiteId
-      : userData.default_site_id
-
     // Parse request body
     const body = await request.json()
     const { batchId, newStage, notes, newLocation } = body
@@ -63,6 +36,19 @@ export async function POST(request: Request) {
       )
     }
 
+    // Authenticate and validate site access
+    const authResult = await authenticateWithSite({
+      permission: 'batch:update',
+      allowAllSites: false, // Must select specific site for mutations
+    })
+
+    if (isAuthError(authResult)) {
+      return authErrorResponse(authResult)
+    }
+
+    const { user, siteContext } = authResult
+    const supabase = await createClient()
+
     // Get current batch to validate domain, stage, and site
     const { data: batch, error: batchError } = await supabase
       .from('batches')
@@ -77,10 +63,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // Validate batch belongs to current site context
-    if (currentSiteId && batch.site_id !== currentSiteId) {
+    // Validate batch belongs to user's current site
+    const resourceCheck = validateResourceSite(batch.site_id, siteContext)
+    if (!resourceCheck.valid) {
       return NextResponse.json(
-        { success: false, message: 'Batch does not belong to the selected site' },
+        { success: false, message: resourceCheck.error },
         { status: 403 }
       )
     }

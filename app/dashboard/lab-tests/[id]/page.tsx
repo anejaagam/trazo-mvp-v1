@@ -5,12 +5,13 @@ import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function LabTestDetailPage({ params }: PageProps) {
+  const { id } = await params
   let userRole: string
   let userId: string
   let organizationId: string
@@ -59,7 +60,7 @@ export default async function LabTestDetailPage({ params }: PageProps) {
 
   return (
     <LabTestDetailView
-      testId={params.id}
+      testId={id}
       userId={userId}
       userRole={userRole}
       organizationId={organizationId}

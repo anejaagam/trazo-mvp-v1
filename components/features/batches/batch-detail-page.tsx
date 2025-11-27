@@ -176,7 +176,7 @@ export function BatchDetailPage({
 
   const tagCount = detail.metrc_plant_labels?.length ?? 0
 
-  const pushToMetrcAction = can('compliance:push') ? (
+  const pushToMetrcAction = can('compliance:sync') ? (
     <PushBatchToMetrcButton
       batchId={detail.id}
       batchNumber={detail.batch_number}
@@ -339,7 +339,7 @@ export function BatchDetailPage({
                   batchId={detail.id}
                   siteId={detail.site_id}
                   startDate={detail.start_date}
-                  expectedHarvestDate={detail.expected_harvest_date}
+                  expectedHarvestDate={detail.expected_harvest_date ?? null}
                   notes={detail.notes}
                 />
               </div>

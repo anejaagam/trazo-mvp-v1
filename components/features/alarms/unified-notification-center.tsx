@@ -26,8 +26,11 @@ import {
   Calendar,
   Thermometer,
   ExternalLink,
+  Clock,
+  Trash2,
 } from 'lucide-react';
 import { acknowledgeAlarm, resolveAlarm } from '@/app/actions/alarms';
+import { clearCompletedTaskNotificationsClient } from '@/lib/supabase/queries/notifications-client';
 import { useState, useEffect } from 'react';
 import type { Notification } from '@/types/telemetry';
 import Link from 'next/link';
@@ -78,6 +81,64 @@ function getUrgencyColor(urgency: string) {
   }
 }
 
+// Helper to determine task status display
+function getTaskStatusDisplay(notification: Notification): {
+  status: 'awaiting_approval' | 'approved' | 'completed' | 'pending';
+  label: string;
+  color: string;
+} | null {
+  if (notification.category !== 'task') return null;
+  
+  const taskStatus = notification.metadata?.task_status as string | undefined;
+  
+  // Check if task is in pending_approval state
+  if (taskStatus === 'pending_approval') {
+    return {
+      status: 'awaiting_approval',
+      label: 'Awaiting Approval',
+      color: 'bg-amber-500'
+    };
+  }
+  
+  // Check if task is approved
+  if (taskStatus === 'approved') {
+    return {
+      status: 'approved',
+      label: 'Approved',
+      color: 'bg-green-600'
+    };
+  }
+  
+  // Check if task is completed or done (doesn't require approval)
+  if (taskStatus === 'completed' || taskStatus === 'done') {
+    return {
+      status: 'completed',
+      label: 'Completed',
+      color: 'bg-green-600'
+    };
+  }
+  
+  // Check if task was rejected
+  if (taskStatus === 'rejected') {
+    return {
+      status: 'pending',
+      label: 'Rejected',
+      color: 'bg-red-500'
+    };
+  }
+  
+  // Legacy check: if read_at is set but no task_status, treat as completed
+  if (notification.read_at && !taskStatus) {
+    return {
+      status: 'completed',
+      label: 'Completed',
+      color: 'bg-green-600'
+    };
+  }
+  
+  return null;
+}
+
 // Notification Card Component
 function NotificationCard({
   notification,
@@ -87,10 +148,16 @@ function NotificationCard({
   onMarkAsRead: (id: string) => void;
 }) {
   const isUnread = !notification.read_at;
-  const isTaskCompleted = notification.category === 'task' && notification.read_at;
+  const taskStatusDisplay = getTaskStatusDisplay(notification);
+  const isTaskDone = taskStatusDisplay && ['approved', 'completed'].includes(taskStatusDisplay.status);
+  const isAwaitingApproval = taskStatusDisplay?.status === 'awaiting_approval';
 
   return (
-    <Card className={`${isUnread ? 'border-l-4 border-l-blue-500' : isTaskCompleted ? 'border-l-4 border-l-green-500 bg-green-50/30' : ''}`}>
+    <Card className={`${
+      isUnread ? 'border-l-4 border-l-blue-500' : 
+      isTaskDone ? 'border-l-4 border-l-green-500 bg-green-50/30' : 
+      isAwaitingApproval ? 'border-l-4 border-l-amber-500 bg-amber-50/30' : ''
+    }`}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1">
@@ -103,26 +170,35 @@ function NotificationCard({
                 <Badge variant={getUrgencyColor(notification.urgency) as any}>
                   {notification.urgency}
                 </Badge>
-                {isUnread && (
+                {isUnread && !taskStatusDisplay && (
                   <Badge variant="default" className="bg-blue-500">
                     New
                   </Badge>
                 )}
-                {isTaskCompleted && (
-                  <Badge variant="default" className="bg-green-600">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Completed
+                {taskStatusDisplay && (
+                  <Badge variant="default" className={taskStatusDisplay.color}>
+                    {taskStatusDisplay.status === 'awaiting_approval' ? (
+                      <Clock className="h-3 w-3 mr-1" />
+                    ) : (
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                    )}
+                    {taskStatusDisplay.label}
                   </Badge>
                 )}
               </div>
-              <p className={`text-sm ${isTaskCompleted ? 'line-through text-muted-foreground' : ''}`}>
+              <p className={`text-sm ${isTaskDone ? 'line-through text-muted-foreground' : ''}`}>
                 {notification.message}
               </p>
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span>{new Date(notification.sent_at).toLocaleString()}</span>
-                {isTaskCompleted && notification.read_at && (
+                {isTaskDone && notification.read_at && (
                   <span className="text-green-600 font-medium">
                     Completed {new Date(notification.read_at).toLocaleString()}
+                  </span>
+                )}
+                {isAwaitingApproval && (
+                  <span className="text-amber-600 font-medium">
+                    Pending manager approval
                   </span>
                 )}
                 {notification.link_url && (
@@ -137,7 +213,7 @@ function NotificationCard({
               </div>
             </div>
           </div>
-          {isUnread && !isTaskCompleted && (
+          {isUnread && !taskStatusDisplay && (
             <Button
               size="sm"
               variant="ghost"
@@ -236,6 +312,21 @@ export function UnifiedNotificationCenter({
     }
   };
 
+  const handleClearCompletedTasks = async () => {
+    const result = await clearCompletedTaskNotificationsClient(userId);
+    if (result.error) {
+      console.error('Failed to clear completed tasks:', result.error);
+      alert(`Failed to clear completed tasks: ${result.error}`);
+    } else {
+      refreshNotifications();
+    }
+  };
+
+  // Count completed task notifications
+  const completedTaskCount = notifications.filter(
+    n => n.category === 'task' && n.read_at
+  ).length;
+
   // Combine alarms and notifications for "All" view
   const filteredNotifications =
     activeTab === 'alarms' ? [] : notifications;
@@ -262,8 +353,24 @@ export function UnifiedNotificationCenter({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {completedTaskCount > 0 && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleClearCompletedTasks}
+              className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Completed ({completedTaskCount})
+            </Button>
+          )}
           {unreadCount > 0 && (
-            <Button size="sm" variant="outline" onClick={handleMarkAllRead}>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleMarkAllRead}
+              className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
+            >
               Mark All Read
             </Button>
           )}

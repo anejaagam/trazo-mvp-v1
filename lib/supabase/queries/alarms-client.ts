@@ -39,7 +39,9 @@ export async function getAlarmsClient(
       .from('alarms')
       .select(`
         *,
-        pod:pods!inner(id, name, room:rooms!inner(id, name, site_id))
+        pod:pods!inner(id, name, room_id, room:rooms!inner(id, name, site_id)),
+        acknowledged_by_user:users!alarms_acknowledged_by_fkey(id, email, full_name),
+        resolved_by_user:users!alarms_resolved_by_fkey(id, email, full_name)
       `)
       .order('triggered_at', { ascending: false });
 
@@ -53,7 +55,17 @@ export async function getAlarmsClient(
       query = query.eq('severity', filters.severity);
     }
     if (filters?.status) {
-      query = query.eq('status', filters.status);
+      // Map UI status values to database status values
+      // UI: 'active' = database: 'triggered' or 'escalated' (unresolved alarms)
+      // UI: 'acknowledged' = database: has acknowledged_at but no resolved_at
+      // UI: 'resolved' = database: 'resolved' or has resolved_at
+      if (filters.status === 'active') {
+        query = query.in('status', ['triggered', 'escalated']);
+      } else if (filters.status === 'acknowledged') {
+        query = query.not('acknowledged_at', 'is', null).is('resolved_at', null);
+      } else if (filters.status === 'resolved') {
+        query = query.not('resolved_at', 'is', null);
+      }
     }
     if (filters?.triggered_after) {
       query = query.gte('triggered_at', filters.triggered_after);
@@ -66,8 +78,20 @@ export async function getAlarmsClient(
 
     if (error) throw error;
 
+    // Transform nested data to match AlarmWithDetails type
+    const transformedData = (data || []).map((alarm: Record<string, unknown>) => {
+      const pod = alarm.pod as { id: string; name: string; room_id: string; room?: { id: string; name: string; site_id: string } } | null;
+      const room = pod?.room || { id: '', name: 'Unknown', site_id: '' };
+      
+      return {
+        ...alarm,
+        pod: pod ? { id: pod.id, name: pod.name, room_id: pod.room_id } : { id: '', name: 'Unknown', room_id: '' },
+        room: { id: room.id, name: room.name, site_id: room.site_id },
+      };
+    });
+
     return {
-      data: (data as AlarmWithDetails[]) || [],
+      data: transformedData as AlarmWithDetails[],
       error: null,
     };
   } catch (error) {
@@ -86,6 +110,14 @@ export async function getAlarmsClient(
 export async function getAlarmCountsBySeverityClient(
   siteId: string
 ): Promise<QueryResult<Record<AlarmSeverity, number>>> {
+  // Return empty counts if no siteId provided
+  if (!siteId) {
+    return { 
+      data: { critical: 0, warning: 0, info: 0 }, 
+      error: null 
+    };
+  }
+
   try {
     const supabase = createClient();
 

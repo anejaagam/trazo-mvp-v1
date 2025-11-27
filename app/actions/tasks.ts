@@ -408,11 +408,16 @@ export async function assignTaskAction(taskId: string, assignedTo: string) {
 export async function approveTaskAction(taskId: string, approvalNotes?: string) {
   const supabase = await createClient();
   
+  console.log(`[approveTaskAction] Starting approval for task ${taskId}`);
+  
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    console.log('[approveTaskAction] Error: Unauthorized - no user');
     return { error: 'Unauthorized' };
   }
+
+  console.log(`[approveTaskAction] User: ${user.id}`);
 
   // Get user role
   const { data: userData } = await supabase
@@ -422,11 +427,15 @@ export async function approveTaskAction(taskId: string, approvalNotes?: string) 
     .single();
 
   if (!userData) {
+    console.log('[approveTaskAction] Error: User not found in users table');
     return { error: 'User not found' };
   }
 
+  console.log(`[approveTaskAction] User role: ${userData.role}`);
+
   // Check basic permissions - require task:update permission
   if (!canPerformAction(userData.role, 'task:update').allowed) {
+    console.log('[approveTaskAction] Error: Permission denied');
     return { error: 'Permission denied - insufficient permissions to approve tasks' };
   }
 
@@ -434,15 +443,19 @@ export async function approveTaskAction(taskId: string, approvalNotes?: string) 
     // Verify task is in awaiting_approval status and get approval_role
     const { data: task } = await supabase
       .from('tasks')
-      .select('status, approval_role')
+      .select('status, approval_role, title')
       .eq('id', taskId)
       .single();
 
     if (!task) {
+      console.log('[approveTaskAction] Error: Task not found');
       return { error: 'Task not found' };
     }
 
+    console.log(`[approveTaskAction] Task "${task.title}" current status: ${task.status}`);
+
     if (task.status !== 'awaiting_approval') {
+      console.log(`[approveTaskAction] Error: Task status is ${task.status}, not awaiting_approval`);
       return { error: 'Task is not awaiting approval' };
     }
 
@@ -456,40 +469,47 @@ export async function approveTaskAction(taskId: string, approvalNotes?: string) 
 
     // User must have equal or higher rank than the required approval role
     if (task.approval_role && userRank < requiredRank) {
+      console.log(`[approveTaskAction] Error: User rank ${userRank} < required rank ${requiredRank}`);
       return { 
         error: `Permission denied - this task requires approval by ${task.approval_role.replace(/_/g, ' ')} or higher` 
       };
     }
 
     // Update task to approved status
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        status: 'approved',
-        approved_at: new Date().toISOString(),
-        approved_by: user.id,
-        completion_notes: approvalNotes 
-          ? `${approvalNotes}` 
-          : undefined
-      })
-      .eq('id', taskId);
-
-    if (error) throw error;
-
-    // Cascade unlock dependent tasks since approval completes the task
-    // This is handled in updateTask but we're doing a direct update here
-    // So we need to call it manually via a status update
-    const result = await updateTask({ id: taskId, status: 'approved' });
+    const updateData = {
+      status: 'approved' as const,
+      approved_at: new Date().toISOString(),
+      approved_by: user.id,
+      completion_notes: approvalNotes || null
+    };
     
-    if (result.error) {
-      console.error('Error cascading task unlock:', result.error);
+    console.log(`[approveTaskAction] Updating task with:`, updateData);
+
+    const { data: updatedTask, error } = await supabase
+      .from('tasks')
+      .update(updateData)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[approveTaskAction] Database error:', error);
+      throw error;
     }
+
+    console.log(`[approveTaskAction] Task updated successfully. New status: ${updatedTask?.status}`);
+
+    // Cascade unlock dependent tasks
+    const { cascadeUnlockDependentTasks } = await import('@/lib/supabase/queries/workflows');
+    await cascadeUnlockDependentTasks(taskId);
 
     revalidatePath('/dashboard/workflows');
     revalidatePath(`/dashboard/workflows/tasks/${taskId}`);
+    
+    console.log(`[approveTaskAction] Success! Task ${taskId} approved`);
     return { success: true };
   } catch (error) {
-    console.error('Error in approveTaskAction:', error);
+    console.error('[approveTaskAction] Error:', error);
     return { error: 'Failed to approve task' };
   }
 }
@@ -500,11 +520,16 @@ export async function approveTaskAction(taskId: string, approvalNotes?: string) 
 export async function rejectTaskAction(taskId: string, rejectionReason: string) {
   const supabase = await createClient();
   
+  console.log(`[rejectTaskAction] Starting rejection for task ${taskId}`);
+  
   // Check authentication
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    console.log('[rejectTaskAction] Error: Unauthorized - no user');
     return { error: 'Unauthorized' };
   }
+
+  console.log(`[rejectTaskAction] User: ${user.id}`);
 
   // Get user role
   const { data: userData } = await supabase
@@ -514,15 +539,20 @@ export async function rejectTaskAction(taskId: string, rejectionReason: string) 
     .single();
 
   if (!userData) {
+    console.log('[rejectTaskAction] Error: User not found in users table');
     return { error: 'User not found' };
   }
 
+  console.log(`[rejectTaskAction] User role: ${userData.role}`);
+
   // Check permissions - require task:update permission (managers and above)
   if (!canPerformAction(userData.role, 'task:update').allowed) {
+    console.log('[rejectTaskAction] Error: Permission denied');
     return { error: 'Permission denied - insufficient permissions to reject tasks' };
   }
 
   if (!rejectionReason?.trim()) {
+    console.log('[rejectTaskAction] Error: No rejection reason provided');
     return { error: 'Rejection reason is required' };
   }
 
@@ -530,15 +560,19 @@ export async function rejectTaskAction(taskId: string, rejectionReason: string) 
     // Verify task is in awaiting_approval status and get approval_role
     const { data: task } = await supabase
       .from('tasks')
-      .select('status, completion_notes, approval_role')
+      .select('status, title, completion_notes, approval_role')
       .eq('id', taskId)
       .single();
 
     if (!task) {
+      console.log('[rejectTaskAction] Error: Task not found');
       return { error: 'Task not found' };
     }
 
+    console.log(`[rejectTaskAction] Task "${task.title}" current status: ${task.status}`);
+
     if (task.status !== 'awaiting_approval') {
+      console.log(`[rejectTaskAction] Error: Task status is ${task.status}, not awaiting_approval`);
       return { error: 'Task is not awaiting approval' };
     }
 
@@ -551,29 +585,46 @@ export async function rejectTaskAction(taskId: string, rejectionReason: string) 
 
     // User must have equal or higher rank than the required approval role
     if (task.approval_role && userRank < requiredRank) {
+      console.log(`[rejectTaskAction] Error: User rank ${userRank} < required rank ${requiredRank}`);
       return { 
         error: `Permission denied - this task requires rejection by ${task.approval_role.replace(/_/g, ' ')} or higher` 
       };
     }
 
     // Update task to rejected status
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        status: 'rejected',
-        completion_notes: task.completion_notes 
-          ? `${task.completion_notes}\n\n--- REJECTED ---\nReason: ${rejectionReason}`
-          : `--- REJECTED ---\nReason: ${rejectionReason}`
-      })
-      .eq('id', taskId);
+    const updateData = {
+      status: 'rejected' as const,
+      rejected_at: new Date().toISOString(),
+      rejected_by: user.id,
+      rejection_reason: rejectionReason,
+      completion_notes: task.completion_notes 
+        ? `${task.completion_notes}\n\n--- REJECTED ---\nReason: ${rejectionReason}`
+        : `--- REJECTED ---\nReason: ${rejectionReason}`
+    };
+    
+    console.log(`[rejectTaskAction] Updating task with:`, { ...updateData, completion_notes: '[truncated]' });
 
-    if (error) throw error;
+    const { data: updatedTask, error } = await supabase
+      .from('tasks')
+      .update(updateData)
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[rejectTaskAction] Database error:', error);
+      throw error;
+    }
+
+    console.log(`[rejectTaskAction] Task updated successfully. New status: ${updatedTask?.status}`);
 
     revalidatePath('/dashboard/workflows');
     revalidatePath(`/dashboard/workflows/tasks/${taskId}`);
+    
+    console.log(`[rejectTaskAction] Success! Task ${taskId} rejected`);
     return { success: true };
   } catch (error) {
-    console.error('Error in rejectTaskAction:', error);
+    console.error('[rejectTaskAction] Error:', error);
     return { error: 'Failed to reject task' };
   }
 }

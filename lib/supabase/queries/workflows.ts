@@ -998,7 +998,7 @@ function aggregateEvidence(evidence: TaskEvidence[]): EvidenceAggregation {
 }
 
 // Unlock dependent tasks whose blocking prerequisites are now all done/approved
-async function cascadeUnlockDependentTasks(completedTaskId: string) {
+export async function cascadeUnlockDependentTasks(completedTaskId: string) {
   try {
     const supabase = await createClient();
     const { data: dependents } = await supabase

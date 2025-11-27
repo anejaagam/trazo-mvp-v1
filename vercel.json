@@ -5,6 +5,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/evaluate-alarms",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/advance-recipes",
       "schedule": "10 * * * *"
     },

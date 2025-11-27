@@ -56,11 +56,28 @@ export default async function AlarmsPage() {
   const userRole = userData.role;
   const organizationId = userData.organization_id || '';
 
+  // Get user's default site
+  const { data: userSiteData } = await supabase
+    .from('users')
+    .select('default_site_id')
+    .eq('id', user.id)
+    .single();
+
+  const defaultSiteId = userSiteData?.default_site_id || null;
+
   // Get site_id from site context (cookie-based)
   const contextSiteId = await getServerSiteId();
 
   // For "All Sites" mode, pass null so alarms from all sites are shown
-  const siteId = (contextSiteId === ALL_SITES_ID || !contextSiteId) ? null : contextSiteId;
+  // If no context site, fall back to user's default site
+  let siteId: string | null = null;
+  if (contextSiteId === ALL_SITES_ID) {
+    siteId = null; // All sites mode
+  } else if (contextSiteId) {
+    siteId = contextSiteId; // Use context site
+  } else if (defaultSiteId) {
+    siteId = defaultSiteId; // Fall back to default site
+  }
 
   console.log('[Alarms Page] User:', user.id, 'Role:', userRole, 'Site:', siteId);
 

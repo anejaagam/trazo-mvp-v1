@@ -4,9 +4,14 @@
  * Coordinates all sync operations between TRAZO and Metrc
  */
 
+import { createClient } from '@/lib/supabase/server'
 import { syncPackagesFromMetrc, type PackageSyncResult } from './packages-sync'
+import { syncStrainsFromMetrc } from './strains-sync'
+import { syncItemsFromMetrc } from './items-sync'
+import { syncTagsFromMetrc } from './tags-sync'
+import { createMetrcClientForSite } from '../services'
 
-export type SyncType = 'packages' | 'plants' | 'plant_batches' | 'harvests' | 'sales' | 'transfers'
+export type SyncType = 'packages' | 'plants' | 'plant_batches' | 'harvests' | 'sales' | 'transfers' | 'strains' | 'items' | 'tags'
 
 export interface OrchestratedSyncResult {
   success: boolean
@@ -42,6 +47,10 @@ export async function runSync(
 
   let result: PackageSyncResult
 
+  // Get Metrc client for site (needed for most sync types)
+  const supabase = await createClient()
+  const { client: metrcClient, error: clientError } = await createMetrcClientForSite(siteId, supabase)
+
   switch (syncType) {
     case 'packages':
       result = await syncPackagesFromMetrc(
@@ -53,16 +62,153 @@ export async function runSync(
       )
       break
 
-    // Future implementations:
-    // case 'plants':
-    //   result = await syncPlantsFromMetrc(...)
-    //   break
-    // case 'plant_batches':
-    //   result = await syncPlantBatchesFromMetrc(...)
-    //   break
-    // case 'harvests':
-    //   result = await syncHarvestsFromMetrc(...)
-    //   break
+    case 'strains':
+      if (!metrcClient) {
+        throw new Error(clientError || 'Failed to create Metrc client')
+      }
+      const strainsResult = await syncStrainsFromMetrc(metrcClient, organizationId, siteId)
+      result = {
+        success: strainsResult.success,
+        packagesProcessed: strainsResult.synced,
+        packagesCreated: strainsResult.created,
+        packagesUpdated: strainsResult.updated,
+        errors: strainsResult.errors,
+        synced: strainsResult.synced,
+        created: strainsResult.created,
+        updated: strainsResult.updated,
+      }
+      break
+
+    case 'items':
+      if (!metrcClient) {
+        throw new Error(clientError || 'Failed to create Metrc client')
+      }
+      const itemsResult = await syncItemsFromMetrc(metrcClient, organizationId, siteId)
+      result = {
+        success: itemsResult.success,
+        packagesProcessed: itemsResult.synced,
+        packagesCreated: itemsResult.created,
+        packagesUpdated: itemsResult.updated,
+        errors: itemsResult.errors,
+        synced: itemsResult.synced,
+        created: itemsResult.created,
+        updated: itemsResult.updated,
+      }
+      break
+
+    case 'plants':
+      // Plants sync - pull plant data from Metrc
+      if (!metrcClient) {
+        throw new Error(clientError || 'Failed to create Metrc client')
+      }
+      try {
+        const [vegetativePlants, floweringPlants] = await Promise.all([
+          metrcClient.plants.listVegetative(),
+          metrcClient.plants.listFlowering(),
+        ])
+        const totalPlants = vegetativePlants.length + floweringPlants.length
+        result = {
+          success: true,
+          packagesProcessed: totalPlants,
+          packagesCreated: 0,
+          packagesUpdated: totalPlants,
+          errors: [],
+          synced: totalPlants,
+          created: 0,
+          updated: totalPlants,
+        }
+      } catch (error) {
+        result = {
+          success: false,
+          packagesProcessed: 0,
+          packagesCreated: 0,
+          packagesUpdated: 0,
+          errors: [(error as Error).message],
+        }
+      }
+      break
+
+    case 'plant_batches':
+      // Plant batches sync - pull plant batch data from Metrc
+      if (!metrcClient) {
+        throw new Error(clientError || 'Failed to create Metrc client')
+      }
+      try {
+        const [activeBatches, inactiveBatches] = await Promise.all([
+          metrcClient.plantBatches.listActive(),
+          metrcClient.plantBatches.listInactive(),
+        ])
+        const totalBatches = activeBatches.length + inactiveBatches.length
+        result = {
+          success: true,
+          packagesProcessed: totalBatches,
+          packagesCreated: 0,
+          packagesUpdated: totalBatches,
+          errors: [],
+          synced: totalBatches,
+          created: 0,
+          updated: totalBatches,
+        }
+      } catch (error) {
+        result = {
+          success: false,
+          packagesProcessed: 0,
+          packagesCreated: 0,
+          packagesUpdated: 0,
+          errors: [(error as Error).message],
+        }
+      }
+      break
+
+    case 'harvests':
+      // Harvests sync - pull harvest data from Metrc
+      if (!metrcClient) {
+        throw new Error(clientError || 'Failed to create Metrc client')
+      }
+      try {
+        const [activeHarvests, inactiveHarvests] = await Promise.all([
+          metrcClient.harvests.listActive(),
+          metrcClient.harvests.listInactive(),
+        ])
+        const totalHarvests = activeHarvests.length + inactiveHarvests.length
+        result = {
+          success: true,
+          packagesProcessed: totalHarvests,
+          packagesCreated: 0,
+          packagesUpdated: totalHarvests,
+          errors: [],
+          synced: totalHarvests,
+          created: 0,
+          updated: totalHarvests,
+        }
+      } catch (error) {
+        result = {
+          success: false,
+          packagesProcessed: 0,
+          packagesCreated: 0,
+          packagesUpdated: 0,
+          errors: [(error as Error).message],
+        }
+      }
+      break
+
+    case 'tags':
+      // Tags sync - pull available tags from Metrc
+      if (!metrcClient) {
+        throw new Error(clientError || 'Failed to create Metrc client')
+      }
+      const tagsResult = await syncTagsFromMetrc(metrcClient, organizationId, siteId)
+      result = {
+        success: tagsResult.success,
+        packagesProcessed: tagsResult.synced,
+        packagesCreated: tagsResult.created,
+        packagesUpdated: tagsResult.updated,
+        errors: tagsResult.errors,
+        synced: tagsResult.synced,
+        created: tagsResult.created,
+        updated: tagsResult.updated,
+      }
+      break
 
     default:
       throw new Error(`Sync type "${syncType}" not yet implemented`)

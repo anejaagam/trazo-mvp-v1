@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Leaf, Sprout } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Plus, Leaf, Sprout, Link2, Unlink, RefreshCw, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { getCultivarsClient, createCultivarClient, updateCultivarClient, getCultivarUsageStatsClient, deleteCultivarClient, type CultivarUsageStats } from '@/lib/supabase/queries/cultivars-client'
 import type { Cultivar } from '@/types/batch'
 import type { InsertCultivar } from '@/lib/supabase/queries/cultivars'
@@ -17,6 +18,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import type { PlantType } from '@/lib/jurisdiction/types'
+import { useSite } from '@/hooks/use-site'
+
+interface CachedStrain {
+  id: string
+  metrc_strain_id: number
+  name: string
+  testing_status: string | null
+  thc_level: number | null
+  cbd_level: number | null
+  is_linked_to_cultivar: boolean
+}
 
 interface CultivarManagementProps {
   organizationId: string
@@ -24,6 +36,7 @@ interface CultivarManagementProps {
   isOpen: boolean
   onClose: () => void
   plantType: PlantType
+  siteId?: string
 }
 
 const cultivarSchema = z.object({
@@ -36,13 +49,23 @@ const cultivarSchema = z.object({
 
 type CultivarFormValues = z.infer<typeof cultivarSchema>
 
-export function CultivarManagement({ organizationId, userId, isOpen, onClose, plantType }: CultivarManagementProps) {
+export function CultivarManagement({ organizationId, userId, isOpen, onClose, plantType, siteId: propSiteId }: CultivarManagementProps) {
+  const { siteId: contextSiteId } = useSite()
+  const siteId = propSiteId || contextSiteId
+
   const [cultivars, setCultivars] = useState<Cultivar[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedCultivar, setSelectedCultivar] = useState<Cultivar | null>(null)
   const [usageMap, setUsageMap] = useState<Record<string, CultivarUsageStats>>({})
   const [showForm, setShowForm] = useState(false)
+
+  // Metrc strain linking state
+  const [cachedStrains, setCachedStrains] = useState<CachedStrain[]>([])
+  const [loadingStrains, setLoadingStrains] = useState(false)
+  const [syncingStrains, setSyncingStrains] = useState(false)
+  const [linkingCultivar, setLinkingCultivar] = useState<string | null>(null)
+  const [selectedStrainId, setSelectedStrainId] = useState<string>('')
 
   const initialFormValues: CultivarFormValues = {
     name: '',
@@ -61,6 +84,104 @@ export function CultivarManagement({ organizationId, userId, isOpen, onClose, pl
     form.setValue('domainType', plantType, { shouldDirty: false })
   }, [form, plantType])
 
+  // Load cached strains from Metrc
+  const loadStrains = useCallback(async () => {
+    if (!siteId || plantType !== 'cannabis') return
+    setLoadingStrains(true)
+    try {
+      const response = await fetch(`/api/compliance/metrc/strains?site_id=${siteId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setCachedStrains(data.strains || [])
+      }
+    } catch (error) {
+      console.error('Error loading strains:', error)
+    } finally {
+      setLoadingStrains(false)
+    }
+  }, [siteId, plantType])
+
+  // Sync strains from Metrc
+  const syncStrains = async () => {
+    if (!siteId) {
+      toast.error('No site selected')
+      return
+    }
+    setSyncingStrains(true)
+    try {
+      const response = await fetch('/api/compliance/metrc/strains/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId }),
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        toast.success(`Synced ${data.data.synced} strains from Metrc`)
+        await loadStrains()
+      } else {
+        toast.error(data.error || 'Failed to sync strains')
+      }
+    } catch (error) {
+      console.error('Error syncing strains:', error)
+      toast.error('Failed to sync strains')
+    } finally {
+      setSyncingStrains(false)
+    }
+  }
+
+  // Link cultivar to Metrc strain
+  const linkCultivarToStrain = async (cultivarId: string, metrcStrainId: number) => {
+    if (!siteId) {
+      toast.error('No site selected')
+      return
+    }
+    setLinkingCultivar(cultivarId)
+    try {
+      const response = await fetch(`/api/cultivars/${cultivarId}/link-strain`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metrcStrainId, siteId }),
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        toast.success(`Linked to Metrc strain: ${data.linked_strain.name}`)
+        await loadCultivars()
+        await loadStrains()
+      } else {
+        toast.error(data.error || 'Failed to link cultivar')
+      }
+    } catch (error) {
+      console.error('Error linking cultivar:', error)
+      toast.error('Failed to link cultivar')
+    } finally {
+      setLinkingCultivar(null)
+      setSelectedStrainId('')
+    }
+  }
+
+  // Unlink cultivar from Metrc strain
+  const unlinkCultivar = async (cultivarId: string) => {
+    setLinkingCultivar(cultivarId)
+    try {
+      const response = await fetch(`/api/cultivars/${cultivarId}/link-strain`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        toast.success('Unlinked from Metrc strain')
+        await loadCultivars()
+        await loadStrains()
+      } else {
+        toast.error(data.error || 'Failed to unlink cultivar')
+      }
+    } catch (error) {
+      console.error('Error unlinking cultivar:', error)
+      toast.error('Failed to unlink cultivar')
+    } finally {
+      setLinkingCultivar(null)
+    }
+  }
+
   const loadCultivars = useCallback(async () => {
     setLoading(true)
     const { data, error } = await getCultivarsClient(organizationId, {
@@ -78,8 +199,11 @@ export function CultivarManagement({ organizationId, userId, isOpen, onClose, pl
   useEffect(() => {
     if (isOpen) {
       loadCultivars()
+      if (plantType === 'cannabis') {
+        loadStrains()
+      }
     }
-  }, [isOpen, loadCultivars])
+  }, [isOpen, loadCultivars, loadStrains, plantType])
 
   const filteredCultivars = useMemo(() => {
     const term = search.toLowerCase()
@@ -178,13 +302,45 @@ export function CultivarManagement({ organizationId, userId, isOpen, onClose, pl
               placeholder="Search cultivars"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="md:w-1/2"
+              className="md:w-1/3"
             />
-            <Button variant="outline" onClick={startCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add cultivar
-            </Button>
+            <div className="flex gap-2">
+              {plantType === 'cannabis' && siteId && (
+                <Button
+                  variant="outline"
+                  onClick={syncStrains}
+                  disabled={syncingStrains}
+                >
+                  {syncingStrains ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {syncingStrains ? 'Syncing...' : 'Sync Strains'}
+                </Button>
+              )}
+              <Button variant="outline" onClick={startCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add cultivar
+              </Button>
+            </div>
           </div>
+
+          {/* Strain sync status */}
+          {plantType === 'cannabis' && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {loadingStrains ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading strains...
+                </span>
+              ) : cachedStrains.length > 0 ? (
+                <span>{cachedStrains.length} Metrc strains available for linking</span>
+              ) : (
+                <span className="text-yellow-600">No Metrc strains cached. Click &quot;Sync Strains&quot; to fetch from Metrc.</span>
+              )}
+            </div>
+          )}
 
           {loading && <p className="text-sm text-muted-foreground">Loading cultivars…</p>}
 
@@ -192,6 +348,9 @@ export function CultivarManagement({ organizationId, userId, isOpen, onClose, pl
             {filteredCultivars.map((cultivar) => {
               const usage = usageMap[cultivar.id]
               const domain = cultivar.strain_type && cultivar.strain_type !== 'produce' ? 'cannabis' : 'produce'
+              const isLinkedToMetrc = !!cultivar.metrc_strain_id
+              const linkedStrain = cachedStrains.find(s => s.metrc_strain_id === cultivar.metrc_strain_id)
+
               return (
                 <Card key={cultivar.id}>
                   <CardHeader className="flex items-start justify-between space-y-0">
@@ -199,13 +358,88 @@ export function CultivarManagement({ organizationId, userId, isOpen, onClose, pl
                       <CardTitle className="text-base">{cultivar.name}</CardTitle>
                       <CardDescription>{cultivar.genetics || 'No genetics info'}</CardDescription>
                     </div>
-                    <Badge variant="outline" className="gap-1">
-                      {domain === 'cannabis' ? <Leaf className="h-3 w-3" /> : <Sprout className="h-3 w-3" />}
-                      {domain === 'cannabis' ? 'Cannabis' : 'Produce'}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="outline" className="gap-1">
+                        {domain === 'cannabis' ? <Leaf className="h-3 w-3" /> : <Sprout className="h-3 w-3" />}
+                        {domain === 'cannabis' ? 'Cannabis' : 'Produce'}
+                      </Badge>
+                      {domain === 'cannabis' && (
+                        <Badge
+                          variant={isLinkedToMetrc ? 'default' : 'secondary'}
+                          className={`gap-1 text-xs ${isLinkedToMetrc ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}
+                        >
+                          {isLinkedToMetrc ? (
+                            <>
+                              <CheckCircle2 className="h-3 w-3" />
+                              Metrc Linked
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-3 w-3" />
+                              Not Linked
+                            </>
+                          )}
+                        </Badge>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     <p className="text-muted-foreground">{cultivar.harvest_notes || 'No notes'}</p>
+
+                    {/* Metrc Strain Info */}
+                    {domain === 'cannabis' && isLinkedToMetrc && linkedStrain && (
+                      <div className="rounded-md border border-green-200 bg-green-50 p-2 text-xs">
+                        <p className="font-medium text-green-800">Metrc Strain: {linkedStrain.name}</p>
+                        {linkedStrain.thc_level && <p className="text-green-700">THC: {linkedStrain.thc_level}%</p>}
+                        {linkedStrain.cbd_level && <p className="text-green-700">CBD: {linkedStrain.cbd_level}%</p>}
+                      </div>
+                    )}
+
+                    {/* Metrc Strain Linking - Show for cannabis cultivars */}
+                    {domain === 'cannabis' && !isLinkedToMetrc && cachedStrains.length > 0 && (
+                      <div className="rounded-md border p-2">
+                        <p className="mb-2 text-xs font-medium">Link to Metrc Strain:</p>
+                        <div className="flex gap-2">
+                          <Select
+                            value={linkingCultivar === cultivar.id ? selectedStrainId : ''}
+                            onValueChange={(value) => {
+                              setLinkingCultivar(cultivar.id)
+                              setSelectedStrainId(value)
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select strain..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cachedStrains.map((strain) => (
+                                <SelectItem key={strain.metrc_strain_id} value={String(strain.metrc_strain_id)}>
+                                  {strain.name}
+                                  {strain.is_linked_to_cultivar && ' (already linked)'}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            disabled={linkingCultivar === cultivar.id && !selectedStrainId}
+                            onClick={() => {
+                              if (selectedStrainId && linkingCultivar === cultivar.id) {
+                                linkCultivarToStrain(cultivar.id, parseInt(selectedStrainId))
+                              }
+                            }}
+                          >
+                            {linkingCultivar === cultivar.id && selectedStrainId ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Link2 className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {usage && (
                       <div className="rounded-md border p-2 text-xs">
                         <p>Total batches: {usage.total_batches}</p>
@@ -213,13 +447,28 @@ export function CultivarManagement({ organizationId, userId, isOpen, onClose, pl
                         <p>Completed: {usage.completed_batches}</p>
                       </div>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="ghost" onClick={() => handleEdit(cultivar)}>
                         Edit
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleUsage(cultivar.id)}>
                         Usage
                       </Button>
+                      {domain === 'cannabis' && isLinkedToMetrc && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => unlinkCultivar(cultivar.id)}
+                          disabled={linkingCultivar === cultivar.id}
+                        >
+                          {linkingCultivar === cultivar.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Unlink className="mr-1 h-3 w-3" />
+                          )}
+                          Unlink
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(cultivar)}>
                         Archive
                       </Button>

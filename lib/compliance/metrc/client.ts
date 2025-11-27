@@ -20,6 +20,7 @@ import {
   StrainsEndpoint,
   ItemsEndpoint,
   LabTestsEndpoint,
+  TagsEndpoint,
 } from './endpoints'
 
 /**
@@ -83,6 +84,7 @@ export class MetrcClient {
   public readonly strains: StrainsEndpoint
   public readonly items: ItemsEndpoint
   public readonly labTests: LabTestsEndpoint
+  public readonly tags: TagsEndpoint
 
   constructor(config: MetrcClientConfig) {
     this.vendorApiKey = config.vendorApiKey
@@ -107,6 +109,7 @@ export class MetrcClient {
     this.strains = new StrainsEndpoint(this)
     this.items = new ItemsEndpoint(this)
     this.labTests = new LabTestsEndpoint(this)
+    this.tags = new TagsEndpoint(this)
   }
 
   /**

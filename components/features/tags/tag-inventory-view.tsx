@@ -31,13 +31,28 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Tag, Package, Upload, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Tag, Package, Upload, AlertCircle, CheckCircle2, Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface TagInventorySummary {
   tag_type: string
   status: string
   tag_count: number
+}
+
+interface TagDetail {
+  id: string
+  tag_number: string
+  tag_type: string
+  status: string
+  assigned_to_type?: string
+  assigned_to_id?: string
+  assigned_entity_name?: string
+  assigned_at?: string
+  used_at?: string
+  order_batch_number?: string
+  received_at?: string
+  created_at: string
 }
 
 interface TagInventoryViewProps {
@@ -50,26 +65,79 @@ export function TagInventoryView({ organizationId, siteId }: TagInventoryViewPro
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('summary')
 
+  // Tag list state
+  const [tagList, setTagList] = useState<TagDetail[]>([])
+  const [tagListLoading, setTagListLoading] = useState(false)
+  const [tagListPage, setTagListPage] = useState(1)
+  const [tagListTotal, setTagListTotal] = useState(0)
+  const [tagListFilter, setTagListFilter] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
   useEffect(() => {
     loadSummary()
   }, [organizationId, siteId])
 
+  useEffect(() => {
+    if (activeTab === 'plant' || activeTab === 'package') {
+      loadTagList(activeTab === 'plant' ? 'Plant' : 'Package')
+    }
+  }, [activeTab, tagListPage, tagListFilter, siteId])
+
+  const loadTagList = async (tagType: string) => {
+    try {
+      setTagListLoading(true)
+      const params = new URLSearchParams({
+        site_id: siteId,
+        tag_type: tagType,
+        page: tagListPage.toString(),
+        limit: '25',
+      })
+
+      if (tagListFilter) {
+        params.set('status', tagListFilter)
+      }
+
+      if (searchQuery) {
+        params.set('search', searchQuery)
+      }
+
+      const response = await fetch(`/api/tags/list?${params}`)
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to load tags')
+      }
+
+      const data = await response.json()
+      setTagList(data.tags || [])
+      setTagListTotal(data.total || 0)
+    } catch (error) {
+      console.error('Error loading tag list:', error)
+      toast.error('Failed to load tag list')
+    } finally {
+      setTagListLoading(false)
+    }
+  }
+
+  const handleSearch = () => {
+    setTagListPage(1)
+    if (activeTab === 'plant' || activeTab === 'package') {
+      loadTagList(activeTab === 'plant' ? 'Plant' : 'Package')
+    }
+  }
+
   const loadSummary = async () => {
     try {
       setIsLoading(true)
-      // This would call your API endpoint
-      // const response = await fetch(`/api/tags/summary?site_id=${siteId}`)
-      // const data = await response.json()
-      // setSummary(data.summary)
+      const response = await fetch(`/api/tags/summary?site_id=${siteId}`)
 
-      // Mock data for now
-      setSummary([
-        { tag_type: 'Plant', status: 'available', tag_count: 450 },
-        { tag_type: 'Plant', status: 'assigned', tag_count: 120 },
-        { tag_type: 'Plant', status: 'used', tag_count: 380 },
-        { tag_type: 'Package', status: 'available', tag_count: 200 },
-        { tag_type: 'Package', status: 'used', tag_count: 85 },
-      ])
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to load tag summary')
+      }
+
+      const data = await response.json()
+      setSummary(data.summary || [])
     } catch (error) {
       console.error('Error loading tag summary:', error)
       toast.error('Failed to load tag inventory')
@@ -246,38 +314,211 @@ export function TagInventoryView({ organizationId, siteId }: TagInventoryViewPro
         </TabsContent>
 
         <TabsContent value="plant">
-          <Card>
-            <CardHeader>
-              <CardTitle>Plant Tag Details</CardTitle>
-              <CardDescription>
-                Detailed view of all plant tags
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Detailed plant tag list will be implemented here
-              </p>
-            </CardContent>
-          </Card>
+          <TagListView
+            title="Plant Tags"
+            description="Detailed view of all plant tags"
+            tags={tagList}
+            loading={tagListLoading}
+            total={tagListTotal}
+            page={tagListPage}
+            onPageChange={setTagListPage}
+            filter={tagListFilter}
+            onFilterChange={setTagListFilter}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearch={handleSearch}
+            getStatusBadgeVariant={getStatusBadgeVariant}
+          />
         </TabsContent>
 
         <TabsContent value="package">
-          <Card>
-            <CardHeader>
-              <CardTitle>Package Tag Details</CardTitle>
-              <CardDescription>
-                Detailed view of all package tags
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Detailed package tag list will be implemented here
-              </p>
-            </CardContent>
-          </Card>
+          <TagListView
+            title="Package Tags"
+            description="Detailed view of all package tags"
+            tags={tagList}
+            loading={tagListLoading}
+            total={tagListTotal}
+            page={tagListPage}
+            onPageChange={setTagListPage}
+            filter={tagListFilter}
+            onFilterChange={setTagListFilter}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearch={handleSearch}
+            getStatusBadgeVariant={getStatusBadgeVariant}
+          />
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+// Tag List View Component
+function TagListView({
+  title,
+  description,
+  tags,
+  loading,
+  total,
+  page,
+  onPageChange,
+  filter,
+  onFilterChange,
+  searchQuery,
+  onSearchChange,
+  onSearch,
+  getStatusBadgeVariant,
+}: {
+  title: string
+  description: string
+  tags: TagDetail[]
+  loading: boolean
+  total: number
+  page: number
+  onPageChange: (page: number) => void
+  filter: string | null
+  onFilterChange: (filter: string | null) => void
+  searchQuery: string
+  onSearchChange: (query: string) => void
+  onSearch: () => void
+  getStatusBadgeVariant: (status: string) => 'default' | 'secondary' | 'destructive' | 'outline'
+}) {
+  const limit = 25
+  const totalPages = Math.ceil(total / limit)
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '-'
+    return new Date(dateStr).toLocaleDateString()
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Filters */}
+        <div className="flex gap-4 items-end">
+          <div className="flex-1">
+            <Label htmlFor="search" className="text-sm">Search Tag Number</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                id="search"
+                placeholder="Enter tag number..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+                className="flex-1"
+              />
+              <Button variant="outline" size="icon" onClick={onSearch}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="w-40">
+            <Label className="text-sm">Status Filter</Label>
+            <Select
+              value={filter || 'all'}
+              onValueChange={(value) => onFilterChange(value === 'all' ? null : value)}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="assigned">Assigned</SelectItem>
+                <SelectItem value="used">Used</SelectItem>
+                <SelectItem value="destroyed">Destroyed</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Table */}
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-muted-foreground">Loading tags...</span>
+          </div>
+        ) : tags.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Tag className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p>No tags found</p>
+            <p className="text-sm">
+              {filter || searchQuery
+                ? 'Try adjusting your filters'
+                : 'Receive tags from Metrc to get started'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tag Number</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Assigned Date</TableHead>
+                  <TableHead>Order Batch</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tags.map((tag) => (
+                  <TableRow key={tag.id}>
+                    <TableCell className="font-mono text-sm">{tag.tag_number}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusBadgeVariant(tag.status)}>
+                        {tag.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {tag.assigned_entity_name || tag.assigned_to_type || '-'}
+                    </TableCell>
+                    <TableCell>{formatDate(tag.assigned_at)}</TableCell>
+                    <TableCell>{tag.order_batch_number || '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(page - 1) * limit + 1} - {Math.min(page * limit, total)} of {total} tags
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPageChange(page + 1)}
+                    disabled={page >= totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

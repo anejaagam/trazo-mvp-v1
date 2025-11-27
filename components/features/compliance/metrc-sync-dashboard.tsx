@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Package, Leaf, Scissors, MapPin, Dna, Box, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MetrcSyncLogEntry } from '@/lib/supabase/queries/compliance'
 
@@ -38,13 +38,29 @@ interface MetrcSyncDashboardProps {
   canSync: boolean
 }
 
+const SYNC_TYPE_LABELS: Record<string, string> = {
+  packages: 'Packages',
+  plants: 'Plants',
+  plant_batches: 'Plant Batches',
+  harvests: 'Harvests',
+  strains: 'Strains',
+  items: 'Items',
+  tags: 'Tags',
+  locations_sync: 'Locations',
+}
+
 export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashboardProps) {
   const [selectedSite, setSelectedSite] = useState<string>(sites[0]?.id || '')
   const [selectedSyncType, setSelectedSyncType] = useState<string>('packages')
   const [isSyncing, setIsSyncing] = useState(false)
+  const [syncTypeFilter, setSyncTypeFilter] = useState<string>('all')
 
-  const selectedSiteLogs =
+  const allSelectedSiteLogs =
     syncLogs.find((log) => log.siteId === selectedSite)?.logs || []
+
+  const selectedSiteLogs = syncTypeFilter === 'all'
+    ? allSelectedSiteLogs
+    : allSelectedSiteLogs.filter((log) => log.sync_type === syncTypeFilter)
 
   const handleSync = async () => {
     if (!selectedSite || !selectedSyncType) {
@@ -74,13 +90,22 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
       const result = await response.json()
 
       if (result.success) {
-        toast.success(
-          `Sync completed: ${result.result.packagesCreated} created, ${result.result.packagesUpdated} updated`
-        )
+        const syncLabel = SYNC_TYPE_LABELS[selectedSyncType] || selectedSyncType
+        const details = result.result
+        let message = `${syncLabel} sync completed`
+        if (details?.packagesCreated !== undefined || details?.created !== undefined) {
+          const created = details.packagesCreated ?? details.created ?? 0
+          const updated = details.packagesUpdated ?? details.updated ?? 0
+          message += `: ${created} created, ${updated} updated`
+        } else if (details?.synced !== undefined) {
+          message += `: ${details.synced} synced`
+        }
+        toast.success(message)
         // Reload the page to show updated logs
         window.location.reload()
       } else {
-        toast.error(`Sync failed: ${result.result.errors.join(', ')}`)
+        const errors = result.result?.errors || result.errors || ['Unknown error']
+        toast.error(`Sync failed: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
       }
     } catch (error) {
       console.error('Sync error:', error)
@@ -119,15 +144,12 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="packages">Packages</SelectItem>
-                <SelectItem value="plants" disabled>
-                  Plants (Coming Soon)
-                </SelectItem>
-                <SelectItem value="plant_batches" disabled>
-                  Plant Batches (Coming Soon)
-                </SelectItem>
-                <SelectItem value="harvests" disabled>
-                  Harvests (Coming Soon)
-                </SelectItem>
+                <SelectItem value="plants">Plants</SelectItem>
+                <SelectItem value="plant_batches">Plant Batches</SelectItem>
+                <SelectItem value="harvests">Harvests</SelectItem>
+                <SelectItem value="strains">Strains</SelectItem>
+                <SelectItem value="items">Items</SelectItem>
+                <SelectItem value="tags">Tags</SelectItem>
               </SelectContent>
             </Select>
 
@@ -145,13 +167,35 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
       {/* Sync History */}
       <Card>
         <CardHeader>
-          <CardTitle>Sync History</CardTitle>
-          <CardDescription>Recent sync operations for the selected site</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sync History</CardTitle>
+              <CardDescription>Recent sync operations for the selected site</CardDescription>
+            </div>
+            <Select value={syncTypeFilter} onValueChange={setSyncTypeFilter}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="packages">Packages</SelectItem>
+                <SelectItem value="plants">Plants</SelectItem>
+                <SelectItem value="plant_batches">Plant Batches</SelectItem>
+                <SelectItem value="harvests">Harvests</SelectItem>
+                <SelectItem value="strains">Strains</SelectItem>
+                <SelectItem value="items">Items</SelectItem>
+                <SelectItem value="tags">Tags</SelectItem>
+                <SelectItem value="locations_sync">Locations</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {selectedSiteLogs.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No sync history found for this site
+              {syncTypeFilter === 'all'
+                ? 'No sync history found for this site'
+                : `No ${SYNC_TYPE_LABELS[syncTypeFilter] || syncTypeFilter} sync history found`}
             </div>
           ) : (
             <div className="space-y-4">
@@ -161,10 +205,10 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center gap-4">
-                    <SyncStatusIcon status={log.status} />
+                    <SyncTypeIcon syncType={log.sync_type} />
                     <div>
-                      <div className="font-medium capitalize">
-                        {log.sync_type.replace('_', ' ')}
+                      <div className="font-medium">
+                        {SYNC_TYPE_LABELS[log.sync_type] || log.sync_type.replace('_', ' ')}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(log.started_at).toLocaleString()}
@@ -179,7 +223,7 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
                   <div className="flex items-center gap-2">
                     <SyncStatusBadge status={log.status} />
                     <Badge variant="outline" className="capitalize">
-                      {log.direction}
+                      {log.direction?.replace('_', ' → ') || 'sync'}
                     </Badge>
                   </div>
                 </div>
@@ -210,6 +254,7 @@ function SyncStatusIcon({ status }: { status: string }) {
 function SyncStatusBadge({ status }: { status: string }) {
   switch (status) {
     case 'completed':
+    case 'success':
       return <Badge variant="default">Completed</Badge>
     case 'failed':
       return <Badge variant="destructive">Failed</Badge>
@@ -219,5 +264,28 @@ function SyncStatusBadge({ status }: { status: string }) {
       return <Badge variant="outline">Partial</Badge>
     default:
       return <Badge variant="outline">Pending</Badge>
+  }
+}
+
+function SyncTypeIcon({ syncType }: { syncType: string }) {
+  switch (syncType) {
+    case 'packages':
+      return <Package className="h-5 w-5 text-blue-500" />
+    case 'plants':
+    case 'plant_batches':
+      return <Leaf className="h-5 w-5 text-green-500" />
+    case 'harvests':
+      return <Scissors className="h-5 w-5 text-amber-500" />
+    case 'locations':
+    case 'locations_sync':
+      return <MapPin className="h-5 w-5 text-purple-500" />
+    case 'strains':
+      return <Dna className="h-5 w-5 text-pink-500" />
+    case 'items':
+      return <Box className="h-5 w-5 text-cyan-500" />
+    case 'tags':
+      return <Tag className="h-5 w-5 text-orange-500" />
+    default:
+      return <RefreshCw className="h-5 w-5 text-muted-foreground" />
   }
 }

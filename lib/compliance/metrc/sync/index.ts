@@ -6,6 +6,13 @@
 
 // Pull sync (Metrc → TRAZO)
 export { syncPackagesFromMetrc, type PackageSyncResult } from './packages-sync'
+export {
+  syncTagsFromMetrc,
+  syncPlantTagsFromMetrc,
+  syncPackageTagsFromMetrc,
+  getTagInventoryCounts,
+  type SyncTagsResult,
+} from './tags-sync'
 
 // Push sync (TRAZO → Metrc)
 export {

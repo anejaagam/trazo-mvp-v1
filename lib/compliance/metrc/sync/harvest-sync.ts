@@ -198,17 +198,40 @@ export async function syncHarvestToMetrc(
       status: 'in_progress',
     })
 
-    // NOTE: In production, this would call the actual Metrc API
-    // For now, we're preparing the data and tracking locally
+    // Call Metrc API to create harvest
+    let metrcHarvestId: string
 
-    // Simulated Metrc API call (would return harvest ID)
-    // const metrcResponse = await metrcClient.harvests.create([metrcHarvest])
-    // For now, generate a simulated ID
-    const metrcHarvestId = `METRC-H-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    try {
+      // Create harvest in Metrc via plants endpoint
+      await metrcClient.plants.harvestPlants([metrcHarvest])
 
-    result.warnings.push(
-      'Metrc API integration ready. Harvest tracked locally. Enable API calls in production.'
-    )
+      // After successful creation, fetch the harvest to get the ID
+      // Metrc doesn't return IDs on POST, so we need to look it up by name
+      const activeHarvests = await metrcClient.harvests.listActive()
+      const createdHarvest = activeHarvests.find(h => h.Name === metrcHarvestName)
+
+      if (createdHarvest) {
+        metrcHarvestId = String(createdHarvest.Id)
+      } else {
+        // Fallback: use name-based identifier if ID not found
+        metrcHarvestId = `METRC-H-${metrcHarvestName}`
+        result.warnings.push(
+          'Harvest created in Metrc but ID could not be retrieved. Using name-based identifier.'
+        )
+      }
+    } catch (metrcError) {
+      // If API call fails, create a local placeholder and mark for retry
+      metrcHarvestId = `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      result.warnings.push(
+        `Metrc API call failed: ${(metrcError as Error).message}. Harvest saved locally for retry.`
+      )
+
+      // Update sync log with partial failure
+      await updateSyncLogEntry(syncLog.id, {
+        status: 'partial',
+        error_message: `Metrc API: ${(metrcError as Error).message}`,
+      })
+    }
 
     // Create Metrc harvest mapping
     await supabase
@@ -353,15 +376,31 @@ export async function finishHarvestInMetrc(
 
     result.syncLogId = syncLog.id
 
-    // NOTE: In production, this would call the actual Metrc API
-    // await metrcClient.harvests.finish([{
-    //   Id: parseInt(mapping.metrc_harvest_id),
-    //   ActualDate: actualDate
-    // }])
+    // Call Metrc API to finish harvest
+    try {
+      // Parse the harvest ID - if it's a numeric string, use it; otherwise skip API call
+      const numericId = parseInt(mapping.metrc_harvest_id)
+      if (!isNaN(numericId)) {
+        await metrcClient.harvests.finish([{
+          Id: numericId,
+          ActualDate: actualDate,
+        }])
+      } else {
+        result.warnings.push(
+          'Harvest ID is not numeric (may be a local placeholder). Skipping Metrc API call.'
+        )
+      }
+    } catch (metrcError) {
+      result.warnings.push(
+        `Metrc API call failed: ${(metrcError as Error).message}. Status updated locally.`
+      )
 
-    result.warnings.push(
-      'Metrc API integration ready. Harvest finish tracked locally. Enable API calls in production.'
-    )
+      // Update sync log with partial failure
+      await updateSyncLogEntry(syncLog.id, {
+        status: 'partial',
+        error_message: `Metrc API: ${(metrcError as Error).message}`,
+      })
+    }
 
     // Update mapping status
     await supabase

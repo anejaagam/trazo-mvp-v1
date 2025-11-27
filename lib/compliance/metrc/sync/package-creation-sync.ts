@@ -215,18 +215,41 @@ export async function createPackagesFromHarvest(
       status: 'in_progress',
     })
 
-    // NOTE: In production, this would call the actual Metrc API
-    // const metrcHarvestId = parseInt(metrcMapping.metrc_harvest_id)
-    // await metrcClient.harvests.createPackagesFromHarvest(metrcHarvestId, metrcPackages)
+    // Call Metrc API to create packages from harvest
+    let metrcPackageIds: string[] = []
 
-    result.warnings.push(
-      `Metrc API integration ready. ${packages.length} packages tracked locally. Enable API calls in production.`
-    )
+    try {
+      const metrcHarvestId = parseInt(metrcMapping.metrc_harvest_id)
+      if (!isNaN(metrcHarvestId)) {
+        await metrcClient.harvests.createPackagesFromHarvest(metrcHarvestId, metrcPackages)
 
-    // Simulate Metrc package IDs (in production, these come from Metrc API response)
-    const metrcPackageIds = createdPackages?.map(() =>
-      `METRC-PKG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    ) || []
+        // Metrc doesn't return IDs on POST - packages are identified by tags
+        // Use the package tags as Metrc identifiers
+        metrcPackageIds = packages.map((p) => p.packageTag)
+      } else {
+        // Harvest ID is not numeric (may be a placeholder)
+        result.warnings.push(
+          'Harvest ID is not numeric (may be a local placeholder). Packages created locally only.'
+        )
+        metrcPackageIds = createdPackages?.map(() =>
+          `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        ) || []
+      }
+    } catch (metrcError) {
+      // If API call fails, mark packages as pending
+      metrcPackageIds = createdPackages?.map(() =>
+        `PENDING-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      ) || []
+      result.warnings.push(
+        `Metrc API call failed: ${(metrcError as Error).message}. Packages saved locally for retry.`
+      )
+
+      // Update sync log with partial failure
+      await updateSyncLogEntry(syncLog.id, {
+        status: 'partial',
+        error_message: `Metrc API: ${(metrcError as Error).message}`,
+      })
+    }
 
     // Update package records with Metrc IDs
     if (createdPackages) {

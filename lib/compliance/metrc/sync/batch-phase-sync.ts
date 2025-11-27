@@ -182,18 +182,28 @@ export async function syncBatchPhaseTransitionToMetrc(
       }))
 
       try {
-        // Call Metrc API (batch operation, max 100 plants)
-        // Note: In production, this would call the actual Metrc API
-        // await metrcClient.plants.changeGrowthPhase(phaseChanges)
+        // Call Metrc API (batch operation, max 100 plants per request)
+        // Process in batches of 100 if needed
+        const batchSize = 100
+        for (let i = 0; i < phaseChanges.length; i += batchSize) {
+          const batch = phaseChanges.slice(i, i + batchSize)
+          await metrcClient.plants.changeGrowthPhase(batch)
+        }
 
         result.warnings.push(
-          `${plantLabels.length} individual plants tracked for phase change. Metrc API integration ready.`
+          `${plantLabels.length} individual plants synced to Metrc for phase change.`
         )
       } catch (metrcApiError) {
         console.error('Metrc API phase change failed:', metrcApiError)
         result.warnings.push(
           `Metrc API call failed: ${(metrcApiError as Error).message}. Phase tracked locally.`
         )
+
+        // Update sync log with partial failure
+        await updateSyncLogEntry(syncLog.id, {
+          status: 'partial',
+          error_message: `Metrc API: ${(metrcApiError as Error).message}`,
+        })
       }
     } else {
       // No tags assigned yet - just track phase locally

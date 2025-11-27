@@ -121,7 +121,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         if (isDevModeActive()) {
           const [itemsRes, movementsRes] = await Promise.all([
             fetch(`/api/dev/inventory?siteId=${siteId}`),
-            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=10`)
+            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=20`)
           ])
           
           if (!itemsRes.ok || !movementsRes.ok) {
@@ -145,19 +145,31 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             return expiryDate >= now && expiryDate <= thirtyDaysFromNow
           }) || []
           
+          // Count today's movements
+          const todayStart = new Date()
+          todayStart.setHours(0, 0, 0, 0)
+          const todayMovements = (movements || []).filter((m: InventoryMovement) => 
+            new Date(m.timestamp) >= todayStart
+          )
+          
           setTotalItems(items?.length || 0)
           setLowStockCount(lowStock.length)
           setExpiringCount(expiring.length)
-          setRecentMovementsCount(movements?.length || 0)
+          setRecentMovementsCount(todayMovements.length)
           setLowStockItems([]) // Views not available in dev mode
           setExpiringLots([]) // Views not available in dev mode
-          setRecentMovements((movements || []).slice(0, 10)) // Limit to 10 for display
+          setRecentMovements((movements || []).slice(0, 10)) // Show recent, not just today
           setIsLoading(false)
           return
         }
 
         // PRODUCTION MODE: Load all dashboard data in parallel using client-side Supabase
         const supabase = createClient()
+        
+        // Calculate today's start time as ISO string
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const todayStartISO = todayStart.toISOString()
         
         const [
           items,
@@ -191,32 +203,35 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             .in('expiry_status', ['expired', 'expiring_soon'])
             .order('expiry_date', { ascending: true })
             .limit(10),
-          // Get today's movements (join through items to get site_id)
+          // Get recent movements (last 20, filter for today count client-side)
           supabase
             .from('inventory_movements')
             .select(`
               *,
-              inventory_items!inner(site_id)
+              inventory_items!inner(site_id, name, sku)
             `)
             .eq('inventory_items.site_id', siteId)
-            .gte('timestamp', new Date().setHours(0, 0, 0, 0))
-            .order('timestamp', { ascending: false }),
+            .order('timestamp', { ascending: false })
+            .limit(20),
         ])
 
-        // Count today's movements
-        const todayMovementsCount = movements.data?.length || 0
+        // Count today's movements from the fetched data
+        const allMovements = movements.data || []
+        const todayMovements = allMovements.filter(m => 
+          new Date(m.timestamp) >= todayStart
+        )
         
         // Set summary counts
         // Use inventory_items count as fallback if views don't work
         setTotalItems(items.data?.length || stockBalances.data?.length || 0)
         setLowStockCount(belowMinimum.data?.length || 0)
         setExpiringCount(expiring.data?.length || 0)
-        setRecentMovementsCount(todayMovementsCount)
+        setRecentMovementsCount(todayMovements.length)
         
         // Set detailed data
         setLowStockItems(belowMinimum.data || [])
         setExpiringLots(expiring.data || [])
-        setRecentMovements((movements.data || []).slice(0, 10)) // Limit to 10 for display
+        setRecentMovements(allMovements.slice(0, 10)) // Show recent movements, not just today
 
       } catch (err) {
         console.error('Error loading dashboard data:', err)
@@ -241,10 +256,9 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
 
         // In dev mode, fetch via dev API which uses service role
         if (isDevModeActive()) {
-          const startOfDay = new Date().setHours(0, 0, 0, 0)
           const [itemsRes, movementsRes] = await Promise.all([
             fetch(`/api/dev/inventory?siteId=${siteId}`),
-            fetch(`/api/dev/inventory/movements?siteId=${siteId}&fromDate=${startOfDay}`)
+            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=20`)
           ])
           
           if (!itemsRes.ok || !movementsRes.ok) {
@@ -269,13 +283,20 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             return expiryDate >= now && expiryDate <= thirtyDaysFromNow
           }) || []
           
+          // Count today's movements
+          const todayStart = new Date()
+          todayStart.setHours(0, 0, 0, 0)
+          const todayMovements = (movements || []).filter((m: InventoryMovement) => 
+            new Date(m.timestamp) >= todayStart
+          )
+          
           setTotalItems(items?.length || 0)
           setLowStockCount(lowStock.length)
           setExpiringCount(expiring.length)
-          setRecentMovementsCount(movements?.length || 0)
+          setRecentMovementsCount(todayMovements.length)
           setLowStockItems([])
           setExpiringLots([])
-          setRecentMovements((movements || []).slice(0, 10))
+          setRecentMovements((movements || []).slice(0, 10)) // Show recent, not just today
           return
         }
 
@@ -314,22 +335,28 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             .from('inventory_movements')
             .select(`
               *,
-              inventory_items!inner(site_id)
+              inventory_items!inner(site_id, name, sku)
             `)
             .eq('inventory_items.site_id', siteId)
-            .gte('timestamp', new Date().setHours(0, 0, 0, 0))
-            .order('timestamp', { ascending: false }),
+            .order('timestamp', { ascending: false })
+            .limit(20),
         ])
 
-        const todayMovementsCount = movements.data?.length || 0
+        // Count today's movements from the fetched data
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const allMovements = movements.data || []
+        const todayMovements = allMovements.filter(m => 
+          new Date(m.timestamp) >= todayStart
+        )
 
         setTotalItems(items.data?.length || stockBalances.data?.length || 0)
         setLowStockCount(belowMinimum.data?.length || 0)
         setExpiringCount(expiring.data?.length || 0)
-        setRecentMovementsCount(todayMovementsCount)
+        setRecentMovementsCount(todayMovements.length)
         setLowStockItems(belowMinimum.data || [])
         setExpiringLots(expiring.data || [])
-        setRecentMovements((movements.data || []).slice(0, 10))
+        setRecentMovements(allMovements.slice(0, 10))
       } catch (err) {
         console.error('Error reloading dashboard data:', err)
       }
@@ -610,7 +637,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
                         <div className="flex-shrink-0">
                           {movement.movement_type === 'receive' ? (
                             <TrendingUp className="h-5 w-5 text-green-600" />
-                          ) : movement.movement_type === 'consume' ? (
+                          ) : movement.movement_type === 'consume' || movement.movement_type === 'issue' ? (
                             <TrendingDown className="h-5 w-5 text-orange-600" />
                           ) : (
                             <Activity className="h-5 w-5 text-blue-600" />
@@ -626,7 +653,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Item ID: {movement.item_id}
+                            {(movement as any).inventory_items?.name || `Item: ${movement.item_id.slice(0, 8)}...`}
                             {movement.notes && ` • ${movement.notes}`}
                           </p>
                         </div>

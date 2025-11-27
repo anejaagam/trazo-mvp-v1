@@ -70,7 +70,10 @@ export function RecipeLibrary({
       recipe.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
     
-    const matchesStatus = filterStatus === 'all' || recipe.status === filterStatus
+    // 'all' excludes archived and deprecated recipes, otherwise match exact status
+    const matchesStatus = filterStatus === 'all' 
+      ? recipe.status !== 'archived' && recipe.status !== 'deprecated'
+      : recipe.status === filterStatus
     
     const matchesPlantType = 
       filterPlantType === 'all' || 
@@ -82,7 +85,7 @@ export function RecipeLibrary({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200'
-      case 'applied': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+      case 'applied': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
       case 'draft': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
       case 'deprecated': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
       case 'archived': return 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
@@ -136,15 +139,27 @@ export function RecipeLibrary({
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <span className="text-sm text-slate-600 dark:text-slate-400 self-center">Status:</span>
-                {(['all', 'draft', 'published', 'applied', 'deprecated'] as const).map(status => (
+                {(['all', 'draft', 'published', 'applied', 'deprecated', 'archived'] as const).map(status => (
                   <Button
                     key={status}
                     variant={filterStatus === status ? 'default' : 'outline'}
                     onClick={() => setFilterStatus(status)}
                     size="sm"
-                    className={filterStatus !== status ? 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50' : ''}
+                    className={
+                      status === 'applied' && filterStatus !== status
+                        ? '!text-blue-600 hover:!text-blue-700 hover:!bg-blue-50'
+                        : status === 'published' && filterStatus !== status
+                          ? '!text-emerald-600 hover:!text-emerald-700 hover:!bg-emerald-50'
+                          : status === 'deprecated' && filterStatus !== status
+                            ? '!text-amber-600 hover:!text-amber-700 hover:!bg-amber-50'
+                            : status === 'archived' && filterStatus !== status
+                              ? '!text-slate-500 hover:!text-slate-600 hover:!bg-slate-100'
+                              : filterStatus !== status 
+                                ? 'text-neutral-600 hover:text-neutral-700 hover:bg-neutral-50' 
+                                : ''
+                    }
                   >
                     {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
                   </Button>
@@ -191,7 +206,7 @@ export function RecipeLibrary({
                     {recipe.name}
                   </CardTitle>
                   <Badge className={getStatusColor(recipe.status)}>
-                    {recipe.status}
+                    {recipe.status.charAt(0).toUpperCase() + recipe.status.slice(1)}
                   </Badge>
                 </div>
                 <CardDescription className="line-clamp-2">
@@ -248,9 +263,12 @@ export function RecipeLibrary({
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-slate-600 dark:text-slate-400">
-              No recipes found matching your criteria
+              {recipes.length === 0 
+                ? 'No recipes found matching your criteria'
+                : `No ${filterStatus === 'all' ? '' : filterStatus} recipes found`
+              }
             </p>
-            {canCreate && onCreateRecipe && (
+            {canCreate && onCreateRecipe && recipes.length === 0 && (
               <Button onClick={onCreateRecipe} variant="outline" className="mt-4 text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 border-green-300 hover:border-green-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Your First Recipe

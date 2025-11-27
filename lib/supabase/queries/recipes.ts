@@ -375,25 +375,48 @@ export async function updateRecipe(
 }
 
 /**
- * Delete (archive) a recipe
+ * Delete a recipe - hard delete for drafts, soft delete (archive) for published
  */
-export async function deleteRecipe(recipeId: string) {
+export async function deleteRecipe(recipeId: string, hardDelete: boolean = false) {
   try {
     const supabase = await createClient()
     
-    // Soft delete by setting status to archived
-    const { data, error } = await supabase
-      .from('recipes')
-      .update({
-        status: 'archived',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', recipeId)
-      .select()
-      .single()
+    if (hardDelete) {
+      // Hard delete - permanently remove the recipe and related data
+      // First delete related recipe_stages
+      const { error: stagesError } = await supabase
+        .from('recipe_stages')
+        .delete()
+        .eq('recipe_id', recipeId)
+      
+      if (stagesError) {
+        console.error('Error deleting recipe stages:', stagesError)
+        // Continue anyway - stages might not exist
+      }
 
-    if (error) throw error
-    return { data, error: null }
+      // Delete the recipe
+      const { error } = await supabase
+        .from('recipes')
+        .delete()
+        .eq('id', recipeId)
+
+      if (error) throw error
+      return { data: { id: recipeId, deleted: true }, error: null }
+    } else {
+      // Soft delete by setting status to archived
+      const { data, error } = await supabase
+        .from('recipes')
+        .update({
+          status: 'archived',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', recipeId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return { data, error: null }
+    }
   } catch (error) {
     console.error('Error in deleteRecipe:', error)
     return { data: null, error }

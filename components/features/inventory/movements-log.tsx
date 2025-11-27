@@ -535,21 +535,81 @@ export function MovementsLog({
                     </TableCell>
                     <TableCell className="w-[220px] pl-8">
                       <div className="text-sm space-y-1">
-                        {movement.from_location && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">From:</span>
-                            <span>{movement.from_location}</span>
-                          </div>
-                        )}
-                        {movement.to_location && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">To:</span>
-                            <span>{movement.to_location}</span>
-                          </div>
-                        )}
-                        {!movement.from_location && !movement.to_location && (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        {(() => {
+                          const storageLocation = (movement as any).item?.storage_location
+                          const batchNumber = (movement as any).batch?.batch_number
+                          
+                          // Movement-type specific display logic
+                          switch (movement.movement_type) {
+                            case 'receive':
+                              // Receiving: from supplier/external → storage location
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-green-600">{movement.from_location || 'Supplier'}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span>{movement.to_location || storageLocation || 'Inventory'}</span>
+                                </div>
+                              )
+                            case 'consume':
+                              // Consuming/Issue: from storage → batch or general use
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span>{movement.from_location || storageLocation || 'Inventory'}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="text-amber-600">
+                                    {movement.to_location || (movement.batch_id ? (batchNumber || `Batch`) : 'Used')}
+                                  </span>
+                                </div>
+                              )
+                            case 'transfer':
+                              // Transfer: from location → to location
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span>{movement.from_location || storageLocation || '-'}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="text-blue-600">{movement.to_location || '-'}</span>
+                                </div>
+                              )
+                            case 'adjust':
+                              // Adjustment: show location where adjustment happened
+                              return (
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <span>{storageLocation || 'Inventory'}</span>
+                                  <span className="text-xs">(adjusted)</span>
+                                </div>
+                              )
+                            case 'dispose':
+                              // Disposal: from storage → disposed
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span>{movement.from_location || storageLocation || 'Inventory'}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="text-red-600">Disposed</span>
+                                </div>
+                              )
+                            case 'return':
+                              // Return: back to storage
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span>{movement.from_location || 'Return'}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="text-green-600">{movement.to_location || storageLocation || 'Inventory'}</span>
+                                </div>
+                              )
+                            default:
+                              // Fallback for other types
+                              if (movement.from_location || movement.to_location) {
+                                return (
+                                  <div className="flex items-center gap-1">
+                                    <span>{movement.from_location || '-'}</span>
+                                    <span className="text-muted-foreground">→</span>
+                                    <span>{movement.to_location || '-'}</span>
+                                  </div>
+                                )
+                              }
+                              return <span className="text-muted-foreground">{storageLocation || '-'}</span>
+                          }
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell className="w-[180px]">
@@ -557,7 +617,7 @@ export function MovementsLog({
                         {movement.batch_id && (
                           <div className="flex items-center gap-1">
                             <span className="text-muted-foreground">Batch:</span>
-                            <span className="font-mono text-xs">{movement.batch_id}</span>
+                            <span className="font-mono text-xs">{(movement as any).batch?.batch_number || movement.batch_id.slice(0, 8)}</span>
                           </div>
                         )}
                         {movement.task_id && (

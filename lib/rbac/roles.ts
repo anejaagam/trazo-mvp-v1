@@ -132,6 +132,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'control:view',
       'control:recipe_create',
       'control:recipe_edit',
+      'control:recipe_delete',
       'control:recipe_apply',
       'control:schedule',
       'control:override',

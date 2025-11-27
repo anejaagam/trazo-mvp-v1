@@ -1,11 +1,12 @@
 // Dev audit logger for tracking developer actions in the dev dashboard
 // All actions are persisted to dev_audit_logs table for accountability
+// NOTE: This file is for SERVER-SIDE use only. For client components, use dev-audit-logger.client.ts
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import type { LogDevActionParams } from './actions'
 
 /**
- * Log a developer action to the dev_audit_logs table
+ * Log a developer action to the dev_audit_logs table (server-side)
  */
 export async function logDevAction(
   params: LogDevActionParams
@@ -13,7 +14,7 @@ export async function logDevAction(
   const { developerId, action, targetType, targetId, metadata } = params
 
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { error } = await supabase.from('dev_audit_logs').insert({
       developer_id: developerId,
@@ -47,7 +48,7 @@ export async function getDevAuditLogs(options?: {
   const { limit = 100, developerId, action, targetType } = options || {}
 
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     let query = supabase
       .from('dev_audit_logs')
@@ -90,7 +91,7 @@ export async function getDevAuditStats(developerId: string): Promise<{
   error: string | null
 }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data, error } = await supabase
       .from('dev_audit_logs')

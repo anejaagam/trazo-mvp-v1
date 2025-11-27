@@ -3,10 +3,7 @@ import { OrgApprovalTable } from '@/components/features/dev/org-approval-table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { logDevAction, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit'
-import {
-  getPendingOrganizations,
-  getApprovalHistory,
-} from '@/lib/supabase/queries/organization-approval'
+import type { OrganizationWithApproval } from '@/lib/supabase/queries/organization-approval'
 import { Building2, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import {
   Table,
@@ -39,14 +36,35 @@ export default async function ApprovalsPage() {
     })
   }
 
-  // Fetch pending and history
-  const [pendingResult, historyResult] = await Promise.all([
-    getPendingOrganizations(),
-    getApprovalHistory({ limit: 50 }),
-  ])
+  // Fetch pending and history using server client directly
+  const { data: pendingOrgs, error: pendingError } = await supabase
+    .from('organizations')
+    .select(`
+      *,
+      approver:users!organizations_approved_by_users_fkey(email, full_name)
+    `)
+    .eq('approval_status', 'pending')
+    .order('created_at', { ascending: false })
 
-  const pendingOrgs = pendingResult.data || []
-  const historyOrgs = historyResult.data || []
+  const { data: historyOrgs, error: historyError } = await supabase
+    .from('organizations')
+    .select(`
+      *,
+      approver:users!organizations_approved_by_users_fkey(email, full_name)
+    `)
+    .neq('approval_status', 'pending')
+    .order('approved_at', { ascending: false })
+    .limit(50)
+
+  if (pendingError) {
+    console.error('Failed to fetch pending orgs:', pendingError)
+  }
+  if (historyError) {
+    console.error('Failed to fetch history orgs:', historyError)
+  }
+
+  const typedPendingOrgs = (pendingOrgs || []) as OrganizationWithApproval[]
+  const typedHistoryOrgs = (historyOrgs || []) as OrganizationWithApproval[]
 
   const getJurisdictionLabel = (jurisdiction: string) => {
     const labels: Record<string, string> = {
@@ -76,9 +94,9 @@ export default async function ApprovalsPage() {
           <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-purple-800">
             <Clock className="h-4 w-4" />
             Pending
-            {pendingOrgs.length > 0 && (
+            {typedPendingOrgs.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5">
-                {pendingOrgs.length}
+                {typedPendingOrgs.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -95,13 +113,13 @@ export default async function ApprovalsPage() {
         {/* Pending Tab */}
         <TabsContent value="pending">
           {user && (
-            <OrgApprovalTable organizations={pendingOrgs} developerId={user.id} />
+            <OrgApprovalTable organizations={typedPendingOrgs} developerId={user.id} />
           )}
         </TabsContent>
 
         {/* Approved Tab */}
         <TabsContent value="approved">
-          {historyOrgs.filter(org => org.approval_status === 'approved').length > 0 ? (
+          {typedHistoryOrgs.filter(org => org.approval_status === 'approved').length > 0 ? (
             <div className="rounded-lg border border-purple-200 dark:border-purple-800">
               <Table>
                 <TableHeader>
@@ -113,7 +131,7 @@ export default async function ApprovalsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historyOrgs
+                  {typedHistoryOrgs
                     .filter(org => org.approval_status === 'approved')
                     .map((org) => (
                       <TableRow key={org.id}>
@@ -160,7 +178,7 @@ export default async function ApprovalsPage() {
 
         {/* Rejected Tab */}
         <TabsContent value="rejected">
-          {historyOrgs.filter(org => org.approval_status === 'rejected').length > 0 ? (
+          {typedHistoryOrgs.filter(org => org.approval_status === 'rejected').length > 0 ? (
             <div className="rounded-lg border border-purple-200 dark:border-purple-800">
               <Table>
                 <TableHeader>
@@ -172,7 +190,7 @@ export default async function ApprovalsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historyOrgs
+                  {typedHistoryOrgs
                     .filter(org => org.approval_status === 'rejected')
                     .map((org) => (
                       <TableRow key={org.id}>

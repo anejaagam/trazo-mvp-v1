@@ -3,7 +3,7 @@
 import { ErrorStreamViewer } from '@/components/features/dev/error-stream-viewer'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useCallback } from 'react'
-import { logDevAction, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit'
+import { logDevActionClient, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit/dev-audit-logger.client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertTriangle, AlertCircle, AlertOctagon, Info } from 'lucide-react'
 import type { ErrorLog } from '@/lib/errors'
@@ -60,7 +60,7 @@ export default function ErrorsPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        await logDevAction({
+        await logDevActionClient({
           developerId: user.id,
           action: DEV_AUDIT_ACTIONS.ERROR_VIEWED,
           targetType: TARGET_TYPES.ERROR,

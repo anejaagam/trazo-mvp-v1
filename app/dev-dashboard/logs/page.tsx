@@ -3,7 +3,7 @@
 import { DevAuditTable } from '@/components/features/dev/dev-audit-table'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useCallback } from 'react'
-import { logDevAction, getDevAuditLogs, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit'
+import { logDevActionClient, getDevAuditLogsClient, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit/dev-audit-logger.client'
 import type { DevAuditLog } from '@/lib/dev-audit/actions'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ClipboardList, UserCheck, Building2, AlertCircle } from 'lucide-react'
@@ -26,7 +26,7 @@ export default function LogsPage() {
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     
-    const { data, error } = await getDevAuditLogs({
+    const { data, error } = await getDevAuditLogsClient({
       limit,
       action: actionFilter !== 'all' ? actionFilter : undefined,
     })
@@ -49,7 +49,7 @@ export default function LogsPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        await logDevAction({
+        await logDevActionClient({
           developerId: user.id,
           action: DEV_AUDIT_ACTIONS.LOGS_VIEWED,
           targetType: TARGET_TYPES.LOGS,

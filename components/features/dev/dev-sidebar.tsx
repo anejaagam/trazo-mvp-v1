@@ -17,7 +17,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { logDevAction, DEV_AUDIT_ACTIONS } from '@/lib/dev-audit'
+import { logDevActionClient } from '@/lib/dev-audit/dev-audit-logger.client'
+import { DEV_AUDIT_ACTIONS } from '@/lib/dev-audit/actions'
 
 interface DevSidebarProps {
   developerId: string
@@ -72,7 +73,7 @@ export function DevSidebar({
     const supabase = createClient()
     
     // Log the logout action
-    await logDevAction({
+    await logDevActionClient({
       developerId,
       action: DEV_AUDIT_ACTIONS.DEV_LOGOUT,
       metadata: { logged_out_at: new Date().toISOString() },

@@ -280,7 +280,7 @@ export default async function DashboardPage() {
     }, 0)
     
     weeklyData.push({
-      name: i === 0 ? 'This Week' : i === 1 ? 'Last Week' : `${12 - i} wks ago`,
+      name: i === 0 ? 'This Week' : i === 1 ? 'Last Week' : `${i} wks ago`,
       plants: plantsThisWeek,
       batches: batchesThisWeek.length
     })

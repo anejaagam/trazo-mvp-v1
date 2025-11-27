@@ -2,7 +2,7 @@
 // Used by developers to approve/reject organizations signing up for the platform
 
 import { createClient } from '@/lib/supabase/client'
-import { logDevAction, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit'
+import { logDevActionClient, DEV_AUDIT_ACTIONS, TARGET_TYPES } from '@/lib/dev-audit/dev-audit-logger.client'
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
@@ -130,7 +130,7 @@ export async function approveOrganization(
     }
 
     // Log the action
-    await logDevAction({
+    await logDevActionClient({
       developerId,
       action: DEV_AUDIT_ACTIONS.ORG_APPROVED,
       targetType: TARGET_TYPES.ORGANIZATION,
@@ -171,7 +171,7 @@ export async function rejectOrganization(
     }
 
     // Log the action
-    await logDevAction({
+    await logDevActionClient({
       developerId,
       action: DEV_AUDIT_ACTIONS.ORG_REJECTED,
       targetType: TARGET_TYPES.ORGANIZATION,

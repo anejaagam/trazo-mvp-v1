@@ -110,7 +110,8 @@ export async function getApprovalHistory(options?: {
  */
 export async function approveOrganization(
   orgId: string,
-  developerId: string
+  developerId: string,
+  orgName?: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
     const supabase = createClient()
@@ -135,7 +136,10 @@ export async function approveOrganization(
       action: DEV_AUDIT_ACTIONS.ORG_APPROVED,
       targetType: TARGET_TYPES.ORGANIZATION,
       targetId: orgId,
-      metadata: { approved_at: new Date().toISOString() },
+      metadata: { 
+        approved_at: new Date().toISOString(),
+        organization_name: orgName || null,
+      },
     })
 
     return { success: true, error: null }
@@ -151,6 +155,7 @@ export async function approveOrganization(
 export async function rejectOrganization(
   orgId: string,
   developerId: string,
+  orgName?: string,
   reason?: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
@@ -178,6 +183,7 @@ export async function rejectOrganization(
       targetId: orgId,
       metadata: { 
         rejected_at: new Date().toISOString(),
+        organization_name: orgName || null,
         reason: reason || null,
       },
     })

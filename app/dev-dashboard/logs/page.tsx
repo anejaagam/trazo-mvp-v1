@@ -41,14 +41,19 @@ export default function LogsPage() {
     setLoading(false)
   }, [limit, actionFilter])
 
+  // Fetch logs when filters change
   useEffect(() => {
     fetchLogs()
+  }, [fetchLogs])
 
-    // Log page view
+  // Log page view only once on mount
+  useEffect(() => {
+    let mounted = true
+    
     async function logView() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      if (user && mounted) {
         await logDevActionClient({
           developerId: user.id,
           action: DEV_AUDIT_ACTIONS.LOGS_VIEWED,
@@ -58,7 +63,11 @@ export default function LogsPage() {
       }
     }
     logView()
-  }, [fetchLogs])
+    
+    return () => {
+      mounted = false
+    }
+  }, []) // Empty dependency array - only runs once
 
   // Get stats from logs
   const stats = {

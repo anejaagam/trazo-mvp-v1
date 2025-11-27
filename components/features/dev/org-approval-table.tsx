@@ -40,7 +40,7 @@ export function OrgApprovalTable({ organizations, developerId }: OrgApprovalTabl
   const handleApprove = async (orgId: string, orgName: string) => {
     setLoadingId(orgId)
     try {
-      const { success, error } = await approveOrganization(orgId, developerId)
+      const { success, error } = await approveOrganization(orgId, developerId, orgName)
       
       if (success) {
         toast.success('Organization approved', {
@@ -64,7 +64,7 @@ export function OrgApprovalTable({ organizations, developerId }: OrgApprovalTabl
   const handleReject = async (orgId: string, orgName: string) => {
     setLoadingId(orgId)
     try {
-      const { success, error } = await rejectOrganization(orgId, developerId)
+      const { success, error } = await rejectOrganization(orgId, developerId, orgName)
       
       if (success) {
         toast.success('Organization rejected', {

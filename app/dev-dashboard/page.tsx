@@ -4,7 +4,7 @@ import { OrgApprovalTable } from '@/components/features/dev/org-approval-table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { logDevAction, DEV_AUDIT_ACTIONS } from '@/lib/dev-audit'
-import { getPendingOrganizations } from '@/lib/supabase/queries/organization-approval'
+import type { OrganizationWithApproval } from '@/lib/supabase/queries/organization-approval'
 import Link from 'next/link'
 import { ArrowRight, AlertTriangle } from 'lucide-react'
 
@@ -50,8 +50,21 @@ export default async function DevDashboardPage() {
     criticalErrors: criticalResult.count || 0,
   }
 
-  // Get pending organizations for quick view
-  const { data: pendingOrgs } = await getPendingOrganizations()
+  // Get pending organizations for quick view (using server client directly)
+  const { data: pendingOrgs, error: pendingOrgsError } = await supabase
+    .from('organizations')
+    .select(`
+      *,
+      approver:users!organizations_approved_by_users_fkey(email, full_name)
+    `)
+    .eq('approval_status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (pendingOrgsError) {
+    console.error('Failed to fetch pending orgs:', pendingOrgsError)
+  }
+
+  const typedPendingOrgs = (pendingOrgs || []) as OrganizationWithApproval[]
 
   // Get recent critical errors
   const { data: recentCriticalErrors } = await supabase
@@ -87,25 +100,25 @@ export default async function DevDashboardPage() {
                 Organizations waiting for review
               </CardDescription>
             </div>
-            {(pendingOrgs?.length || 0) > 0 && (
+            {(typedPendingOrgs.length || 0) > 0 && (
               <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                {pendingOrgs?.length} pending
+                {typedPendingOrgs.length} pending
               </Badge>
             )}
           </CardHeader>
           <CardContent>
-            {pendingOrgs && pendingOrgs.length > 0 && user ? (
+            {typedPendingOrgs.length > 0 && user ? (
               <div className="space-y-4">
                 <OrgApprovalTable
-                  organizations={pendingOrgs.slice(0, 3)}
+                  organizations={typedPendingOrgs.slice(0, 3)}
                   developerId={user.id}
                 />
-                {pendingOrgs.length > 3 && (
+                {typedPendingOrgs.length > 3 && (
                   <Link
                     href="/dev-dashboard/approvals"
                     className="flex items-center justify-center gap-2 text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400"
                   >
-                    View all {pendingOrgs.length} pending
+                    View all {typedPendingOrgs.length} pending
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 )}

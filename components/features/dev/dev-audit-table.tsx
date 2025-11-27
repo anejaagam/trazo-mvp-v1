@@ -53,8 +53,20 @@ export function DevAuditTable({ logs }: DevAuditTableProps) {
         <TableBody>
           {logs.map((log) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const developer = (log as any).developer as { email: string; full_name: string } | null
+            const logAny = log as any
+            const developer = logAny.developer as { email: string; full_name: string } | null
+            const targetOrg = logAny.target_organization as { name: string } | null
+            const targetUser = logAny.target_user as { email: string; full_name: string } | null
+            const metadata = log.metadata as { organization_name?: string; user_name?: string } | null
             const actionLabel = ACTION_LABELS[log.action as keyof typeof ACTION_LABELS] || log.action
+
+            // Determine target display name - prefer metadata, then joined data
+            let targetName: string | null = null
+            if (log.target_type === 'organization') {
+              targetName = metadata?.organization_name || targetOrg?.name || null
+            } else if (log.target_type === 'user') {
+              targetName = metadata?.user_name || targetUser?.full_name || targetUser?.email || null
+            }
 
             return (
               <TableRow key={log.id}>
@@ -80,8 +92,8 @@ export function DevAuditTable({ logs }: DevAuditTableProps) {
                   {log.target_type && log.target_id ? (
                     <div>
                       <p className="text-xs font-medium capitalize">{log.target_type}</p>
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {log.target_id.slice(0, 8)}...
+                      <p className="text-xs text-muted-foreground">
+                        {targetName || log.target_id.slice(0, 8) + '...'}
                       </p>
                     </div>
                   ) : (

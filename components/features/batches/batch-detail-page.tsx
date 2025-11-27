@@ -26,6 +26,7 @@ import {
   Activity,
   Info,
   Trash2,
+  Layers,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -53,13 +54,14 @@ import { ApplyRecipeDialog } from './apply-recipe-dialog'
 import { AssignPodDialog } from './assign-pod-dialog'
 import { BatchTagsList } from './batch-tags-list'
 import { AssignTagsDialog } from './assign-tags-dialog'
+import { TrackingModeIndicator } from './tracking-mode-indicator'
 import { PushBatchToMetrcButton } from '@/components/features/compliance/push-batch-to-metrc-button'
 import { BatchMetrcSyncStatus } from '@/components/features/compliance/batch-metrc-sync-status'
 import { DestroyPlantBatchDialog } from '@/components/features/waste/destroy-plant-batch-dialog'
 import { getBatchDetail, quarantineBatch, releaseFromQuarantine } from '@/lib/supabase/queries/batches-client'
 import type { BatchDetail } from '@/lib/supabase/queries/batches-client'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
-import type { BatchStageHistory, BatchEvent } from '@/types/batch'
+import type { BatchStageHistory, BatchEvent, TrackingMode } from '@/types/batch'
 import type { ActiveRecipeDetails } from '@/types/recipe'
 import type { TelemetryReading } from '@/types/telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -180,6 +182,7 @@ export function BatchDetailPage({
     <PushBatchToMetrcButton
       batchId={detail.id}
       batchNumber={detail.batch_number}
+      siteId={detail.site_id}
       onPushComplete={() => loadDetail()}
       variant="outline"
       size="sm"
@@ -244,6 +247,9 @@ export function BatchDetailPage({
           onToggleQuarantine={handleQuarantineToggle}
           pushToMetrcButton={pushToMetrcAction}
           destroyMenuItem={destroyPlantMenuItem}
+          trackingMode={(detail as any)?.tracking_mode as TrackingMode | undefined}
+          plantCount={totalPlantCount}
+          tagCount={tagCount}
         />
 
         {detail.metrc_batch_id && (
@@ -258,6 +264,8 @@ export function BatchDetailPage({
           <MetrcTagsSummaryCard
             plantCount={totalPlantCount}
             tagCount={tagCount}
+            trackingMode={(detail as any)?.tracking_mode as TrackingMode | undefined}
+            batchTag={(detail as any)?.batch_tag_label}
             onManage={() => {
               setActiveTab('overview')
               setShowTagsDialog(true)
@@ -266,8 +274,11 @@ export function BatchDetailPage({
           />
         )}
 
+        {/* Only show plant tag warnings for closed_loop batches (individual tagging required) */}
+        {/* Open loop batches are tracked by count and don't require individual tags until triggered */}
         {detail.domain_type === 'cannabis' &&
           detail.metrc_batch_id &&
+          (detail as any)?.tracking_mode === 'closed_loop' &&
           (!detail.metrc_plant_labels || detail.metrc_plant_labels.length === 0) && (
             <Alert className="border-amber-200 bg-amber-50">
               <AlertTriangle className="h-4 w-4" />
@@ -281,6 +292,7 @@ export function BatchDetailPage({
 
         {detail.domain_type === 'cannabis' &&
           detail.metrc_batch_id &&
+          (detail as any)?.tracking_mode === 'closed_loop' &&
           detail.metrc_plant_labels &&
           detail.metrc_plant_labels.length > 0 &&
           detail.metrc_plant_labels.length < totalPlantCount && (
@@ -616,6 +628,9 @@ interface BatchDetailsHeaderProps {
   onToggleQuarantine: () => void
   pushToMetrcButton?: React.ReactNode
   destroyMenuItem?: React.ReactNode
+  trackingMode?: TrackingMode | null
+  plantCount?: number
+  tagCount?: number
 }
 
 function BatchDetailsHeader({
@@ -632,6 +647,9 @@ function BatchDetailsHeader({
   onToggleQuarantine,
   pushToMetrcButton,
   destroyMenuItem,
+  trackingMode,
+  plantCount = 0,
+  tagCount = 0,
 }: BatchDetailsHeaderProps) {
   return (
     <Card className="rounded-xl border bg-white shadow-sm">
@@ -649,6 +667,15 @@ function BatchDetailsHeader({
                     <AlertTriangle className="h-3 w-3" />
                     Quarantined
                   </Badge>
+                )}
+                {/* Tracking Mode Indicator for cannabis batches */}
+                {batch.domain_type === 'cannabis' && (
+                  <TrackingModeIndicator
+                    trackingMode={trackingMode}
+                    plantCount={plantCount}
+                    tagCount={tagCount}
+                    size="md"
+                  />
                 )}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{cultivarName}</p>
@@ -736,18 +763,63 @@ function BatchDetailsHeader({
 interface MetrcTagsSummaryCardProps {
   plantCount: number
   tagCount: number
+  trackingMode?: TrackingMode | null
+  batchTag?: string | null
   onManage: () => void
   assignButton: React.ReactNode
 }
 
-function MetrcTagsSummaryCard({ plantCount, tagCount, onManage, assignButton }: MetrcTagsSummaryCardProps) {
+function MetrcTagsSummaryCard({ plantCount, tagCount, trackingMode, batchTag, onManage, assignButton }: MetrcTagsSummaryCardProps) {
   const completion = plantCount > 0 ? Math.round((tagCount / plantCount) * 100) : 0
   const isComplete = plantCount > 0 && tagCount >= plantCount
+  const isOpenLoop = trackingMode === 'open_loop'
 
+  // For open loop batches, show batch-level tracking info instead of individual tag progress
+  if (isOpenLoop) {
+    return (
+      <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 items-center gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+              <Layers className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-base font-semibold text-slate-900">Batch-Level Tracking</h3>
+                <Badge variant="outline" className="border-blue-200 bg-white text-blue-700">
+                  Open Loop
+                </Badge>
+              </div>
+              <p className="text-sm text-slate-600">
+                {batchTag ? (
+                  <>Batch Tag: <code className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs">{batchTag}</code></>
+                ) : (
+                  <>Plants tracked by count ({plantCount} plants). Individual tags required when transitioning to flowering or reaching height threshold.</>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border border-blue-300 bg-white text-blue-600 hover:border-blue-400 hover:text-blue-700"
+              onClick={onManage}
+            >
+              Manage Tags
+            </Button>
+            {assignButton}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Closed loop (individual tracking required)
   return (
     <div className={`rounded-xl border p-5 shadow-sm ${
-      isComplete 
-        ? 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50' 
+      isComplete
+        ? 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50'
         : 'border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50'
     }`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -766,21 +838,21 @@ function MetrcTagsSummaryCard({ plantCount, tagCount, onManage, assignButton }: 
               <h3 className="text-base font-semibold text-slate-900">Metrc Plant Tags</h3>
               <Badge
                 variant="outline"
-                className={isComplete 
+                className={isComplete
                   ? 'border-emerald-200 bg-white text-emerald-700 hover:bg-white hover:text-emerald-800'
                   : 'border-amber-200 bg-white text-amber-700 hover:bg-white hover:text-amber-800'
                 }
               >
                 {plantCount > 0
-                  ? isComplete 
+                  ? isComplete
                     ? `All ${plantCount} plants tagged ✓`
                     : `${tagCount} of ${plantCount} plants tagged (${completion}%)`
                   : 'No plants assigned'}
               </Badge>
             </div>
-            <Progress 
-              value={plantCount > 0 ? (tagCount / plantCount) * 100 : 0} 
-              className={`h-2 ${isComplete ? 'bg-emerald-100' : 'bg-amber-100'}`} 
+            <Progress
+              value={plantCount > 0 ? (tagCount / plantCount) * 100 : 0}
+              className={`h-2 ${isComplete ? 'bg-emerald-100' : 'bg-amber-100'}`}
             />
           </div>
         </div>
@@ -789,7 +861,7 @@ function MetrcTagsSummaryCard({ plantCount, tagCount, onManage, assignButton }: 
             variant="outline"
             size="sm"
             className={`gap-2 border bg-white ${
-              isComplete 
+              isComplete
                 ? 'border-emerald-300 text-emerald-600 hover:border-emerald-400 hover:text-emerald-700'
                 : 'border-amber-300 text-amber-500 hover:border-amber-400 hover:text-amber-600'
             }`}

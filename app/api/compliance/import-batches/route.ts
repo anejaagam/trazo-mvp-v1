@@ -1,13 +1,17 @@
 /**
- * Compliance Sync API Route
+ * Import Plant Batches from Metrc to Inventory API Route
  *
- * POST /api/compliance/sync - Trigger a manual sync with Metrc
+ * POST /api/compliance/import-batches - Import plant batches from Metrc cache into TRAZO inventory
+ *
+ * This endpoint is used for Closed Loop Environment setups where Metrc already
+ * has starting inventory. It creates TRAZO inventory items and lots from cached
+ * Metrc plant batches (clones/seeds) that can then be used to create growing batches.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
-import { runSync, type SyncType } from '@/lib/compliance/metrc/sync'
+import { importBatchesFromMetrcCache } from '@/lib/compliance/metrc/sync/plant-batches-sync'
 import { getServerSiteId } from '@/lib/site/server'
 import { ALL_SITES_ID } from '@/lib/site/types'
 
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Check permissions
+    // Check permissions - require compliance:sync permission
     if (!canPerformAction(userData.role, 'compliance:sync')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -49,21 +53,11 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const {
-      siteId,
-      syncType,
-      lastModifiedStart,
-      lastModifiedEnd,
-    }: {
-      siteId: string
-      syncType: SyncType
-      lastModifiedStart?: string
-      lastModifiedEnd?: string
-    } = body
+    const { siteId }: { siteId: string } = body
 
-    if (!siteId || !syncType) {
+    if (!siteId) {
       return NextResponse.json(
-        { error: 'Missing required fields: siteId, syncType' },
+        { error: 'Missing required field: siteId' },
         { status: 400 }
       )
     }
@@ -88,46 +82,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Site not found or access denied' }, { status: 404 })
     }
 
-    // Run sync
-    const result = await runSync(
-      syncType,
-      siteId,
+    // Run import
+    const startedAt = new Date().toISOString()
+    const result = await importBatchesFromMetrcCache(
       userData.organization_id,
-      user.id,
-      {
-        lastModifiedStart,
-        lastModifiedEnd,
-      }
+      siteId,
+      user.id
     )
+    const completedAt = new Date().toISOString()
 
-    // Log the sync operation
-    const { error: logError } = await supabase.from('metrc_sync_log').insert({
+    // Log the import operation
+    await supabase.from('metrc_sync_log').insert({
       organization_id: userData.organization_id,
       site_id: siteId,
-      sync_type: syncType,
+      sync_type: 'plant_batches',
       direction: 'metrc_to_trazo',
-      operation: 'sync',
+      operation: 'import_to_inventory',
       status: result.success ? 'completed' : 'failed',
-      started_at: result.startedAt,
-      completed_at: result.completedAt,
+      started_at: startedAt,
+      completed_at: completedAt,
       response_payload: {
-        synced: result.result.synced,
-        created: result.result.created || result.result.packagesCreated,
-        updated: result.result.updated || result.result.packagesUpdated,
-        processed: result.result.packagesProcessed,
-        duration: result.duration,
+        imported: result.imported,
+        skipped: result.skipped,
+        importedItems: result.importedItems,
       },
-      error_message: result.result.errors?.length > 0 ? result.result.errors.join('; ') : null,
+      error_message: result.errors.length > 0 ? result.errors.join('; ') : null,
       initiated_by: user.id,
     })
 
-    if (logError) {
-      console.error('Failed to log sync operation:', logError)
-    }
+    return NextResponse.json({
+      success: result.success,
+      imported: result.imported,
+      skipped: result.skipped,
+      errors: result.errors,
+      importedItems: result.importedItems,
+      startedAt,
+      completedAt,
+    }, { status: 200 })
 
-    return NextResponse.json(result, { status: 200 })
   } catch (error) {
-    console.error('Error in compliance sync API:', error)
+    console.error('Error in import batches API:', error)
     return NextResponse.json(
       { error: (error as Error).message || 'Internal server error' },
       { status: 500 }

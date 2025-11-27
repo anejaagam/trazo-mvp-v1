@@ -18,6 +18,23 @@ export type QuarantineStatus = 'none' | 'quarantined' | 'released';
 
 export type SourceType = 'seed' | 'clone' | 'tissue_culture';
 
+/**
+ * Plant batch tracking modes for Metrc compliance
+ * - open_loop: Batch-level tracking by count (immature plants)
+ * - closed_loop: Individual plant tracking with unique tags
+ */
+export type TrackingMode = 'open_loop' | 'closed_loop';
+
+/**
+ * Metrc sync status for plant tracking operations
+ */
+export type MetrcPlantSyncStatus = 'pending' | 'synced' | 'failed' | 'not_required';
+
+/**
+ * Tagging trigger types for state-specific compliance
+ */
+export type TaggingTriggerType = 'height' | 'flowering' | 'canopy_area' | 'all_plants' | 'stage';
+
 // =====================================================
 // STAGE ENUMS
 // =====================================================
@@ -133,6 +150,23 @@ export interface Batch {
   // Tracking fields
   source_type?: SourceType;
   source_batch_id?: string;
+
+  // Plant batch tracking mode (Open Loop vs Closed Loop)
+  tracking_mode?: TrackingMode;
+
+  // Source traceability for Metrc compliance
+  source_package_id?: string;      // Reference to inventory_lots for seed/clone packages
+  source_package_tag?: string;     // Metrc package tag/UID from source
+  source_mother_plant_id?: string; // Reference to mother_plants table
+  source_mother_plant_tag?: string;// Metrc plant tag of mother plant
+
+  // Measurement tracking for state compliance triggers
+  max_plant_height_inches?: number;
+  canopy_area_sq_ft?: number;
+
+  // Oregon June 2024 batch tagging option
+  uses_batch_tagging?: boolean;
+  batch_tag_label?: string;
   
   // Metrics
   yield_weight_g?: number;
@@ -508,6 +542,129 @@ export interface PlantTag {
 }
 
 // =====================================================
+// MOTHER PLANTS (CLOSED LOOP TRACKING)
+// =====================================================
+
+/**
+ * Mother plant status
+ */
+export type MotherPlantStatus = 'active' | 'retired' | 'destroyed';
+
+/**
+ * Mother plant used for cloning in closed loop tracking
+ */
+export interface MotherPlant {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  batch_id?: string;
+  plant_tag: string;
+  metrc_plant_id?: string;
+  name: string;
+  cultivar_id?: string;
+  status: MotherPlantStatus;
+  clone_count: number;
+  last_clone_date?: string;
+  retired_at?: string;
+  retired_by?: string;
+  retired_reason?: string;
+  destroyed_at?: string;
+  destroyed_by?: string;
+  destroyed_reason?: string;
+  created_at: string;
+  created_by?: string;
+  updated_at?: string;
+}
+
+/**
+ * Data for creating a new mother plant
+ */
+export interface InsertMotherPlant {
+  organization_id: string;
+  site_id: string;
+  batch_id?: string;
+  plant_tag: string;
+  metrc_plant_id?: string;
+  name: string;
+  cultivar_id?: string;
+  created_by?: string;
+}
+
+// =====================================================
+// BATCH PLANTING RECORDS (OPEN LOOP → CLOSED LOOP)
+// =====================================================
+
+/**
+ * Batch planting record sync status
+ */
+export type PlantingRecordSyncStatus = 'pending' | 'synced' | 'failed' | 'partial';
+
+/**
+ * Record of "Create Planting" operation converting batch plants to individual tracking
+ */
+export interface BatchPlantingRecord {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  source_batch_id: string;
+  plant_count: number;
+  planted_date: string;
+  location: string;
+  plant_tags: string[];
+  metrc_sync_status: PlantingRecordSyncStatus;
+  metrc_sync_error?: string;
+  metrc_synced_at?: string;
+  target_batch_id?: string;
+  notes?: string;
+  created_at: string;
+  created_by?: string;
+  updated_at?: string;
+}
+
+/**
+ * Data for creating a new planting record
+ */
+export interface InsertBatchPlantingRecord {
+  organization_id: string;
+  site_id: string;
+  source_batch_id: string;
+  plant_count: number;
+  planted_date: string;
+  location: string;
+  plant_tags?: string[];
+  target_batch_id?: string;
+  notes?: string;
+  created_by?: string;
+}
+
+// =====================================================
+// BATCH PLANT (INDIVIDUAL PLANT TRACKING)
+// =====================================================
+
+/**
+ * Individual plant record in batch_plants table
+ */
+export interface BatchPlant {
+  id: string;
+  batch_id: string;
+  metrc_plant_label: string;
+  plant_index?: number;
+  growth_phase?: string;
+  status: string;
+  assigned_at: string;
+  assigned_by?: string;
+  destroyed_at?: string;
+  destroyed_reason?: string;
+  notes?: string;
+  planting_record_id?: string;
+  phase_changed_at?: string;
+  current_location?: string;
+  metrc_sync_status?: MetrcPlantSyncStatus;
+  created_at: string;
+  updated_at?: string;
+}
+
+// =====================================================
 // FILTERS & QUERY TYPES
 // =====================================================
 
@@ -561,10 +718,27 @@ export interface InsertBatch {
   license_number?: string;
   notes?: string;
   created_by: string;
-  
+
+  // Plant batch tracking mode
+  tracking_mode?: TrackingMode;
+
+  // Source traceability for Metrc compliance
+  source_package_id?: string;
+  source_package_tag?: string;
+  source_mother_plant_id?: string;
+  source_mother_plant_tag?: string;
+
+  // Measurement tracking
+  max_plant_height_inches?: number;
+  canopy_area_sq_ft?: number;
+
+  // Oregon batch tagging
+  uses_batch_tagging?: boolean;
+  batch_tag_label?: string;
+
   // Cannabis-specific
   lighting_schedule?: string;
-  
+
   // Produce-specific
   grade?: ProduceGrade;
   ripeness?: ProduceRipeness;
@@ -586,7 +760,24 @@ export interface UpdateBatch {
   waste_weight_g?: number;
   notes?: string;
   source_type?: SourceType;
-  
+
+  // Plant batch tracking mode
+  tracking_mode?: TrackingMode;
+
+  // Source traceability for Metrc compliance
+  source_package_id?: string;
+  source_package_tag?: string;
+  source_mother_plant_id?: string;
+  source_mother_plant_tag?: string;
+
+  // Measurement tracking
+  max_plant_height_inches?: number;
+  canopy_area_sq_ft?: number;
+
+  // Oregon batch tagging
+  uses_batch_tagging?: boolean;
+  batch_tag_label?: string;
+
   // Cannabis-specific
   lighting_schedule?: string;
   thc_content?: number;
@@ -594,7 +785,7 @@ export interface UpdateBatch {
   drying_date?: string;
   curing_date?: string;
   terpene_profile?: Record<string, number>;
-  
+
   // Produce-specific
   grade?: ProduceGrade;
   ripeness?: ProduceRipeness;

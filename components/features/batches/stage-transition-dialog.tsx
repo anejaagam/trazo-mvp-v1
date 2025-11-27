@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Info, AlertTriangle, ArrowRight } from 'lucide-react'
+import { Info, AlertTriangle, ArrowRight, Tags } from 'lucide-react'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
+import { useCurrentSite } from '@/hooks/use-site'
 import type { JurisdictionId } from '@/lib/jurisdiction/types'
-import type { BatchStage } from '@/types/batch'
+import type { BatchStage, TrackingMode } from '@/types/batch'
 import type { BatchDetail } from '@/lib/supabase/queries/batches-client'
 import { transitionBatchStage } from '@/lib/supabase/queries/batches-client'
 import { toast } from 'sonner'
@@ -22,6 +23,10 @@ import {
   mapStageToMetrcPhase,
   requiresMetrcPhaseChange
 } from '@/lib/compliance/metrc/validation/phase-transition-rules'
+import {
+  getStatePlantBatchConfig,
+  checkTaggingRequirement,
+} from '@/lib/jurisdiction/plant-batch-config'
 
 interface RecipeStage {
   stage_type?: string | null | undefined
@@ -77,13 +82,20 @@ export function StageTransitionDialog({
   jurisdictionId,
 }: StageTransitionDialogProps) {
   const { getAllowedBatchStages, isStageTransitionAllowed } = useJurisdiction(jurisdictionId)
+  const currentSite = useCurrentSite()
   const [loading, setLoading] = useState(false)
   const [isSyncedToMetrc, setIsSyncedToMetrc] = useState(false)
   const [willTriggerMetrcSync, setWillTriggerMetrcSync] = useState(false)
+  const [taggingWarning, setTaggingWarning] = useState<{ required: boolean; reason?: string } | null>(null)
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { newStage: '', notes: '' },
   })
+
+  // Get state-specific configuration
+  const stateCode = currentSite?.state_province || 'OR'
+  const stateConfig = getStatePlantBatchConfig(stateCode)
+  const batchTrackingMode = (batch as any)?.tracking_mode as TrackingMode | undefined
 
   // Check if batch is synced to Metrc
   useEffect(() => {
@@ -119,6 +131,37 @@ export function StageTransitionDialog({
       setWillTriggerMetrcSync(false)
     }
   }, [form.watch('newStage'), batch.stage, batch.domain_type, isSyncedToMetrc])
+
+  // Check if transitioning to selected stage will require individual tagging
+  useEffect(() => {
+    const newStage = form.watch('newStage')
+    if (!newStage || batch.domain_type !== 'cannabis') {
+      setTaggingWarning(null)
+      return
+    }
+
+    // Only check if batch is currently in open loop (batch-level tracking)
+    if (batchTrackingMode !== 'open_loop') {
+      setTaggingWarning(null)
+      return
+    }
+
+    // Check if the new stage triggers tagging requirement
+    const requirement = checkTaggingRequirement(stateCode, {
+      stage: newStage,
+      max_plant_height_inches: (batch as any)?.max_plant_height_inches,
+      canopy_area_sq_ft: (batch as any)?.canopy_area_sq_ft,
+    })
+
+    if (requirement.requiresTags) {
+      setTaggingWarning({
+        required: true,
+        reason: requirement.reason,
+      })
+    } else {
+      setTaggingWarning(null)
+    }
+  }, [form.watch('newStage'), batch.domain_type, batchTrackingMode, stateCode])
 
   const stageOptions = useMemo(() => {
     // If batch has an active recipe, show next stages from the recipe
@@ -275,6 +318,30 @@ export function StageTransitionDialog({
                   growth phase change to Metrc (
                   {mapStageToMetrcPhase(batch.stage)} → {mapStageToMetrcPhase(form.watch('newStage') as BatchStage)}).
                   This action is irreversible in Metrc.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Tagging Requirement Warning */}
+            {taggingWarning?.required && (
+              <Alert variant="destructive">
+                <Tags className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p className="font-medium">Individual Plant Tags Required</p>
+                    <p className="text-sm">
+                      {taggingWarning.reason || 'This stage requires individual plant tagging.'}
+                    </p>
+                    <p className="text-sm">
+                      This batch has <strong>{batch.plant_count} plants</strong> that will need
+                      individual Metrc plant tags before or upon entering this stage.
+                    </p>
+                    {stateConfig && (
+                      <p className="text-xs text-muted-foreground">
+                        {stateCode} compliance: {stateConfig.complianceNotes}
+                      </p>
+                    )}
+                  </div>
                 </AlertDescription>
               </Alert>
             )}

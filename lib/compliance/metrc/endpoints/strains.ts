@@ -6,7 +6,22 @@
  */
 
 import type { MetrcClient } from '../client'
-import type { MetrcStrain, MetrcStrainCreate, MetrcStrainUpdate } from '../types'
+import type { MetrcStrain, MetrcStrainCreate, MetrcStrainUpdate, MetrcPaginatedResponse } from '../types'
+
+/**
+ * Extract strains array from API response
+ * Handles both paginated (v2) and array (v1) responses
+ */
+function extractStrainsFromResponse(response: unknown): MetrcStrain[] {
+  if (!response) return []
+  if (Array.isArray(response)) return response as MetrcStrain[]
+  if (typeof response === 'object' && 'Data' in (response as object)) {
+    const paginated = response as MetrcPaginatedResponse<MetrcStrain>
+    return paginated.Data || []
+  }
+  console.warn('Unknown strains API response format:', typeof response)
+  return []
+}
 
 export class StrainsEndpoint {
   constructor(private client: MetrcClient) {}
@@ -19,50 +34,54 @@ export class StrainsEndpoint {
    * @returns Array of active strains
    */
   async listActive(lastModifiedStart?: string, lastModifiedEnd?: string): Promise<MetrcStrain[]> {
-    let endpoint = '/strains/v2/active'
-    const params: string[] = []
+    const { facilityLicenseNumber } = this.client.getConfig()
+    let endpoint = `/strains/v2/active?licenseNumber=${facilityLicenseNumber}`
 
     if (lastModifiedStart) {
-      params.push(`lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`)
+      endpoint += `&lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`
     }
     if (lastModifiedEnd) {
-      params.push(`lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`)
+      endpoint += `&lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`
     }
 
-    if (params.length > 0) {
-      endpoint += `?${params.join('&')}`
-    }
-
-    return this.client.request<MetrcStrain[]>(endpoint, {
+    const response = await this.client.request<MetrcPaginatedResponse<MetrcStrain> | MetrcStrain[]>(endpoint, {
       method: 'GET',
     })
+    return extractStrainsFromResponse(response)
   }
 
   /**
    * Get all inactive strains for the facility
+   * Note: Some Metrc implementations may not support this endpoint
    *
    * @param lastModifiedStart - Optional filter for strains modified after this date
    * @param lastModifiedEnd - Optional filter for strains modified before this date
-   * @returns Array of inactive strains
+   * @returns Array of inactive strains (empty array if endpoint not supported)
    */
   async listInactive(lastModifiedStart?: string, lastModifiedEnd?: string): Promise<MetrcStrain[]> {
-    let endpoint = '/strains/v2/inactive'
-    const params: string[] = []
+    const { facilityLicenseNumber } = this.client.getConfig()
+    let endpoint = `/strains/v2/inactive?licenseNumber=${facilityLicenseNumber}`
 
     if (lastModifiedStart) {
-      params.push(`lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`)
+      endpoint += `&lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`
     }
     if (lastModifiedEnd) {
-      params.push(`lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`)
+      endpoint += `&lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`
     }
 
-    if (params.length > 0) {
-      endpoint += `?${params.join('&')}`
+    try {
+      const response = await this.client.request<MetrcPaginatedResponse<MetrcStrain> | MetrcStrain[]>(endpoint, {
+        method: 'GET',
+      })
+      return extractStrainsFromResponse(response)
+    } catch (error) {
+      // Some Metrc implementations don't have an inactive strains endpoint
+      // Return empty array instead of failing
+      if ((error as { statusCode?: number })?.statusCode === 404) {
+        return []
+      }
+      throw error
     }
-
-    return this.client.request<MetrcStrain[]>(endpoint, {
-      method: 'GET',
-    })
   }
 
   /**
@@ -72,7 +91,8 @@ export class StrainsEndpoint {
    * @returns Strain details
    */
   async getById(strainId: number): Promise<MetrcStrain> {
-    return this.client.request<MetrcStrain>(`/strains/v2/${strainId}`, {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<MetrcStrain>(`/strains/v2/${strainId}?licenseNumber=${facilityLicenseNumber}`, {
       method: 'GET',
     })
   }
@@ -84,7 +104,8 @@ export class StrainsEndpoint {
    * @returns void (successful creation)
    */
   async create(payload: MetrcStrainCreate): Promise<void> {
-    return this.client.request<void>('/strains/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/strains/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'POST',
       body: [payload], // Metrc expects an array
     })
@@ -97,7 +118,8 @@ export class StrainsEndpoint {
    * @returns void (successful creation)
    */
   async createBatch(payloads: MetrcStrainCreate[]): Promise<void> {
-    return this.client.request<void>('/strains/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/strains/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'POST',
       body: payloads,
     })
@@ -110,7 +132,8 @@ export class StrainsEndpoint {
    * @returns void (successful update)
    */
   async update(payload: MetrcStrainUpdate): Promise<void> {
-    return this.client.request<void>('/strains/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/strains/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'PUT',
       body: [payload], // Metrc expects an array
     })
@@ -123,7 +146,8 @@ export class StrainsEndpoint {
    * @returns void (successful update)
    */
   async updateBatch(payloads: MetrcStrainUpdate[]): Promise<void> {
-    return this.client.request<void>('/strains/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/strains/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'PUT',
       body: payloads,
     })
@@ -138,7 +162,8 @@ export class StrainsEndpoint {
    * @returns void (successful deletion)
    */
   async delete(strainId: number): Promise<void> {
-    return this.client.request<void>(`/strains/v2/${strainId}`, {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/strains/v2/${strainId}?licenseNumber=${facilityLicenseNumber}`, {
       method: 'DELETE',
     })
   }

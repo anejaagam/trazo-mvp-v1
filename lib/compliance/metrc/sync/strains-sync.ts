@@ -19,6 +19,8 @@ export interface SyncStrainsResult {
   synced: number
   created: number
   updated: number
+  cultivarsCreated: number
+  cultivarsLinked: number
   errors: string[]
   warnings: string[]
 }
@@ -67,19 +69,43 @@ interface Cultivar {
 // =====================================================
 
 /**
- * Sync strains from Metrc to local cache
- * Fetches all active and inactive strains and updates local cache
+ * Derive strain type from indica/sativa percentages
+ * Based on Metrc strain genetics data
+ */
+function deriveStrainType(indicaPercentage?: number, sativaPercentage?: number): string {
+  const indica = indicaPercentage || 0
+  const sativa = sativaPercentage || 0
+
+  if (indica === 0 && sativa === 0) return 'unknown'
+  if (indica >= 80) return 'indica'
+  if (sativa >= 80) return 'sativa'
+  if (indica > sativa) return 'indica_dominant'
+  if (sativa > indica) return 'sativa_dominant'
+  return 'hybrid'
+}
+
+/**
+ * Sync strains from Metrc to local cache AND create/link cultivars
+ * Fetches all active and inactive strains from Metrc and:
+ * 1. Updates the local strains cache
+ * 2. Creates new cultivars for strains that don't have a matching cultivar
+ * 3. Links existing cultivars to their Metrc strain IDs
+ *
+ * This is Metrc-specific - CLTS and Produce have different requirements
  */
 export async function syncStrainsFromMetrc(
   client: MetrcClient,
   organizationId: string,
-  siteId: string
+  siteId: string,
+  userId?: string
 ): Promise<SyncStrainsResult> {
   const result: SyncStrainsResult = {
     success: false,
     synced: 0,
     created: 0,
     updated: 0,
+    cultivarsCreated: 0,
+    cultivarsLinked: 0,
     errors: [],
     warnings: [],
   }
@@ -88,10 +114,14 @@ export async function syncStrainsFromMetrc(
 
   try {
     // Fetch active and inactive strains from Metrc
-    const [activeStrains, inactiveStrains] = await Promise.all([
+    const [activeStrainsRaw, inactiveStrainsRaw] = await Promise.all([
       client.strains.listActive(),
       client.strains.listInactive(),
     ])
+
+    // Metrc API returns null/undefined when no strains exist, not an empty array
+    const activeStrains = Array.isArray(activeStrainsRaw) ? activeStrainsRaw : []
+    const inactiveStrains = Array.isArray(inactiveStrainsRaw) ? inactiveStrainsRaw : []
 
     const allStrains = [...activeStrains, ...inactiveStrains]
     result.synced = allStrains.length
@@ -102,10 +132,28 @@ export async function syncStrainsFromMetrc(
       .select('metrc_strain_id')
       .eq('site_id', siteId)
 
-    const existingIds = new Set(existingCache?.map((c) => c.metrc_strain_id) || [])
+    const existingCacheIds = new Set(existingCache?.map((c) => c.metrc_strain_id) || [])
 
-    // Upsert strains to cache
+    // Get existing cultivars for linking
+    const { data: existingCultivars } = await supabase
+      .from('cultivars')
+      .select('id, name, metrc_strain_id')
+      .eq('organization_id', organizationId)
+
+    // Build lookup maps for cultivars
+    const cultivarByName = new Map<string, { id: string; metrc_strain_id: number | null }>()
+    const cultivarByMetrcId = new Map<number, string>()
+
+    existingCultivars?.forEach((c) => {
+      cultivarByName.set(c.name.trim().toLowerCase(), { id: c.id, metrc_strain_id: c.metrc_strain_id })
+      if (c.metrc_strain_id) {
+        cultivarByMetrcId.set(c.metrc_strain_id, c.id)
+      }
+    })
+
+    // Process each strain
     for (const strain of allStrains) {
+      // 1. Upsert to cache with all Metrc properties
       const cacheData = {
         organization_id: organizationId,
         site_id: siteId,
@@ -120,18 +168,77 @@ export async function syncStrainsFromMetrc(
         last_synced_at: new Date().toISOString(),
       }
 
-      const { error } = await supabase
+      const { error: cacheError } = await supabase
         .from('metrc_strains_cache')
         .upsert(cacheData, {
           onConflict: 'site_id,metrc_strain_id',
         })
 
-      if (error) {
-        result.errors.push(`Failed to cache strain ${strain.Name}: ${error.message}`)
-      } else if (existingIds.has(strain.Id)) {
+      if (cacheError) {
+        result.errors.push(`Failed to cache strain ${strain.Name}: ${cacheError.message}`)
+        continue
+      }
+
+      if (existingCacheIds.has(strain.Id)) {
         result.updated++
       } else {
         result.created++
+      }
+
+      // 2. Create or link cultivar
+      const normalizedName = strain.Name.trim().toLowerCase()
+      const existingCultivar = cultivarByName.get(normalizedName)
+
+      if (existingCultivar) {
+        // Cultivar exists - link it if not already linked
+        if (!existingCultivar.metrc_strain_id) {
+          const { error: linkError } = await supabase
+            .from('cultivars')
+            .update({
+              metrc_strain_id: strain.Id,
+              metrc_sync_status: 'synced',
+              metrc_last_synced_at: new Date().toISOString(),
+              // Update with Metrc data
+              thc_range_min: strain.ThcLevel,
+              thc_range_max: strain.ThcLevel,
+              cbd_range_min: strain.CbdLevel,
+              cbd_range_max: strain.CbdLevel,
+              strain_type: deriveStrainType(strain.IndicaPercentage, strain.SativaPercentage),
+            })
+            .eq('id', existingCultivar.id)
+
+          if (linkError) {
+            result.warnings.push(`Failed to link cultivar ${strain.Name}: ${linkError.message}`)
+          } else {
+            result.cultivarsLinked++
+          }
+        }
+      } else if (userId) {
+        // No matching cultivar - create one from Metrc strain
+        const { error: createError } = await supabase
+          .from('cultivars')
+          .insert({
+            organization_id: organizationId,
+            name: strain.Name,
+            strain_type: deriveStrainType(strain.IndicaPercentage, strain.SativaPercentage),
+            thc_range_min: strain.ThcLevel,
+            thc_range_max: strain.ThcLevel,
+            cbd_range_min: strain.CbdLevel,
+            cbd_range_max: strain.CbdLevel,
+            metrc_strain_id: strain.Id,
+            metrc_sync_status: 'synced',
+            metrc_last_synced_at: new Date().toISOString(),
+            is_active: true,
+            created_by: userId,
+          })
+
+        if (createError) {
+          result.warnings.push(`Failed to create cultivar ${strain.Name}: ${createError.message}`)
+        } else {
+          result.cultivarsCreated++
+          // Update lookup map for subsequent iterations
+          cultivarByName.set(normalizedName, { id: '', metrc_strain_id: strain.Id })
+        }
       }
     }
 
@@ -407,4 +514,105 @@ export async function getCultivarsNeedingSync(organizationId: string): Promise<C
   }
 
   return data || []
+}
+
+// =====================================================
+// NON-COMPLIANCE ALERTS (METRC-SPECIFIC)
+// =====================================================
+
+export interface NonCompliantCultivar {
+  id: string
+  name: string
+  metrc_sync_status: string | null
+  created_at: string
+  is_active: boolean
+}
+
+export interface ComplianceCheckResult {
+  isCompliant: boolean
+  totalCultivars: number
+  linkedCultivars: number
+  unlinkedCultivars: NonCompliantCultivar[]
+  syncFailedCultivars: NonCompliantCultivar[]
+}
+
+/**
+ * Check cultivar compliance status for Metrc
+ * Returns unlinked cultivars that need to be synced to Metrc
+ *
+ * This is Metrc-specific - CLTS and Produce have different compliance requirements
+ */
+export async function checkCultivarCompliance(organizationId: string): Promise<ComplianceCheckResult> {
+  const supabase = await createClient()
+
+  // Get all active cultivars
+  const { data: allCultivars, error } = await supabase
+    .from('cultivars')
+    .select('id, name, metrc_strain_id, metrc_sync_status, created_at, is_active')
+    .eq('organization_id', organizationId)
+    .eq('is_active', true)
+
+  if (error || !allCultivars) {
+    return {
+      isCompliant: false,
+      totalCultivars: 0,
+      linkedCultivars: 0,
+      unlinkedCultivars: [],
+      syncFailedCultivars: [],
+    }
+  }
+
+  const linkedCultivars = allCultivars.filter((c) => c.metrc_strain_id !== null)
+  const unlinkedCultivars = allCultivars
+    .filter((c) => c.metrc_strain_id === null && c.metrc_sync_status !== 'sync_failed')
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      metrc_sync_status: c.metrc_sync_status,
+      created_at: c.created_at,
+      is_active: c.is_active,
+    }))
+
+  const syncFailedCultivars = allCultivars
+    .filter((c) => c.metrc_sync_status === 'sync_failed')
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      metrc_sync_status: c.metrc_sync_status,
+      created_at: c.created_at,
+      is_active: c.is_active,
+    }))
+
+  return {
+    isCompliant: unlinkedCultivars.length === 0 && syncFailedCultivars.length === 0,
+    totalCultivars: allCultivars.length,
+    linkedCultivars: linkedCultivars.length,
+    unlinkedCultivars,
+    syncFailedCultivars,
+  }
+}
+
+/**
+ * Get compliance alert message for unlinked cultivars
+ */
+export function getComplianceAlertMessage(result: ComplianceCheckResult): string | null {
+  if (result.isCompliant) {
+    return null
+  }
+
+  const messages: string[] = []
+
+  if (result.unlinkedCultivars.length > 0) {
+    const names = result.unlinkedCultivars.slice(0, 3).map((c) => c.name).join(', ')
+    const more = result.unlinkedCultivars.length > 3 ? ` and ${result.unlinkedCultivars.length - 3} more` : ''
+    messages.push(`${result.unlinkedCultivars.length} cultivar(s) not linked to Metrc: ${names}${more}`)
+  }
+
+  if (result.syncFailedCultivars.length > 0) {
+    const names = result.syncFailedCultivars.slice(0, 3).map((c) => c.name).join(', ')
+    const more = result.syncFailedCultivars.length > 3 ? ` and ${result.syncFailedCultivars.length - 3} more` : ''
+    messages.push(`${result.syncFailedCultivars.length} cultivar(s) failed to sync: ${names}${more}`)
+  }
+
+  return messages.join('. ')
 }

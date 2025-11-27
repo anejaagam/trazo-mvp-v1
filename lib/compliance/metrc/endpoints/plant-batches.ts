@@ -36,9 +36,11 @@ export class PlantBatchesEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlantBatch[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlantBatch>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -62,9 +64,11 @@ export class PlantBatchesEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlantBatch[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlantBatch>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -95,6 +99,9 @@ export class PlantBatchesEndpoint {
   /**
    * Create new plant batches
    *
+   * Uses the v2 plantings endpoint which is the standard way to create plant batches
+   * in Metrc v2 API (works for both seeds and clones)
+   *
    * @param batches - Array of plant batches to create
    * @returns Void on success
    * @throws MetrcApiError on validation or API failure
@@ -102,7 +109,7 @@ export class PlantBatchesEndpoint {
   async create(batches: MetrcPlantBatchCreate[]): Promise<void> {
     const { facilityLicenseNumber } = this.client.getConfig()
     await this.client.request<void>(
-      `/plantbatches/v2/create/packages?licenseNumber=${facilityLicenseNumber}`,
+      `/plantbatches/v2/plantings?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'POST',
         body: batches,
@@ -111,21 +118,18 @@ export class PlantBatchesEndpoint {
   }
 
   /**
-   * Create plant batches from plantings (mother plants)
+   * Create plant batches from plantings (alias for create)
+   *
+   * In Metrc v2 API, /plantbatches/v2/plantings is the standard endpoint
+   * for creating plant batches regardless of source
    *
    * @param batches - Array of plant batches to create from plantings
    * @returns Void on success
    * @throws MetrcApiError on validation or API failure
    */
   async createFromPlantings(batches: MetrcPlantBatchCreate[]): Promise<void> {
-    const { facilityLicenseNumber } = this.client.getConfig()
-    await this.client.request<void>(
-      `/plantbatches/v2/create/plantings?licenseNumber=${facilityLicenseNumber}`,
-      {
-        method: 'POST',
-        body: batches,
-      }
-    )
+    // In v2, plantings endpoint is the standard create endpoint
+    return this.create(batches)
   }
 
   /**

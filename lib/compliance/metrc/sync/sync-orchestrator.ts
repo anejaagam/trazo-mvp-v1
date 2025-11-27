@@ -9,6 +9,7 @@ import { syncPackagesFromMetrc, type PackageSyncResult } from './packages-sync'
 import { syncStrainsFromMetrc } from './strains-sync'
 import { syncItemsFromMetrc } from './items-sync'
 import { syncTagsFromMetrc } from './tags-sync'
+import { syncPlantBatchesFromMetrc } from './plant-batches-sync'
 import { createMetrcClientForSite } from '../services'
 
 export type SyncType = 'packages' | 'plants' | 'plant_batches' | 'harvests' | 'sales' | 'transfers' | 'strains' | 'items' | 'tags'
@@ -66,16 +67,20 @@ export async function runSync(
       if (!metrcClient) {
         throw new Error(clientError || 'Failed to create Metrc client')
       }
-      const strainsResult = await syncStrainsFromMetrc(metrcClient, organizationId, siteId)
+      // Pass userId to create cultivars from Metrc strains
+      const strainsResult = await syncStrainsFromMetrc(metrcClient, organizationId, siteId, userId)
       result = {
         success: strainsResult.success,
         packagesProcessed: strainsResult.synced,
         packagesCreated: strainsResult.created,
         packagesUpdated: strainsResult.updated,
         errors: strainsResult.errors,
+        warnings: strainsResult.warnings,
         synced: strainsResult.synced,
         created: strainsResult.created,
         updated: strainsResult.updated,
+        cultivarsCreated: strainsResult.cultivarsCreated,
+        cultivarsLinked: strainsResult.cultivarsLinked,
       }
       break
 
@@ -102,10 +107,13 @@ export async function runSync(
         throw new Error(clientError || 'Failed to create Metrc client')
       }
       try {
-        const [vegetativePlants, floweringPlants] = await Promise.all([
+        const [vegetativePlantsRaw, floweringPlantsRaw] = await Promise.all([
           metrcClient.plants.listVegetative(),
           metrcClient.plants.listFlowering(),
         ])
+        // Metrc API returns null/undefined when no data exists, not an empty array
+        const vegetativePlants = Array.isArray(vegetativePlantsRaw) ? vegetativePlantsRaw : []
+        const floweringPlants = Array.isArray(floweringPlantsRaw) ? floweringPlantsRaw : []
         const totalPlants = vegetativePlants.length + floweringPlants.length
         result = {
           success: true,
@@ -129,34 +137,23 @@ export async function runSync(
       break
 
     case 'plant_batches':
-      // Plant batches sync - pull plant batch data from Metrc
+      // Plant batches sync - pull plant batch data from Metrc and store in cache
       if (!metrcClient) {
         throw new Error(clientError || 'Failed to create Metrc client')
       }
-      try {
-        const [activeBatches, inactiveBatches] = await Promise.all([
-          metrcClient.plantBatches.listActive(),
-          metrcClient.plantBatches.listInactive(),
-        ])
-        const totalBatches = activeBatches.length + inactiveBatches.length
-        result = {
-          success: true,
-          packagesProcessed: totalBatches,
-          packagesCreated: 0,
-          packagesUpdated: totalBatches,
-          errors: [],
-          synced: totalBatches,
-          created: 0,
-          updated: totalBatches,
-        }
-      } catch (error) {
-        result = {
-          success: false,
-          packagesProcessed: 0,
-          packagesCreated: 0,
-          packagesUpdated: 0,
-          errors: [(error as Error).message],
-        }
+      const plantBatchesResult = await syncPlantBatchesFromMetrc(metrcClient, organizationId, siteId)
+      result = {
+        success: plantBatchesResult.success,
+        packagesProcessed: plantBatchesResult.synced,
+        packagesCreated: plantBatchesResult.created,
+        packagesUpdated: plantBatchesResult.updated,
+        errors: plantBatchesResult.errors,
+        warnings: plantBatchesResult.warnings,
+        synced: plantBatchesResult.synced,
+        created: plantBatchesResult.created,
+        updated: plantBatchesResult.updated,
+        batchesLinked: plantBatchesResult.batchesLinked,
+        deactivated: plantBatchesResult.deactivated,
       }
       break
 
@@ -166,10 +163,13 @@ export async function runSync(
         throw new Error(clientError || 'Failed to create Metrc client')
       }
       try {
-        const [activeHarvests, inactiveHarvests] = await Promise.all([
+        const [activeHarvestsRaw, inactiveHarvestsRaw] = await Promise.all([
           metrcClient.harvests.listActive(),
           metrcClient.harvests.listInactive(),
         ])
+        // Metrc API returns null/undefined when no data exists, not an empty array
+        const activeHarvests = Array.isArray(activeHarvestsRaw) ? activeHarvestsRaw : []
+        const inactiveHarvests = Array.isArray(inactiveHarvestsRaw) ? inactiveHarvestsRaw : []
         const totalHarvests = activeHarvests.length + inactiveHarvests.length
         result = {
           success: true,

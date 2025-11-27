@@ -134,20 +134,32 @@ export interface MetrcPlant {
 export interface MetrcPlantBatch {
   Id: number
   Name: string
-  Type: 'Seed' | 'Clone'
-  Count: number
+  // v1 API field
+  Type?: 'Seed' | 'Clone' | string
+  // v2 API field (preferred)
+  PlantBatchTypeName?: string
+  // v1 API field (may not exist in v2)
+  Count?: number
   StrainName: string
   PlantedDate: string
-  FacilityLicenseNumber: string
-  FacilityName: string
+  // v1 API fields (may not exist in v2)
+  FacilityLicenseNumber?: string
+  FacilityName?: string
+  // v1 API field
   RoomName?: string
+  // v2 API field (preferred)
+  LocationName?: string
   DestroyedDate?: string
-  UntrackedCount: number
-  TrackedCount: number
+  UntrackedCount?: number
+  TrackedCount?: number
 }
 
 /**
  * Metrc plant batch creation payload
+ *
+ * Note: Different states may have different field requirements.
+ * The v2 API generally uses ActualDate, but PlantedDate is also supported.
+ * Source tracking (SourcePackage or SourcePlants) may be required by some states.
  */
 export interface MetrcPlantBatchCreate {
   Name: string
@@ -155,7 +167,15 @@ export interface MetrcPlantBatchCreate {
   Count: number
   Strain: string
   Location: string
-  PlantedDate: string
+  // Both field names supported - ActualDate is v2 preferred, PlantedDate for backwards compatibility
+  ActualDate?: string
+  PlantedDate?: string
+  // Optional source tracking (required in some states like Oregon, Oklahoma)
+  PatientLicenseNumber?: string
+  // Source package tag (when creating from seed/clone packages)
+  SourcePackage?: string
+  // Source plant labels (when cloning from mother plants)
+  SourcePlants?: string[]
 }
 
 /**

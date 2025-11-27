@@ -101,13 +101,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the sync operation
-    await supabase.from('metrc_sync_log').insert({
+    const { error: logError } = await supabase.from('metrc_sync_log').insert({
       organization_id: userData.organization_id,
       site_id: siteId,
       sync_type: 'tags',
-      sync_direction: 'metrc_to_trazo',
-      status: result.success ? 'success' : 'failed',
-      details: {
+      direction: 'metrc_to_trazo',
+      operation: 'sync',
+      status: result.success ? 'completed' : 'failed',
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      response_payload: {
         synced: result.synced,
         created: result.created,
         updated: result.updated,
@@ -116,8 +119,12 @@ export async function POST(request: NextRequest) {
         tagType: tagType || 'all',
       },
       error_message: result.errors.length > 0 ? result.errors.join('; ') : null,
-      performed_by: user.id,
+      initiated_by: user.id,
     })
+
+    if (logError) {
+      console.error('Failed to log tags sync operation:', logError)
+    }
 
     return NextResponse.json({
       success: result.success,

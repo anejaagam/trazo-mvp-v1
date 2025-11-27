@@ -4,9 +4,10 @@
  * Metrc Sync Dashboard Component
  *
  * Displays sync status and allows manual sync triggers
+ * Uses global site context - only shows site selector when "All Sites" is selected
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,8 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Package, Leaf, Scissors, MapPin, Dna, Box, Tag } from 'lucide-react'
+import { RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Package, Leaf, Scissors, MapPin, Dna, Box, Tag, Download, ArrowDownToLine } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSite } from '@/hooks/use-site'
 import type { MetrcSyncLogEntry } from '@/lib/supabase/queries/compliance'
 
 interface Site {
@@ -50,10 +52,22 @@ const SYNC_TYPE_LABELS: Record<string, string> = {
 }
 
 export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashboardProps) {
-  const [selectedSite, setSelectedSite] = useState<string>(sites[0]?.id || '')
+  const { siteId: globalSiteId, isAllSitesMode } = useSite()
+  const [localSelectedSite, setLocalSelectedSite] = useState<string>(sites[0]?.id || '')
   const [selectedSyncType, setSelectedSyncType] = useState<string>('packages')
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
   const [syncTypeFilter, setSyncTypeFilter] = useState<string>('all')
+
+  // Use global site ID when a specific site is selected, otherwise use local selector
+  const selectedSite = isAllSitesMode ? localSelectedSite : (globalSiteId || localSelectedSite)
+
+  // Update local selection when global site changes
+  useEffect(() => {
+    if (!isAllSitesMode && globalSiteId) {
+      setLocalSelectedSite(globalSiteId)
+    }
+  }, [globalSiteId, isAllSitesMode])
 
   const allSelectedSiteLogs =
     syncLogs.find((log) => log.siteId === selectedSite)?.logs || []
@@ -115,6 +129,54 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
     }
   }
 
+  const handleImportBatches = async () => {
+    if (!selectedSite) {
+      toast.error('Please select a site')
+      return
+    }
+
+    setIsImporting(true)
+
+    try {
+      const response = await fetch('/api/compliance/import-batches', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          siteId: selectedSite,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Import failed')
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        if (result.imported > 0) {
+          toast.success(`Imported ${result.imported} clone lots to inventory from Metrc`)
+        } else if (result.skipped > 0) {
+          toast.info(`No new items to import. ${result.skipped} skipped (already exist in inventory)`)
+        } else {
+          toast.info('No plant batches found in Metrc cache to import')
+        }
+        // Reload the page to show updated data
+        window.location.reload()
+      } else {
+        const errors = result.errors || ['Unknown error']
+        toast.error(`Import failed: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+      }
+    } catch (error) {
+      console.error('Import error:', error)
+      toast.error((error as Error).message || 'Failed to import batches from Metrc')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Sync Controls */}
@@ -125,18 +187,21 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            <Select value={selectedSite} onValueChange={setSelectedSite}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select site" />
-              </SelectTrigger>
-              <SelectContent>
-                {sites.map((site) => (
-                  <SelectItem key={site.id} value={site.id}>
-                    {site.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Only show site selector when "All Sites" is selected globally */}
+            {isAllSitesMode && (
+              <Select value={localSelectedSite} onValueChange={setLocalSelectedSite}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             <Select value={selectedSyncType} onValueChange={setSelectedSyncType}>
               <SelectTrigger className="w-[200px]">
@@ -160,6 +225,53 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
               <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Syncing...' : 'Sync Now'}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Import from Metrc to Inventory */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowDownToLine className="h-5 w-5" />
+            Import to Inventory
+          </CardTitle>
+          <CardDescription>
+            Import clones/seeds from Metrc into your inventory. Use this for Closed Loop
+            Environment where Metrc already has starting inventory. First sync Plant Batches
+            above, then import them here as inventory lots ready for planting.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 items-center">
+            {/* Site selector shown only in all-sites mode */}
+            {isAllSitesMode && (
+              <Select value={localSelectedSite} onValueChange={setLocalSelectedSite}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Button
+              onClick={handleImportBatches}
+              disabled={!canSync || isImporting || !selectedSite}
+              variant="outline"
+            >
+              <Download className={`mr-2 h-4 w-4 ${isImporting ? 'animate-pulse' : ''}`} />
+              {isImporting ? 'Importing...' : 'Import to Inventory'}
+            </Button>
+
+            <span className="text-sm text-muted-foreground">
+              Creates inventory lots from Metrc plant batches (clones/seeds)
+            </span>
           </div>
         </CardContent>
       </Card>

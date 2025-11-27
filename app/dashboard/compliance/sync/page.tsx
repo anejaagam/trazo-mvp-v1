@@ -59,9 +59,6 @@ export default async function ComplianceSyncPage() {
     })
   )
 
-  // Get default site for tag inventory
-  const defaultSite = sites?.[0]
-
   return (
     <div className="space-y-6">
       <div>
@@ -86,16 +83,7 @@ export default async function ComplianceSyncPage() {
         </TabsContent>
 
         <TabsContent value="tags">
-          {defaultSite ? (
-            <TagInventoryView
-              organizationId={userData.organization_id}
-              siteId={defaultSite.id}
-            />
-          ) : (
-            <div className="text-center text-muted-foreground py-8">
-              No sites configured. Please add a site first.
-            </div>
-          )}
+          <TagInventoryView organizationId={userData.organization_id} />
         </TabsContent>
       </Tabs>
     </div>

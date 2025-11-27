@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -14,9 +15,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Info, Tag, AlertTriangle, Camera, X, Check } from 'lucide-react'
+import { Info, Tag, AlertTriangle, Camera, X, Check, List } from 'lucide-react'
 import { toast } from 'sonner'
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library'
+import { AvailableTagSelector } from './available-tag-selector'
+import { useSiteId } from '@/hooks/use-site'
 
 interface AssignTagsDialogProps {
   batchId: string
@@ -25,6 +28,7 @@ interface AssignTagsDialogProps {
   currentTags: string[]
   onAssigned: () => void
   trigger?: React.ReactNode
+  siteId?: string
 }
 
 export function AssignTagsDialog({
@@ -34,17 +38,26 @@ export function AssignTagsDialog({
   currentTags,
   onAssigned,
   trigger,
+  siteId: propSiteId,
 }: AssignTagsDialogProps) {
+  const hookSiteId = useSiteId()
+  const siteId = propSiteId || hookSiteId || ''
+
   const [open, setOpen] = useState(false)
   const [scannedTags, setScannedTags] = useState<string[]>([])
+  const [selectedFromList, setSelectedFromList] = useState<string[]>([])
   const [isAssigning, setIsAssigning] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('select')
   const videoRef = useRef<HTMLVideoElement>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
 
-  const newTags = scannedTags.filter((tag) => !currentTags.includes(tag))
-  const duplicateTags = scannedTags.filter((tag) => currentTags.includes(tag))
+  // Combine scanned and selected tags
+  const allNewTags = [...new Set([...scannedTags, ...selectedFromList])]
+
+  const newTags = allNewTags.filter((tag) => !currentTags.includes(tag))
+  const duplicateTags = allNewTags.filter((tag) => currentTags.includes(tag))
 
   const stopCamera = useCallback(() => {
     if (readerRef.current) {
@@ -130,10 +143,20 @@ export function AssignTagsDialog({
 
   const removeTag = (tagToRemove: string) => {
     setScannedTags(prev => prev.filter(tag => tag !== tagToRemove))
+    setSelectedFromList(prev => prev.filter(tag => tag !== tagToRemove))
   }
 
   const clearAllTags = () => {
     setScannedTags([])
+    setSelectedFromList([])
+  }
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    // Stop camera when switching away from scan tab
+    if (value !== 'scan') {
+      stopCamera()
+    }
   }
 
   const handleAssign = async () => {
@@ -230,78 +253,154 @@ export function AssignTagsDialog({
             </div>
           )}
 
-          {/* Camera Scanner */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Scan Tag Barcodes</Label>
-              {isScanning ? (
-                <Button variant="outline" size="sm" onClick={stopCamera}>
-                  <X className="h-4 w-4 mr-2" />
-                  Stop Camera
-                </Button>
-              ) : (
-                <Button variant="default" size="sm" onClick={startCamera}>
-                  <Camera className="h-4 w-4 mr-2" />
-                  Start Scanner
-                </Button>
-              )}
-            </div>
+          {/* Tag Selection Methods */}
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="select" className="gap-2">
+                <List className="h-4 w-4" />
+                Select from List
+              </TabsTrigger>
+              <TabsTrigger value="scan" className="gap-2">
+                <Camera className="h-4 w-4" />
+                Scan Barcode
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Camera View */}
-            {isScanning && (
-              <div className="relative rounded-lg overflow-hidden border-2 border-emerald-500 bg-black">
-                <video
-                  ref={videoRef}
-                  className="w-full h-48 object-cover"
-                  autoPlay
-                  playsInline
-                  muted
+            {/* Select from List Tab */}
+            <TabsContent value="select" className="space-y-3 mt-4">
+              <div className="space-y-2">
+                <Label>Select Available Tags</Label>
+                <p className="text-xs text-muted-foreground">
+                  Choose tags from your available Metrc tag inventory
+                </p>
+              </div>
+              {siteId ? (
+                <AvailableTagSelector
+                  siteId={siteId}
+                  tagType="Plant"
+                  selectedTags={selectedFromList}
+                  onTagsChange={setSelectedFromList}
+                  excludeTags={currentTags}
+                  maxTags={plantCount - currentTags.length}
+                  placeholder="Select tags to assign..."
+                  showMultiSelect={true}
                 />
-                <div className="absolute inset-0 pointer-events-none">
-                  {/* Scanning overlay */}
-                  <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-16 border-2 border-emerald-400 rounded-lg" />
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-white text-sm bg-black/50 py-1">
-                    Position barcode within the frame
+              ) : (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    No site selected. Please select a site to view available tags.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+
+            {/* Scan Barcode Tab */}
+            <TabsContent value="scan" className="space-y-3 mt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Scan Tag Barcodes</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Use your camera to scan Metrc tag barcodes
+                  </p>
+                </div>
+                {isScanning ? (
+                  <Button variant="outline" size="sm" onClick={stopCamera}>
+                    <X className="h-4 w-4 mr-2" />
+                    Stop Camera
+                  </Button>
+                ) : (
+                  <Button variant="default" size="sm" onClick={startCamera}>
+                    <Camera className="h-4 w-4 mr-2" />
+                    Start Scanner
+                  </Button>
+                )}
+              </div>
+
+              {/* Camera View */}
+              {isScanning && (
+                <div className="relative rounded-lg overflow-hidden border-2 border-emerald-500 bg-black">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-48 object-cover"
+                    autoPlay
+                    playsInline
+                    muted
+                  />
+                  <div className="absolute inset-0 pointer-events-none">
+                    {/* Scanning overlay */}
+                    <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-16 border-2 border-emerald-400 rounded-lg" />
+                    <div className="absolute bottom-2 left-0 right-0 text-center text-white text-sm bg-black/50 py-1">
+                      Position barcode within the frame
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {cameraError && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="text-xs">{cameraError}</AlertDescription>
-              </Alert>
-            )}
+              {cameraError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">{cameraError}</AlertDescription>
+                </Alert>
+              )}
 
-            {!isScanning && !cameraError && (
-              <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground">
-                <Camera className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">Click &quot;Start Scanner&quot; to scan Metrc tag barcodes</p>
-                <p className="text-xs mt-1">Uses your device camera to scan tags quickly</p>
-              </div>
-            )}
-          </div>
+              {!isScanning && !cameraError && (
+                <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground">
+                  <Camera className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">Click &quot;Start Scanner&quot; to scan Metrc tag barcodes</p>
+                  <p className="text-xs mt-1">Uses your device camera to scan tags quickly</p>
+                </div>
+              )}
 
-          {/* Scanned Tags List */}
-          {scannedTags.length > 0 && (
+              {/* Scanned Tags from Camera */}
+              {scannedTags.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Scanned via camera ({scannedTags.length})
+                  </Label>
+                  <div className="flex flex-wrap gap-1">
+                    {scannedTags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="text-xs font-mono gap-1 pr-1"
+                      >
+                        <Camera className="h-3 w-3" />
+                        ...{tag.slice(-8)}
+                        <button
+                          onClick={() => setScannedTags(prev => prev.filter(t => t !== tag))}
+                          className="ml-1 hover:bg-muted rounded p-0.5"
+                          title="Remove tag"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {/* Combined Selected Tags Summary */}
+          {newTags.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Scanned Tags ({scannedTags.length})</Label>
+                <Label>Tags to Assign ({newTags.length})</Label>
                 <Button variant="ghost" size="sm" onClick={clearAllTags} className="text-xs h-7">
                   Clear All
                 </Button>
               </div>
               <div className="max-h-32 overflow-y-auto border rounded-md p-2 bg-emerald-50">
                 <div className="flex flex-wrap gap-1">
-                  {scannedTags.map((tag) => (
-                    <Badge 
-                      key={tag} 
-                      variant="default" 
+                  {newTags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="default"
                       className="text-xs font-mono bg-emerald-600 hover:bg-emerald-700 gap-1 pr-1"
                     >
                       <Check className="h-3 w-3" />
-                      {tag.slice(-8)}
+                      ...{tag.slice(-8)}
                       <button
                         onClick={() => removeTag(tag)}
                         className="ml-1 hover:bg-emerald-800 rounded p-0.5"

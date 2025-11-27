@@ -83,11 +83,16 @@ export async function syncItemsFromMetrc(
 
   try {
     // Fetch items and categories from Metrc
-    const [activeItems, inactiveItems, categories] = await Promise.all([
+    const [activeItemsRaw, inactiveItemsRaw, categoriesRaw] = await Promise.all([
       client.items.listActive(),
       client.items.listInactive(),
       client.items.listCategories(),
     ])
+
+    // Metrc API returns null/undefined when no data exists, not an empty array
+    const activeItems = Array.isArray(activeItemsRaw) ? activeItemsRaw : []
+    const inactiveItems = Array.isArray(inactiveItemsRaw) ? inactiveItemsRaw : []
+    const categories = Array.isArray(categoriesRaw) ? categoriesRaw : []
 
     const allItems = [...activeItems, ...inactiveItems]
     result.synced = allItems.length

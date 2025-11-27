@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export interface LocationResolutionResult {
   metrcLocation: string | null
-  source: 'pod_mapping' | 'site_default' | 'none'
+  source: 'pod_mapping' | 'room_name' | 'site_default' | 'none'
   podName?: string
   roomName?: string
   requiresManualInput: boolean
@@ -80,7 +80,7 @@ export async function resolveMetrcLocationForBatch(
 
     const site = Array.isArray(room.site) ? room.site[0] : room.site
 
-    // Priority 1: Pod's Metrc location mapping
+    // Priority 1: Pod's explicit Metrc location mapping
     if (pod.metrc_location_name) {
       return {
         metrcLocation: pod.metrc_location_name,
@@ -91,7 +91,18 @@ export async function resolveMetrcLocationForBatch(
       }
     }
 
-    // Priority 2: Site's default Metrc location
+    // Priority 2: Use room name as Metrc location (rooms typically map to Metrc locations)
+    if (room.name) {
+      return {
+        metrcLocation: room.name,
+        source: 'room_name',
+        podName: pod.name,
+        roomName: room.name,
+        requiresManualInput: false,
+      }
+    }
+
+    // Priority 3: Site's default Metrc location
     if (site && site.default_metrc_location) {
       return {
         metrcLocation: site.default_metrc_location,

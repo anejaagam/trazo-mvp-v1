@@ -12,7 +12,34 @@ import type {
   MetrcItemUpdate,
   MetrcItemCategory,
   MetrcBrand,
+  MetrcPaginatedResponse,
 } from '../types'
+
+/**
+ * Extract items array from API response
+ * Handles both paginated (v2) and array (v1) responses
+ */
+function extractItemsFromResponse<T>(response: unknown): T[] {
+  // Handle null/undefined
+  if (!response) {
+    return []
+  }
+
+  // Handle direct array response
+  if (Array.isArray(response)) {
+    return response as T[]
+  }
+
+  // Handle paginated response with Data array
+  if (typeof response === 'object' && 'Data' in (response as object)) {
+    const paginated = response as MetrcPaginatedResponse<T>
+    return paginated.Data || []
+  }
+
+  // Unknown format - return empty
+  console.warn('Unknown items API response format:', typeof response)
+  return []
+}
 
 export class ItemsEndpoint {
   constructor(private client: MetrcClient) {}
@@ -25,50 +52,54 @@ export class ItemsEndpoint {
    * @returns Array of active items
    */
   async listActive(lastModifiedStart?: string, lastModifiedEnd?: string): Promise<MetrcItem[]> {
-    let endpoint = '/items/v2/active'
-    const params: string[] = []
+    const { facilityLicenseNumber } = this.client.getConfig()
+    let endpoint = `/items/v2/active?licenseNumber=${facilityLicenseNumber}`
 
     if (lastModifiedStart) {
-      params.push(`lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`)
+      endpoint += `&lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`
     }
     if (lastModifiedEnd) {
-      params.push(`lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`)
+      endpoint += `&lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`
     }
 
-    if (params.length > 0) {
-      endpoint += `?${params.join('&')}`
-    }
-
-    return this.client.request<MetrcItem[]>(endpoint, {
+    const response = await this.client.request<MetrcPaginatedResponse<MetrcItem> | MetrcItem[]>(endpoint, {
       method: 'GET',
     })
+    return extractItemsFromResponse<MetrcItem>(response)
   }
 
   /**
    * Get all inactive items for the facility
+   * Note: Some Metrc implementations may not support this endpoint
    *
    * @param lastModifiedStart - Optional filter for items modified after this date
    * @param lastModifiedEnd - Optional filter for items modified before this date
-   * @returns Array of inactive items
+   * @returns Array of inactive items (empty array if endpoint not supported)
    */
   async listInactive(lastModifiedStart?: string, lastModifiedEnd?: string): Promise<MetrcItem[]> {
-    let endpoint = '/items/v2/inactive'
-    const params: string[] = []
+    const { facilityLicenseNumber } = this.client.getConfig()
+    let endpoint = `/items/v2/inactive?licenseNumber=${facilityLicenseNumber}`
 
     if (lastModifiedStart) {
-      params.push(`lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`)
+      endpoint += `&lastModifiedStart=${encodeURIComponent(lastModifiedStart)}`
     }
     if (lastModifiedEnd) {
-      params.push(`lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`)
+      endpoint += `&lastModifiedEnd=${encodeURIComponent(lastModifiedEnd)}`
     }
 
-    if (params.length > 0) {
-      endpoint += `?${params.join('&')}`
+    try {
+      const response = await this.client.request<MetrcPaginatedResponse<MetrcItem> | MetrcItem[]>(endpoint, {
+        method: 'GET',
+      })
+      return extractItemsFromResponse<MetrcItem>(response)
+    } catch (error) {
+      // Some Metrc implementations don't have an inactive items endpoint
+      // Return empty array instead of failing
+      if ((error as { statusCode?: number })?.statusCode === 404) {
+        return []
+      }
+      throw error
     }
-
-    return this.client.request<MetrcItem[]>(endpoint, {
-      method: 'GET',
-    })
   }
 
   /**
@@ -78,7 +109,8 @@ export class ItemsEndpoint {
    * @returns Item details
    */
   async getById(itemId: number): Promise<MetrcItem> {
-    return this.client.request<MetrcItem>(`/items/v2/${itemId}`, {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<MetrcItem>(`/items/v2/${itemId}?licenseNumber=${facilityLicenseNumber}`, {
       method: 'GET',
     })
   }
@@ -95,9 +127,12 @@ export class ItemsEndpoint {
    * @returns Array of item categories
    */
   async listCategories(): Promise<MetrcItemCategory[]> {
-    return this.client.request<MetrcItemCategory[]>('/items/v2/categories', {
-      method: 'GET',
-    })
+    const { facilityLicenseNumber } = this.client.getConfig()
+    const response = await this.client.request<MetrcPaginatedResponse<MetrcItemCategory> | MetrcItemCategory[]>(
+      `/items/v2/categories?licenseNumber=${facilityLicenseNumber}`,
+      { method: 'GET' }
+    )
+    return extractItemsFromResponse<MetrcItemCategory>(response)
   }
 
   /**
@@ -106,9 +141,12 @@ export class ItemsEndpoint {
    * @returns Array of brands
    */
   async listBrands(): Promise<MetrcBrand[]> {
-    return this.client.request<MetrcBrand[]>('/items/v2/brands', {
-      method: 'GET',
-    })
+    const { facilityLicenseNumber } = this.client.getConfig()
+    const response = await this.client.request<MetrcPaginatedResponse<MetrcBrand> | MetrcBrand[]>(
+      `/items/v2/brands?licenseNumber=${facilityLicenseNumber}`,
+      { method: 'GET' }
+    )
+    return extractItemsFromResponse<MetrcBrand>(response)
   }
 
   /**
@@ -118,7 +156,8 @@ export class ItemsEndpoint {
    * @returns void (successful creation)
    */
   async create(payload: MetrcItemCreate): Promise<void> {
-    return this.client.request<void>('/items/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/items/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'POST',
       body: [payload], // Metrc expects an array
     })
@@ -131,7 +170,8 @@ export class ItemsEndpoint {
    * @returns void (successful creation)
    */
   async createBatch(payloads: MetrcItemCreate[]): Promise<void> {
-    return this.client.request<void>('/items/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/items/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'POST',
       body: payloads,
     })
@@ -144,7 +184,8 @@ export class ItemsEndpoint {
    * @returns void (successful update)
    */
   async update(payload: MetrcItemUpdate): Promise<void> {
-    return this.client.request<void>('/items/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/items/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'PUT',
       body: [payload], // Metrc expects an array
     })
@@ -157,7 +198,8 @@ export class ItemsEndpoint {
    * @returns void (successful update)
    */
   async updateBatch(payloads: MetrcItemUpdate[]): Promise<void> {
-    return this.client.request<void>('/items/v2/', {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    return this.client.request<void>(`/items/v2/?licenseNumber=${facilityLicenseNumber}`, {
       method: 'PUT',
       body: payloads,
     })

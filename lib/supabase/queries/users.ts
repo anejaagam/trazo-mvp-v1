@@ -37,7 +37,7 @@ export async function getUsers(
     .from('users')
     .select(`
       *,
-      organization:organizations(id, name)
+      organization:organizations!users_organization_id_fkey(id, name)
     `, { count: 'exact' });
 
   // Apply filters
@@ -82,7 +82,7 @@ export async function getUserById(userId: string): Promise<UserWithOrg | null> {
     .from('users')
     .select(`
       *,
-      organization:organizations(id, name)
+      organization:organizations!users_organization_id_fkey(id, name)
     `)
     .eq('id', userId)
     .single();

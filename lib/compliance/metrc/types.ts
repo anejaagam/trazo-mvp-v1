@@ -410,11 +410,33 @@ export interface MetrcRequestOptions {
 }
 
 /**
- * Pagination options
+ * Pagination options for list requests
  */
 export interface MetrcPaginationOptions {
-  limit?: number
-  offset?: number
+  page?: number
+  pageSize?: number
+}
+
+/**
+ * Metrc v2 API paginated response wrapper
+ * All list endpoints return this structure
+ */
+export interface MetrcPaginatedResponse<T> {
+  Data: T[]
+  Total: number
+  TotalRecords: number
+  PageSize: number
+  RecordsOnPage: number
+}
+
+/**
+ * Result from a paginated list request
+ */
+export interface MetrcListResult<T> {
+  data: T[]
+  total: number
+  pageSize: number
+  hasMore: boolean
 }
 
 // =====================================================
@@ -452,6 +474,7 @@ export interface MetrcLocation {
 export interface MetrcLocationCreate {
   Name: string
   LocationTypeId: number
+  LocationTypeName: string
 }
 
 /**
@@ -461,6 +484,7 @@ export interface MetrcLocationUpdate {
   Id: number
   Name: string
   LocationTypeId: number
+  LocationTypeName: string
 }
 
 // =====================================================

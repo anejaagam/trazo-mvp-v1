@@ -7,7 +7,7 @@
 
 import { getMetrcBaseUrl, DEFAULT_TIMEOUT, RATE_LIMIT, RETRYABLE_STATUS_CODES } from './config'
 import { MetrcApiError, MetrcTimeoutError } from './errors'
-import type { MetrcClientConfig, MetrcRequestOptions } from './types'
+import type { MetrcClientConfig, MetrcRequestOptions, MetrcPaginatedResponse, MetrcListResult, MetrcPaginationOptions } from './types'
 import {
   FacilitiesEndpoint,
   LocationsEndpoint,
@@ -27,6 +27,19 @@ import {
  */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Create Basic Auth header from vendor and user API keys
+ * Metrc uses Basic Auth: base64(vendorKey:userKey)
+ */
+function createBasicAuthHeader(vendorKey: string, userKey: string): string {
+  // Use Buffer in Node.js, btoa in browser
+  const credentials = `${vendorKey}:${userKey}`
+  if (typeof Buffer !== 'undefined') {
+    return `Basic ${Buffer.from(credentials).toString('base64')}`
+  }
+  return `Basic ${btoa(credentials)}`
 }
 
 /**
@@ -146,8 +159,7 @@ export class MetrcClient {
         method: options.method || 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.vendorApiKey,
-          'x-user-api-key': this.userApiKey,
+          'Authorization': createBasicAuthHeader(this.vendorApiKey, this.userApiKey),
           ...options.headers,
         },
         body: options.body ? JSON.stringify(options.body) : undefined,
@@ -202,6 +214,70 @@ export class MetrcClient {
   }
 
   /**
+   * Make an authenticated list request that handles v2 paginated responses
+   *
+   * Metrc v2 API returns paginated responses: { Data: [], Total, TotalRecords, PageSize, RecordsOnPage }
+   * This method automatically extracts the data and provides pagination info
+   *
+   * @param endpoint - API endpoint (e.g., '/locations/v2/active')
+   * @param options - Request options including pagination
+   * @returns Paginated list result with data and metadata
+   */
+  async requestList<T>(
+    endpoint: string,
+    options: MetrcRequestOptions & { pagination?: MetrcPaginationOptions } = {}
+  ): Promise<MetrcListResult<T>> {
+    const { pagination, ...requestOptions } = options
+
+    // Build URL with pagination params
+    let url = endpoint
+    const params = new URLSearchParams()
+
+    if (pagination?.page !== undefined) {
+      params.set('page', String(pagination.page))
+    }
+    if (pagination?.pageSize !== undefined) {
+      params.set('pageSize', String(pagination.pageSize))
+    }
+
+    const paramString = params.toString()
+    if (paramString) {
+      url += (url.includes('?') ? '&' : '?') + paramString
+    }
+
+    const response = await this.request<MetrcPaginatedResponse<T> | T[]>(url, requestOptions)
+
+    // Handle paginated response (v2 API)
+    if (response && typeof response === 'object' && 'Data' in response) {
+      const paginated = response as MetrcPaginatedResponse<T>
+      return {
+        data: paginated.Data,
+        total: paginated.TotalRecords,
+        pageSize: paginated.PageSize,
+        hasMore: paginated.RecordsOnPage < paginated.TotalRecords,
+      }
+    }
+
+    // Handle direct array response (v1 API or some endpoints)
+    if (Array.isArray(response)) {
+      return {
+        data: response,
+        total: response.length,
+        pageSize: response.length,
+        hasMore: false,
+      }
+    }
+
+    // Fallback
+    return {
+      data: [],
+      total: 0,
+      pageSize: 0,
+      hasMore: false,
+    }
+  }
+
+  /**
    * Get the current configuration
    */
   getConfig() {
@@ -211,5 +287,12 @@ export class MetrcClient {
       facilityLicenseNumber: this.facilityLicenseNumber,
       isSandbox: this.isSandbox,
     }
+  }
+
+  /**
+   * Get the facility license number
+   */
+  getFacilityLicenseNumber(): string {
+    return this.facilityLicenseNumber
   }
 }

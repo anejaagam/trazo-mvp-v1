@@ -59,7 +59,12 @@ export async function GET(request: NextRequest) {
         default_metrc_location,
         is_active,
         created_at,
-        updated_at
+        updated_at,
+        metrc_license_number,
+        metrc_facility_id,
+        metrc_credential_id,
+        compliance_status,
+        metrc_locations_synced_at
       `)
       .eq('organization_id', organizationId)
       .order('name', { ascending: true })

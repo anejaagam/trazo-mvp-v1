@@ -143,16 +143,22 @@ export async function syncRoomToMetrc(
 
     // Check for duplicate location names in Metrc
     const existingLocations = await metrcClient.locations.listActive()
-    const existingNames = existingLocations.map((loc) => loc.Name)
+    const existingNames = existingLocations.data.map((loc) => loc.Name)
     const duplicateCheck = checkDuplicateLocationName(room.name, existingNames)
     duplicateCheck.warnings.forEach((w) => {
       result.warnings.push(`${w.field}: ${w.message}`)
     })
 
+    // Get location type name
+    const locationTypes = await metrcClient.locations.listTypes()
+    const locationType = locationTypes.data.find((type) => type.Id === locationTypeId)
+    const locationTypeName = locationType?.Name || 'Default'
+
     // Build Metrc location payload
     const metrcLocation: MetrcLocationCreate = {
       Name: room.name.trim(),
       LocationTypeId: locationTypeId,
+      LocationTypeName: locationTypeName,
     }
 
     // Validate Metrc payload
@@ -172,17 +178,13 @@ export async function syncRoomToMetrc(
 
     // Fetch the created location to get its ID
     const updatedLocations = await metrcClient.locations.listActive()
-    const createdLocation = updatedLocations.find(
+    const createdLocation = updatedLocations.data.find(
       (loc) => loc.Name.trim().toLowerCase() === room.name.trim().toLowerCase()
     )
 
     if (createdLocation) {
       result.metrcLocationId = createdLocation.Id
       result.metrcLocationName = createdLocation.Name
-
-      // Get location type name
-      const locationTypes = await metrcClient.locations.listTypes()
-      const locationType = locationTypes.find((type) => type.Id === locationTypeId)
 
       // Update room with Metrc details
       await supabase.from('rooms').update({
@@ -409,16 +411,22 @@ export async function syncPodToMetrc(
 
     // Check for duplicate location names in Metrc
     const existingLocations = await metrcClient.locations.listActive()
-    const existingNames = existingLocations.map((loc) => loc.Name)
+    const existingNames = existingLocations.data.map((loc) => loc.Name)
     const duplicateCheck = checkDuplicateLocationName(pod.name, existingNames)
     duplicateCheck.warnings.forEach((w) => {
       result.warnings.push(`${w.field}: ${w.message}`)
     })
 
+    // Get location type name
+    const locationTypes = await metrcClient.locations.listTypes()
+    const locationType = locationTypes.data.find((type) => type.Id === locationTypeId)
+    const locationTypeName = locationType?.Name || 'Default'
+
     // Build Metrc location payload
     const metrcLocation: MetrcLocationCreate = {
       Name: pod.name.trim(),
       LocationTypeId: locationTypeId,
+      LocationTypeName: locationTypeName,
     }
 
     // Validate Metrc payload
@@ -438,17 +446,13 @@ export async function syncPodToMetrc(
 
     // Fetch the created location to get its ID
     const updatedLocations = await metrcClient.locations.listActive()
-    const createdLocation = updatedLocations.find(
+    const createdLocation = updatedLocations.data.find(
       (loc) => loc.Name.trim().toLowerCase() === pod.name.trim().toLowerCase()
     )
 
     if (createdLocation) {
       result.metrcLocationId = createdLocation.Id
       result.metrcLocationName = createdLocation.Name
-
-      // Get location type name
-      const locationTypes = await metrcClient.locations.listTypes()
-      const locationType = locationTypes.find((type) => type.Id === locationTypeId)
 
       // Update pod with Metrc details
       await supabase.from('pods').update({

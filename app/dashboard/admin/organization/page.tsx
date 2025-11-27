@@ -54,7 +54,12 @@ export default async function OrganizationPage() {
       site_license_number,
       is_active,
       created_at,
-      updated_at
+      updated_at,
+      metrc_license_number,
+      metrc_facility_id,
+      metrc_credential_id,
+      compliance_status,
+      metrc_locations_synced_at
     `)
     .eq('organization_id', userData.organization_id)
     .order('name', { ascending: true })

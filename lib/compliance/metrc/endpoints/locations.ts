@@ -5,10 +5,17 @@
  */
 
 import type { MetrcClient } from '../client'
-import type { MetrcLocation, MetrcLocationType, MetrcLocationCreate, MetrcLocationUpdate } from '../types'
+import type { MetrcLocation, MetrcLocationType, MetrcLocationCreate, MetrcLocationUpdate, MetrcListResult, MetrcPaginationOptions } from '../types'
 
 export class LocationsEndpoint {
   constructor(private client: MetrcClient) {}
+
+  /**
+   * Get the license number query param
+   */
+  private getLicenseParam(): string {
+    return `licenseNumber=${this.client.getFacilityLicenseNumber()}`
+  }
 
   /**
    * Get all location types available in the facility's state
@@ -19,33 +26,36 @@ export class LocationsEndpoint {
    * - Harvests (drying/curing product)
    * - Packages (finished goods)
    *
-   * @returns Array of location types
+   * @returns Paginated list of location types
    */
-  async listTypes(): Promise<MetrcLocationType[]> {
-    return this.client.request<MetrcLocationType[]>('/locations/v2/types', {
+  async listTypes(pagination?: MetrcPaginationOptions): Promise<MetrcListResult<MetrcLocationType>> {
+    return this.client.requestList<MetrcLocationType>(`/locations/v2/types?${this.getLicenseParam()}`, {
       method: 'GET',
+      pagination,
     })
   }
 
   /**
    * Get all active locations for the facility
    *
-   * @returns Array of active locations
+   * @returns Paginated list of active locations
    */
-  async listActive(): Promise<MetrcLocation[]> {
-    return this.client.request<MetrcLocation[]>('/locations/v2/active', {
+  async listActive(pagination?: MetrcPaginationOptions): Promise<MetrcListResult<MetrcLocation>> {
+    return this.client.requestList<MetrcLocation>(`/locations/v2/active?${this.getLicenseParam()}`, {
       method: 'GET',
+      pagination,
     })
   }
 
   /**
    * Get all inactive locations for the facility
    *
-   * @returns Array of inactive locations
+   * @returns Paginated list of inactive locations
    */
-  async listInactive(): Promise<MetrcLocation[]> {
-    return this.client.request<MetrcLocation[]>('/locations/v2/inactive', {
+  async listInactive(pagination?: MetrcPaginationOptions): Promise<MetrcListResult<MetrcLocation>> {
+    return this.client.requestList<MetrcLocation>(`/locations/v2/inactive?${this.getLicenseParam()}`, {
       method: 'GET',
+      pagination,
     })
   }
 
@@ -68,7 +78,7 @@ export class LocationsEndpoint {
    * @returns Created location details (via subsequent fetch)
    */
   async create(payload: MetrcLocationCreate): Promise<void> {
-    return this.client.request<void>('/locations/v2/', {
+    return this.client.request<void>(`/locations/v2/?${this.getLicenseParam()}`, {
       method: 'POST',
       body: [payload], // Metrc expects an array
     })
@@ -81,7 +91,7 @@ export class LocationsEndpoint {
    * @returns void (successful creation)
    */
   async createBatch(payloads: MetrcLocationCreate[]): Promise<void> {
-    return this.client.request<void>('/locations/v2/', {
+    return this.client.request<void>(`/locations/v2/?${this.getLicenseParam()}`, {
       method: 'POST',
       body: payloads,
     })
@@ -94,7 +104,7 @@ export class LocationsEndpoint {
    * @returns void (successful update)
    */
   async update(payload: MetrcLocationUpdate): Promise<void> {
-    return this.client.request<void>('/locations/v2/', {
+    return this.client.request<void>(`/locations/v2/?${this.getLicenseParam()}`, {
       method: 'PUT',
       body: [payload], // Metrc expects an array
     })
@@ -107,7 +117,7 @@ export class LocationsEndpoint {
    * @returns void (successful update)
    */
   async updateBatch(payloads: MetrcLocationUpdate[]): Promise<void> {
-    return this.client.request<void>('/locations/v2/', {
+    return this.client.request<void>(`/locations/v2/?${this.getLicenseParam()}`, {
       method: 'PUT',
       body: payloads,
     })
@@ -122,7 +132,7 @@ export class LocationsEndpoint {
    * @returns void (successful deletion)
    */
   async delete(locationId: number): Promise<void> {
-    return this.client.request<void>(`/locations/v2/${locationId}`, {
+    return this.client.request<void>(`/locations/v2/${locationId}?${this.getLicenseParam()}`, {
       method: 'DELETE',
     })
   }
@@ -135,10 +145,10 @@ export class LocationsEndpoint {
    * @returns Location if found, null otherwise
    */
   async findByName(name: string): Promise<MetrcLocation | null> {
-    const locations = await this.listActive()
+    const result = await this.listActive()
     const normalizedName = name.trim().toLowerCase()
-    const found = locations.find(
-      (loc) => loc.Name.trim().toLowerCase() === normalizedName
+    const found = result.data.find(
+      (loc: MetrcLocation) => loc.Name.trim().toLowerCase() === normalizedName
     )
     return found || null
   }

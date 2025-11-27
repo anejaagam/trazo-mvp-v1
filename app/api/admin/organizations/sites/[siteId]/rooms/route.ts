@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
+import { createMetrcClient } from '@/lib/compliance/metrc/services'
 
 interface RouteContext {
   params: Promise<{
@@ -125,7 +126,7 @@ export async function POST(
     const supabase = await createClient()
     const { siteId } = await context.params
     const body = await request.json()
-    
+
     // Get current user
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -157,10 +158,10 @@ export async function POST(
       )
     }
 
-    // Verify site belongs to user's organization
+    // Verify site belongs to user's organization and get Metrc details
     const { data: site } = await supabase
       .from('sites')
-      .select('id')
+      .select('id, metrc_license_number, metrc_credential_id')
       .eq('id', siteId)
       .eq('organization_id', userData.organization_id)
       .single()
@@ -190,7 +191,62 @@ export async function POST(
       )
     }
 
-    // Create room
+    // Variables for Metrc location sync
+    let metrcLocationId: number | null = null
+    let metrcLocationName: string | null = null
+    let metrcSyncStatus: string = 'not_synced'
+
+    // If site is linked to Metrc, create location in Metrc first
+    if (site.metrc_license_number && site.metrc_credential_id) {
+      try {
+        // Get credentials
+        const { data: credential } = await supabase
+          .from('metrc_org_credentials')
+          .select('user_api_key, state_code, is_sandbox')
+          .eq('id', site.metrc_credential_id)
+          .single()
+
+        if (credential) {
+          const client = createMetrcClient(
+            credential.state_code,
+            credential.user_api_key,
+            site.metrc_license_number,
+            credential.is_sandbox
+          )
+
+          // Get location types to find an appropriate one
+          const typesResult = await client.locations.listTypes()
+          const defaultType = typesResult.data.find(t =>
+            t.Name.toLowerCase().includes('default') ||
+            t.Name.toLowerCase().includes('general')
+          ) || typesResult.data[0]
+
+          if (defaultType) {
+            // Create location in Metrc
+            await client.locations.create({
+              Name: name,
+              LocationTypeId: defaultType.Id,
+              LocationTypeName: defaultType.Name,
+            })
+
+            // Fetch the newly created location to get its ID
+            const createdLocation = await client.locations.findByName(name)
+            if (createdLocation) {
+              metrcLocationId = createdLocation.Id
+              metrcLocationName = createdLocation.Name
+              metrcSyncStatus = 'synced'
+            }
+          }
+        }
+      } catch (metrcError) {
+        console.error('Error creating Metrc location:', metrcError)
+        // Don't fail the room creation, just log the error
+        // The room will be created without Metrc sync
+        metrcSyncStatus = 'sync_error'
+      }
+    }
+
+    // Create room in Trazo
     const { data: room, error } = await supabase
       .from('rooms')
       .insert({
@@ -202,7 +258,10 @@ export async function POST(
         dimensions_width_ft,
         dimensions_height_ft,
         environmental_zone,
-        is_active: true
+        is_active: true,
+        metrc_location_id: metrcLocationId,
+        metrc_location_name: metrcLocationName,
+        metrc_sync_status: metrcSyncStatus,
       })
       .select()
       .single()
@@ -215,12 +274,13 @@ export async function POST(
       )
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       room: {
         ...room,
         pod_count: 0
-      }
+      },
+      metrcSynced: metrcSyncStatus === 'synced',
     }, { status: 201 })
   } catch (error) {
     console.error('Error in POST /api/admin/organizations/sites/[siteId]/rooms:', error)

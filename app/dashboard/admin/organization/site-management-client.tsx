@@ -23,13 +23,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, MoreVertical, Edit, Trash2, MapPin, Building2, Boxes, ChevronDown, ChevronRight, DoorOpen } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Trash2, MapPin, Building2, Boxes, ChevronDown, ChevronRight, DoorOpen, Link2, RefreshCw, AlertTriangle, CheckCircle, ShieldAlert } from 'lucide-react';
 import { SiteFormDialog } from '@/components/features/admin/site-form-dialog';
 import { DeleteSiteDialog } from '@/components/features/admin/delete-site-dialog';
 import { RoomFormDialog } from '@/components/features/admin/room-form-dialog';
 import { DeleteRoomDialog } from '@/components/features/admin/delete-room-dialog';
 import { PodAssignmentDialog } from '@/components/features/admin/pod-assignment-dialog';
 import { PodEditDialog } from '@/components/features/admin/pod-edit-dialog';
+import { SiteMetrcLinkDialog } from '@/components/features/admin/site-metrc-link-dialog';
+import { SiteRoomSyncDialog } from '@/components/features/admin/site-room-sync-dialog';
+import { CreateSiteFromFacilityDialog } from '@/components/features/admin/create-site-from-facility-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Site {
   id: string;
@@ -48,6 +52,12 @@ interface Site {
   room_count: number;
   pod_count: number;
   user_count: number;
+  // Metrc compliance fields
+  metrc_license_number?: string | null;
+  metrc_facility_id?: string | null;
+  metrc_credential_id?: string | null;
+  compliance_status?: 'compliant' | 'uncompliant' | 'pending' | 'not_required' | null;
+  metrc_locations_synced_at?: string | null;
 }
 
 interface Room {
@@ -114,6 +124,17 @@ export function SiteManagementClient({
   const [podEditDialogOpen, setPodEditDialogOpen] = useState(false);
   const [podToEdit, setPodToEdit] = useState<Pod | null>(null);
 
+  // Metrc compliance dialogs
+  const [metrcLinkDialogOpen, setMetrcLinkDialogOpen] = useState(false);
+  const [roomSyncDialogOpen, setRoomSyncDialogOpen] = useState(false);
+  const [selectedSiteForMetrc, setSelectedSiteForMetrc] = useState<Site | null>(null);
+  const [createFromFacilityDialogOpen, setCreateFromFacilityDialogOpen] = useState(false);
+
+  // Check if organization uses Metrc compliance
+  // Jurisdiction format: "metrc-{state}", "ctls-canada", "primus-gfs", "gap"
+  const jurisdiction = organization.jurisdiction?.toLowerCase() ?? '';
+  const isMetrcOrganization = jurisdiction.startsWith('metrc-');
+
   const totalSites = sites.filter(s => s.is_active).length;
   const totalRooms = sites.reduce((sum, s) => sum + (s.room_count || 0), 0);
   const totalPods = sites.reduce((sum, s) => sum + (s.pod_count || 0), 0);
@@ -132,8 +153,13 @@ export function SiteManagementClient({
   };
 
   const handleCreateSite = () => {
-    setSelectedSite(null);
-    setFormDialogOpen(true);
+    // For Metrc organizations, sites can only be created from available Metrc facilities
+    if (isMetrcOrganization) {
+      setCreateFromFacilityDialogOpen(true);
+    } else {
+      setSelectedSite(null);
+      setFormDialogOpen(true);
+    }
   };
 
   const handleEditSite = (site: Site) => {
@@ -271,6 +297,79 @@ export function SiteManagementClient({
     handleRefresh();
   };
 
+  // Metrc compliance handlers
+  const handleMetrcLink = (site: Site) => {
+    setSelectedSiteForMetrc(site);
+    setMetrcLinkDialogOpen(true);
+  };
+
+  const handleRoomSync = (site: Site) => {
+    setSelectedSiteForMetrc(site);
+    setRoomSyncDialogOpen(true);
+  };
+
+  const handleMetrcSuccess = () => {
+    handleRefresh();
+  };
+
+  // Calculate compliance stats - sites without Metrc license need attention
+  const uncompliantSites = sites.filter(
+    (s) => s.is_active && !s.metrc_license_number
+  );
+
+  // Helper function for compliance status badge
+  const getComplianceBadge = (site: Site) => {
+    if (!site.is_active) return null;
+
+    // Primary check: does site have a Metrc license linked?
+    if (!site.metrc_license_number) {
+      return (
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          Not Linked
+        </Badge>
+      );
+    }
+
+    // Site is linked - show compliance status
+    switch (site.compliance_status) {
+      case 'compliant':
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Compliant
+          </Badge>
+        );
+      case 'uncompliant':
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Uncompliant
+          </Badge>
+        );
+      case 'pending':
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            Pending Sync
+          </Badge>
+        );
+      case 'not_required':
+        return (
+          <Badge variant="outline" className="text-slate-500">
+            N/A
+          </Badge>
+        );
+      default:
+        // Has license but status not set - likely just linked
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Linked
+          </Badge>
+        );
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -353,6 +452,35 @@ export function SiteManagementClient({
         </Card>
       </div>
 
+      {/* Compliance Alert - Only for Metrc organizations */}
+      {isMetrcOrganization && uncompliantSites.length > 0 && (
+        <Alert className="bg-red-50 border-red-200">
+          <ShieldAlert className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>{uncompliantSites.length} site{uncompliantSites.length > 1 ? 's are' : ' is'} not compliant with Metrc.</strong>
+            {' '}Link {uncompliantSites.length > 1 ? 'them' : 'it'} to a Metrc facility to maintain compliance.
+            <ul className="mt-2 list-disc list-inside text-sm">
+              {uncompliantSites.slice(0, 3).map((site) => (
+                <li key={site.id}>
+                  {site.name}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 ml-2 text-red-700 underline"
+                    onClick={() => handleMetrcLink(site)}
+                  >
+                    Link now
+                  </Button>
+                </li>
+              ))}
+              {uncompliantSites.length > 3 && (
+                <li className="text-red-600">...and {uncompliantSites.length - 3} more</li>
+              )}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Sites Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -389,6 +517,7 @@ export function SiteManagementClient({
                   <TableHead>Rooms</TableHead>
                   <TableHead>Pods</TableHead>
                   <TableHead>Capacity</TableHead>
+                  {isMetrcOrganization && <TableHead>Compliance</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
@@ -443,6 +572,18 @@ export function SiteManagementClient({
                               )}
                             </div>
                           </TableCell>
+                          {isMetrcOrganization && (
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                {getComplianceBadge(site)}
+                                {site.metrc_license_number && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {site.metrc_license_number}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                          )}
                           <TableCell>
                             <Badge variant={site.is_active ? 'default' : 'secondary'}>
                               {site.is_active ? 'Active' : 'Inactive'}
@@ -460,6 +601,18 @@ export function SiteManagementClient({
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit Site
                                 </DropdownMenuItem>
+                                {isMetrcOrganization && (
+                                  <DropdownMenuItem onClick={() => handleMetrcLink(site)}>
+                                    <Link2 className="mr-2 h-4 w-4" />
+                                    {site.metrc_license_number ? 'Manage Metrc Link' : 'Link to Metrc'}
+                                  </DropdownMenuItem>
+                                )}
+                                {isMetrcOrganization && site.metrc_license_number && (
+                                  <DropdownMenuItem onClick={() => handleRoomSync(site)}>
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                    Sync Rooms
+                                  </DropdownMenuItem>
+                                )}
                                 {site.is_active && (
                                   <DropdownMenuItem
                                     onClick={() => handleDeleteSite(site)}
@@ -477,7 +630,7 @@ export function SiteManagementClient({
                         {/* Expandable Rooms Section */}
                         {isExpanded && (
                           <TableRow>
-                            <TableCell colSpan={9} className="bg-muted/30 p-0">
+                            <TableCell colSpan={isMetrcOrganization ? 10 : 9} className="bg-muted/30 p-0">
                               <div className="p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2">
@@ -600,7 +753,7 @@ export function SiteManagementClient({
                                                 {/* Expandable Pods Section */}
                                                 {isRoomExpanded && (
                                                   <TableRow>
-                                                    <TableCell colSpan={9} className="bg-muted/50 p-0">
+                                                    <TableCell colSpan={isMetrcOrganization ? 10 : 9} className="bg-muted/50 p-0">
                                                       <div className="p-3 pl-10">
                                                         <div className="text-xs font-semibold text-muted-foreground mb-2">
                                                           Pods in {room.name}
@@ -739,6 +892,25 @@ export function SiteManagementClient({
         onClose={() => setPodEditDialogOpen(false)}
         pod={podToEdit}
         onSuccess={handlePodEditSuccess}
+      />
+
+      {/* Metrc Compliance Dialogs */}
+      <SiteMetrcLinkDialog
+        open={metrcLinkDialogOpen}
+        onClose={() => setMetrcLinkDialogOpen(false)}
+        site={selectedSiteForMetrc}
+        onSuccess={handleMetrcSuccess}
+      />
+      <SiteRoomSyncDialog
+        open={roomSyncDialogOpen}
+        onClose={() => setRoomSyncDialogOpen(false)}
+        site={selectedSiteForMetrc}
+        onSuccess={handleMetrcSuccess}
+      />
+      <CreateSiteFromFacilityDialog
+        open={createFromFacilityDialogOpen}
+        onClose={() => setCreateFromFacilityDialogOpen(false)}
+        onSuccess={handleFormSuccess}
       />
     </div>
   );

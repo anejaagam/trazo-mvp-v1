@@ -2,11 +2,11 @@ import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
-import { MetrcApiKeyManager } from '@/components/features/admin/metrc-api-key-manager'
+import { MetrcCredentialsManager } from '@/components/features/admin/metrc-credentials-manager'
 
 export const metadata: Metadata = {
-  title: 'Compliance API Keys - Trazo Admin',
-  description: 'Configure Metrc API keys for cannabis tracking compliance',
+  title: 'Metrc Integration - Trazo Admin',
+  description: 'Connect your Metrc account and manage compliance integration',
 }
 
 export default async function ComplianceKeysPage() {
@@ -41,14 +41,14 @@ export default async function ComplianceKeysPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-display-4 font-semibold text-brand-dark-green-700">
-          Compliance API Keys
+          Metrc Integration
         </h1>
         <p className="text-body-base text-slate-600 mt-2">
-          Manage Metrc API credentials for state-mandated cannabis tracking and compliance
+          Connect your Metrc account to enable compliance tracking. Enter your User API Key to get started.
         </p>
       </div>
 
-      <MetrcApiKeyManager />
+      <MetrcCredentialsManager />
     </div>
   )
 }

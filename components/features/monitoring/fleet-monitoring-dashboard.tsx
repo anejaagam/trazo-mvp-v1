@@ -204,20 +204,19 @@ export function FleetMonitoringDashboard({
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">Pod Fleet</h2>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-              <span>{timeSinceUpdate}</span>
-            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => refresh()}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => refresh()}
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+              <span className="text-xs text-muted-foreground">{timeSinceUpdate}</span>
+            </div>
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'grid' | 'table')}>
               <TabsList className="h-8">
                 <TabsTrigger value="grid" className="h-7 px-2">

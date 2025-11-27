@@ -90,8 +90,8 @@ export function MonitoringAlarmsPanel({ siteId }: MonitoringAlarmsPanelProps) {
             </>
           ) : (
             <>
-              <BellOff className="h-4 w-4" />
-              <span>No Alarms</span>
+              <BellOff className="h-4 w-4 text-green-600" />
+              <span className="text-green-600">No Alarms</span>
             </>
           )}
         </Button>

@@ -33,7 +33,7 @@ interface UserWithOrg {
   role: string
   is_active: boolean
   created_at: string
-  last_sign_in_at: string | null
+  last_sign_in: string | null
   organization: {
     id: string
     name: string
@@ -74,6 +74,7 @@ export default async function UsersPage({
   }
 
   // Fetch all users with organization info
+  // Use !users_organization_id_fkey to specify the relationship since there are two FKs between users and organizations
   let query = supabase
     .from('users')
     .select(`
@@ -83,8 +84,8 @@ export default async function UsersPage({
       role,
       is_active,
       created_at,
-      last_sign_in_at,
-      organization:organizations(id, name, approval_status)
+      last_sign_in,
+      organization:organizations!users_organization_id_fkey(id, name, approval_status)
     `)
     .order('created_at', { ascending: false })
 
@@ -283,8 +284,8 @@ export default async function UsersPage({
                   </TableCell>
                   <TableCell>
                     <span className="text-sm text-muted-foreground">
-                      {u.last_sign_in_at
-                        ? formatDistanceToNow(new Date(u.last_sign_in_at), { addSuffix: true })
+                      {u.last_sign_in
+                        ? formatDistanceToNow(new Date(u.last_sign_in), { addSuffix: true })
                         : 'Never'}
                     </span>
                   </TableCell>

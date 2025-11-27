@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { logDevAction, DEV_AUDIT_ACTIONS } from '@/lib/dev-audit'
+import { logDevActionClient } from '@/lib/dev-audit/dev-audit-logger.client'
+import { DEV_AUDIT_ACTIONS } from '@/lib/dev-audit/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -67,7 +68,7 @@ export function DevLoginForm() {
       }
 
       // Log the successful login
-      await logDevAction({
+      await logDevActionClient({
         developerId: authData.user.id,
         action: DEV_AUDIT_ACTIONS.DEV_LOGIN,
         metadata: {

@@ -8,6 +8,7 @@ import { AlertsList } from "@/components/features/dashboard/alerts-list"
 import { ActivityChart } from "@/components/features/dashboard/activity-chart"
 import { QuickActions } from "@/components/features/dashboard/quick-actions"
 import { Boxes, Sprout, Bell, Package } from "lucide-react"
+import { useAlarms } from "@/hooks/use-alarms"
 import type { JurisdictionId } from "@/lib/jurisdiction/types"
 
 interface DashboardClientProps {
@@ -35,7 +36,18 @@ interface DashboardClientProps {
   growthPercent: string
 }
 
-export function DashboardClient({ siteId, organizationId, userId, jurisdictionId, stats, environmental, batches, alarms, growthData, totalPlants, growthPercent }: DashboardClientProps) {
+export function DashboardClient({ siteId, organizationId, userId, jurisdictionId, stats, environmental, batches, alarms: initialAlarms, growthData, totalPlants, growthPercent }: DashboardClientProps) {
+  // Use real-time alarms hook - polls every 5 seconds silently
+  const { alarms: realtimeAlarms, activeCount } = useAlarms({ 
+    siteId, 
+    status: 'active',
+    realtime: true 
+  })
+  
+  // Use real-time data if available, otherwise fall back to server data
+  const displayAlarms = realtimeAlarms.length > 0 ? realtimeAlarms.slice(0, 3) : initialAlarms
+  const displayAlarmCount = realtimeAlarms.length > 0 ? activeCount : stats.activeAlarms
+  
   return (
     <>
       {/* Header */}
@@ -64,8 +76,8 @@ export function DashboardClient({ siteId, organizationId, userId, jurisdictionId
         />
         <StatCard
           title="Active Alarms"
-          value={stats.activeAlarms.toString()}
-          change={stats.activeAlarms === 0 ? "All clear" : "Requires attention"}
+          value={displayAlarmCount.toString()}
+          change={displayAlarmCount === 0 ? "All clear" : "Requires attention"}
           icon={Bell}
         />
         <StatCard
@@ -95,7 +107,7 @@ export function DashboardClient({ siteId, organizationId, userId, jurisdictionId
       {/* Bottom Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BatchList batches={batches} />
-        <AlertsList alarms={alarms} />
+        <AlertsList alarms={displayAlarms} />
       </div>
     </>
   )

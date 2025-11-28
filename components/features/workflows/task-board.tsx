@@ -326,7 +326,7 @@ export function TaskBoard({
           {task.due_date && (
             <div className="flex items-center gap-2 text-xs text-slate-600">
               <Calendar className="h-3 w-3" />
-              <span>Due {new Date(task.due_date).toLocaleDateString()}</span>
+              <span>Due {task.due_date.split('T')[0]}</span>
             </div>
           )}
 

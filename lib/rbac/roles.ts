@@ -171,6 +171,10 @@ export const ROLES: Record<RoleKey, Role> = {
       'monitoring:view',
       'monitoring:export',
       
+      // Pod configuration
+      'pod:configure',
+      'pod:calibrate',
+      
       // Equipment Control (AUTO Mode) - Full access
       'equipment:control:manual',
       'equipment:control:auto',

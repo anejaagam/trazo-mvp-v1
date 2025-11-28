@@ -11,8 +11,8 @@ import type { JurisdictionId } from "@/lib/jurisdiction/types"
 
 const actions = [
   { icon: Plus, label: "New Batch", action: "newBatch" },
-  { icon: FileText, label: "View Reports", href: "/dashboard/reports" },
-  { icon: Settings, label: "System Settings", href: "/dashboard/admin/settings" },
+  { icon: FileText, label: "View Reports", action: "reports" },
+  { icon: Settings, label: "System Settings", action: "settings" },
   { icon: Download, label: "Export Data", action: "export" },
 ]
 
@@ -36,6 +36,14 @@ export function QuickActions({ siteId, organizationId, userId, jurisdictionId }:
     }
     if (action.action === "export") {
       toast.info("Export functionality coming soon")
+      return
+    }
+    if (action.action === "reports") {
+      toast.info("Reports coming soon")
+      return
+    }
+    if (action.action === "settings") {
+      toast.info("System Settings coming soon")
       return
     }
     if (action.href) {

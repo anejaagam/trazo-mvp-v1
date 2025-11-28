@@ -102,9 +102,9 @@ export default function SignUpStep2() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="flex-1 flex flex-col bg-gradient-to-b from-brand-lighter-green-50/30 to-white">
+      <div className="flex-1 flex flex-col bg-gradient-to-b from-brand-lighter-green-50/30 to-white min-h-screen lg:min-h-0 overflow-y-auto">
         {/* Mobile Header */}
-        <div className="lg:hidden bg-secondary-800 p-4">
+        <div className="lg:hidden bg-secondary-800 p-4 flex-shrink-0">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-9 relative">
               <Image
@@ -122,7 +122,7 @@ export default function SignUpStep2() {
         </div>
 
         {/* Form Container */}
-        <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+        <div className="flex-1 flex items-start lg:items-center justify-center p-6 sm:p-12 py-8">
           <div className="w-full max-w-md">
             {/* Progress Indicator */}
             <div className="mb-8">

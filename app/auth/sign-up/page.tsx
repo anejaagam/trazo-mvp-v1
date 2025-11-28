@@ -125,12 +125,12 @@ export default function SignUpStep1() {
         <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
           <div className="w-full max-w-md">
             {/* Progress Indicator */}
-            <div className="mb-8">
+            <div className="mb-6">
               <ProgressIndicator currentStep={1} totalSteps={4} />
             </div>
 
             {/* Title */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h2 className="font-display font-bold text-3xl text-secondary-800 mb-2">
                 User Details
               </h2>
@@ -140,7 +140,7 @@ export default function SignUpStep1() {
             </div>
 
             {/* Form */}
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Name Input */}
               <div className="space-y-2">
                 <label htmlFor="name" className="block text-sm font-medium text-secondary-700">
@@ -256,7 +256,7 @@ export default function SignUpStep1() {
               </div>
 
               {/* Info Note */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                 <p className="text-sm text-blue-800">
                   <strong>Note:</strong> As the first person to sign up, you will be the <strong>Organization Admin</strong> with full access to manage your organization.
                 </p>
@@ -266,14 +266,14 @@ export default function SignUpStep1() {
               <Button 
                 onClick={handleNext}
                 disabled={!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.phoneNumber}
-                className="w-full h-12 text-base font-semibold"
+                className="w-full h-11 text-base font-semibold"
                 size="lg"
               >
                 Continue
               </Button>
 
               {/* Sign in link */}
-              <div className="text-center pt-2">
+              <div className="text-center">
                 <p className="text-sm text-secondary-600">
                   Already have an account?{" "}
                   <Link 

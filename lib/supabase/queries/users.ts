@@ -442,3 +442,84 @@ export async function getUserCountsByStatus(): Promise<Record<string, number>> {
 
   return counts;
 }
+
+/**
+ * Pending invitation type
+ */
+export interface PendingInvitation {
+  id: string;
+  email: string;
+  role: string;
+  organization_id: string;
+  site_id: string | null;
+  invited_by: string;
+  status: string;
+  invitation_token: string | null;
+  expires_at: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Get pending invitations for an organization
+ */
+export async function getPendingInvitations(
+  organizationId: string
+): Promise<PendingInvitation[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('pending_invitations')
+    .select('*')
+    .eq('organization_id', organizationId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch pending invitations: ${error.message}`);
+  }
+
+  return (data as PendingInvitation[]) || [];
+}
+
+/**
+ * Cancel a pending invitation
+ */
+export async function cancelPendingInvitation(invitationId: string): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('pending_invitations')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('id', invitationId);
+
+  if (error) {
+    throw new Error(`Failed to cancel invitation: ${error.message}`);
+  }
+}
+
+/**
+ * Resend a pending invitation (updates expiration)
+ */
+export async function resendPendingInvitation(invitationId: string): Promise<void> {
+  const supabase = await createClient();
+
+  const newExpiration = new Date();
+  newExpiration.setDate(newExpiration.getDate() + 7); // 7 days from now
+
+  const { error } = await supabase
+    .from('pending_invitations')
+    .update({ 
+      expires_at: newExpiration.toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', invitationId);
+
+  if (error) {
+    throw new Error(`Failed to resend invitation: ${error.message}`);
+  }
+
+  // TODO: Actually send the invitation email
+  // For now, just update the expiration
+}

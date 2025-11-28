@@ -41,8 +41,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertCircle, Loader2, Package } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { createInventoryItemAction, updateInventoryItemAction } from '@/app/actions/inventory'
+import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
-import type { InventoryItem } from '@/types/inventory'
+import type { InventoryItem, InventoryCategory } from '@/types/inventory'
 import { UNITS_OF_MEASURE } from '@/lib/constants/inventory'
 
 // Form data type
@@ -87,6 +88,7 @@ export function ItemFormDialog({
   const isEditMode = !!item
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [categories, setCategories] = useState<InventoryCategory[]>([])
 
   // Check permissions
   const canCreate = can('inventory:create')
@@ -110,6 +112,31 @@ export function ItemFormDialog({
       notes: '',
     },
   })
+
+  // Load categories for the organization
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('inventory_categories')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .order('name')
+        
+        if (data) {
+          setCategories(data)
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err)
+      }
+    }
+    
+    if (open) {
+      loadCategories()
+    }
+  }, [organizationId, open])
 
   // Load item data when editing
   useEffect(() => {
@@ -323,6 +350,38 @@ export function ItemFormDialog({
                     )}
                   />
                 </div>
+
+                {/* Category Selection */}
+                {categories.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="category_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">No Category</SelectItem>
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Organize items into categories for easier filtering
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Unit of Measure and Storage Location - 2 Columns */}
                 <div className="grid grid-cols-2 gap-4">

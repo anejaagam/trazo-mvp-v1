@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { canPerformAction } from '@/lib/rbac/guards';
-import { getUsers } from '@/lib/supabase/queries/users';
+import { getUsers, getPendingInvitations } from '@/lib/supabase/queries/users';
 import { UserManagementClient } from './user-management-client';
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode';
 
@@ -46,6 +46,7 @@ export default async function UsersPage() {
         </div>
         <UserManagementClient 
           initialUsers={mockUsers}
+          pendingInvitations={[]}
           organizationId={DEV_MOCK_USER.organization_id}
           inviterRole={DEV_MOCK_USER.role}
         />
@@ -78,8 +79,11 @@ export default async function UsersPage() {
     redirect('/dashboard');
   }
 
-  // Fetch users
-  const usersData = await getUsers({ organization_id: userData.organization_id });
+  // Fetch users and pending invitations
+  const [usersData, pendingInvitations] = await Promise.all([
+    getUsers({ organization_id: userData.organization_id }),
+    getPendingInvitations(userData.organization_id)
+  ]);
 
   return (
     <div className="space-y-6">
@@ -93,7 +97,8 @@ export default async function UsersPage() {
       </div>
 
       <UserManagementClient 
-        initialUsers={usersData.data} 
+        initialUsers={usersData.data}
+        pendingInvitations={pendingInvitations}
         organizationId={userData.organization_id}
         inviterRole={userData.role}
       />

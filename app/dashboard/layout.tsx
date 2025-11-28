@@ -85,6 +85,14 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
+  // Check if org_admin needs to complete onboarding
+  if (userDetails.role === 'org_admin' && userDetails.organization) {
+    const org = userDetails.organization as { onboarding_completed?: boolean }
+    if (!org.onboarding_completed) {
+      redirect('/onboarding')
+    }
+  }
+
   // Check if user has access to dashboard
   // TODO: Fix permission check with correct permission key
   // if (!RoleGuard.hasPermission(userDetails.role as any, 'dashboard:view')) {

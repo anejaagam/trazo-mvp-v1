@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Label } from "@/components/ui/form-label";
-import { Header } from "@/components/header";
 import { ProgressIndicator } from "@/components/ui/progress-indicator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -14,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package } from "lucide-react";
+import { Package, AlertCircle } from "lucide-react";
 import { completeSignup } from "../actions";
 
 export default function SignUpStep4() {
@@ -99,50 +98,124 @@ export default function SignUpStep4() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header variant="auth" showNavigation={false} />
-      
-      <main className="flex-1">
-        <div className="container mx-auto px-40 py-5">
-          <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-secondary-800 via-secondary-700 to-secondary-600 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-brand-lightest-green-500 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-lighter-green-500 rounded-full blur-3xl" />
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between p-12 pb-6 w-full h-full">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-11 relative">
+              <Image
+                src="/images/colorLogo.png"
+                alt="TRAZO Logo"
+                width={40}
+                height={44}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <span className="text-brand-cream text-3xl font-display font-semibold tracking-wider">
+              TRAZO
+            </span>
+          </Link>
+
+          {/* Hero Content */}
+          <div className="flex-1 flex flex-col justify-center">
+            <h1 className="text-brand-cream text-5xl font-display font-bold leading-tight mb-6">
+              Almost <br />
+              <span className="text-brand-lightest-green-500">There!</span>
+            </h1>
+            <p className="text-brand-cream/80 text-lg max-w-md leading-relaxed">
+              Final step! Tell us about your farm setup so we can configure the right compliance and monitoring tools for you.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="text-brand-cream/50 text-sm text-left">
+            © {new Date().getFullYear()} Trazo Global. All rights reserved.
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Form */}
+      <div className="flex-1 flex flex-col bg-gradient-to-b from-brand-lighter-green-50/30 to-white">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-secondary-800 p-4">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-9 relative">
+              <Image
+                src="/images/colorLogo.png"
+                alt="TRAZO Logo"
+                width={32}
+                height={36}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <span className="text-brand-cream text-2xl font-display font-semibold tracking-wider">
+              TRAZO
+            </span>
+          </Link>
+        </div>
+
+        {/* Form Container */}
+        <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+          <div className="w-full max-w-md">
             {/* Progress Indicator */}
-            <div className="mb-8 px-4">
+            <div className="mb-8">
               <ProgressIndicator currentStep={4} totalSteps={4} />
             </div>
 
-            {/* Title Section */}
+            {/* Title */}
             <div className="text-center mb-8">
-              <h1 className="font-body font-bold text-display-1 text-secondary-800">
+              <h2 className="font-display font-bold text-3xl text-secondary-800 mb-2">
                 Farm Details
-              </h1>
+              </h2>
+              <p className="text-secondary-500 text-sm">
+                Step 4 of 4 - Configure your farm setup
+              </p>
             </div>
 
-            {/* Sign-up Form */}
-            <div className="max-w-lg mx-auto space-y-6">
+            {/* Form */}
+            <div className="space-y-5">
+              {/* Number of Containers */}
               <div className="space-y-2">
-                <Label htmlFor="numberOfContainers" required>Number of Containers</Label>
-                <Field
-                  id="numberOfContainers"
-                  type="number"
-                  placeholder="Number of Containers"
-                  value={formData.numberOfContainers}
-                  onChange={(e) => handleInputChange('numberOfContainers', e.target.value)}
-                  rightIcon={<Package className="w-4 h-4" />}
-                  className="bg-brand-lighter-green-50/60"
-                />
-                <p className="text-sm text-neutral-600">
-                  Specify the total number of containers you manage. This information is crucial for resource allocation and planning.
-                </p>
+                <label htmlFor="numberOfContainers" className="block text-sm font-medium text-secondary-700">
+                  Number of Containers <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Package className="h-5 w-5 text-secondary-400" />
+                  </div>
+                  <input
+                    id="numberOfContainers"
+                    type="number"
+                    value={formData.numberOfContainers}
+                    onChange={(e) => handleInputChange('numberOfContainers', e.target.value)}
+                    required
+                    min="1"
+                    className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200"
+                    placeholder="10"
+                  />
+                </div>
+                <p className="text-xs text-secondary-500">Total containers you manage for resource planning.</p>
               </div>
 
               {/* Plant Type Selection */}
               <div className="space-y-2">
-                <Label htmlFor="plantType" required>Plant Type</Label>
+                <label className="block text-sm font-medium text-secondary-700">
+                  Plant Type <span className="text-red-500">*</span>
+                </label>
                 <Select
                   value={formData.plantType}
                   onValueChange={(value) => handleInputChange('plantType', value)}
                 >
-                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
+                  <SelectTrigger className="w-full h-12 px-4 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20">
                     <SelectValue placeholder="Select Plant Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -150,26 +223,25 @@ export default function SignUpStep4() {
                     <SelectItem value="produce">Produce</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-neutral-600">
-                  Select the primary type of plants you will be growing. This determines compliance requirements and available features.
-                </p>
+                <p className="text-xs text-secondary-500">Determines compliance requirements and features.</p>
               </div>
 
               {/* Jurisdiction Selection */}
               <div className="space-y-2">
-                <Label htmlFor="jurisdiction" required>Regulatory Jurisdiction</Label>
+                <label className="block text-sm font-medium text-secondary-700">
+                  Regulatory Jurisdiction <span className="text-red-500">*</span>
+                </label>
                 <Select
                   value={formData.jurisdiction}
                   onValueChange={(value) => handleInputChange('jurisdiction', value)}
                   disabled={!formData.plantType}
                 >
-                  <SelectTrigger className="w-full h-14 px-4 bg-brand-lighter-green-50/60 border-2 border-neutral-200 rounded-lg font-display font-medium text-body-lg">
-                    <SelectValue placeholder={!formData.plantType ? "Please select plant type first" : "Select Jurisdiction"} />
+                  <SelectTrigger className="w-full h-12 px-4 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 disabled:opacity-50">
+                    <SelectValue placeholder={!formData.plantType ? "Select plant type first" : "Select Jurisdiction"} />
                   </SelectTrigger>
                   <SelectContent>
                     {formData.plantType === 'cannabis' && (
                       <>
-                        {/* Metrc States */}
                         <SelectItem value="metrc-alaska">Alaska (Metrc)</SelectItem>
                         <SelectItem value="metrc-california">California (Metrc)</SelectItem>
                         <SelectItem value="metrc-colorado">Colorado (Metrc)</SelectItem>
@@ -188,7 +260,6 @@ export default function SignUpStep4() {
                         <SelectItem value="metrc-oklahoma">Oklahoma (Metrc)</SelectItem>
                         <SelectItem value="metrc-oregon">Oregon (Metrc)</SelectItem>
                         <SelectItem value="metrc-west-virginia">West Virginia (Metrc)</SelectItem>
-                        {/* Canada */}
                         <SelectItem value="ctls-canada">Canada (CTLS)</SelectItem>
                       </>
                     )}
@@ -200,65 +271,62 @@ export default function SignUpStep4() {
                     )}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-neutral-600">
-                  Select the regulatory framework that applies to your operation. This configures compliance rules, reporting requirements, and tracking standards.
-                </p>
+                <p className="text-xs text-secondary-500">Configures compliance rules and reporting.</p>
               </div>
 
               {/* Growing Environment Selection */}
               <div className="space-y-3">
-                <Label>Growing Environment</Label>
+                <label className="block text-sm font-medium text-secondary-700">
+                  Growing Environment
+                </label>
                 <RadioGroup
                   value={formData.growingEnvironment}
                   onValueChange={(value) => handleInputChange('growingEnvironment', value)}
-                  className="flex gap-4"
+                  className="flex gap-6"
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="indoor" id="indoor" />
-                    <Label htmlFor="indoor" className="text-sm font-normal">Indoor</Label>
+                    <label htmlFor="indoor" className="text-sm text-secondary-700 cursor-pointer">Indoor</label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="outdoor" id="outdoor" />
-                    <Label htmlFor="outdoor" className="text-sm font-normal">Outdoor</Label>
+                    <label htmlFor="outdoor" className="text-sm text-secondary-700 cursor-pointer">Outdoor</label>
                   </div>
                 </RadioGroup>
-                <p className="text-sm text-neutral-600">
-                  Indicate whether your farm operates indoors or outdoors. This affects the types of environmental controls and monitoring systems you may require.
-                </p>
               </div>
 
               {/* Error Message */}
               {error && (
-                <div className="bg-error/10 border border-error/20 rounded-lg p-4">
-                  <p className="text-sm text-error">{error}</p>
+                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-700 text-sm">{error}</p>
                 </div>
               )}
 
               {/* Navigation Buttons */}
-              <div className="flex justify-center gap-4 pt-12">
+              <div className="flex gap-4 pt-4">
                 <Button 
                   variant="outline"
-                  size="lg"
                   onClick={handleBack}
                   disabled={isSubmitting}
-                  className="px-8"
+                  className="flex-1 h-12 text-base font-semibold border-2 border-secondary-300 rounded-3xl"
                 >
                   Back
                 </Button>
                 <Button 
-                  variant="default"
-                  size="lg"
                   onClick={handleComplete}
                   disabled={!formData.numberOfContainers || !formData.plantType || !formData.jurisdiction || isSubmitting}
-                  className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 px-8"
+                  loading={isSubmitting}
+                  className="flex-1 h-12 text-base font-semibold"
+                  size="lg"
                 >
-                  {isSubmitting ? 'Creating Account...' : 'Complete Setup'}
+                  {isSubmitting ? 'Creating...' : 'Complete Setup'}
                 </Button>
               </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

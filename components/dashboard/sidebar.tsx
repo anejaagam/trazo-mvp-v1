@@ -266,6 +266,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           permission: 'inventory:view'
         },
         {
+          title: 'Categories',
+          href: '/dashboard/inventory/categories',
+          icon: <FileText className="h-4 w-4" />,
+          permission: 'inventory:view'
+        },
+        {
           title: 'Movements Log',
           href: '/dashboard/inventory/movements',
           icon: <ClipboardList className="h-4 w-4" />,

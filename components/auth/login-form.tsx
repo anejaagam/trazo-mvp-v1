@@ -106,6 +106,32 @@ export function LoginForm() {
               setLoading(false);
               return;
             }
+
+            // Check if org admin needs to complete onboarding
+            if (userData?.role === 'org_admin' && orgData?.approval_status === 'approved') {
+              // Fetch full org data including onboarding status
+              const { data: fullOrgData } = await supabase
+                .from('organizations')
+                .select('onboarding_completed')
+                .eq('id', userData.organization_id)
+                .single();
+
+              if (fullOrgData && !fullOrgData.onboarding_completed) {
+                // Update user login time first
+                await supabase
+                  .from('users')
+                  .update({ 
+                    last_sign_in: new Date().toISOString(),
+                    ...(userData?.status === 'invited' ? { status: 'active' as const } : {})
+                  })
+                  .eq('id', data.user.id);
+
+                // Redirect to onboarding wizard
+                router.push('/onboarding');
+                router.refresh();
+                return;
+              }
+            }
           }
           
           // Update user with new login time and activate if invited

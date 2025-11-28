@@ -61,7 +61,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
-import type { InventoryItemWithStock, ItemType } from '@/types/inventory'
+import type { InventoryItemWithStock, ItemType, InventoryCategory } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
 import { isAllSitesMode, ALL_SITES_ID } from '@/lib/site/types'
 import { AlertTitle } from '@/components/ui/alert'
@@ -108,7 +108,9 @@ export function ItemCatalog({
   
   // Separate backend filters (trigger DB query) from client-side filters
   const [itemType, setItemType] = useState<ItemType | 'all'>('all')
+  const [categoryId, setCategoryId] = useState<string>('all')
   const [isActive, setIsActive] = useState(true)
+  const [categories, setCategories] = useState<InventoryCategory[]>([])
   
   // Client-side filters (applied after fetching)
   const [search, setSearch] = useState('')
@@ -117,6 +119,31 @@ export function ItemCatalog({
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [siteNames, setSiteNames] = useState<Record<string, string>>({})
+
+  // Load categories for the organization
+  useEffect(() => {
+    async function loadCategories() {
+      if (isDevModeActive()) return
+      
+      try {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('inventory_categories')
+          .select('*')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .order('name')
+        
+        if (data) {
+          setCategories(data)
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err)
+      }
+    }
+    
+    loadCategories()
+  }, [organizationId])
 
   // Load items from database (only when backend filters change)
   useEffect(() => {
@@ -157,6 +184,11 @@ export function ItemCatalog({
           query = query.eq('item_type', itemType)
         }
 
+        // Apply category filter
+        if (categoryId !== 'all') {
+          query = query.eq('category_id', categoryId)
+        }
+
         const { data, error: queryError } = await query
 
         if (queryError) throw queryError
@@ -190,7 +222,7 @@ export function ItemCatalog({
 
     loadItems()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, siteId, isActive, itemType, isAggregateView])
+  }, [organizationId, siteId, isActive, itemType, categoryId, isAggregateView])
 
   // Apply client-side filters and sorting
   useEffect(() => {
@@ -408,6 +440,26 @@ export function ItemCatalog({
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Category Filter */}
+          {categories.length > 0 && (
+            <Select
+              value={categoryId}
+              onValueChange={(value) => setCategoryId(value)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Stock Status Filter */}
           <Select

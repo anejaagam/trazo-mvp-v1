@@ -179,6 +179,40 @@ export interface MetrcPlantBatchCreate {
 }
 
 /**
+ * Plant batch creation from package payload (Closed Loop)
+ *
+ * Used with POST /packages/v2/plantings endpoint
+ * Different field names than MetrcPlantBatchCreate
+ */
+export interface MetrcPackagePlantingsCreate {
+  PackageLabel: string
+  PlantBatchName: string
+  PlantBatchType: 'Seed' | 'Clone'
+  PlantCount: number
+  StrainName: string
+  LocationName: string
+  UnpackagedDate: string
+  PlantedDate: string
+  PatientLicenseNumber?: string
+}
+
+/**
+ * Plant batch creation from mother plants payload (Closed Loop)
+ *
+ * Used with POST /plants/v2/plantings endpoint
+ */
+export interface MetrcPlantPlantingsCreate {
+  PlantLabel: string
+  PlantBatchName: string
+  PlantBatchType: 'Clone'
+  PlantCount: number
+  StrainName: string
+  LocationName: string
+  ActualDate: string
+  PatientLicenseNumber?: string
+}
+
+/**
  * Plant batch adjustment payload
  */
 export interface MetrcPlantBatchAdjustment {
@@ -199,6 +233,44 @@ export interface MetrcPlantBatchSplit {
   Location: string
   Strain: string
   SplitDate: string
+}
+
+/**
+ * Plant batch package creation payload (Metrc Steps 2 & 3)
+ *
+ * Used with:
+ * - POST /plantbatches/v2/packages (reduces batch count) - Step 3
+ * - POST /plantbatches/v2/packages/frommotherplant (keeps batch count) - Step 2
+ */
+export interface MetrcPlantBatchPackage {
+  PlantBatch: string           // Plant batch name/tag
+  Count: number                // Number of plants to package
+  Location: string | null
+  Sublocation?: string | null
+  Item: string                 // Item name (e.g., "Clone - Blue Dream")
+  Tag: string                  // Package tag
+  PatientLicenseNumber?: string | null
+  Note?: string
+  IsTradeSample: boolean
+  IsDonation: boolean
+  ActualDate: string           // YYYY-MM-DD
+}
+
+/**
+ * Plant batch growth phase change payload (Metrc Step 4)
+ *
+ * Used with POST /plantbatches/v2/growthphase
+ * This converts plants from batch-level tracking to individual plant tracking
+ * by assigning individual tags starting from StartingTag
+ */
+export interface MetrcPlantBatchGrowthPhaseChange {
+  Name: string                 // Plant batch name
+  Count: number                // Number of plants to transition
+  StartingTag: string          // First plant tag (Metrc assigns sequentially)
+  GrowthPhase: 'Vegetative' | 'Flowering'
+  NewLocation: string
+  NewSubLocation?: string
+  GrowthDate: string           // YYYY-MM-DD
 }
 
 /**

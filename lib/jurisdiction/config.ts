@@ -14,6 +14,7 @@ const JURISDICTIONS: Record<JurisdictionId, JurisdictionConfig> = {
   michigan_cannabis: OREGON_CANNABIS, // Placeholder - uses Oregon rules for now
   california_cannabis: OREGON_CANNABIS, // Placeholder - uses Oregon rules for now
   nevada_cannabis: OREGON_CANNABIS, // Placeholder - uses Oregon rules for now
+  alaska_cannabis: OREGON_CANNABIS, // Placeholder - uses Oregon rules for now
 }
 
 /**
@@ -123,20 +124,26 @@ export function getAllowedBatchStages(jurisdictionId: JurisdictionId): string[] 
  * Validate if a batch stage transition is allowed
  */
 export function isBatchStageTransitionAllowed(
-  jurisdictionId: JurisdictionId,
+  jurisdictionId: JurisdictionId | null | undefined,
   fromStage: string,
   toStage: string
 ): boolean {
+  // If no jurisdiction is configured, allow all transitions
+  // This supports testing and organizations without jurisdiction setup
+  if (!jurisdictionId) return true
+
   const jurisdiction = getJurisdictionConfig(jurisdictionId)
-  if (!jurisdiction) return false
-  
+  // If jurisdiction is not found in registry, allow all transitions
+  // (graceful fallback for new/unsupported jurisdictions)
+  if (!jurisdiction) return true
+
   const allowedStages = jurisdiction.rules.batch.allowed_stages
-  
+
   // Both stages must be allowed
   if (!allowedStages.includes(fromStage) || !allowedStages.includes(toStage)) {
     return false
   }
-  
+
   // Additional business logic for stage transitions can be added here
   // For now, any allowed stage can transition to any other allowed stage
   return true

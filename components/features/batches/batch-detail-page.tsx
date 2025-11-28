@@ -55,6 +55,8 @@ import { AssignPodDialog } from './assign-pod-dialog'
 import { BatchTagsList } from './batch-tags-list'
 import { AssignTagsDialog } from './assign-tags-dialog'
 import { TrackingModeIndicator } from './tracking-mode-indicator'
+import { CreatePackageDialog } from './create-package-dialog'
+import { GrowthPhaseChangeDialog } from './growth-phase-change-dialog'
 import { PushBatchToMetrcButton } from '@/components/features/compliance/push-batch-to-metrc-button'
 import { BatchMetrcSyncStatus } from '@/components/features/compliance/batch-metrc-sync-status'
 import { DestroyPlantBatchDialog } from '@/components/features/waste/destroy-plant-batch-dialog'
@@ -97,6 +99,8 @@ export function BatchDetailPage({
   const [activeTab, setActiveTab] = useState('overview')
   const [deactivating, setDeactivating] = useState(false)
   const [showDestroyDialog, setShowDestroyDialog] = useState(false)
+  const [showCreatePackageDialog, setShowCreatePackageDialog] = useState(false)
+  const [showGrowthPhaseDialog, setShowGrowthPhaseDialog] = useState(false)
 
   const loadDetail = async () => {
     setLoading(true)
@@ -219,6 +223,29 @@ export function BatchDetailPage({
       </DropdownMenuItem>
     ) : null
 
+  // Metrc plant management menu items for cannabis batches
+  const createPackageMenuItem =
+    detail.domain_type === 'cannabis' && detail.metrc_batch_id && can('compliance:sync') ? (
+      <DropdownMenuItem
+        className="gap-2"
+        onSelect={() => setShowCreatePackageDialog(true)}
+      >
+        <Package className="h-4 w-4" />
+        Create clone package
+      </DropdownMenuItem>
+    ) : null
+
+  const changeGrowthPhaseMenuItem =
+    detail.domain_type === 'cannabis' && detail.metrc_batch_id && can('compliance:sync') ? (
+      <DropdownMenuItem
+        className="gap-2"
+        onSelect={() => setShowGrowthPhaseDialog(true)}
+      >
+        <Sprout className="h-4 w-4" />
+        Change growth phase
+      </DropdownMenuItem>
+    ) : null
+
   return (
     <div className="min-h-full">
       <div className="mx-auto w-full space-y-6">
@@ -247,6 +274,8 @@ export function BatchDetailPage({
           onToggleQuarantine={handleQuarantineToggle}
           pushToMetrcButton={pushToMetrcAction}
           destroyMenuItem={destroyPlantMenuItem}
+          createPackageMenuItem={createPackageMenuItem}
+          changeGrowthPhaseMenuItem={changeGrowthPhaseMenuItem}
           trackingMode={(detail as any)?.tracking_mode as TrackingMode | undefined}
           plantCount={totalPlantCount}
           tagCount={tagCount}
@@ -609,6 +638,26 @@ export function BatchDetailPage({
           onOpenChange={setShowDestroyDialog}
           trigger={null}
         />
+
+        {detail.domain_type === 'cannabis' && (
+          <>
+            <CreatePackageDialog
+              batch={detail}
+              isOpen={showCreatePackageDialog}
+              onClose={() => setShowCreatePackageDialog(false)}
+              onSuccess={() => loadDetail()}
+              userId={userId}
+            />
+
+            <GrowthPhaseChangeDialog
+              batch={detail}
+              isOpen={showGrowthPhaseDialog}
+              onClose={() => setShowGrowthPhaseDialog(false)}
+              onSuccess={() => loadDetail()}
+              userId={userId}
+            />
+          </>
+        )}
       </div>
     </div>
   )
@@ -628,6 +677,8 @@ interface BatchDetailsHeaderProps {
   onToggleQuarantine: () => void
   pushToMetrcButton?: React.ReactNode
   destroyMenuItem?: React.ReactNode
+  createPackageMenuItem?: React.ReactNode
+  changeGrowthPhaseMenuItem?: React.ReactNode
   trackingMode?: TrackingMode | null
   plantCount?: number
   tagCount?: number
@@ -647,6 +698,8 @@ function BatchDetailsHeader({
   onToggleQuarantine,
   pushToMetrcButton,
   destroyMenuItem,
+  createPackageMenuItem,
+  changeGrowthPhaseMenuItem,
   trackingMode,
   plantCount = 0,
   tagCount = 0,
@@ -737,6 +790,13 @@ function BatchDetailsHeader({
                   <FileText className="h-4 w-4" />
                   Log inventory usage
                 </DropdownMenuItem>
+                {(createPackageMenuItem || changeGrowthPhaseMenuItem) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {createPackageMenuItem}
+                    {changeGrowthPhaseMenuItem}
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="gap-2 text-amber-600 focus:text-amber-600"

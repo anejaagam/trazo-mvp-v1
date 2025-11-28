@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Package, Leaf, Scissors, MapPin, Dna, Box, Tag, Download, ArrowDownToLine } from 'lucide-react'
+import { RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Package, Leaf, Scissors, MapPin, Dna, Box, Tag, Download, ArrowDownToLine, Link2, Loader2 } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { useSite } from '@/hooks/use-site'
 import type { MetrcSyncLogEntry } from '@/lib/supabase/queries/compliance'
@@ -32,6 +33,19 @@ interface SyncLog {
   siteId: string
   siteName: string
   logs: MetrcSyncLogEntry[]
+}
+
+interface UnlinkedMetrcBatch {
+  id: string
+  metrc_batch_id: number
+  name: string
+  type: string
+  count: number
+  strain_name: string
+  planted_date: string
+  room_name: string | null
+  untracked_count: number | null
+  tracked_count: number | null
 }
 
 interface MetrcSyncDashboardProps {
@@ -58,6 +72,9 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
   const [isSyncing, setIsSyncing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [syncTypeFilter, setSyncTypeFilter] = useState<string>('all')
+  const [unlinkedBatches, setUnlinkedBatches] = useState<UnlinkedMetrcBatch[]>([])
+  const [loadingUnlinked, setLoadingUnlinked] = useState(false)
+  const [linkingBatchId, setLinkingBatchId] = useState<string | null>(null)
 
   // Use global site ID when a specific site is selected, otherwise use local selector
   const selectedSite = isAllSitesMode ? localSelectedSite : (globalSiteId || localSelectedSite)
@@ -68,6 +85,57 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
       setLocalSelectedSite(globalSiteId)
     }
   }, [globalSiteId, isAllSitesMode])
+
+  // Fetch unlinked batches on mount and when site changes
+  useEffect(() => {
+    fetchUnlinkedBatches()
+  }, [selectedSite])
+
+  const fetchUnlinkedBatches = async () => {
+    setLoadingUnlinked(true)
+    try {
+      const response = await fetch('/api/compliance/metrc/plant-batches/link')
+      if (!response.ok) {
+        throw new Error('Failed to fetch unlinked batches')
+      }
+      const data = await response.json()
+      setUnlinkedBatches(data.batches || [])
+    } catch (error) {
+      console.error('Error fetching unlinked batches:', error)
+    } finally {
+      setLoadingUnlinked(false)
+    }
+  }
+
+  const handleLinkBatch = async (metrcBatchCacheId: string) => {
+    setLinkingBatchId(metrcBatchCacheId)
+    try {
+      const response = await fetch('/api/compliance/metrc/plant-batches/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metrcPlantBatchCacheId: metrcBatchCacheId }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Link failed')
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        toast.success(result.message || 'Successfully linked Metrc plant batch to Trazo batch')
+        // Refresh unlinked batches list
+        await fetchUnlinkedBatches()
+      } else {
+        toast.error(result.error || 'Failed to link batch')
+      }
+    } catch (error) {
+      console.error('Link error:', error)
+      toast.error((error as Error).message || 'Failed to link Metrc plant batch')
+    } finally {
+      setLinkingBatchId(null)
+    }
+  }
 
   const allSelectedSiteLogs =
     syncLogs.find((log) => log.siteId === selectedSite)?.logs || []
@@ -273,6 +341,98 @@ export function MetrcSyncDashboard({ sites, syncLogs, canSync }: MetrcSyncDashbo
               Creates inventory lots from Metrc plant batches (clones/seeds)
             </span>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Link Metrc Plant Batches to Trazo */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Available Metrc Plant Batches
+              </CardTitle>
+              <CardDescription>
+                Link Metrc plant batches directly to create Trazo batches for testing.
+                These are synced from Metrc and not yet linked to any Trazo batch.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchUnlinkedBatches}
+              disabled={loadingUnlinked}
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingUnlinked ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingUnlinked ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading...</span>
+            </div>
+          ) : unlinkedBatches.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No unlinked Metrc plant batches available. Sync Plant Batches first to populate this list.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Metrc Batch Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Strain</TableHead>
+                  <TableHead>Plant Count</TableHead>
+                  <TableHead>Planted Date</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unlinkedBatches.map((batch) => (
+                  <TableRow key={batch.id}>
+                    <TableCell className="font-mono text-sm">{batch.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{batch.type}</Badge>
+                    </TableCell>
+                    <TableCell>{batch.strain_name}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{batch.count} total</div>
+                        <div className="text-xs text-muted-foreground">
+                          {batch.tracked_count || 0} tracked / {batch.untracked_count || batch.count} untracked
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{new Date(batch.planted_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{batch.room_name || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        onClick={() => handleLinkBatch(batch.id)}
+                        disabled={!canSync || linkingBatchId === batch.id}
+                      >
+                        {linkingBatchId === batch.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Linking...
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="mr-2 h-4 w-4" />
+                            Link to Trazo
+                          </>
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

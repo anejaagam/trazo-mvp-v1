@@ -21,7 +21,11 @@ import {
   getPlantBatchCreateEndpoint,
   getStatePlantBatchConfig,
 } from '@/lib/jurisdiction/plant-batch-config'
-import type { MetrcPlantBatchCreate } from '../types'
+import type {
+  MetrcPlantBatchCreate,
+  MetrcPackagePlantingsCreate,
+  MetrcPlantPlantingsCreate,
+} from '../types'
 
 /**
  * Source type for plant batch creation
@@ -51,9 +55,9 @@ export interface BatchPushResult {
 }
 
 /**
- * Convert TRAZO batch to Metrc plant batch format
+ * Convert TRAZO batch to Metrc plant batch format (Open Loop)
  *
- * Note: Uses both ActualDate (v2 preferred) and PlantedDate (legacy) for compatibility
+ * For /plantbatches/v2/plantings endpoint
  */
 function convertTrazoToMetrcBatch(
   trazoBatch: {
@@ -94,6 +98,68 @@ function convertTrazoToMetrcBatch(
   }
 
   return batch
+}
+
+/**
+ * Convert TRAZO batch to Metrc package plantings format (Closed Loop - from package)
+ *
+ * For POST /packages/v2/plantings endpoint
+ */
+function convertTrazoToPackagePlantings(
+  trazoBatch: {
+    batch_number: string
+    plant_count: number
+    cultivar_name: string
+    start_date: string
+    stage: string
+    source_type?: string
+  },
+  location: string,
+  packageTag: string
+): MetrcPackagePlantingsCreate {
+  // Determine batch type based on source_type or stage
+  let batchType: 'Seed' | 'Clone' = 'Clone'
+  if (trazoBatch.source_type === 'seed' || trazoBatch.stage === 'germination') {
+    batchType = 'Seed'
+  }
+
+  const formattedDate = formatDateForMetrc(trazoBatch.start_date)
+  return {
+    PackageLabel: packageTag,
+    PlantBatchName: trazoBatch.batch_number,
+    PlantBatchType: batchType,
+    PlantCount: trazoBatch.plant_count,
+    StrainName: trazoBatch.cultivar_name,
+    LocationName: location,
+    UnpackagedDate: formattedDate,
+    PlantedDate: formattedDate,
+  }
+}
+
+/**
+ * Convert TRAZO batch to Metrc plant plantings format (Closed Loop - from mother)
+ *
+ * For POST /plants/v2/plantings endpoint
+ */
+function convertTrazoToPlantPlantings(
+  trazoBatch: {
+    batch_number: string
+    plant_count: number
+    cultivar_name: string
+    start_date: string
+  },
+  location: string,
+  motherPlantTag: string
+): MetrcPlantPlantingsCreate {
+  return {
+    PlantLabel: motherPlantTag,
+    PlantBatchName: trazoBatch.batch_number,
+    PlantBatchType: 'Clone', // Always Clone when from mother plant
+    PlantCount: trazoBatch.plant_count,
+    StrainName: trazoBatch.cultivar_name,
+    LocationName: location,
+    ActualDate: formatDateForMetrc(trazoBatch.start_date),
+  }
 }
 
 /**
@@ -364,20 +430,31 @@ export async function pushBatchToMetrc(
     // Create plant batch in Metrc using appropriate endpoint based on source
     try {
       if (effectiveSourceInfo?.type === 'from_mother' && effectiveSourceInfo.motherPlantTags?.length) {
-        // Create from mother plants using POST /plants/v2/plantings
+        // Create from mother plants using POST /plants/v2/plantings (Closed Loop)
         console.log('[pushBatchToMetrc] Creating from mother plants using /plants/v2/plantings...')
-        // Note: This endpoint requires the plant tag in a different format
-        await metrcClient.plantBatches.createFromPlantings([metrcBatch])
+        const plantPlantings = convertTrazoToPlantPlantings(
+          trazoBatch,
+          location,
+          effectiveSourceInfo.motherPlantTags[0]
+        )
+        console.log('[pushBatchToMetrc] Plant plantings payload:', JSON.stringify(plantPlantings, null, 2))
+        await metrcClient.plantBatches.createFromPlantings([plantPlantings])
         result.warnings.push(
           `Created from mother plant(s): ${effectiveSourceInfo.motherPlantTags.join(', ')}`
         )
       } else if (effectiveSourceInfo?.type === 'from_package' && effectiveSourceInfo.packageTag) {
-        // Create from package using POST /packages/v2/plantings
+        // Create from package using POST /packages/v2/plantings (Closed Loop)
         console.log('[pushBatchToMetrc] Creating from package using /packages/v2/plantings...')
-        await metrcClient.plantBatches.create([metrcBatch])
+        const packagePlantings = convertTrazoToPackagePlantings(
+          trazoBatch,
+          location,
+          effectiveSourceInfo.packageTag
+        )
+        console.log('[pushBatchToMetrc] Package plantings payload:', JSON.stringify(packagePlantings, null, 2))
+        await metrcClient.plantBatches.createFromPackage([packagePlantings])
         result.warnings.push(`Created from source package: ${effectiveSourceInfo.packageTag}`)
       } else {
-        // No source - only works for Open Loop states
+        // No source - only works for Open Loop states using /plantbatches/v2/plantings
         if (isClosedLoop) {
           // This shouldn't happen due to earlier validation, but double-check
           throw new Error(
@@ -385,7 +462,8 @@ export async function pushBatchToMetrc(
             'Please provide a source package tag or mother plant tag.'
           )
         }
-        console.log('[pushBatchToMetrc] Creating plant batch directly (Open Loop state)...')
+        console.log('[pushBatchToMetrc] Creating plant batch directly using /plantbatches/v2/plantings (Open Loop state)...')
+        console.log('[pushBatchToMetrc] Open Loop payload:', JSON.stringify(metrcBatch, null, 2))
         await metrcClient.plantBatches.create([metrcBatch])
       }
       console.log('[pushBatchToMetrc] Plant batch created successfully in Metrc')

@@ -93,14 +93,15 @@ export interface ComplianceTemplate {
 }
 
 export type PlantType = 'cannabis' | 'produce'
-export type JurisdictionId = 
+export type JurisdictionId =
   | 'oregon_cannabis'
-  | 'maryland_cannabis' 
+  | 'maryland_cannabis'
   | 'canada_cannabis'
   | 'primus_gfs'
   | 'michigan_cannabis'
   | 'california_cannabis'
   | 'nevada_cannabis'
+  | 'alaska_cannabis'
 
 export interface JurisdictionContext {
   jurisdiction: JurisdictionConfig

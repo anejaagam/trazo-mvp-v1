@@ -14,7 +14,7 @@ export default function LoginPage() {
         </div>
         
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+        <div className="relative z-10 flex flex-col justify-between p-12 pb-6 w-full h-full">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-11 relative">
@@ -44,8 +44,8 @@ export default function LoginPage() {
           </div>
 
           {/* Footer */}
-          <div className="text-brand-cream/50 text-sm">
-            © {new Date().getFullYear()} Trazo Agriculture. All rights reserved.
+          <div className="text-brand-cream/50 text-sm text-left">
+            © {new Date().getFullYear()} Trazo Global. All rights reserved.
           </div>
         </div>
       </div>

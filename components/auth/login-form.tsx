@@ -209,15 +209,10 @@ export function LoginForm() {
       </Button>
 
       {/* Divider */}
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-secondary-200"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-4 bg-gradient-to-b from-brand-lighter-green-50/30 to-white text-secondary-500">
-            New to Trazo?
-          </span>
-        </div>
+      <div className="flex items-center my-8">
+        <div className="flex-1 border-t border-secondary-200"></div>
+        <span className="px-4 text-sm text-secondary-500">New to Trazo?</span>
+        <div className="flex-1 border-t border-secondary-200"></div>
       </div>
 
       {/* Sign up link */}

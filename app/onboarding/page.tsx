@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,7 @@ import { SOPTemplatesStep } from "@/components/features/onboarding/sop-templates
 import { InventorySetupStep } from "@/components/features/onboarding/inventory-setup-step";
 import { CropListStep } from "@/components/features/onboarding/crop-list-step";
 import { RecipeTemplatesStep } from "@/components/features/onboarding/recipe-templates-step";
+import type { OnboardingStepData } from "@/components/features/onboarding/types";
 
 interface OrganizationData {
   id: string;
@@ -75,9 +76,25 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [organization, setOrganization] = useState<OrganizationData | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  
+  // Shared state for all steps - persists when navigating between steps
+  const [stepData, setStepData] = useState<OnboardingStepData>({
+    invitedUsers: [],
+    selectedSOPs: [],
+    selectedCategories: [],
+    selectedCultivars: [],
+    customCultivars: [],
+    selectedRecipes: [],
+  });
+
+  // Update functions for each step's data
+  const updateStepData = useCallback((updates: Partial<OnboardingStepData>) => {
+    setStepData(prev => ({ ...prev, ...updates }));
+  }, []);
 
   useEffect(() => {
     loadOrganizationData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadOrganizationData() {
@@ -311,6 +328,8 @@ export default function OnboardingPage() {
             organization={organization}
             onComplete={handleStepComplete}
             onSkip={handleSkip}
+            stepData={stepData}
+            updateStepData={updateStepData}
           />
         </div>
       </div>

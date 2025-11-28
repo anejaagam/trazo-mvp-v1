@@ -185,6 +185,7 @@ export function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={loading}
+            autoComplete="email"
             className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="you@example.com"
           />
@@ -207,6 +208,7 @@ export function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={loading}
+            autoComplete="current-password"
             className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             placeholder="Enter your password"
           />

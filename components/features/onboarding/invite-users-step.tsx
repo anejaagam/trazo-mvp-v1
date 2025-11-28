@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Select, 
@@ -17,14 +17,7 @@ import {
   AlertCircle,
   CheckCircle2
 } from "lucide-react";
-import type { OnboardingStepProps } from "./types";
-
-interface InvitedUser {
-  id: string;
-  email: string;
-  role: string;
-  status: 'pending' | 'sent' | 'error';
-}
+import type { OnboardingStepProps, InvitedUserData } from "./types";
 
 const AVAILABLE_ROLES = [
   { value: 'site_manager', label: 'Site Manager' },
@@ -34,12 +27,18 @@ const AVAILABLE_ROLES = [
   { value: 'executive_viewer', label: 'Executive Viewer' },
 ];
 
-export function InviteUsersStep({ organization, onComplete, onSkip }: OnboardingStepProps) {
-  const [invitedUsers, setInvitedUsers] = useState<InvitedUser[]>([]);
+export function InviteUsersStep({ organization, onComplete, onSkip, stepData, updateStepData }: OnboardingStepProps) {
+  // Use shared state from parent
+  const [invitedUsers, setInvitedUsers] = useState<InvitedUserData[]>(stepData.invitedUsers);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync local state back to parent when it changes
+  useEffect(() => {
+    updateStepData({ invitedUsers });
+  }, [invitedUsers, updateStepData]);
 
   function addUser() {
     if (!newEmail || !newRole) {

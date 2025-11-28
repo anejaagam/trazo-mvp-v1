@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -182,9 +182,15 @@ const RECIPE_TEMPLATES: RecipeTemplate[] = [
   },
 ];
 
-export function RecipeTemplatesStep({ organization, onComplete, onSkip }: OnboardingStepProps) {
-  const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
+export function RecipeTemplatesStep({ organization, onComplete, onSkip, stepData, updateStepData }: OnboardingStepProps) {
+  // Use shared state from parent
+  const [selectedRecipes, setSelectedRecipes] = useState<string[]>(stepData.selectedRecipes);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync local state back to parent when it changes
+  useEffect(() => {
+    updateStepData({ selectedRecipes });
+  }, [selectedRecipes, updateStepData]);
 
   // Filter recipes based on plant type
   const availableRecipes = RECIPE_TEMPLATES.filter(recipe => {

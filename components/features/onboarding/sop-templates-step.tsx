@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -195,9 +195,15 @@ const SOP_TEMPLATES: SOPTemplate[] = [
   },
 ];
 
-export function SOPTemplatesStep({ organization, onComplete, onSkip }: OnboardingStepProps) {
-  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
+export function SOPTemplatesStep({ organization, onComplete, onSkip, stepData, updateStepData }: OnboardingStepProps) {
+  // Use shared state from parent
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>(stepData.selectedSOPs);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync local state back to parent when it changes
+  useEffect(() => {
+    updateStepData({ selectedSOPs: selectedTemplates });
+  }, [selectedTemplates, updateStepData]);
 
   // Filter templates based on plant type
   const availableTemplates = SOP_TEMPLATES.filter(template => {

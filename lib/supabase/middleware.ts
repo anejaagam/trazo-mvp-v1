@@ -66,12 +66,38 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/dev-auth') &&
     !request.nextUrl.pathname.startsWith('/landing') &&
+    !request.nextUrl.pathname.startsWith('/onboarding') &&
     request.nextUrl.pathname !== '/'
   ) {
     // No user, potentially redirect to login
     const url = request.nextUrl.clone();
     url.pathname = '/auth/login';
     return NextResponse.redirect(url);
+  }
+
+  // Check if authenticated user accessing dashboard needs to complete onboarding
+  if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    try {
+      // Get user's role and organization onboarding status
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role, organization:organizations!users_organization_id_fkey(onboarding_completed)')
+        .eq('id', user.id)
+        .single();
+
+      if (userData?.role === 'org_admin') {
+        const org = userData.organization as { onboarding_completed?: boolean } | null;
+        if (org && org.onboarding_completed !== true) {
+          // Redirect org_admin to onboarding if not completed
+          const url = request.nextUrl.clone();
+          url.pathname = '/onboarding';
+          return NextResponse.redirect(url);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status in middleware:', error);
+      // Continue to dashboard layout which will handle the check
+    }
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.

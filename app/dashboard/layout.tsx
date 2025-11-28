@@ -86,10 +86,23 @@ export default async function DashboardLayout({
   }
 
   // Check if org_admin needs to complete onboarding
-  if (userDetails.role === 'org_admin' && userDetails.organization) {
-    const org = userDetails.organization as { onboarding_completed?: boolean }
-    if (!org.onboarding_completed) {
+  // This blocks ALL dashboard access until onboarding is complete
+  if (userDetails.role === 'org_admin') {
+    const org = userDetails.organization as { onboarding_completed?: boolean; id?: string } | null
+    
+    // If organization exists but onboarding is not completed, redirect
+    if (org && org.onboarding_completed !== true) {
+      console.log('Org admin has not completed onboarding, redirecting...', {
+        orgId: org.id,
+        onboarding_completed: org.onboarding_completed
+      })
       redirect('/onboarding')
+    }
+    
+    // If no organization found for org_admin, something is wrong
+    if (!org) {
+      console.error('No organization found for org_admin:', userDetails.id)
+      redirect('/auth/login')
     }
   }
 

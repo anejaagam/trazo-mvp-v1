@@ -198,6 +198,7 @@ export default function SignUpStep1() {
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     required
+                    autoComplete="new-password"
                     className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200"
                     placeholder="Create a secure password"
                   />
@@ -220,6 +221,7 @@ export default function SignUpStep1() {
                     value={formData.confirmPassword}
                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                     required
+                    autoComplete="new-password"
                     className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200"
                     placeholder="Re-enter your password"
                   />

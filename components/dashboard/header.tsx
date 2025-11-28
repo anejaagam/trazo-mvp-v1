@@ -98,11 +98,9 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
 
   return (
     <header className={`${className} bg-green-900`}>
-      <div className="relative flex items-center justify-between h-16 pl-0 pr-0">
-        {/* Left: Site Selector */}
-
-        {/* Center: Navigation - offset to account for sidebar */}
-        <nav className="hidden lg:flex items-center gap-2 absolute left-[calc(50%-120px)] -translate-x-1/2">
+      <div className="flex items-center justify-between h-16 px-2 lg:px-4">
+        {/* Center: Navigation - hidden on smaller screens */}
+        <nav className="hidden xl:flex items-center gap-1 flex-1 justify-center">
           {navigationCategories.map((item) => {
             const Icon = item.icon
             return (
@@ -113,36 +111,38 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-white/90 hover:text-white bg-white/5 hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-white/10 hover:border-white/25"
+                  className="text-white/90 hover:text-white bg-white/5 hover:bg-white/15 gap-1.5 px-3 py-2 rounded-lg transition-all duration-200 border border-white/10 hover:border-white/25"
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium text-sm">{item.label}</span>
                 </Button>
               </Link>
             )
           })}
         </nav>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2 ml-auto -mr-4">
-          <div className="flex items-center gap-2 -ml-3">
-            <ThemeSwitcher />
+        {/* Spacer for non-xl screens */}
+        <div className="xl:hidden flex-1" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-white/90 hover:text-white hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20"
-                >
-                  <Bell className="h-7 w-7" />
-                  {totalCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 hover:bg-red-500 border-0 text-[10px] pointer-events-none">
-                      {totalCount > 9 ? '9+' : totalCount}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <ThemeSwitcher />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative text-white/90 hover:text-white hover:bg-white/15 p-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20"
+              >
+                <Bell className="h-5 w-5" />
+                {totalCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-red-500 hover:bg-red-500 border-0 text-[10px] pointer-events-none">
+                    {totalCount > 9 ? '9+' : totalCount}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>Notifications</span>
@@ -296,48 +296,46 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
                 </>
               )}
             </DropdownMenuContent>
-            </DropdownMenu>
+          </DropdownMenu>
 
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
+          {/* Mobile menu button */}
+          <Button variant="ghost" size="icon" className="xl:hidden text-white hover:bg-white/10 p-2">
             <Menu className="h-5 w-5" />
           </Button>
 
           {/* Site Selector */}
-          <div className="">
-            <SiteSelector className="text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]" />
-          </div>
-        </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="text-white/90 hover:text-white hover:bg-white/15 gap-2 px-4 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20"
-                >
-                  <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center">
-                    <User className="h-4 w-4" />
+          <SiteSelector className="text-white hover:bg-white/10 !bg-[rgba(255,255,255,0.08)] dark:!bg-[rgba(255,255,255,0.08)] dark:hover:!bg-[rgba(255,255,255,0.15)]" />
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="text-white/90 hover:text-white hover:bg-white/15 gap-2 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-white/20"
+              >
+                <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <User className="h-4 w-4" />
+                </div>
+                <div className="hidden lg:block text-left">
+                  <div className="text-sm font-medium leading-none">{user.full_name}</div>
+                  <div className="text-xs text-white/60 mt-0.5 capitalize">
+                    {user.role.replace('_', ' ')}
                   </div>
-                  <div className="hidden xl:block text-left">
-                    <div className="text-sm font-medium leading-none">{user.full_name}</div>
-                    <div className="text-xs text-white/60 mt-0.5 capitalize">
-                      {user.role.replace('_', ' ')}
-                    </div>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                <DropdownMenuItem>Preferences</DropdownMenuItem>
-                <DropdownMenuItem>Help & Support</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <LogoutButton />
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+              <DropdownMenuItem>Preferences</DropdownMenuItem>
+              <DropdownMenuItem>Help & Support</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <LogoutButton />
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
@@ -77,12 +77,15 @@ const INVENTORY_CATEGORIES: InventoryCategory[] = [
   },
 ];
 
-export function InventorySetupStep({ organization, onComplete, onSkip }: OnboardingStepProps) {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    // Pre-select all categories by default
-    INVENTORY_CATEGORIES.map(c => c.id)
-  );
+export function InventorySetupStep({ organization, onComplete, onSkip, stepData, updateStepData }: OnboardingStepProps) {
+  // Use shared state from parent
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(stepData.selectedCategories);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync local state back to parent when it changes
+  useEffect(() => {
+    updateStepData({ selectedCategories });
+  }, [selectedCategories, updateStepData]);
 
   // Filter categories based on plant type (currently all categories apply to both)
   const availableCategories = INVENTORY_CATEGORIES.filter(category => {

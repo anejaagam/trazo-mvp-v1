@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Leaf, 
@@ -48,14 +48,31 @@ const PRODUCE_SUGGESTIONS = [
   { name: 'Herbs', variety: 'Mixed' },
 ];
 
-export function CropListStep({ organization, onComplete, onSkip }: OnboardingStepProps) {
-  const [crops, setCrops] = useState<CropItem[]>([]);
+export function CropListStep({ organization, onComplete, onSkip, stepData, updateStepData }: OnboardingStepProps) {
+  // Initialize from stepData - convert back to CropItem format
+  const initCrops = (): CropItem[] => {
+    const isCannabis = organization.plant_type === 'cannabis';
+    return stepData.customCultivars.map(c => ({
+      id: crypto.randomUUID(),
+      name: c.name,
+      type: c.type,
+      ...(isCannabis ? { strain: undefined } : { variety: undefined })
+    }));
+  };
+  
+  const [crops, setCrops] = useState<CropItem[]>(initCrops);
   const [newCrop, setNewCrop] = useState({ name: '', strainOrVariety: '', type: '' });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isCannabis = organization.plant_type === 'cannabis';
   const suggestions = isCannabis ? CANNABIS_SUGGESTIONS : PRODUCE_SUGGESTIONS;
+
+  // Sync local state back to parent when it changes
+  useEffect(() => {
+    const customCultivars = crops.map(c => ({ name: c.name, type: c.type }));
+    updateStepData({ customCultivars });
+  }, [crops, updateStepData]);
 
   function addCrop() {
     if (!newCrop.name.trim()) {

@@ -81,16 +81,24 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
 
     const loadCounts = async () => {
       // Get user's site assignment (cache it to avoid repeated queries)
+      // Note: 406 errors are expected for new orgs without site assignments
       if (!siteIdCache) {
-        const { data: siteAssignment } = await supabase
-          .from('user_site_assignments')
-          .select('site_id')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .limit(1)
-          .single()
-        
-        siteIdCache = siteAssignment?.site_id || null
+        try {
+          const { data: siteAssignment, error } = await supabase
+            .from('user_site_assignments')
+            .select('site_id')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .limit(1)
+            .single()
+          
+          // Silently handle errors - user may not have site assignments yet
+          if (!error) {
+            siteIdCache = siteAssignment?.site_id || null
+          }
+        } catch {
+          // Ignore errors - new orgs may not have sites/assignments yet
+        }
       }
       
       const queries = [

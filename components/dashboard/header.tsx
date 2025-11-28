@@ -27,8 +27,10 @@ import { ThemeSwitcher } from '@/components/theme-switcher'
 import { SiteSelector } from '@/components/dashboard/site-selector'
 import { useNotifications, useAlarms } from '@/hooks/use-alarms'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { usePermissions } from '@/hooks/use-permissions'
+import type { RoleKey, PermissionKey } from '@/lib/rbac/types'
 
 interface DashboardHeaderProps {
   user: {
@@ -46,12 +48,12 @@ interface DashboardHeaderProps {
 }
 
 const navigationCategories = [
-  { label: 'Crops', href: '/dashboard/batches', icon: Sprout },
-  { label: 'Inventory', href: '/dashboard/inventory', icon: Package },
-  { label: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList },
-  { label: 'Monitoring', href: '/dashboard/monitoring', icon: BarChart3 },
-  { label: 'Compliance', href: '/dashboard/compliance', icon: FileCheck },
-  { label: 'Alarms', href: '/dashboard/alarms', icon: AlertTriangle },
+  { label: 'Crops', href: '/dashboard/batches', icon: Sprout, permission: 'batch:view' },
+  { label: 'Inventory', href: '/dashboard/inventory', icon: Package, permission: 'inventory:view' },
+  { label: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList, permission: 'task:view' },
+  { label: 'Monitoring', href: '/dashboard/monitoring', icon: BarChart3, permission: 'monitoring:view' },
+  { label: 'Compliance', href: '/dashboard/compliance', icon: FileCheck, permission: 'compliance:view' },
+  { label: 'Alarms', href: '/dashboard/alarms', icon: AlertTriangle, permission: 'alarm:view' },
 ]
 
 export function DashboardHeader({ user, className }: DashboardHeaderProps) {
@@ -96,12 +98,20 @@ export function DashboardHeader({ user, className }: DashboardHeaderProps) {
 
   const totalCount = alarmCount + notificationCount
 
+  // Permission check
+  const { can } = usePermissions(user.role as RoleKey, [])
+
+  // Filter navigation items based on user permissions
+  const filteredNavigation = useMemo(() => {
+    return navigationCategories.filter(item => can(item.permission as PermissionKey))
+  }, [can])
+
   return (
     <header className={`${className} bg-green-900`}>
       <div className="flex items-center justify-between h-16 px-2 lg:px-4">
         {/* Center: Navigation - hidden on smaller screens */}
         <nav className="hidden xl:flex items-center gap-1 flex-1 justify-center">
-          {navigationCategories.map((item) => {
+          {filteredNavigation.map((item) => {
             const Icon = item.icon
             return (
               <Link

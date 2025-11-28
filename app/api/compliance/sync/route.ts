@@ -100,6 +100,31 @@ export async function POST(request: NextRequest) {
       }
     )
 
+    // Log the sync operation
+    const { error: logError } = await supabase.from('metrc_sync_log').insert({
+      organization_id: userData.organization_id,
+      site_id: siteId,
+      sync_type: syncType,
+      direction: 'metrc_to_trazo',
+      operation: 'sync',
+      status: result.success ? 'completed' : 'failed',
+      started_at: result.startedAt,
+      completed_at: result.completedAt,
+      response_payload: {
+        synced: result.result.synced,
+        created: result.result.created || result.result.packagesCreated,
+        updated: result.result.updated || result.result.packagesUpdated,
+        processed: result.result.packagesProcessed,
+        duration: result.duration,
+      },
+      error_message: result.result.errors?.length > 0 ? result.result.errors.join('; ') : null,
+      initiated_by: user.id,
+    })
+
+    if (logError) {
+      console.error('Failed to log sync operation:', logError)
+    }
+
     return NextResponse.json(result, { status: 200 })
   } catch (error) {
     console.error('Error in compliance sync API:', error)

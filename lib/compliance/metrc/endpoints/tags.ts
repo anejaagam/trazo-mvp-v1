@@ -5,13 +5,44 @@
  */
 
 import type { MetrcClient } from '../client'
+import type { MetrcPaginatedResponse } from '../types'
 
+/**
+ * Metrc tag structure returned from tags API
+ * Note: Metrc v2 uses 'Label' for the tag identifier
+ */
 export interface MetrcTag {
-  TagNumber: string
+  Label: string
   Status: string
-  CommissionedDate: string
+  CommissionedDateTime: string
   TagTypeName: string
   TagTypeId: number
+}
+
+/**
+ * Extract tags array from API response
+ * Handles both paginated (v2) and array (v1) responses
+ */
+function extractTagsFromResponse(response: unknown): MetrcTag[] {
+  // Handle null/undefined
+  if (!response) {
+    return []
+  }
+
+  // Handle direct array response
+  if (Array.isArray(response)) {
+    return response as MetrcTag[]
+  }
+
+  // Handle paginated response with Data array
+  if (typeof response === 'object' && 'Data' in (response as object)) {
+    const paginated = response as MetrcPaginatedResponse<MetrcTag>
+    return paginated.Data || []
+  }
+
+  // Unknown format - return empty
+  console.warn('Unknown tags API response format:', typeof response)
+  return []
 }
 
 export class TagsEndpoint {
@@ -24,12 +55,13 @@ export class TagsEndpoint {
    */
   async listAvailablePlantTags(): Promise<MetrcTag[]> {
     const { facilityLicenseNumber } = this.client.getConfig()
-    return this.client.request<MetrcTag[]>(
-      `/planttags/v1/available?licenseNumber=${facilityLicenseNumber}`,
+    const response = await this.client.request<MetrcPaginatedResponse<MetrcTag> | MetrcTag[]>(
+      `/tags/v2/plant/available?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
       }
     )
+    return extractTagsFromResponse(response)
   }
 
   /**
@@ -39,12 +71,13 @@ export class TagsEndpoint {
    */
   async listAvailablePackageTags(): Promise<MetrcTag[]> {
     const { facilityLicenseNumber } = this.client.getConfig()
-    return this.client.request<MetrcTag[]>(
-      `/packagetags/v1/available?licenseNumber=${facilityLicenseNumber}`,
+    const response = await this.client.request<MetrcPaginatedResponse<MetrcTag> | MetrcTag[]>(
+      `/tags/v2/package/available?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
       }
     )
+    return extractTagsFromResponse(response)
   }
 
   /**

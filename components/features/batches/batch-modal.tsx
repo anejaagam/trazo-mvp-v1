@@ -9,9 +9,22 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { AlertTriangle, Info, Layers, Tags } from 'lucide-react'
 import { useJurisdiction } from '@/hooks/use-jurisdiction'
+import { useCurrentSite } from '@/hooks/use-site'
 import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
+import {
+  getStatePlantBatchConfig,
+  getDefaultTrackingMode,
+  stateRequiresImmediateTagging,
+  checkTaggingRequirement,
+  supportsBatchTagging,
+  isOpenLoopState,
+} from '@/lib/jurisdiction/plant-batch-config'
+import { BatchSourceSelector, type SourceType } from './batch-source-selector'
+import { BatchTagSelector } from './available-tag-selector'
 import type {
   DomainBatch,
   DomainType,
@@ -60,6 +73,12 @@ const batchSchema = z.object({
   sourceInventoryQuantity: z.coerce.number().positive('Quantity must be greater than 0').optional().nullable(),
   sourceAllocationMethod: z.enum(['FIFO', 'LIFO', 'FEFO']).optional().nullable(),
   sourceLotId: z.string().optional().nullable(),
+  // Metrc source traceability fields
+  metrcSourceType: z.enum(['from_package', 'from_mother', 'no_source']).optional().nullable(),
+  sourcePackageTag: z.string().optional().nullable(),
+  sourceMotherPlantTag: z.string().optional().nullable(),
+  // Batch tag assignment (for states that support batch-level tagging)
+  batchTag: z.string().optional().nullable(),
 })
 
 type FormValues = z.infer<typeof batchSchema>
@@ -177,11 +196,20 @@ export function BatchForm({
   plantType,
 }: BatchFormProps) {
   const { jurisdiction, requiresMetrc, supports } = useJurisdiction(jurisdictionId)
+  const currentSite = useCurrentSite()
   const [cultivars, setCultivars] = useState<Cultivar[]>([])
   const [podOptions, setPodOptions] = useState<Array<{ value: string; label: string }>>([])
   const [loading, setLoading] = useState(false)
   const [propagationItems, setPropagationItems] = useState<InventoryItemWithStock[]>([])
   const [propagationLots, setPropagationLots] = useState<Array<{ id: string; label: string }>>([])
+
+  // State-specific compliance configuration
+  const stateCode = currentSite?.state_province || 'OR'
+  const stateConfig = getStatePlantBatchConfig(stateCode)
+  const defaultTrackingMode = getDefaultTrackingMode(stateCode)
+  const requiresImmediateTagging = stateRequiresImmediateTagging(stateCode)
+  const canUseBatchTagging = supportsBatchTagging(stateCode)
+  const isClosedLoop = !isOpenLoopState(stateCode)
 
   const cannabisBatch = asCannabisBatch(batch)
   const produceBatch = asProduceBatch(batch)
@@ -219,6 +247,12 @@ export function BatchForm({
       sourceInventoryQuantity: undefined,
       sourceAllocationMethod: 'FIFO',
       sourceLotId: null,
+      // Metrc source traceability defaults
+      metrcSourceType: (batch as any)?.source_package_tag ? 'from_package' : (batch as any)?.source_mother_plant_tag ? 'from_mother' : 'no_source',
+      sourcePackageTag: (batch as any)?.source_package_tag ?? null,
+      sourceMotherPlantTag: (batch as any)?.source_mother_plant_tag ?? null,
+      // Batch tag (for states that support batch-level tagging)
+      batchTag: null,
     },
   })
 
@@ -330,10 +364,18 @@ export function BatchForm({
             status: (batch.status as BatchStatus) || 'active',
             notes: values.notes || undefined,
             source_type: values.sourceType || undefined,
+            // Metrc source traceability
+            source_package_tag: values.metrcSourceType === 'from_package' ? values.sourcePackageTag || undefined : undefined,
+            source_mother_plant_tag: values.metrcSourceType === 'from_mother' ? values.sourceMotherPlantTag || undefined : undefined,
             ...domainSpecificFields,
           }
         response = await updateBatch(batch.id, updatePayload)
       } else {
+        // Determine tracking mode based on state rules
+        // For states that don't require immediate tagging (OR, CA), start in open_loop
+        // For states that require immediate tagging (MD), start in closed_loop
+        const trackingMode = domainType === 'cannabis' ? defaultTrackingMode : undefined
+
         const insertPayload: InsertBatch & Partial<UpdateBatch> = {
           organization_id: organizationId,
           site_id: siteId,
@@ -347,6 +389,13 @@ export function BatchForm({
           notes: values.notes || undefined,
           source_type: values.sourceType || undefined,
           created_by: userId,
+          // Metrc compliance fields
+          tracking_mode: trackingMode,
+          source_package_tag: values.metrcSourceType === 'from_package' ? values.sourcePackageTag || undefined : undefined,
+          source_mother_plant_tag: values.metrcSourceType === 'from_mother' ? values.sourceMotherPlantTag || undefined : undefined,
+          // Batch tag (for states that support batch-level tagging like Oregon)
+          batch_tag_label: values.batchTag || undefined,
+          uses_batch_tagging: !!values.batchTag,
           ...domainSpecificFields,
         }
         response = await createBatch(insertPayload)
@@ -559,6 +608,9 @@ export function BatchForm({
           />
         </div>
 
+        {/* Propagation source - only show for non-cannabis or cannabis without Metrc/state config */}
+        {/* For cannabis with Metrc, the BatchSourceSelector handles source tracking */}
+        {!(plantType === 'cannabis' && (requiresMetrc || stateConfig)) && (
         <div className="space-y-4 rounded-md border p-4">
           <div>
             <p className="text-sm font-medium">Propagation source</p>
@@ -720,6 +772,110 @@ export function BatchForm({
             />
           )}
         </div>
+        )}
+
+        {/* Metrc Source Traceability - Cannabis only */}
+        {/* Show compliance section if: it's cannabis AND (jurisdiction requires metrc OR site is in a Metrc state) */}
+        {plantType === 'cannabis' && (requiresMetrc || stateConfig) && (
+          <div className="space-y-4">
+            {/* Closed Loop State Warning - shown prominently when source is required */}
+            {isClosedLoop && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium">
+                      {stateCode} is a CLOSED LOOP state in Metrc
+                    </p>
+                    <p className="text-xs">
+                      Plant batches cannot be created in Metrc without a source package or mother plant.
+                      You must select a source below to push this batch to Metrc.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* State-specific compliance info */}
+            <Alert variant={requiresImmediateTagging ? 'destructive' : 'default'}>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p className="font-medium">
+                    {stateCode} Tagging Mode: {defaultTrackingMode === 'open_loop' ? 'Batch' : 'Individual'}
+                    {!isClosedLoop && ' (Open Loop State)'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {defaultTrackingMode === 'open_loop' ? (
+                      <>
+                        <Layers className="h-3 w-3 inline mr-1" />
+                        Plants tracked by batch count until{' '}
+                        {(() => {
+                          const triggers = stateConfig?.taggingTriggers || []
+                          const heightTrigger = triggers.find(t => t.type === 'height')
+                          const hasFlowering = triggers.some(t => t.type === 'flowering')
+
+                          if (heightTrigger && hasFlowering) {
+                            return `flowering stage or ${heightTrigger.threshold}" height`
+                          } else if (hasFlowering) {
+                            return 'flowering stage'
+                          } else if (heightTrigger) {
+                            return `${heightTrigger.threshold}" height`
+                          }
+                          return 'individual tagging is required'
+                        })()}
+                        . Then individual tags required.
+                      </>
+                    ) : (
+                      <>
+                        <Tags className="h-3 w-3 inline mr-1" />
+                        All plants must be individually tagged from creation.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </AlertDescription>
+            </Alert>
+
+            <BatchSourceSelector
+              siteId={siteId}
+              organizationId={organizationId}
+              stateCode={stateCode}
+              sourceType={(form.watch('metrcSourceType') as SourceType) || 'no_source'}
+              sourcePackageTag={form.watch('sourcePackageTag') || undefined}
+              sourceMotherPlantTag={form.watch('sourceMotherPlantTag') || undefined}
+              onSourceTypeChange={(type) => {
+                form.setValue('metrcSourceType', type)
+                if (type !== 'from_package') form.setValue('sourcePackageTag', null)
+                if (type !== 'from_mother') form.setValue('sourceMotherPlantTag', null)
+              }}
+              onSourcePackageChange={(tag) => form.setValue('sourcePackageTag', tag || null)}
+              onSourceMotherPlantChange={(tag) => form.setValue('sourceMotherPlantTag', tag || null)}
+              disabled={loading}
+            />
+
+            {/* Batch Tag Assignment - for states that support batch-level tagging */}
+            {canUseBatchTagging && defaultTrackingMode === 'open_loop' && (
+              <div className="space-y-2 rounded-md border p-4">
+                <div>
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <Tags className="h-4 w-4" />
+                    Batch Tag Assignment
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {stateCode} allows assigning a single tag to track this batch until individual tagging is required.
+                  </p>
+                </div>
+                <BatchTagSelector
+                  siteId={siteId}
+                  selectedTag={form.watch('batchTag') || null}
+                  onTagChange={(tag) => form.setValue('batchTag', tag)}
+                  disabled={loading}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <FormField

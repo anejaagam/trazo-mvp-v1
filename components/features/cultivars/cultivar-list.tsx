@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react'
-import { Plus, Search, Edit, Archive } from 'lucide-react'
+import { Plus, Search, Edit, Archive, AlertTriangle, CheckCircle2, Upload, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +43,7 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedCultivar, setSelectedCultivar] = useState<Cultivar | undefined>()
   const [cultivars, setCultivars] = useState(initialCultivars)
+  const [syncingCultivarId, setSyncingCultivarId] = useState<string | null>(null)
   
   // Refresh cultivars list
   const refreshCultivars = async () => {
@@ -96,6 +97,43 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
       console.error('Error saving cultivar:', error)
       toast.error('Failed to save cultivar')
       throw error
+    }
+  }
+
+  // Handle push to Metrc
+  const handlePushToMetrc = async (cultivar: Cultivar) => {
+    if (syncingCultivarId) return // Prevent multiple syncs at once
+
+    setSyncingCultivarId(cultivar.id)
+    try {
+      const response = await fetch('/api/compliance/metrc/strains', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cultivarId: cultivar.id,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to sync with Metrc')
+      }
+
+      if (result.success) {
+        const action = result.action === 'linked' ? 'linked to existing' : 'created in'
+        toast.success(`"${cultivar.name}" ${action} Metrc`)
+        await refreshCultivars()
+      } else {
+        throw new Error(result.error || 'Sync failed')
+      }
+    } catch (error) {
+      console.error('Error pushing to Metrc:', error)
+      toast.error((error as Error).message || 'Failed to push to Metrc')
+    } finally {
+      setSyncingCultivarId(null)
     }
   }
 
@@ -183,6 +221,7 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
                   <TableHead>{plantType === 'cannabis' ? 'Strain Type' : 'Category'}</TableHead>
                   <TableHead>{plantType === 'cannabis' ? 'Genetics' : 'Flavor Profile'}</TableHead>
                   <TableHead>{plantType === 'cannabis' ? 'Flowering Days' : 'Storage Life (days)'}</TableHead>
+                  {plantType === 'cannabis' && <TableHead>Compliance</TableHead>}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -213,6 +252,74 @@ export function CultivarList({ cultivars: initialCultivars, userRole, organizati
                         : (cultivar.storage_life_days || '-')
                       }
                     </TableCell>
+                    {plantType === 'cannabis' && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {cultivar.metrc_strain_id ? (
+                            <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                              <CheckCircle2 className="mr-1 h-3 w-3" />
+                              Linked
+                            </Badge>
+                          ) : cultivar.metrc_sync_status === 'sync_failed' ? (
+                            <>
+                              <Badge variant="destructive">
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Sync Failed
+                              </Badge>
+                              {can('compliance:sync') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handlePushToMetrc(cultivar)
+                                  }}
+                                  disabled={syncingCultivarId === cultivar.id}
+                                  className="h-6 px-2 text-xs"
+                                >
+                                  {syncingCultivarId === cultivar.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Upload className="mr-1 h-3 w-3" />
+                                      Retry
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <Badge variant="destructive">
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Not Compliant
+                              </Badge>
+                              {can('compliance:sync') && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handlePushToMetrc(cultivar)
+                                  }}
+                                  disabled={syncingCultivarId === cultivar.id}
+                                  className="h-6 px-2 text-xs"
+                                >
+                                  {syncingCultivarId === cultivar.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Upload className="mr-1 h-3 w-3" />
+                                      Push to Metrc
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       {can('cultivar:edit') && (
                         <Button

@@ -1,40 +1,81 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
+import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { SiteManagementClient } from './site-management-client'
+import type { RoleKey } from '@/lib/rbac/types'
 
 export default async function OrganizationPage() {
   const supabase = await createClient()
   
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    redirect('/auth/login')
-  }
+  let userRole: RoleKey
+  let organizationId: string
+  let organizationData: { id: string; name: string; jurisdiction: string; created_at: string } | null = null
 
-  // Get user data with organization
-  const { data: userData } = await supabase
-    .from('users')
-    .select(`
-      id,
-      role,
-      organization_id,
-      organizations (
+  // DEV MODE: Use mock data for user/org info
+  if (isDevModeActive()) {
+    logDevMode('Organization Page')
+    userRole = DEV_MOCK_USER.role as RoleKey
+    organizationId = DEV_MOCK_USER.organization_id
+    organizationData = {
+      id: DEV_MOCK_USER.organization.id,
+      name: DEV_MOCK_USER.organization.name,
+      jurisdiction: DEV_MOCK_USER.organization.jurisdiction,
+      created_at: new Date().toISOString()
+    }
+  } else {
+    // PRODUCTION MODE: Get actual user data
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      redirect('/auth/login')
+    }
+
+    console.log('[OrganizationPage] Auth user ID:', user.id)
+    console.log('[OrganizationPage] Auth user email:', user.email)
+
+    // Get user data with organization
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select(`
         id,
-        name,
-        jurisdiction,
-        created_at
-      )
-    `)
-    .eq('id', user.id)
-    .single()
+        role,
+        organization_id,
+        organizations!users_organization_id_fkey (
+          id,
+          name,
+          jurisdiction,
+          created_at
+        )
+      `)
+      .eq('id', user.id)
+      .single()
 
-  if (!userData) {
-    redirect('/dashboard')
+    console.log('[OrganizationPage] userData:', userData)
+    console.log('[OrganizationPage] userError:', userError)
+
+    if (!userData) {
+      console.log('[OrganizationPage] No userData found, redirecting to dashboard')
+      redirect('/dashboard')
+    }
+
+    userRole = userData.role as RoleKey
+    organizationId = userData.organization_id
+    
+    console.log('[OrganizationPage] User role:', userRole)
+    console.log('[OrganizationPage] Organization ID:', organizationId)
+    
+    const org = Array.isArray(userData.organizations) 
+      ? userData.organizations[0] 
+      : userData.organizations
+    organizationData = org as typeof organizationData
   }
 
-  // Check permission
-  if (!canPerformAction(userData.role, 'org:settings')) {
+  // Check permission - org_admin has '*' wildcard which grants all permissions
+  const permissionResult = canPerformAction(userRole, 'org:settings')
+  console.log('[OrganizationPage] Permission check result:', permissionResult)
+  
+  if (!permissionResult.allowed) {
+    console.log('[OrganizationPage] Permission denied, redirecting to dashboard')
     redirect('/dashboard')
   }
 
@@ -61,7 +102,7 @@ export default async function OrganizationPage() {
       compliance_status,
       metrc_locations_synced_at
     `)
-    .eq('organization_id', userData.organization_id)
+    .eq('organization_id', organizationId)
     .order('name', { ascending: true })
 
   // Count rooms and pods for each site
@@ -103,13 +144,9 @@ export default async function OrganizationPage() {
     })
   )
 
-  const organization = Array.isArray(userData.organizations) 
-    ? userData.organizations[0] 
-    : userData.organizations
-
   return (
     <SiteManagementClient
-      organization={organization}
+      organization={organizationData}
       initialSites={sitesWithCounts}
     />
   )

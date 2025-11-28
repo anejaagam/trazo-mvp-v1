@@ -30,7 +30,7 @@ interface TagInventoryRecord {
   tag_number: string
   tag_type: 'Plant' | 'Package'
   status: string
-  metrc_id: number | null
+  metrc_tag_id: string | null
   last_synced_at: string
   sync_status: 'synced' | 'pending' | 'error'
   metadata: {
@@ -48,6 +48,7 @@ interface TagInventoryRecord {
 /**
  * Sync available tags from Metrc to local inventory
  * Fetches plant and package tags and upserts them to metrc_tag_inventory
+ * Uses batch upserts for performance
  *
  * @param client - Metrc API client
  * @param organizationId - Organization ID
@@ -94,43 +95,56 @@ export async function syncTagsFromMetrc(
 
     const existingTagNumbers = new Set(existingTags?.map((t) => t.tag_number) || [])
 
-    // Process plant tags
-    for (const tag of plantTags) {
-      const syncResult = await upsertTag(
-        supabase,
-        tag,
-        'Plant',
-        organizationId,
-        siteId,
-        existingTagNumbers.has(tag.TagNumber)
-      )
+    // Prepare batch records for plant tags
+    const plantRecords = plantTags
+      .filter((tag) => tag.Label)
+      .map((tag) => createTagRecord(tag, 'Plant', organizationId, siteId))
 
-      if (syncResult.error) {
-        result.errors.push(`Plant tag ${tag.TagNumber}: ${syncResult.error}`)
-      } else if (syncResult.created) {
-        result.created++
+    // Prepare batch records for package tags
+    const packageRecords = packageTags
+      .filter((tag) => tag.Label)
+      .map((tag) => createTagRecord(tag, 'Package', organizationId, siteId))
+
+    // Batch upsert plant tags (in chunks of 500)
+    const BATCH_SIZE = 500
+    for (let i = 0; i < plantRecords.length; i += BATCH_SIZE) {
+      const batch = plantRecords.slice(i, i + BATCH_SIZE)
+      const { error } = await supabase
+        .from('metrc_tag_inventory')
+        .upsert(batch, { onConflict: 'site_id,tag_number' })
+
+      if (error) {
+        result.errors.push(`Plant tags batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
       } else {
-        result.updated++
+        // Count created vs updated
+        for (const record of batch) {
+          if (existingTagNumbers.has(record.tag_number)) {
+            result.updated++
+          } else {
+            result.created++
+          }
+        }
       }
     }
 
-    // Process package tags
-    for (const tag of packageTags) {
-      const syncResult = await upsertTag(
-        supabase,
-        tag,
-        'Package',
-        organizationId,
-        siteId,
-        existingTagNumbers.has(tag.TagNumber)
-      )
+    // Batch upsert package tags (in chunks of 500)
+    for (let i = 0; i < packageRecords.length; i += BATCH_SIZE) {
+      const batch = packageRecords.slice(i, i + BATCH_SIZE)
+      const { error } = await supabase
+        .from('metrc_tag_inventory')
+        .upsert(batch, { onConflict: 'site_id,tag_number' })
 
-      if (syncResult.error) {
-        result.errors.push(`Package tag ${tag.TagNumber}: ${syncResult.error}`)
-      } else if (syncResult.created) {
-        result.created++
+      if (error) {
+        result.errors.push(`Package tags batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
       } else {
-        result.updated++
+        // Count created vs updated
+        for (const record of batch) {
+          if (existingTagNumbers.has(record.tag_number)) {
+            result.updated++
+          } else {
+            result.created++
+          }
+        }
       }
     }
 
@@ -143,50 +157,32 @@ export async function syncTagsFromMetrc(
 }
 
 /**
- * Upsert a single tag to the inventory
+ * Create a tag inventory record from Metrc tag data
  */
-async function upsertTag(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+function createTagRecord(
   tag: MetrcTag,
   tagType: 'Plant' | 'Package',
   organizationId: string,
-  siteId: string,
-  exists: boolean
-): Promise<{ created: boolean; error: string | null }> {
-  // Map Metrc status to our status
-  // Metrc returns "Commissioned" for available tags
+  siteId: string
+): TagInventoryRecord {
   const status = mapMetrcStatusToLocalStatus(tag.Status)
 
-  const record: TagInventoryRecord = {
+  return {
     organization_id: organizationId,
     site_id: siteId,
-    tag_number: tag.TagNumber,
+    tag_number: tag.Label,
     tag_type: tagType,
     status,
-    metrc_id: tag.TagTypeId,
+    metrc_tag_id: tag.Label,
     last_synced_at: new Date().toISOString(),
     sync_status: 'synced',
     metadata: {
-      commissioned_date: tag.CommissionedDate,
-      tag_type_name: tag.TagTypeName,
-      tag_type_id: tag.TagTypeId,
-      metrc_status: tag.Status,
+      commissioned_date: tag.CommissionedDateTime || undefined,
+      tag_type_name: tag.TagTypeName || undefined,
+      tag_type_id: tag.TagTypeId || undefined,
+      metrc_status: tag.Status || undefined,
     },
   }
-
-  const { error } = await supabase
-    .from('metrc_tag_inventory')
-    .upsert(record, {
-      onConflict: 'site_id,tag_number',
-      // Don't update if already assigned/used - preserve local state
-      ignoreDuplicates: false,
-    })
-
-  if (error) {
-    return { created: false, error: error.message }
-  }
-
-  return { created: !exists, error: null }
 }
 
 /**
@@ -194,7 +190,12 @@ async function upsertTag(
  * Metrc statuses: Commissioned, Used, etc.
  * Local statuses: available, assigned, used, destroyed, lost, returned
  */
-function mapMetrcStatusToLocalStatus(metrcStatus: string): string {
+function mapMetrcStatusToLocalStatus(metrcStatus: string | null | undefined): string {
+  // Handle null/undefined status - default to available
+  if (!metrcStatus) {
+    return 'available'
+  }
+
   const statusLower = metrcStatus.toLowerCase()
 
   if (statusLower === 'commissioned') {
@@ -220,6 +221,7 @@ function mapMetrcStatusToLocalStatus(metrcStatus: string): string {
 
 /**
  * Sync only plant tags from Metrc
+ * Uses batch upserts for performance
  */
 export async function syncPlantTagsFromMetrc(
   client: MetrcClient,
@@ -258,22 +260,29 @@ export async function syncPlantTagsFromMetrc(
 
     const existingTagNumbers = new Set(existingTags?.map((t) => t.tag_number) || [])
 
-    for (const tag of plantTags) {
-      const syncResult = await upsertTag(
-        supabase,
-        tag,
-        'Plant',
-        organizationId,
-        siteId,
-        existingTagNumbers.has(tag.TagNumber)
-      )
+    // Prepare batch records
+    const records = plantTags
+      .filter((tag) => tag.Label)
+      .map((tag) => createTagRecord(tag, 'Plant', organizationId, siteId))
 
-      if (syncResult.error) {
-        result.errors.push(`Plant tag ${tag.TagNumber}: ${syncResult.error}`)
-      } else if (syncResult.created) {
-        result.created++
+    // Batch upsert (in chunks of 500)
+    const BATCH_SIZE = 500
+    for (let i = 0; i < records.length; i += BATCH_SIZE) {
+      const batch = records.slice(i, i + BATCH_SIZE)
+      const { error } = await supabase
+        .from('metrc_tag_inventory')
+        .upsert(batch, { onConflict: 'site_id,tag_number' })
+
+      if (error) {
+        result.errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
       } else {
-        result.updated++
+        for (const record of batch) {
+          if (existingTagNumbers.has(record.tag_number)) {
+            result.updated++
+          } else {
+            result.created++
+          }
+        }
       }
     }
 
@@ -291,6 +300,7 @@ export async function syncPlantTagsFromMetrc(
 
 /**
  * Sync only package tags from Metrc
+ * Uses batch upserts for performance
  */
 export async function syncPackageTagsFromMetrc(
   client: MetrcClient,
@@ -329,22 +339,29 @@ export async function syncPackageTagsFromMetrc(
 
     const existingTagNumbers = new Set(existingTags?.map((t) => t.tag_number) || [])
 
-    for (const tag of packageTags) {
-      const syncResult = await upsertTag(
-        supabase,
-        tag,
-        'Package',
-        organizationId,
-        siteId,
-        existingTagNumbers.has(tag.TagNumber)
-      )
+    // Prepare batch records
+    const records = packageTags
+      .filter((tag) => tag.Label)
+      .map((tag) => createTagRecord(tag, 'Package', organizationId, siteId))
 
-      if (syncResult.error) {
-        result.errors.push(`Package tag ${tag.TagNumber}: ${syncResult.error}`)
-      } else if (syncResult.created) {
-        result.created++
+    // Batch upsert (in chunks of 500)
+    const BATCH_SIZE = 500
+    for (let i = 0; i < records.length; i += BATCH_SIZE) {
+      const batch = records.slice(i, i + BATCH_SIZE)
+      const { error } = await supabase
+        .from('metrc_tag_inventory')
+        .upsert(batch, { onConflict: 'site_id,tag_number' })
+
+      if (error) {
+        result.errors.push(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error.message}`)
       } else {
-        result.updated++
+        for (const record of batch) {
+          if (existingTagNumbers.has(record.tag_number)) {
+            result.updated++
+          } else {
+            result.created++
+          }
+        }
       }
     }
 

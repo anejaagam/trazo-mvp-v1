@@ -15,6 +15,7 @@ export interface TagAssignmentResult {
   errors: string[]
   warnings: string[]
   syncLogId?: string
+  trackingModeUpdated?: boolean // Indicates if batch was transitioned to closed_loop
 }
 
 /**
@@ -39,10 +40,10 @@ export async function assignMetrcTagsToBatch(
   }
 
   try {
-    // 1. Get batch
+    // 1. Get batch with tracking mode
     const { data: batch, error: batchError } = await supabase
       .from('batches')
-      .select('id, batch_number, plant_count, domain_type, site_id, organization_id, metrc_plant_labels')
+      .select('id, batch_number, plant_count, domain_type, site_id, organization_id, metrc_plant_labels, tracking_mode')
       .eq('id', batchId)
       .single()
 
@@ -88,15 +89,30 @@ export async function assignMetrcTagsToBatch(
       .eq('batch_id', batchId)
       .single()
 
-    // 6. Update batch with new tags
+    // 6. Update batch with new tags and transition to closed_loop tracking
     const updatedTags = [...new Set([...existingTags, ...newTags])]
+
+    // Determine if tracking mode should be updated
+    // When individual plant tags are assigned, batch transitions to closed_loop
+    const shouldUpdateTrackingMode = batch.tracking_mode !== 'closed_loop'
+
+    const batchUpdate: Record<string, unknown> = {
+      metrc_plant_labels: updatedTags,
+      updated_at: new Date().toISOString(),
+    }
+
+    // Transition to closed_loop when individual tags are assigned
+    if (shouldUpdateTrackingMode) {
+      batchUpdate.tracking_mode = 'closed_loop'
+      result.trackingModeUpdated = true
+      result.warnings.push(
+        'Batch tracking mode updated to closed_loop (individual plant tracking)'
+      )
+    }
 
     const { error: updateError } = await supabase
       .from('batches')
-      .update({
-        metrc_plant_labels: updatedTags,
-        updated_at: new Date().toISOString(),
-      })
+      .update(batchUpdate)
       .eq('id', batchId)
 
     if (updateError) throw updateError
@@ -118,9 +134,16 @@ export async function assignMetrcTagsToBatch(
       batch_id: batchId,
       event_type: 'tag_assignment',
       user_id: userId,
-      tags_assigned: newTags.length,
-      to_value: { tags: newTags },
-      notes: `Assigned ${newTags.length} Metrc plant tags`,
+      from_value: shouldUpdateTrackingMode
+        ? { tracking_mode: batch.tracking_mode || 'open_loop' }
+        : undefined,
+      to_value: {
+        tags: newTags,
+        tracking_mode: shouldUpdateTrackingMode ? 'closed_loop' : undefined,
+      },
+      notes: shouldUpdateTrackingMode
+        ? `Assigned ${newTags.length} Metrc plant tags. Transitioned to closed loop tracking.`
+        : `Assigned ${newTags.length} Metrc plant tags`,
     })
 
     // 9. Sync to Metrc if batch is already synced
@@ -149,6 +172,8 @@ export async function assignMetrcTagsToBatch(
           batch_id: batchId,
           tags_assigned: newTags.length,
           total_tags: updatedTags.length,
+          tracking_mode_updated: shouldUpdateTrackingMode,
+          new_tracking_mode: shouldUpdateTrackingMode ? 'closed_loop' : batch.tracking_mode,
         },
       })
     }

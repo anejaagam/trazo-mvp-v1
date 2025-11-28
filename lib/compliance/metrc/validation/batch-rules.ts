@@ -2,6 +2,7 @@
  * Batch Validation Rules
  *
  * Validation logic for Metrc plant batch operations
+ * Includes source traceability validation for Open/Closed Loop tracking
  */
 
 import type { ValidationResult } from '@/lib/compliance/types'
@@ -20,6 +21,12 @@ import {
   addError,
   addWarning,
 } from './validators'
+import {
+  requiresSourceTracking,
+  getStatePlantBatchConfig,
+  validateTagFormat,
+} from '@/lib/jurisdiction/plant-batch-config'
+import type { TrackingMode } from '@/types/batch'
 
 /**
  * Validate plant batch creation
@@ -33,7 +40,11 @@ export function validatePlantBatchCreate(batch: MetrcPlantBatchCreate): Validati
   validateRequired(result, 'Count', batch.Count)
   validateRequired(result, 'Strain', batch.Strain)
   validateRequired(result, 'Location', batch.Location)
-  validateRequired(result, 'PlantedDate', batch.PlantedDate)
+  // Accept either ActualDate (v2) or PlantedDate (legacy)
+  const hasDate = batch.ActualDate || batch.PlantedDate
+  if (!hasDate) {
+    validateRequired(result, 'ActualDate/PlantedDate', undefined)
+  }
 
   // Type validation
   if (batch.Type && !['Seed', 'Clone'].includes(batch.Type)) {
@@ -109,20 +120,22 @@ export function validatePlantBatchCreate(batch: MetrcPlantBatchCreate): Validati
     )
   }
 
-  // Date validation
-  if (batch.PlantedDate) {
-    validateDate(result, 'PlantedDate', batch.PlantedDate)
-    validateDateNotInFuture(result, 'PlantedDate', batch.PlantedDate)
+  // Date validation - check either ActualDate or PlantedDate
+  const dateToValidate = batch.ActualDate || batch.PlantedDate
+  const dateFieldName = batch.ActualDate ? 'ActualDate' : 'PlantedDate'
+  if (dateToValidate) {
+    validateDate(result, dateFieldName, dateToValidate)
+    validateDateNotInFuture(result, dateFieldName, dateToValidate)
 
     // Warn if planted date is more than 1 year ago
-    const plantedDate = new Date(batch.PlantedDate)
+    const plantedDate = new Date(dateToValidate)
     const oneYearAgo = new Date()
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
 
     if (plantedDate < oneYearAgo) {
       addWarning(
         result,
-        'PlantedDate',
+        dateFieldName,
         'Planted date is more than 1 year ago',
         'OLD_PLANTED_DATE'
       )
@@ -408,6 +421,187 @@ export function validatePlantCountAdjustment(adjustment: {
   // Validate date
   validateDate(result, 'adjustmentDate', adjustment.adjustmentDate)
   validateDateNotInFuture(result, 'adjustmentDate', adjustment.adjustmentDate)
+
+  return result
+}
+
+// =====================================================
+// SOURCE TRACEABILITY VALIDATION
+// =====================================================
+
+/**
+ * Input type for source validation
+ */
+export interface BatchSourceInput {
+  stateCode: string
+  sourcePackageTag?: string
+  sourceMotherPlantTag?: string
+  sourceMotherPlantTags?: string[]
+  trackingMode?: TrackingMode
+}
+
+/**
+ * Validate batch source traceability based on state requirements
+ */
+export function validateBatchSource(input: BatchSourceInput): ValidationResult {
+  const result = createValidationResult()
+  const { stateCode, sourcePackageTag, sourceMotherPlantTag, sourceMotherPlantTags } = input
+
+  // Check if state requires source tracking
+  if (requiresSourceTracking(stateCode)) {
+    const hasPackageSource = sourcePackageTag && sourcePackageTag.trim().length > 0
+    const hasMotherSource =
+      (sourceMotherPlantTag && sourceMotherPlantTag.trim().length > 0) ||
+      (sourceMotherPlantTags && sourceMotherPlantTags.length > 0)
+
+    if (!hasPackageSource && !hasMotherSource) {
+      addError(
+        result,
+        'source',
+        `${stateCode} requires source traceability. Provide either a source package tag or mother plant tag(s).`,
+        'SOURCE_REQUIRED'
+      )
+    }
+
+    // Can't have both source types
+    if (hasPackageSource && hasMotherSource) {
+      addWarning(
+        result,
+        'source',
+        'Both package and mother plant sources provided. Only one will be used.',
+        'MULTIPLE_SOURCES'
+      )
+    }
+  }
+
+  // Validate package tag format if provided
+  if (sourcePackageTag && sourcePackageTag.trim().length > 0) {
+    if (!validateTagFormat(stateCode, sourcePackageTag)) {
+      addWarning(
+        result,
+        'sourcePackageTag',
+        `Package tag format may not match ${stateCode} requirements`,
+        'INVALID_TAG_FORMAT'
+      )
+    }
+  }
+
+  // Validate mother plant tag format if provided
+  const allMotherTags = [
+    ...(sourceMotherPlantTag ? [sourceMotherPlantTag] : []),
+    ...(sourceMotherPlantTags || []),
+  ]
+
+  for (const tag of allMotherTags) {
+    if (tag && tag.trim().length > 0 && !validateTagFormat(stateCode, tag)) {
+      addWarning(
+        result,
+        'sourceMotherPlantTag',
+        `Mother plant tag "${tag}" format may not match ${stateCode} requirements`,
+        'INVALID_TAG_FORMAT'
+      )
+    }
+  }
+
+  return result
+}
+
+/**
+ * Validate tracking mode for a batch based on state requirements
+ */
+export function validateTrackingMode(
+  stateCode: string,
+  trackingMode: TrackingMode | undefined,
+  hasIndividualTags: boolean
+): ValidationResult {
+  const result = createValidationResult()
+  const config = getStatePlantBatchConfig(stateCode)
+
+  if (!config) {
+    addWarning(result, 'stateCode', `Unknown state code: ${stateCode}`, 'UNKNOWN_STATE')
+    return result
+  }
+
+  // If state defaults to closed_loop, tracking mode should be closed_loop
+  if (config.defaultTrackingMode === 'closed_loop' && trackingMode !== 'closed_loop') {
+    addWarning(
+      result,
+      'trackingMode',
+      `${stateCode} typically requires closed loop tracking from the start`,
+      'TRACKING_MODE_MISMATCH'
+    )
+  }
+
+  // If batch has individual tags but tracking mode is open_loop, warn
+  if (hasIndividualTags && trackingMode === 'open_loop') {
+    addWarning(
+      result,
+      'trackingMode',
+      'Batch has individual plant tags but tracking mode is still open_loop',
+      'INCONSISTENT_TRACKING'
+    )
+  }
+
+  // If state doesn't allow mode switch but we're trying to change, error
+  if (!config.allowModeSwitch && trackingMode !== config.defaultTrackingMode) {
+    addError(
+      result,
+      'trackingMode',
+      `${stateCode} does not allow switching tracking modes. Must use ${config.defaultTrackingMode}.`,
+      'MODE_SWITCH_NOT_ALLOWED'
+    )
+  }
+
+  return result
+}
+
+/**
+ * Validate batch creation with full source and tracking mode validation
+ */
+export function validateBatchCreateWithSource(input: {
+  stateCode: string
+  batchNumber: string
+  plantCount: number
+  cultivarName?: string
+  startDate: string
+  sourcePackageTag?: string
+  sourceMotherPlantTag?: string
+  trackingMode?: TrackingMode
+}): ValidationResult {
+  const result = createValidationResult()
+
+  // Basic validation
+  validateRequired(result, 'batchNumber', input.batchNumber)
+  validatePositiveNumber(result, 'plantCount', input.plantCount)
+  validateDate(result, 'startDate', input.startDate)
+
+  if (!input.cultivarName || input.cultivarName.trim().length === 0) {
+    addError(result, 'cultivarName', 'Cultivar/strain name is required', 'MISSING_CULTIVAR')
+  }
+
+  // Source validation
+  const sourceResult = validateBatchSource({
+    stateCode: input.stateCode,
+    sourcePackageTag: input.sourcePackageTag,
+    sourceMotherPlantTag: input.sourceMotherPlantTag,
+    trackingMode: input.trackingMode,
+  })
+
+  // Merge source validation results
+  result.isValid = result.isValid && sourceResult.isValid
+  result.errors.push(...sourceResult.errors)
+  result.warnings.push(...sourceResult.warnings)
+
+  // Plant count limit validation
+  const config = getStatePlantBatchConfig(input.stateCode)
+  if (config && input.plantCount > config.maxPlantsPerBatch) {
+    addWarning(
+      result,
+      'plantCount',
+      `Plant count (${input.plantCount}) exceeds typical batch limit for ${input.stateCode} (${config.maxPlantsPerBatch}). Consider splitting into multiple batches.`,
+      'EXCEEDS_BATCH_LIMIT'
+    )
+  }
 
   return result
 }

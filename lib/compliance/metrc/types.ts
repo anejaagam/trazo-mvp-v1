@@ -134,20 +134,32 @@ export interface MetrcPlant {
 export interface MetrcPlantBatch {
   Id: number
   Name: string
-  Type: 'Seed' | 'Clone'
-  Count: number
+  // v1 API field
+  Type?: 'Seed' | 'Clone' | string
+  // v2 API field (preferred)
+  PlantBatchTypeName?: string
+  // v1 API field (may not exist in v2)
+  Count?: number
   StrainName: string
   PlantedDate: string
-  FacilityLicenseNumber: string
-  FacilityName: string
+  // v1 API fields (may not exist in v2)
+  FacilityLicenseNumber?: string
+  FacilityName?: string
+  // v1 API field
   RoomName?: string
+  // v2 API field (preferred)
+  LocationName?: string
   DestroyedDate?: string
-  UntrackedCount: number
-  TrackedCount: number
+  UntrackedCount?: number
+  TrackedCount?: number
 }
 
 /**
  * Metrc plant batch creation payload
+ *
+ * Note: Different states may have different field requirements.
+ * The v2 API generally uses ActualDate, but PlantedDate is also supported.
+ * Source tracking (SourcePackage or SourcePlants) may be required by some states.
  */
 export interface MetrcPlantBatchCreate {
   Name: string
@@ -155,7 +167,49 @@ export interface MetrcPlantBatchCreate {
   Count: number
   Strain: string
   Location: string
+  // Both field names supported - ActualDate is v2 preferred, PlantedDate for backwards compatibility
+  ActualDate?: string
+  PlantedDate?: string
+  // Optional source tracking (required in some states like Oregon, Oklahoma)
+  PatientLicenseNumber?: string
+  // Source package tag (when creating from seed/clone packages)
+  SourcePackage?: string
+  // Source plant labels (when cloning from mother plants)
+  SourcePlants?: string[]
+}
+
+/**
+ * Plant batch creation from package payload (Closed Loop)
+ *
+ * Used with POST /packages/v2/plantings endpoint
+ * Different field names than MetrcPlantBatchCreate
+ */
+export interface MetrcPackagePlantingsCreate {
+  PackageLabel: string
+  PlantBatchName: string
+  PlantBatchType: 'Seed' | 'Clone'
+  PlantCount: number
+  StrainName: string
+  LocationName: string
+  UnpackagedDate: string
   PlantedDate: string
+  PatientLicenseNumber?: string
+}
+
+/**
+ * Plant batch creation from mother plants payload (Closed Loop)
+ *
+ * Used with POST /plants/v2/plantings endpoint
+ */
+export interface MetrcPlantPlantingsCreate {
+  PlantLabel: string
+  PlantBatchName: string
+  PlantBatchType: 'Clone'
+  PlantCount: number
+  StrainName: string
+  LocationName: string
+  ActualDate: string
+  PatientLicenseNumber?: string
 }
 
 /**
@@ -179,6 +233,44 @@ export interface MetrcPlantBatchSplit {
   Location: string
   Strain: string
   SplitDate: string
+}
+
+/**
+ * Plant batch package creation payload (Metrc Steps 2 & 3)
+ *
+ * Used with:
+ * - POST /plantbatches/v2/packages (reduces batch count) - Step 3
+ * - POST /plantbatches/v2/packages/frommotherplant (keeps batch count) - Step 2
+ */
+export interface MetrcPlantBatchPackage {
+  PlantBatch: string           // Plant batch name/tag
+  Count: number                // Number of plants to package
+  Location: string | null
+  Sublocation?: string | null
+  Item: string                 // Item name (e.g., "Clone - Blue Dream")
+  Tag: string                  // Package tag
+  PatientLicenseNumber?: string | null
+  Note?: string
+  IsTradeSample: boolean
+  IsDonation: boolean
+  ActualDate: string           // YYYY-MM-DD
+}
+
+/**
+ * Plant batch growth phase change payload (Metrc Step 4)
+ *
+ * Used with POST /plantbatches/v2/growthphase
+ * This converts plants from batch-level tracking to individual plant tracking
+ * by assigning individual tags starting from StartingTag
+ */
+export interface MetrcPlantBatchGrowthPhaseChange {
+  Name: string                 // Plant batch name
+  Count: number                // Number of plants to transition
+  StartingTag: string          // First plant tag (Metrc assigns sequentially)
+  GrowthPhase: 'Vegetative' | 'Flowering'
+  NewLocation: string
+  NewSubLocation?: string
+  GrowthDate: string           // YYYY-MM-DD
 }
 
 /**

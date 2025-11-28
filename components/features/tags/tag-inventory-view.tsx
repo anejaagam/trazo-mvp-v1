@@ -33,6 +33,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tag, Package, Upload, AlertCircle, CheckCircle2, Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSiteId } from '@/hooks/use-site'
 
 interface TagInventorySummary {
   tag_type: string
@@ -57,10 +58,10 @@ interface TagDetail {
 
 interface TagInventoryViewProps {
   organizationId: string
-  siteId: string
 }
 
-export function TagInventoryView({ organizationId, siteId }: TagInventoryViewProps) {
+export function TagInventoryView({ organizationId }: TagInventoryViewProps) {
+  const siteId = useSiteId()
   const [summary, setSummary] = useState<TagInventorySummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('summary')
@@ -74,16 +75,19 @@ export function TagInventoryView({ organizationId, siteId }: TagInventoryViewPro
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    loadSummary()
+    if (siteId) {
+      loadSummary()
+    }
   }, [organizationId, siteId])
 
   useEffect(() => {
-    if (activeTab === 'plant' || activeTab === 'package') {
+    if (siteId && (activeTab === 'plant' || activeTab === 'package')) {
       loadTagList(activeTab === 'plant' ? 'Plant' : 'Package')
     }
   }, [activeTab, tagListPage, tagListFilter, siteId])
 
   const loadTagList = async (tagType: string) => {
+    if (!siteId) return
     try {
       setTagListLoading(true)
       const params = new URLSearchParams({
@@ -127,6 +131,7 @@ export function TagInventoryView({ organizationId, siteId }: TagInventoryViewPro
   }
 
   const loadSummary = async () => {
+    if (!siteId) return
     try {
       setIsLoading(true)
       const response = await fetch(`/api/tags/summary?site_id=${siteId}`)
@@ -185,6 +190,14 @@ export function TagInventoryView({ organizationId, siteId }: TagInventoryViewPro
 
   const calculateAvailable = (tags: TagInventorySummary[]) =>
     tags.find((t) => t.status === 'available')?.tag_count || 0
+
+  if (!siteId) {
+    return (
+      <div className="text-center text-muted-foreground py-8">
+        Please select a site from the header to view tag inventory.
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

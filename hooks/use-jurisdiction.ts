@@ -48,7 +48,8 @@ export function useJurisdiction(jurisdictionId: JurisdictionId | null | undefine
   }, [jurisdictionId])
 
   const isStageTransitionAllowed = useCallback((fromStage: string, toStage: string): boolean => {
-    return jurisdictionId ? isBatchStageTransitionAllowed(jurisdictionId, fromStage, toStage) : false
+    // Let the function handle null/undefined jurisdictionId (allows all transitions when not configured)
+    return isBatchStageTransitionAllowed(jurisdictionId, fromStage, toStage)
   }, [jurisdictionId])
 
   const getComplianceReportTypesCallback = useCallback((): string[] => {

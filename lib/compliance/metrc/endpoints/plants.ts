@@ -38,9 +38,11 @@ export class PlantsEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlant[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlant>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -64,9 +66,11 @@ export class PlantsEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlant[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlant>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -76,12 +80,14 @@ export class PlantsEndpoint {
    */
   async listOnHold(): Promise<MetrcPlant[]> {
     const { facilityLicenseNumber } = this.client.getConfig()
-    return this.client.request<MetrcPlant[]>(
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlant>(
       `/plants/v2/onhold?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
       }
     )
+    return result.data
   }
 
   /**
@@ -105,9 +111,11 @@ export class PlantsEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlant[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlant>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**

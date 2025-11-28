@@ -15,11 +15,18 @@ export interface PackageSyncResult {
   packagesCreated: number
   packagesUpdated: number
   errors: string[]
+  warnings?: string[]
   syncLogId?: string
   // Generic sync result fields (for non-package sync types)
   synced?: number
   created?: number
   updated?: number
+  // Strains sync specific fields
+  cultivarsCreated?: number
+  cultivarsLinked?: number
+  // Plant batches sync specific fields
+  batchesLinked?: number
+  deactivated?: number
 }
 
 /**
@@ -78,10 +85,13 @@ export async function syncPackagesFromMetrc(
     })
 
     // Fetch packages from Metrc
-    const metrcPackages = await metrcClient.packages.listActive(
+    const metrcPackagesRaw = await metrcClient.packages.listActive(
       lastModifiedStart,
       lastModifiedEnd
     )
+
+    // Metrc API returns null/undefined when no packages exist, not an empty array
+    const metrcPackages = Array.isArray(metrcPackagesRaw) ? metrcPackagesRaw : []
 
     result.packagesProcessed = metrcPackages.length
 

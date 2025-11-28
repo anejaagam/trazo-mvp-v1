@@ -37,9 +37,11 @@ export class PackagesEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPackage[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPackage>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -63,9 +65,11 @@ export class PackagesEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPackage[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPackage>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -75,12 +79,14 @@ export class PackagesEndpoint {
    */
   async listOnHold(): Promise<MetrcPackage[]> {
     const { facilityLicenseNumber } = this.client.getConfig()
-    return this.client.request<MetrcPackage[]>(
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPackage>(
       `/packages/v2/onhold?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
       }
     )
+    return result.data
   }
 
   /**
@@ -90,12 +96,14 @@ export class PackagesEndpoint {
    */
   async listInTransit(): Promise<MetrcPackage[]> {
     const { facilityLicenseNumber } = this.client.getConfig()
-    return this.client.request<MetrcPackage[]>(
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPackage>(
       `/packages/v2/intransit?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'GET',
       }
     )
+    return result.data
   }
 
   /**

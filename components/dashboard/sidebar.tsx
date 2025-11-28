@@ -25,6 +25,7 @@ import {
   BookCheck,
   BookOpenCheck,
   FlaskConical,
+  Leaf,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -230,7 +231,14 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           icon: <Package className="h-4 w-4" />,
           permission: 'batch:stage_change',
           badge: batchBadges.harvest ? String(batchBadges.harvest) : undefined,
-        },{
+        },
+        {
+          title: 'Individual Plants',
+          href: '/dashboard/batches/plants',
+          icon: <Leaf className="h-4 w-4" />,
+          permission: 'batch:view',
+        },
+        {
           title: 'Planning - Coming soon',
           href: '/dashboard/batches/planning',
           icon: <ClipboardList className="h-4 w-4" />, 

@@ -10,6 +10,10 @@ import type {
   MetrcPlantBatchCreate,
   MetrcPlantBatchAdjustment,
   MetrcPlantBatchSplit,
+  MetrcPackagePlantingsCreate,
+  MetrcPlantPlantingsCreate,
+  MetrcPlantBatchPackage,
+  MetrcPlantBatchGrowthPhaseChange,
 } from '../types'
 
 export class PlantBatchesEndpoint {
@@ -36,9 +40,11 @@ export class PlantBatchesEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlantBatch[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlantBatch>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -62,9 +68,11 @@ export class PlantBatchesEndpoint {
       endpoint += `&lastModifiedEnd=${lastModifiedEnd}`
     }
 
-    return this.client.request<MetrcPlantBatch[]>(endpoint, {
+    // Use requestList to handle v2 paginated response { Data: [...], Total, ... }
+    const result = await this.client.requestList<MetrcPlantBatch>(endpoint, {
       method: 'GET',
     })
+    return result.data
   }
 
   /**
@@ -93,7 +101,10 @@ export class PlantBatchesEndpoint {
   // ===== WRITE OPERATIONS (POST/PUT) =====
 
   /**
-   * Create new plant batches
+   * Create new plant batches (Open Loop - from thin air)
+   *
+   * Uses /plantbatches/v2/plantings - only works in Open Loop states
+   * where CanCreateOpeningBalancePlantBatches is true
    *
    * @param batches - Array of plant batches to create
    * @returns Void on success
@@ -102,7 +113,7 @@ export class PlantBatchesEndpoint {
   async create(batches: MetrcPlantBatchCreate[]): Promise<void> {
     const { facilityLicenseNumber } = this.client.getConfig()
     await this.client.request<void>(
-      `/plantbatches/v2/create/packages?licenseNumber=${facilityLicenseNumber}`,
+      `/plantbatches/v2/plantings?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'POST',
         body: batches,
@@ -111,19 +122,43 @@ export class PlantBatchesEndpoint {
   }
 
   /**
-   * Create plant batches from plantings (mother plants)
+   * Create plant batches from a package (Closed Loop)
    *
-   * @param batches - Array of plant batches to create from plantings
+   * Uses POST /packages/v2/plantings - required for Closed Loop states
+   * when creating plant batches from seed/clone packages
+   *
+   * @param plantings - Array of plantings to create from packages
    * @returns Void on success
    * @throws MetrcApiError on validation or API failure
    */
-  async createFromPlantings(batches: MetrcPlantBatchCreate[]): Promise<void> {
+  async createFromPackage(plantings: MetrcPackagePlantingsCreate[]): Promise<void> {
     const { facilityLicenseNumber } = this.client.getConfig()
     await this.client.request<void>(
-      `/plantbatches/v2/create/plantings?licenseNumber=${facilityLicenseNumber}`,
+      `/packages/v2/plantings?licenseNumber=${facilityLicenseNumber}`,
       {
         method: 'POST',
-        body: batches,
+        body: plantings,
+      }
+    )
+  }
+
+  /**
+   * Create plant batches from mother plants (Closed Loop)
+   *
+   * Uses POST /plants/v2/plantings - required for Closed Loop states
+   * when creating plant batches by cloning from mother plants
+   *
+   * @param plantings - Array of plantings to create from mother plants
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async createFromPlantings(plantings: MetrcPlantPlantingsCreate[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plants/v2/plantings?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: plantings,
       }
     )
   }
@@ -185,6 +220,75 @@ export class PlantBatchesEndpoint {
       {
         method: 'POST',
         body: destroys,
+      }
+    )
+  }
+
+  // ===== METRC EVALUATION STEPS 2-4 =====
+
+  /**
+   * Create packages from plant batch (reduces batch count) - Metrc Step 3
+   *
+   * Uses POST /plantbatches/v2/packages
+   * This REDUCES the plant count in the source batch
+   *
+   * @param packages - Array of packages to create
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async createPackages(packages: MetrcPlantBatchPackage[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plantbatches/v2/packages?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: packages,
+      }
+    )
+  }
+
+  /**
+   * Create packages from plant batch WITHOUT reducing count - Metrc Step 2
+   *
+   * Uses POST /plantbatches/v2/packages/frommotherplant
+   * This does NOT reduce the plant count (mother plant cloning scenario)
+   *
+   * @param packages - Array of packages to create
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async createPackagesFromMother(packages: MetrcPlantBatchPackage[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plantbatches/v2/packages/frommotherplant?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: packages,
+      }
+    )
+  }
+
+  /**
+   * Change growth phase for plants in batch - Metrc Step 4
+   *
+   * Uses POST /plantbatches/v2/growthphase
+   * This converts batch-level tracking to individual plant tracking
+   * by assigning individual tags starting from the specified StartingTag
+   *
+   * Important: Metrc will assign tags sequentially from StartingTag,
+   * potentially skipping unavailable tags.
+   *
+   * @param changes - Array of growth phase changes
+   * @returns Void on success
+   * @throws MetrcApiError on validation or API failure
+   */
+  async changeGrowthPhase(changes: MetrcPlantBatchGrowthPhaseChange[]): Promise<void> {
+    const { facilityLicenseNumber } = this.client.getConfig()
+    await this.client.request<void>(
+      `/plantbatches/v2/growthphase?licenseNumber=${facilityLicenseNumber}`,
+      {
+        method: 'POST',
+        body: changes,
       }
     )
   }

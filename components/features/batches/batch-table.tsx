@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Eye, Edit, Trash2, Beaker, Leaf, ChefHat, Building2 } from 'lucide-react'
+import { MoreVertical, Eye, Edit, Trash2, Beaker, Leaf, ChefHat, Building2, Layers } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -227,19 +227,32 @@ export function BatchTable({
                           {totalPlants > 0 && (
                             <Badge variant="secondary">{totalPlants.toLocaleString()} units</Badge>
                           )}
+                          {/* Tracking mode badge for cannabis batches */}
                           {batch.domain_type === 'cannabis' && totalPlants > 0 && (
-                            <Badge
-                              variant={
-                                !batch.metrc_plant_labels || batch.metrc_plant_labels.length === 0
-                                  ? 'destructive'
-                                  : batch.metrc_plant_labels.length < totalPlants
-                                  ? 'outline'
-                                  : 'default'
-                              }
-                              className="gap-1 text-xs"
-                            >
-                              {batch.metrc_plant_labels?.length || 0}/{totalPlants} tagged
-                            </Badge>
+                            (batch as any).tracking_mode === 'open_loop' ? (
+                              // Open loop: batch-level tracking, show batch tag if assigned
+                              <Badge variant="secondary" className="gap-1 text-xs border-blue-200 bg-blue-50 text-blue-700">
+                                <Layers className="h-3 w-3" />
+                                {(batch as any).batch_tag_label
+                                  ? `Tag: ...${(batch as any).batch_tag_label.slice(-8)}`
+                                  : 'Open Loop'
+                                }
+                              </Badge>
+                            ) : (
+                              // Closed loop or undefined: show individual tag progress
+                              <Badge
+                                variant={
+                                  !batch.metrc_plant_labels || batch.metrc_plant_labels.length === 0
+                                    ? 'destructive'
+                                    : batch.metrc_plant_labels.length < totalPlants
+                                    ? 'outline'
+                                    : 'default'
+                                }
+                                className="gap-1 text-xs"
+                              >
+                                {batch.metrc_plant_labels?.length || 0}/{totalPlants} tagged
+                              </Badge>
+                            )
                           )}
                         </div>
                       </div>

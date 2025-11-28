@@ -580,7 +580,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         </div>
       </nav>
 
-      {/* Footer */}
+      {/* Footer
       <div className="border-t p-4 border-r border-border">
         <Button variant="ghost" size="sm" className="w-full justify-start" asChild>
           <Link href="/dashboard/settings">
@@ -588,7 +588,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             Settings
           </Link>
         </Button>
-      </div>
+      </div> */}
     </aside>
   )
 }

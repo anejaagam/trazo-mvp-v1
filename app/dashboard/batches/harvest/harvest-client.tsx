@@ -218,13 +218,15 @@ export function HarvestClient({ userId, organizationId, siteId }: HarvestClientP
         </CardHeader>
         <CardContent className="flex gap-4">
           <Button
-            variant="outline"
+            variant="ghost"
+            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
             onClick={() => router.push('/dashboard/batches/active')}
           >
             View All Active Batches
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
+            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
             onClick={() => router.push('/dashboard/batches')}
           >
             All Batches

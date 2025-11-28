@@ -257,6 +257,15 @@ export function BatchDetailPage({
           <ArrowLeft className="h-4 w-4" />
           Back to Batches
         </Button>
+
+        {detail.metrc_batch_id && (
+          <BatchMetrcSyncStatus
+            status="synced"
+            metrcBatchId={detail.metrc_batch_id}
+            domainType={detail.domain_type}
+          />
+        )}
+
         <BatchDetailsHeader
           batch={detail}
           cultivarName={detail.cultivar?.name || detail.cultivar_id || 'Unknown cultivar'}
@@ -280,14 +289,6 @@ export function BatchDetailPage({
           plantCount={totalPlantCount}
           tagCount={tagCount}
         />
-
-        {detail.metrc_batch_id && (
-          <BatchMetrcSyncStatus
-            status="synced"
-            metrcBatchId={detail.metrc_batch_id}
-            domainType={detail.domain_type}
-          />
-        )}
 
         {detail.domain_type === 'cannabis' && (
           <MetrcTagsSummaryCard

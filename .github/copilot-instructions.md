@@ -8,6 +8,7 @@ TRAZO is a Next.js 15 (App Router) cultivation facility management system with m
 - **Testing**: 164/173 tests passing (94.8%) - maintain this coverage
 - **Components**: 47+ shadcn/ui components in `/components/ui/` - use these first, don't recreate
 - **Prototypes**: 11 standalone React apps in `/Prototypes/` awaiting integration
+- **MCP SERVERS**: You have access to MCP Servers for TAGOIO, Supabase, and Vercel. Default Supabase server to use is US region. Any changes made to Supabase schema or functions must be replicated in both US and Canada projects.
 
 ## Project Structure
 ```
@@ -96,9 +97,9 @@ export async function getFeatureItems(siteId: string) {
 ```
 
 ## Integration Priority (Phase 3)
-1. **Inventory** (/Prototypes/InventoryTrackingPrototype/) - START HERE
-2. **Monitoring** (/Prototypes/EnvironmentalSensorsPrototype/)
-3. **Environmental** (/Prototypes/HVACPrototype/)
+1. **Inventory** (/Prototypes/InventoryTrackingPrototype/) 
+2. **Monitoring** (/Prototypes/MonitoringAndTelemeteryPrototype/)
+3. **Recipe Management** (/Prototypes/RecipePrototype/) - WE ARE HERE
 4. **Tasks** → **Compliance** → **Batch** (Phase 4)
 
 ## Documentation Rules

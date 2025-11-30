@@ -37,7 +37,7 @@ export async function getUsers(
     .from('users')
     .select(`
       *,
-      organization:organizations(id, name)
+      organization:organizations!users_organization_id_fkey(id, name)
     `, { count: 'exact' });
 
   // Apply filters
@@ -82,7 +82,7 @@ export async function getUserById(userId: string): Promise<UserWithOrg | null> {
     .from('users')
     .select(`
       *,
-      organization:organizations(id, name)
+      organization:organizations!users_organization_id_fkey(id, name)
     `)
     .eq('id', userId)
     .single();
@@ -215,6 +215,7 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
     const siteAssignments = invite.site_ids.map(siteId => ({
       user_id: authData.user.id,
       site_id: siteId,
+      is_active: true,
     }));
 
     const { error: assignmentError } = await service
@@ -224,6 +225,19 @@ export async function inviteUser(invite: UserInvite): Promise<User> {
     if (assignmentError) {
       // Log error but don't fail the invitation
       console.error('Failed to create site assignments:', assignmentError);
+    }
+
+    // Set default_site_id: use provided default or first site
+    const defaultSite = invite.default_site_id || invite.site_ids[0];
+    if (defaultSite) {
+      const { error: defaultSiteError } = await service
+        .from('users')
+        .update({ default_site_id: defaultSite })
+        .eq('id', authData.user.id);
+
+      if (defaultSiteError) {
+        console.error('Failed to set default site:', defaultSiteError);
+      }
     }
   }
 

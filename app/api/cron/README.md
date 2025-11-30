@@ -37,6 +37,14 @@ The system implements a three-tier data retention strategy:
   - Cleans up old raw data (>48 hours)
   - Comprehensive process for weekly maintenance
 
+### 4. Recipe Stage Advancement (`advance-recipes/`)
+- **Schedule**: Hourly at :10 minutes (`10 * * * *`)
+- **Purpose**: Increment recipe stage day counters and auto-advance completed stages
+- **Process**:
+  - Updates `recipe_activations.current_stage_day` based on `stage_started_at`
+  - Calls `advance_recipe_stage` for activations whose duration has elapsed
+  - Logs audit events for stage transitions and completions
+
 ## Setup
 
 ### 1. Environment Variables
@@ -68,6 +76,10 @@ Cron jobs are configured in `vercel.json`:
     {
       "path": "/api/cron/aggregate-full",
       "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/advance-recipes",
+      "schedule": "10 * * * *"
     }
   ]
 }
@@ -102,6 +114,11 @@ curl -X GET \
 curl -X GET \
   -H "Authorization: Bearer $CRON_SECRET" \
   http://localhost:3000/api/cron/aggregate-full
+
+# Test recipe stage advancement
+curl -X GET \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  http://localhost:3000/api/cron/advance-recipes
 ```
 
 ## Response Format
@@ -114,6 +131,20 @@ Success response:
   "hourlyAggregated": 2,
   "podsProcessed": 5,
   "duration": 1234,
+  "errors": []
+}
+```
+
+Recipe stage advancement success response:
+
+```json
+{
+  "success": true,
+  "timestamp": "2025-11-13T10:10:00.000Z",
+  "processed": 4,
+  "dayIncrements": 3,
+  "stagesAdvanced": 1,
+  "activationsCompleted": 0,
   "errors": []
 }
 ```

@@ -91,6 +91,13 @@ export interface InventoryItem {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Metrc compliance tracking
+  metrc_item_id?: number;
+  metrc_item_name?: string;
+  metrc_item_category?: string;
+  metrc_sync_status?: 'not_synced' | 'synced' | 'sync_failed';
+  metrc_last_synced_at?: string;
+  requires_metrc_compliance?: boolean;
 }
 
 export interface InsertInventoryItem {
@@ -131,6 +138,75 @@ export interface UpdateInventoryItem {
   certificate_of_analysis_url?: string;
   notes?: string;
   is_active?: boolean;
+  // Metrc compliance tracking
+  metrc_item_id?: number;
+  metrc_item_name?: string;
+  metrc_item_category?: string;
+  metrc_sync_status?: 'not_synced' | 'synced' | 'sync_failed';
+  metrc_last_synced_at?: string;
+  requires_metrc_compliance?: boolean;
+}
+
+// =====================================================
+// METRC COMPLIANCE STATUS TYPES
+// =====================================================
+
+export type MetrcComplianceStatus =
+  | 'not_required'
+  | 'not_linked'
+  | 'item_not_in_cache'
+  | 'strain_not_in_cache'
+  | 'compliant'
+  | 'pending'
+  | 'unknown';
+
+export type BatchMetrcReadiness =
+  | 'synced'
+  | 'missing_cultivar'
+  | 'cultivar_not_linked'
+  | 'missing_location'
+  | 'not_required'
+  | 'ready_to_sync';
+
+export interface InventoryItemMetrcStatus {
+  item_id: string;
+  organization_id: string;
+  site_id: string;
+  item_name: string;
+  item_type: ItemType;
+  sku?: string;
+  requires_metrc_compliance: boolean;
+  metrc_item_id?: number;
+  metrc_item_name?: string;
+  metrc_item_category?: string;
+  metrc_sync_status?: string;
+  metrc_last_synced_at?: string;
+  cached_metrc_name?: string;
+  cached_category?: string;
+  compliance_status: MetrcComplianceStatus;
+}
+
+export interface BatchMetrcReadinessView {
+  batch_id: string;
+  organization_id: string;
+  site_id: string;
+  batch_number: string;
+  stage: string;
+  status: string;
+  cultivar_id?: string;
+  cultivar_name?: string;
+  metrc_strain_id?: number;
+  cultivar_sync_status?: string;
+  metrc_batch_id?: string;
+  batch_sync_status?: string;
+  metrc_batch_name?: string;
+  metrc_location?: string;
+  metrc_location_id?: number;
+  compliance_readiness: BatchMetrcReadiness;
+  has_cultivar: boolean;
+  cultivar_linked_to_strain: boolean;
+  has_metrc_location: boolean;
+  is_synced_to_metrc: boolean;
 }
 
 // =====================================================

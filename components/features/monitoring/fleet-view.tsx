@@ -23,7 +23,8 @@ import { usePodSnapshots } from '@/hooks/use-telemetry';
 import { usePermissions } from '@/hooks/use-permissions';
 
 interface FleetViewProps {
-  siteId: string;
+  siteId?: string;
+  snapshots?: import('@/types/telemetry').PodSnapshot[];
   onPodClick?: (podId: string) => void;
   realtime?: boolean;
   refreshInterval?: number;
@@ -49,17 +50,24 @@ function getHealthStatus(fault: boolean | null): 'Healthy' | 'Faulted' {
 }
 
 export function FleetView({ 
-  siteId, 
+  siteId,
+  snapshots: externalSnapshots,
   onPodClick, 
   realtime = true,
   refreshInterval = 30 
 }: FleetViewProps) {
   const { can } = usePermissions('org_admin');
-  const { snapshots, loading, error } = usePodSnapshots({
-    siteId,
-    realtime,
-    refreshInterval,
+  
+  // Use external snapshots if provided, otherwise fetch from hook
+  const hookResult = usePodSnapshots({
+    siteId: siteId || undefined,
+    realtime: !externalSnapshots && realtime,
+    refreshInterval: !externalSnapshots ? refreshInterval : 0,
   });
+  
+  const snapshots = externalSnapshots || hookResult.snapshots;
+  const loading = externalSnapshots ? false : hookResult.loading;
+  const error = externalSnapshots ? null : hookResult.error;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roomFilter, setRoomFilter] = useState<string>('all');
@@ -251,7 +259,7 @@ export function FleetView({
                 <TableHead>Temp (°C)</TableHead>
                 <TableHead>RH (%)</TableHead>
                 <TableHead>CO₂ (ppm)</TableHead>
-                <TableHead>VPD (kPa)</TableHead>
+                <TableHead>VPD (kPa) *</TableHead>
                 <TableHead>Equipment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last Update</TableHead>
@@ -336,7 +344,15 @@ export function FleetView({
                         </div>
                       </TableCell>
                       <TableCell>
-                        {vpd?.toFixed(2) ?? '--'}
+                        <div className="flex items-center gap-1">
+                          <span>{vpd?.toFixed(2) ?? '--'}</span>
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs px-1.5 py-0 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+                          >
+                            D
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -371,6 +387,9 @@ export function FleetView({
               )}
             </TableBody>
           </Table>
+        </div>
+        <div className="px-6 pb-4 text-xs text-muted-foreground">
+          * VPD is a derived metric calculated from temperature and humidity
         </div>
       </CardContent>
     </Card>

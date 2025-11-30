@@ -1,0 +1,901 @@
+/**
+ * Crop Management Types
+ * Comprehensive type definitions for batch tracking with domain-specific support
+ * Supports cannabis and produce operations with jurisdiction-based compliance
+ */
+
+import type { ItemType, MovementType } from './inventory';
+
+// =====================================================
+// DOMAIN & STATUS TYPES
+// =====================================================
+
+export type DomainType = 'cannabis' | 'produce';
+
+export type BatchStatus = 'active' | 'quarantined' | 'completed' | 'destroyed';
+
+export type QuarantineStatus = 'none' | 'quarantined' | 'released';
+
+export type SourceType = 'seed' | 'clone' | 'tissue_culture';
+
+/**
+ * Plant batch tracking modes for Metrc compliance
+ * - open_loop: Batch-level tracking by count (immature plants)
+ * - closed_loop: Individual plant tracking with unique tags
+ */
+export type TrackingMode = 'open_loop' | 'closed_loop';
+
+/**
+ * Metrc sync status for plant tracking operations
+ */
+export type MetrcPlantSyncStatus = 'pending' | 'synced' | 'failed' | 'not_required';
+
+/**
+ * Tagging trigger types for state-specific compliance
+ */
+export type TaggingTriggerType = 'height' | 'flowering' | 'canopy_area' | 'all_plants' | 'stage';
+
+// =====================================================
+// STAGE ENUMS
+// =====================================================
+
+/**
+ * Cannabis batch lifecycle stages
+ */
+export type CannabisStage = 
+  | 'planning'
+  | 'germination'
+  | 'clone'
+  | 'vegetative'
+  | 'flowering'
+  | 'harvest'
+  | 'drying'
+  | 'curing'
+  | 'packaging'
+  | 'completed'
+  | 'destroyed';
+
+/**
+ * Produce batch lifecycle stages
+ */
+export type ProduceStage =
+  | 'planning'
+  | 'seeding'
+  | 'germination'
+  | 'seedling'
+  | 'transplant'
+  | 'growing'
+  | 'harvest_ready'
+  | 'harvesting'
+  | 'washing'
+  | 'grading'
+  | 'packing'
+  | 'storage'
+  | 'shipped'
+  | 'completed'
+  | 'destroyed';
+
+/**
+ * Generic stage type (union of all stages)
+ */
+export type BatchStage = CannabisStage | ProduceStage;
+
+// =====================================================
+// QUALITY & GRADE TYPES
+// =====================================================
+
+/**
+ * Produce quality grades
+ */
+export type ProduceGrade = 'A' | 'B' | 'C' | 'culled';
+
+/**
+ * Produce ripeness levels
+ */
+export type ProduceRipeness = 'unripe' | 'turning' | 'ripe' | 'overripe';
+
+/**
+ * Cannabis strain types
+ */
+export type StrainType =
+  | 'indica'
+  | 'sativa'
+  | 'hybrid'
+  | 'indica-dominant'
+  | 'sativa-dominant'
+  | 'cbd'
+  | 'auto';
+
+/**
+ * Produce categories
+ */
+export type ProduceCategory = 
+  | 'vegetable'
+  | 'fruit'
+  | 'herb'
+  | 'berry'
+  | 'leafy_green'
+  | 'root_vegetable'
+  | 'mushroom';
+
+// =====================================================
+// BASE BATCH INTERFACE
+// =====================================================
+
+/**
+ * Base batch interface with common fields
+ */
+export interface Batch {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  batch_number: string;
+  cultivar_id?: string;
+  stage: BatchStage;
+  plant_count: number;
+  start_date: string;
+  expected_harvest_date?: string;
+  actual_harvest_date?: string;
+  parent_batch_id?: string;
+  status: BatchStatus;
+  
+  // Domain discriminator
+  domain_type?: DomainType;
+  
+  // Jurisdiction-specific fields
+  metrc_batch_id?: string;
+  metrc_plant_labels?: string[]; // Array of Metrc plant tags
+  license_number?: string;
+  
+  // Tracking fields
+  source_type?: SourceType;
+  source_batch_id?: string;
+
+  // Plant batch tracking mode (Open Loop vs Closed Loop)
+  tracking_mode?: TrackingMode;
+
+  // Source traceability for Metrc compliance
+  source_package_id?: string;      // Reference to inventory_lots for seed/clone packages
+  source_package_tag?: string;     // Metrc package tag/UID from source
+  source_mother_plant_id?: string; // Reference to mother_plants table
+  source_mother_plant_tag?: string;// Metrc plant tag of mother plant
+
+  // Measurement tracking for state compliance triggers
+  max_plant_height_inches?: number;
+  canopy_area_sq_ft?: number;
+
+  // Oregon June 2024 batch tagging option
+  uses_batch_tagging?: boolean;
+  batch_tag_label?: string;
+  
+  // Metrics
+  yield_weight_g?: number;
+  yield_units?: number;
+  waste_weight_g?: number;
+  
+  // Quarantine
+  quarantine_reason?: string;
+  quarantined_at?: string;
+  quarantined_by?: string;
+  quarantine_released_at?: string;
+  quarantine_released_by?: string;
+  
+  // Metadata
+  notes?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// =====================================================
+// CANNABIS BATCH INTERFACE
+// =====================================================
+
+/**
+ * Cannabis-specific batch with METRC compliance support
+ */
+export interface CannabisBatch extends Batch {
+  domain_type: 'cannabis';
+  stage: CannabisStage;
+  
+  // Cannabis-specific fields (from migration)
+  lighting_schedule?: string; // e.g., "18/6", "12/12", "24/0"
+  thc_content?: number; // Percentage
+  cbd_content?: number; // Percentage
+  drying_date?: string;
+  curing_date?: string;
+  terpene_profile?: {
+    [terpene: string]: number; // Terpene name to percentage
+  };
+}
+
+// =====================================================
+// PRODUCE BATCH INTERFACE
+// =====================================================
+
+/**
+ * Produce-specific batch with food safety compliance support
+ */
+export interface ProduceBatch extends Batch {
+  domain_type: 'produce';
+  stage: ProduceStage;
+  
+  // Produce-specific fields (from migration)
+  grade?: ProduceGrade;
+  ripeness?: ProduceRipeness;
+  brix_level?: number; // Sugar content in °Brix
+  firmness?: string;
+  color?: string;
+  defect_rate?: number; // Percentage
+  certifications?: {
+    organic?: boolean;
+    gap?: boolean;
+    primus_gfs?: boolean;
+    [key: string]: any;
+  };
+  storage_temp_c?: number;
+  storage_humidity_pct?: number;
+}
+
+// =====================================================
+// DISCRIMINATED UNION
+// =====================================================
+
+/**
+ * Domain-aware batch type (discriminated union)
+ * Use this for functions that handle both domains
+ */
+export type DomainBatch = CannabisBatch | ProduceBatch;
+
+// =====================================================
+// TYPE GUARDS
+// =====================================================
+
+/**
+ * Type guard to check if batch is cannabis
+ */
+export function isCannabisBatch(batch: DomainBatch | Batch): batch is CannabisBatch {
+  return batch.domain_type === 'cannabis';
+}
+
+/**
+ * Type guard to check if batch is produce
+ */
+export function isProduceBatch(batch: DomainBatch | Batch): batch is ProduceBatch {
+  return batch.domain_type === 'produce';
+}
+
+/**
+ * Type guard to check if stage is cannabis stage
+ */
+export function isCannabisStage(stage: string): stage is CannabisStage {
+  const cannabisStages: CannabisStage[] = [
+    'planning', 'germination', 'clone', 'vegetative', 'flowering',
+    'harvest', 'drying', 'curing', 'packaging', 'completed', 'destroyed'
+  ];
+  return cannabisStages.includes(stage as CannabisStage);
+}
+
+/**
+ * Type guard to check if stage is produce stage
+ */
+export function isProduceStage(stage: string): stage is ProduceStage {
+  const produceStages: ProduceStage[] = [
+    'planning', 'seeding', 'germination', 'seedling', 'transplant', 'growing',
+    'harvest_ready', 'harvesting', 'washing', 'grading', 'packing',
+    'storage', 'shipped', 'completed', 'destroyed'
+  ];
+  return produceStages.includes(stage as ProduceStage);
+}
+
+// =====================================================
+// CULTIVAR TYPES
+// =====================================================
+
+/**
+ * Base cultivar interface
+ */
+export interface Cultivar {
+  id: string;
+  organization_id: string;
+  name: string;
+  common_name?: string;
+  description?: string;
+  growing_days?: number;
+  expected_yield?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+  created_by?: string;
+  strain_type?: string | null;
+  genetics?: string | null;
+  breeder?: string | null;
+  thc_range_min?: number | null;
+  thc_range_max?: number | null;
+  cbd_range_min?: number | null;
+  cbd_range_max?: number | null;
+  flowering_days?: number | null;
+  harvest_notes?: string | null;
+  grow_characteristics?: string | null;
+
+  // Metrc compliance fields
+  metrc_strain_id?: number | null;
+  metrc_sync_status?: 'not_synced' | 'synced' | 'sync_failed' | null;
+  metrc_last_synced_at?: string | null;
+
+  // Domain-specific fields from migration
+  // Produce fields
+  category?: ProduceCategory;
+  flavor_profile?: string;
+  storage_life_days?: number;
+  optimal_temp_c_min?: number;
+  optimal_temp_c_max?: number;
+  optimal_humidity_min?: number;
+  optimal_humidity_max?: number;
+}
+
+/**
+ * Cannabis cultivar (strain)
+ */
+export interface CannabisCultivar extends Cultivar {
+  strain_type?: StrainType;
+  genetics?: string; // Parent strains
+  thc_range?: { min: number; max: number };
+  cbd_range?: { min: number; max: number };
+  flowering_time_days?: number;
+}
+
+/**
+ * Produce cultivar (variety)
+ */
+export interface ProduceCultivar extends Cultivar {
+  category: ProduceCategory;
+  scientific_name?: string;
+  flavor_profile?: string;
+  storage_life_days?: number;
+  harvest_method?: 'hand' | 'mechanical' | 'both';
+}
+
+// =====================================================
+// BATCH GENEALOGY
+// =====================================================
+
+/**
+ * Batch genealogy record (parent-child relationships)
+ */
+export interface BatchGenealogy {
+  id: string;
+  batch_id: string;
+  parent_batch_id: string;
+  relationship_type: 'clone' | 'split' | 'merge' | 'cross';
+  generation_level: number;
+  contribution_pct?: number; // For merges
+  notes?: string;
+  created_at: string;
+}
+
+// =====================================================
+// QUALITY METRICS
+// =====================================================
+
+/**
+ * Quality metric types
+ */
+export type QualityMetricType = 
+  // Cannabis metrics
+  | 'thc_pct'
+  | 'cbd_pct'
+  | 'cbg_pct'
+  | 'cbn_pct'
+  | 'terpene'
+  | 'moisture'
+  | 'density'
+  | 'trichome_development'
+  // Produce metrics
+  | 'brix'
+  | 'firmness'
+  | 'color'
+  | 'size'
+  | 'weight'
+  | 'ph'
+  | 'titratable_acidity'
+  | 'shelf_life';
+
+/**
+ * Batch quality metric record
+ */
+export interface BatchQualityMetric {
+  id: string;
+  batch_id: string;
+  metric_type: QualityMetricType;
+  value: number;
+  unit: string;
+  recorded_at: string;
+  recorded_by?: string;
+  test_method?: string;
+  lab_certified: boolean;
+  certification_url?: string;
+  notes?: string;
+}
+
+// =====================================================
+// BATCH STAGE HISTORY
+// =====================================================
+
+/**
+ * Batch stage history record
+ */
+export interface BatchStageHistory {
+  id: string;
+  batch_id: string;
+  stage: BatchStage;
+  started_at: string;
+  ended_at?: string;
+  transitioned_by?: string;
+  notes?: string;
+}
+
+// =====================================================
+// HARVEST RECORDS
+// =====================================================
+
+/**
+ * Harvest record (matches database schema)
+ */
+export interface HarvestRecord {
+  id: string;
+  batch_id: string;
+  organization_id: string;
+  wet_weight: number; // Decimal(10,2)
+  plant_count: number;
+  harvested_at: string; // TIMESTAMPTZ
+  harvested_by?: string;
+  location?: string;
+  notes?: string;
+  created_at: string;
+}
+
+// =====================================================
+// BATCH POD ASSIGNMENTS
+// =====================================================
+
+/**
+ * Batch to pod/location assignment
+ */
+export interface BatchPodAssignment {
+  id: string;
+  batch_id: string;
+  pod_id: string;
+  assigned_at: string;
+  assigned_by?: string;
+  removed_at?: string;
+  removed_by?: string;
+  plant_count: number;
+  notes?: string;
+}
+
+// =====================================================
+// BATCH EVENTS
+// =====================================================
+
+/**
+ * Batch event types
+ */
+export type BatchEventType =
+  | 'created'
+  | 'stage_change'
+  | 'plant_count_update'
+  | 'pod_assignment'
+  | 'pod_removal'
+  | 'quarantine'
+  | 'quarantine_release'
+  | 'harvest'
+  | 'destruction'
+  | 'note_added'
+  | 'recipe_applied'
+  | 'task_linked'
+  | 'task_completed'
+  | 'task_cancelled'
+  | 'sop_template_linked'
+  | 'packet_generated';
+
+/**
+ * Batch event record
+ */
+export interface BatchEvent {
+  id: string;
+  batch_id: string;
+  event_type: BatchEventType;
+  from_value?: Record<string, any>;
+  to_value?: Record<string, any>;
+  user_id: string;
+  timestamp: string;
+  notes?: string;
+  evidence_urls?: string[];
+}
+
+// =====================================================
+// PLANT TAGS
+// =====================================================
+
+/**
+ * Plant state for individual tracking
+ */
+export type PlantState = 'immature' | 'vegetative' | 'flowering' | 'harvested' | 'destroyed';
+
+/**
+ * Individual plant tag (for METRC compliance)
+ */
+export interface PlantTag {
+  id: string;
+  batch_id: string;
+  tag_number: string;
+  metrc_tag_id?: string;
+  plant_state?: PlantState;
+  location_pod_id?: string;
+  tagged_at: string;
+  tagged_by?: string;
+  destroyed_at?: string;
+  destroyed_by?: string;
+  destruction_reason?: string;
+  created_by: string;
+}
+
+// =====================================================
+// MOTHER PLANTS (CLOSED LOOP TRACKING)
+// =====================================================
+
+/**
+ * Mother plant status
+ */
+export type MotherPlantStatus = 'active' | 'retired' | 'destroyed';
+
+/**
+ * Mother plant used for cloning in closed loop tracking
+ */
+export interface MotherPlant {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  batch_id?: string;
+  plant_tag: string;
+  metrc_plant_id?: string;
+  name: string;
+  cultivar_id?: string;
+  status: MotherPlantStatus;
+  clone_count: number;
+  last_clone_date?: string;
+  retired_at?: string;
+  retired_by?: string;
+  retired_reason?: string;
+  destroyed_at?: string;
+  destroyed_by?: string;
+  destroyed_reason?: string;
+  created_at: string;
+  created_by?: string;
+  updated_at?: string;
+}
+
+/**
+ * Data for creating a new mother plant
+ */
+export interface InsertMotherPlant {
+  organization_id: string;
+  site_id: string;
+  batch_id?: string;
+  plant_tag: string;
+  metrc_plant_id?: string;
+  name: string;
+  cultivar_id?: string;
+  created_by?: string;
+}
+
+// =====================================================
+// BATCH PLANTING RECORDS (OPEN LOOP → CLOSED LOOP)
+// =====================================================
+
+/**
+ * Batch planting record sync status
+ */
+export type PlantingRecordSyncStatus = 'pending' | 'synced' | 'failed' | 'partial';
+
+/**
+ * Record of "Create Planting" operation converting batch plants to individual tracking
+ */
+export interface BatchPlantingRecord {
+  id: string;
+  organization_id: string;
+  site_id: string;
+  source_batch_id: string;
+  plant_count: number;
+  planted_date: string;
+  location: string;
+  plant_tags: string[];
+  metrc_sync_status: PlantingRecordSyncStatus;
+  metrc_sync_error?: string;
+  metrc_synced_at?: string;
+  target_batch_id?: string;
+  notes?: string;
+  created_at: string;
+  created_by?: string;
+  updated_at?: string;
+}
+
+/**
+ * Data for creating a new planting record
+ */
+export interface InsertBatchPlantingRecord {
+  organization_id: string;
+  site_id: string;
+  source_batch_id: string;
+  plant_count: number;
+  planted_date: string;
+  location: string;
+  plant_tags?: string[];
+  target_batch_id?: string;
+  notes?: string;
+  created_by?: string;
+}
+
+// =====================================================
+// BATCH PLANT (INDIVIDUAL PLANT TRACKING)
+// =====================================================
+
+/**
+ * Individual plant record in batch_plants table
+ */
+export interface BatchPlant {
+  id: string;
+  batch_id: string;
+  metrc_plant_label: string;
+  plant_index?: number;
+  growth_phase?: string;
+  status: string;
+  assigned_at: string;
+  assigned_by?: string;
+  destroyed_at?: string;
+  destroyed_reason?: string;
+  notes?: string;
+  planting_record_id?: string;
+  phase_changed_at?: string;
+  current_location?: string;
+  metrc_sync_status?: MetrcPlantSyncStatus;
+  created_at: string;
+  updated_at?: string;
+}
+
+// =====================================================
+// FILTERS & QUERY TYPES
+// =====================================================
+
+/**
+ * Batch filtering options
+ */
+export interface BatchFilters {
+  domain_type?: DomainType | DomainType[];
+  stage?: BatchStage | BatchStage[];
+  status?: BatchStatus | BatchStatus[];
+  cultivar_id?: string | string[];
+  pod_id?: string | string[];
+  quarantine_status?: QuarantineStatus;
+  search?: string; // Search batch_number or cultivar_name
+  start_date_from?: string;
+  start_date_to?: string;
+  expected_harvest_from?: string;
+  expected_harvest_to?: string;
+  exclude_destroyed?: boolean; // Exclude destroyed batches from results
+}
+
+/**
+ * Batch sort options
+ */
+export interface BatchSortOptions {
+  field: 'batch_number' | 'start_date' | 'expected_harvest_date' | 'stage' | 'plant_count';
+  direction: 'asc' | 'desc';
+}
+
+// =====================================================
+// INSERT/UPDATE TYPES
+// =====================================================
+
+/**
+ * Data for creating a new batch
+ */
+export interface InsertBatch {
+  organization_id: string;
+  site_id: string;
+  batch_number: string;
+  cultivar_id?: string;
+  stage: BatchStage;
+  plant_count?: number;
+  start_date: string;
+  expected_harvest_date?: string;
+  parent_batch_id?: string;
+  domain_type?: DomainType;
+  source_type?: SourceType;
+  source_batch_id?: string;
+  metrc_batch_id?: string;
+  license_number?: string;
+  notes?: string;
+  created_by: string;
+
+  // Plant batch tracking mode
+  tracking_mode?: TrackingMode;
+
+  // Source traceability for Metrc compliance
+  source_package_id?: string;
+  source_package_tag?: string;
+  source_mother_plant_id?: string;
+  source_mother_plant_tag?: string;
+
+  // Measurement tracking
+  max_plant_height_inches?: number;
+  canopy_area_sq_ft?: number;
+
+  // Oregon batch tagging
+  uses_batch_tagging?: boolean;
+  batch_tag_label?: string;
+
+  // Cannabis-specific
+  lighting_schedule?: string;
+
+  // Produce-specific
+  grade?: ProduceGrade;
+  ripeness?: ProduceRipeness;
+  certifications?: Record<string, any>;
+}
+
+/**
+ * Data for updating a batch (all fields optional)
+ */
+export interface UpdateBatch {
+  cultivar_id?: string;
+  stage?: BatchStage;
+  plant_count?: number;
+  expected_harvest_date?: string;
+  actual_harvest_date?: string;
+  status?: BatchStatus;
+  yield_weight_g?: number;
+  yield_units?: number;
+  waste_weight_g?: number;
+  notes?: string;
+  source_type?: SourceType;
+
+  // Plant batch tracking mode
+  tracking_mode?: TrackingMode;
+
+  // Source traceability for Metrc compliance
+  source_package_id?: string;
+  source_package_tag?: string;
+  source_mother_plant_id?: string;
+  source_mother_plant_tag?: string;
+
+  // Measurement tracking
+  max_plant_height_inches?: number;
+  canopy_area_sq_ft?: number;
+
+  // Oregon batch tagging
+  uses_batch_tagging?: boolean;
+  batch_tag_label?: string;
+
+  // Cannabis-specific
+  lighting_schedule?: string;
+  thc_content?: number;
+  cbd_content?: number;
+  drying_date?: string;
+  curing_date?: string;
+  terpene_profile?: Record<string, number>;
+
+  // Produce-specific
+  grade?: ProduceGrade;
+  ripeness?: ProduceRipeness;
+  brix_level?: number;
+  firmness?: string;
+  color?: string;
+  defect_rate?: number;
+  certifications?: Record<string, any>;
+  storage_temp_c?: number;
+  storage_humidity_pct?: number;
+}
+
+// =====================================================
+// VALIDATION TYPES
+// =====================================================
+
+/**
+ * Validation result
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings?: string[];
+}
+
+/**
+ * Stage transition validation
+ */
+export interface StageTransitionValidation extends ValidationResult {
+  allowedNextStages: BatchStage[];
+  requiredFields: string[];
+  requiredChecks: string[];
+}
+
+// =====================================================
+// INVENTORY USAGE TYPES
+// =====================================================
+
+export interface BatchInventoryUsageEntry {
+  item_id: string;
+  item_name: string;
+  item_type: ItemType;
+  movement_type: MovementType;
+  total_quantity: number;
+  unit_of_measure?: string | null;
+  last_movement_at: string;
+  lot_count: number;
+}
+
+export interface BatchInventoryUsage {
+  entries: BatchInventoryUsageEntry[];
+  summary: {
+    consumed_by_type: Partial<Record<ItemType, number>>;
+    received_by_type: Partial<Record<ItemType, number>>;
+  };
+}
+
+// =====================================================
+// BATCH-TASK INTEGRATION TYPES
+// =====================================================
+
+/**
+ * Batch-SOP template link for automated task generation
+ */
+export interface BatchSOPLink {
+  id: string;
+  batch_id: string;
+  sop_template_id: string;
+  stage?: BatchStage | null; // Optional stage trigger
+  auto_create: boolean; // Auto-create tasks on stage transition
+  created_by: string;
+  created_at: string;
+}
+
+/**
+ * Batch packet metadata for generated documents
+ */
+export interface BatchPacket {
+  id: string;
+  batch_id: string;
+  packet_type: 'full' | 'summary' | 'compliance' | 'harvest';
+  file_url: string;
+  file_size_bytes?: number;
+  generated_by: string;
+  generated_at: string;
+  includes_tasks: boolean;
+  includes_recipe: boolean;
+  includes_inventory: boolean;
+  includes_compliance: boolean;
+  metadata?: {
+    date_range_start?: string;
+    date_range_end?: string;
+    filters_applied?: Record<string, any>;
+    total_pages?: number;
+    [key: string]: any;
+  };
+}
+
+/**
+ * Extended batch event with task_id
+ */
+export interface BatchEventWithTask {
+  id: string;
+  batch_id: string;
+  event_type: BatchEventType;
+  from_value?: any;
+  to_value?: any;
+  user_id: string;
+  timestamp: string;
+  notes?: string;
+  evidence_urls?: string[];
+  task_id?: string | null; // New field for task reference
+}

@@ -29,11 +29,14 @@ import {
   Activity,
   Clock,
   CheckCircle2,
+  Building2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryMovement, InventoryItemWithStock } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
+import { isAllSitesMode, ALL_SITES_ID } from '@/lib/site/types'
+import { AlertTitle } from '@/components/ui/alert'
 import { ItemFormDialog } from './item-form-dialog'
 import { ReceiveInventoryDialog } from './receive-inventory-dialog'
 import { IssueInventoryDialog } from './issue-inventory-dialog'
@@ -88,6 +91,7 @@ interface ActiveLotView {
 
 export function InventoryDashboard({ siteId, userRole, organizationId, userId }: InventoryDashboardProps) {
   const { can } = usePermissions(userRole as RoleKey)
+  const isAggregateView = isAllSitesMode(siteId)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -121,7 +125,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         if (isDevModeActive()) {
           const [itemsRes, movementsRes] = await Promise.all([
             fetch(`/api/dev/inventory?siteId=${siteId}`),
-            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=10`)
+            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=20`)
           ])
           
           if (!itemsRes.ok || !movementsRes.ok) {
@@ -145,20 +149,40 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             return expiryDate >= now && expiryDate <= thirtyDaysFromNow
           }) || []
           
+          // Count today's movements
+          const todayStart = new Date()
+          todayStart.setHours(0, 0, 0, 0)
+          const todayMovements = (movements || []).filter((m: InventoryMovement) => 
+            new Date(m.timestamp) >= todayStart
+          )
+          
           setTotalItems(items?.length || 0)
           setLowStockCount(lowStock.length)
           setExpiringCount(expiring.length)
-          setRecentMovementsCount(movements?.length || 0)
+          setRecentMovementsCount(todayMovements.length)
           setLowStockItems([]) // Views not available in dev mode
           setExpiringLots([]) // Views not available in dev mode
-          setRecentMovements(movements || [])
+          setRecentMovements((movements || []).slice(0, 10)) // Show recent, not just today
           setIsLoading(false)
           return
         }
 
         // PRODUCTION MODE: Load all dashboard data in parallel using client-side Supabase
         const supabase = createClient()
-        
+
+        // Calculate today's start time as ISO string
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const todayStartISO = todayStart.toISOString()
+
+        // Build queries - conditional site filtering for aggregate view
+        const buildSiteFilter = (query: any) => {
+          if (isAggregateView) {
+            return query.eq('organization_id', organizationId)
+          }
+          return query.eq('site_id', siteId)
+        }
+
         const [
           items,
           stockBalances,
@@ -167,53 +191,72 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           movements,
         ] = await Promise.all([
           // Get all inventory items
-          supabase
-            .from('inventory_items')
-            .select('*')
-            .eq('site_id', siteId)
-            .eq('is_active', true),
+          buildSiteFilter(
+            supabase
+              .from('inventory_items')
+              .select('*')
+              .eq('is_active', true)
+          ),
           // Get stock balances view
-          supabase
-            .from('inventory_stock_balances')
-            .select('*')
-            .eq('site_id', siteId),
+          buildSiteFilter(
+            supabase
+              .from('inventory_stock_balances')
+              .select('*')
+          ),
           // Get items below minimum
-          supabase
-            .from('inventory_stock_balances')
-            .select('*')
-            .eq('site_id', siteId)
-            .in('stock_status', ['below_par', 'reorder', 'out_of_stock']),
+          buildSiteFilter(
+            supabase
+              .from('inventory_stock_balances')
+              .select('*')
+          ).in('stock_status', ['below_par', 'reorder', 'out_of_stock']),
           // Get expiring lots (next 30 days)
-          supabase
-            .from('inventory_active_lots')
-            .select('*')
-            .eq('site_id', siteId)
+          buildSiteFilter(
+            supabase
+              .from('inventory_active_lots')
+              .select('*')
+          )
             .in('expiry_status', ['expired', 'expiring_soon'])
             .order('expiry_date', { ascending: true })
             .limit(10),
-          // Get recent movements (join through items to get site_id)
-          supabase
-            .from('inventory_movements')
-            .select(`
-              *,
-              inventory_items!inner(site_id)
-            `)
-            .eq('inventory_items.site_id', siteId)
-            .order('timestamp', { ascending: false })
-            .limit(10),
+          // Get recent movements (last 20, filter for today count client-side)
+          isAggregateView
+            ? supabase
+                .from('inventory_movements')
+                .select(`
+                  *,
+                  inventory_items!inner(organization_id, site_id, name, sku)
+                `)
+                .eq('inventory_items.organization_id', organizationId)
+                .order('timestamp', { ascending: false })
+                .limit(20)
+            : supabase
+                .from('inventory_movements')
+                .select(`
+                  *,
+                  inventory_items!inner(site_id, name, sku)
+                `)
+                .eq('inventory_items.site_id', siteId)
+                .order('timestamp', { ascending: false })
+                .limit(20),
         ])
 
+        // Count today's movements from the fetched data
+        const allMovements = movements.data || []
+        const todayMovements = allMovements.filter(m => 
+          new Date(m.timestamp) >= todayStart
+        )
+        
         // Set summary counts
         // Use inventory_items count as fallback if views don't work
         setTotalItems(items.data?.length || stockBalances.data?.length || 0)
         setLowStockCount(belowMinimum.data?.length || 0)
         setExpiringCount(expiring.data?.length || 0)
-        setRecentMovementsCount(movements.data?.length || 0)
+        setRecentMovementsCount(todayMovements.length)
         
         // Set detailed data
         setLowStockItems(belowMinimum.data || [])
         setExpiringLots(expiring.data || [])
-        setRecentMovements(movements.data || [])
+        setRecentMovements(allMovements.slice(0, 10)) // Show recent movements, not just today
 
       } catch (err) {
         console.error('Error loading dashboard data:', err)
@@ -225,7 +268,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
 
     loadDashboardData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siteId])
+  }, [siteId, isAggregateView, organizationId])
 
   // Refresh dashboard after successful operations
   const handleDialogSuccess = () => {
@@ -240,7 +283,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         if (isDevModeActive()) {
           const [itemsRes, movementsRes] = await Promise.all([
             fetch(`/api/dev/inventory?siteId=${siteId}`),
-            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=10`)
+            fetch(`/api/dev/inventory/movements?siteId=${siteId}&limit=20`)
           ])
           
           if (!itemsRes.ok || !movementsRes.ok) {
@@ -250,6 +293,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           const { data: items } = await itemsRes.json()
           const { data: movements } = await movementsRes.json()
           
+          // Calculate low stock items (items with current_quantity < minimum_quantity)
           // Calculate low stock items
           const lowStock = items?.filter((item: InventoryItemWithStock) => 
             item.minimum_quantity && item.current_quantity < item.minimum_quantity
@@ -264,13 +308,20 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             return expiryDate >= now && expiryDate <= thirtyDaysFromNow
           }) || []
           
+          // Count today's movements
+          const todayStart = new Date()
+          todayStart.setHours(0, 0, 0, 0)
+          const todayMovements = (movements || []).filter((m: InventoryMovement) => 
+            new Date(m.timestamp) >= todayStart
+          )
+          
           setTotalItems(items?.length || 0)
           setLowStockCount(lowStock.length)
           setExpiringCount(expiring.length)
-          setRecentMovementsCount(movements?.length || 0)
+          setRecentMovementsCount(todayMovements.length)
           setLowStockItems([])
           setExpiringLots([])
-          setRecentMovements(movements || [])
+          setRecentMovements((movements || []).slice(0, 10)) // Show recent, not just today
           return
         }
 
@@ -309,20 +360,28 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
             .from('inventory_movements')
             .select(`
               *,
-              inventory_items!inner(site_id)
+              inventory_items!inner(site_id, name, sku)
             `)
             .eq('inventory_items.site_id', siteId)
             .order('timestamp', { ascending: false })
-            .limit(10),
+            .limit(20),
         ])
+
+        // Count today's movements from the fetched data
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const allMovements = movements.data || []
+        const todayMovements = allMovements.filter(m => 
+          new Date(m.timestamp) >= todayStart
+        )
 
         setTotalItems(items.data?.length || stockBalances.data?.length || 0)
         setLowStockCount(belowMinimum.data?.length || 0)
         setExpiringCount(expiring.data?.length || 0)
-        setRecentMovementsCount(movements.data?.length || 0)
+        setRecentMovementsCount(todayMovements.length)
         setLowStockItems(belowMinimum.data || [])
         setExpiringLots(expiring.data || [])
-        setRecentMovements(movements.data || [])
+        setRecentMovements(allMovements.slice(0, 10))
       } catch (err) {
         console.error('Error reloading dashboard data:', err)
       }
@@ -379,6 +438,17 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
 
   return (
     <div className="space-y-6">
+      {/* All Sites Banner */}
+      {isAggregateView && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <Building2 className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900">Viewing All Sites</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Showing inventory from all sites in your organization. Select a specific site to add items or make changes.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Total Items */}
@@ -448,7 +518,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           <TabsTrigger value="low-stock">
             Low Stock
             {lowStockCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
+              <Badge variant="destructive" className="ml-2 rounded-full h-5 w-5 flex items-center justify-center p-0 text-xs">
                 {lowStockCount}
               </Badge>
             )}
@@ -456,7 +526,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
           <TabsTrigger value="expiring">
             Expiring
             {expiringCount > 0 && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="ml-2 rounded-full h-5 w-5 flex items-center justify-center p-0 text-xs">
                 {expiringCount}
               </Badge>
             )}
@@ -619,7 +689,7 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Item ID: {movement.item_id}
+                            {(movement as any).inventory_items?.name || `Item: ${movement.item_id.slice(0, 8)}...`}
                             {movement.notes && ` • ${movement.notes}`}
                           </p>
                         </div>
@@ -636,8 +706,8 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
         </TabsContent>
       </Tabs>
 
-      {/* Quick Actions */}
-      {can('inventory:create') && (
+      {/* Quick Actions - Hidden in aggregate view */}
+      {can('inventory:create') && !isAggregateView && (
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
@@ -647,18 +717,18 @@ export function InventoryDashboard({ siteId, userRole, organizationId, userId }:
               <Package className="h-4 w-4 mr-2" />
               Add Item
             </Button>
-            <Button variant="outline" onClick={() => setIsReceiveDialogOpen(true)}>
+            <Button variant="outline" onClick={() => setIsReceiveDialogOpen(true)} className="border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-800">
               <TrendingUp className="h-4 w-4 mr-2" />
               Receive Inventory
             </Button>
             {can('inventory:consume') && (
-              <Button variant="outline" onClick={() => setIsIssueDialogOpen(true)}>
+              <Button variant="outline" onClick={() => setIsIssueDialogOpen(true)} className="border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-800">
                 <TrendingDown className="h-4 w-4 mr-2" />
                 Issue to Batch
               </Button>
             )}
             {can('inventory:update') && (
-              <Button variant="outline" onClick={() => setIsAdjustDialogOpen(true)}>
+              <Button variant="outline" onClick={() => setIsAdjustDialogOpen(true)} className="border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:text-neutral-800">
                 <Activity className="h-4 w-4 mr-2" />
                 Adjust Inventory
               </Button>

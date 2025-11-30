@@ -169,13 +169,34 @@ export default function SignUpStep4() {
                   <SelectContent>
                     {formData.plantType === 'cannabis' && (
                       <>
-                        <SelectItem value="oregon">Oregon (Metrc)</SelectItem>
-                        <SelectItem value="maryland">Maryland (Metrc)</SelectItem>
-                        <SelectItem value="canada">Canada (CTLS)</SelectItem>
+                        {/* Metrc States */}
+                        <SelectItem value="metrc-alaska">Alaska (Metrc)</SelectItem>
+                        <SelectItem value="metrc-california">California (Metrc)</SelectItem>
+                        <SelectItem value="metrc-colorado">Colorado (Metrc)</SelectItem>
+                        <SelectItem value="metrc-dc">Washington D.C. (Metrc)</SelectItem>
+                        <SelectItem value="metrc-louisiana">Louisiana (Metrc)</SelectItem>
+                        <SelectItem value="metrc-maine">Maine (Metrc)</SelectItem>
+                        <SelectItem value="metrc-maryland">Maryland (Metrc)</SelectItem>
+                        <SelectItem value="metrc-massachusetts">Massachusetts (Metrc)</SelectItem>
+                        <SelectItem value="metrc-michigan">Michigan (Metrc)</SelectItem>
+                        <SelectItem value="metrc-minnesota">Minnesota (Metrc)</SelectItem>
+                        <SelectItem value="metrc-missouri">Missouri (Metrc)</SelectItem>
+                        <SelectItem value="metrc-montana">Montana (Metrc)</SelectItem>
+                        <SelectItem value="metrc-nevada">Nevada (Metrc)</SelectItem>
+                        <SelectItem value="metrc-new-jersey">New Jersey (Metrc)</SelectItem>
+                        <SelectItem value="metrc-ohio">Ohio (Metrc)</SelectItem>
+                        <SelectItem value="metrc-oklahoma">Oklahoma (Metrc)</SelectItem>
+                        <SelectItem value="metrc-oregon">Oregon (Metrc)</SelectItem>
+                        <SelectItem value="metrc-west-virginia">West Virginia (Metrc)</SelectItem>
+                        {/* Canada */}
+                        <SelectItem value="ctls-canada">Canada (CTLS)</SelectItem>
                       </>
                     )}
                     {formData.plantType === 'produce' && (
-                      <SelectItem value="primus_gfs">PrimusGFS Certification</SelectItem>
+                      <>
+                        <SelectItem value="primus-gfs">PrimusGFS Certification</SelectItem>
+                        <SelectItem value="gap">Good Agricultural Practices (GAP)</SelectItem>
+                      </>
                     )}
                   </SelectContent>
                 </Select>

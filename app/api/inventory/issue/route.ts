@@ -1,11 +1,19 @@
 /**
  * API Route: Issue Inventory (Consume from Lots)
  * POST /api/inventory/issue
+ *
+ * Site context: Uses cookie-based site context if site_id not provided in body.
+ * Validates user has access to the site via site_assignments.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { canPerformAction } from '@/lib/rbac/guards'
+import {
+  authenticateWithSite,
+  isAuthError,
+  authErrorResponse,
+  validateResourceSite,
+} from '@/lib/api/auth'
 import type { InsertInventoryMovement } from '@/types/inventory'
 
 interface IssueInventoryRequest {
@@ -23,46 +31,50 @@ interface IssueInventoryRequest {
   reason?: string
   notes?: string
   organization_id: string
-  site_id: string
+  site_id?: string
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Parse request body first
+    const body: IssueInventoryRequest = await request.json()
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+    // Authenticate and validate site access
+    const authResult = await authenticateWithSite({
+      requestSiteId: body.site_id,
+      permission: 'inventory:update',
+      allowAllSites: false, // Must select specific site for mutations
+    })
+
+    if (isAuthError(authResult)) {
+      return authErrorResponse(authResult)
     }
 
-    // Get user role
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
+    const { user, siteContext } = authResult
+    const supabase = await createClient()
+
+    // Verify the item exists and belongs to the current site
+    const { data: itemCheck, error: itemCheckError } = await supabase
+      .from('inventory_items')
+      .select('site_id')
+      .eq('id', body.item_id)
       .single()
 
-    if (userError || !userData) {
+    if (itemCheckError || !itemCheck) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Item not found' },
         { status: 404 }
       )
     }
 
-    // Check permissions
-    if (!canPerformAction(userData.role, 'inventory:update')) {
+    // Validate item belongs to user's current site
+    const resourceCheck = validateResourceSite(itemCheck.site_id, siteContext)
+    if (!resourceCheck.valid) {
       return NextResponse.json(
-        { error: 'Insufficient permissions' },
+        { error: resourceCheck.error },
         { status: 403 }
       )
     }
-
-    // Parse request body
-    const body: IssueInventoryRequest = await request.json()
 
     // Validate required fields
     if (!body.item_id || !body.quantity || body.quantity <= 0) {

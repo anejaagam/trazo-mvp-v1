@@ -4,6 +4,8 @@ import { ItemCatalogPage } from '@/components/features/inventory/item-catalog-pa
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
 export default async function InventoryItemsPage() {
   let userId: string
@@ -43,23 +45,20 @@ export default async function InventoryItemsPage() {
       redirect('/dashboard')
     }
 
-    // Then get site assignments separately
-    const { data: siteAssignments } = await supabase
-      .from('user_site_assignments')
-      .select('site_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-
     userId = user.id
     userRole = userData.role
     organizationId = userData.organization_id
-    
-    // Get site_id from user_site_assignments or get/create default site
-    if (siteAssignments?.[0]?.site_id) {
-      siteId = siteAssignments[0].site_id
+
+    // Get site_id from site context (cookie-based)
+    const contextSiteId = await getServerSiteId()
+    if (contextSiteId === ALL_SITES_ID) {
+      // Org admin viewing all sites - pass the special ID
+      // Components will handle aggregate data fetching
+      siteId = ALL_SITES_ID
+    } else if (contextSiteId) {
+      siteId = contextSiteId
     } else {
-      // No site assignment, get or create a default site for the organization
+      // Fallback to default site if no site selected
       const { data: defaultSiteId } = await getOrCreateDefaultSite(organizationId)
       siteId = defaultSiteId || organizationId
     }

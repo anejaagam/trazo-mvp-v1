@@ -39,6 +39,7 @@ export type RoleKey =
   | 'executive_viewer'
   | 'installer_tech'
   | 'support'
+  | 'developer'
 
 export type PermissionKey = 
   // Dashboard
@@ -50,6 +51,16 @@ export type PermissionKey =
   | 'batch:delete'
   | 'batch:stage_change'
   | 'batch:quarantine'
+  | 'batch:harvest'
+  | 'batch:assign_pod'
+  | 'batch:tasks_link'
+  | 'batch:packet_generate'
+  
+  // Cultivar permissions
+  | 'cultivar:view'
+  | 'cultivar:create'
+  | 'cultivar:edit'
+  | 'cultivar:delete'
   
   // Inventory permissions
   | 'inventory:view'
@@ -60,12 +71,21 @@ export type PermissionKey =
   | 'inventory:waste'
   | 'inventory:transfer'
   
+  // Waste permissions
+  | 'waste:view'
+  | 'waste:create'
+  | 'waste:update'
+  | 'waste:delete'
+  | 'waste:witness'
+  | 'waste:export'
+  
   // Task permissions
   | 'task:view'
   | 'task:create'
   | 'task:update'
   | 'task:assign'
   | 'task:complete'
+  | 'task:retain_original_evidence'
   | 'task:delete'
   
   // Control permissions
@@ -91,6 +111,7 @@ export type PermissionKey =
   | 'compliance:export'
   | 'compliance:submit'
   | 'compliance:report_create'
+  | 'compliance:sync'
   | 'evidence:upload'
   | 'evidence:lock'
   | 'evidence:delete'
@@ -117,6 +138,13 @@ export type PermissionKey =
   | 'equipment:control:manual'
   | 'equipment:control:auto'
   | 'equipment:override'
+  
+  // Developer permissions
+  | 'dev:dashboard'
+  | 'dev:errors'
+  | 'dev:users_approve'
+  | 'dev:logs'
+  | 'dev:metrics'
   
   // Organization permissions
   | 'org:settings'

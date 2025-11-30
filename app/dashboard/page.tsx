@@ -1,256 +1,352 @@
-import { 
-  Activity, 
-  AlertTriangle, 
-  Package, 
-  Sprout, 
-  Thermometer
-} from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { redirect } from 'next/navigation'
+import { Boxes, Sprout, Bell, Package } from 'lucide-react'
 import { WelcomeBanner } from '@/components/features/onboarding/welcome-banner'
 import { createClient } from '@/lib/supabase/server'
+import { DashboardClient } from './dashboard-client'
+import { getServerSiteId } from '@/lib/site/server'
+import { ALL_SITES_ID } from '@/lib/site/types'
 
-// Mock data - in real app this would come from database
-const dashboardData = {
-  stats: {
-    activeBatches: 24,
-    activeBatchesChange: +12,
-    totalPlants: 2840,
-    totalPlantsChange: +184,
-    activeAlarms: 3,
-    activeAlarmsChange: -2,
-    lowStockItems: 7,
-    lowStockItemsChange: +3
-  },
-  recentBatches: [
-    { id: 'B-2024-001', strain: 'Blue Dream', stage: 'flowering', plants: 16, daysInStage: 45 },
-    { id: 'B-2024-002', strain: 'OG Kush', stage: 'vegetative', plants: 12, daysInStage: 21 },
-    { id: 'B-2024-003', strain: 'Gelato', stage: 'harvest', plants: 16, daysInStage: 2 }
-  ],
-  alerts: [
-    { id: 1, type: 'temperature', message: 'Pod 12 temperature exceeds threshold', severity: 'high', time: '2 min ago' },
-    { id: 2, type: 'inventory', message: 'CO2 tank inventory below minimum', severity: 'medium', time: '1 hour ago' },
-    { id: 3, type: 'task', message: 'Weekly cleaning checklist overdue', severity: 'low', time: '3 hours ago' }
-  ],
-  environmentalStatus: {
-    avgTemperature: 72.5,
-    avgHumidity: 65.2,
-    avgCO2: 1250,
-    podsOnline: 47,
-    totalPods: 48
-  }
+type UserRow = {
+  role: string | null
+  organization: {
+    jurisdiction: string | null
+    id: string
+  } | null
+  site_id: string | null
 }
 
-type UserRow = { role: string | null; organization: { jurisdiction: string | null } | null }
-
 export default async function DashboardPage() {
-  // Fetch current user's role and org jurisdiction for onboarding banner
   const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
-  let userRole: string | null = null
-  let jurisdictionId: string | null = null
-  if (auth?.user) {
-    const { data: user } = await supabase
-      .from('users')
-      .select('role, organization:organizations(jurisdiction)')
-      .eq('id', auth.user.id)
-      .single<UserRow>()
-    userRole = user?.role ?? null
-    jurisdictionId = user?.organization?.jurisdiction ?? null
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    redirect('/auth/login')
   }
+
+  // Get user data
+  const { data: userData } = await supabase
+    .from('users')
+    .select('role, organization_id')
+    .eq('id', user.id)
+    .single()
+
+  const userRole = userData?.role ?? null
+  const organizationId = userData?.organization_id ?? ''
+  const userId = user.id
+
+  // Get current site from site context (cookie-based)
+  const siteId = await getServerSiteId() ?? ''
+  const isAllSitesMode = siteId === ALL_SITES_ID
+
+  // Get organization data
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('jurisdiction')
+    .eq('id', organizationId)
+    .single()
+
+  const jurisdictionId = org?.jurisdiction ?? null
+
+  // Get all batches for this site (or all sites if in "all sites" mode)
+  let batchQuery = supabase
+    .from('batches')
+    .select('id, batch_number, status, cultivar_id, created_at, site_id')
+    .eq('organization_id', organizationId)
+
+  if (!isAllSitesMode && siteId) {
+    batchQuery = batchQuery.eq('site_id', siteId)
+  }
+
+  const { data: allBatches, error: batchError } = await batchQuery
+  
+  // Filter active batches (use 'active' status instead of growth stages)
+  const activeBatches = allBatches?.filter(b => 
+    b.status === 'active'
+  ).slice(0, 3) || []
+  
+  const activeBatchesCount = allBatches?.filter(b => 
+    b.status === 'active'
+  ).length || 0
+
+  // Get cultivar names for active batches
+  if (activeBatches.length > 0) {
+    const cultivarIds = activeBatches.map(b => b.cultivar_id).filter(Boolean)
+    if (cultivarIds.length > 0) {
+      const { data: cultivars } = await supabase
+        .from('cultivars')
+        .select('id, name')
+        .in('id', cultivarIds)
+      
+      // Add cultivar names to batches
+      activeBatches.forEach((batch: any) => {
+        const cultivar = cultivars?.find(c => c.id === batch.cultivar_id)
+        batch.cultivar = cultivar ? { name: cultivar.name } : null
+      })
+    }
+    
+    // Get plant counts for active batches from batch_plants table
+    const { data: batchPlants } = await supabase
+      .from('batch_plants')
+      .select('batch_id, id')
+      .in('batch_id', activeBatches.map(b => b.id))
+      .eq('status', 'active')
+    
+    // Count plants per batch
+    activeBatches.forEach((batch: any) => {
+      const plantsInBatch = batchPlants?.filter(p => p.batch_id === batch.id) || []
+      batch.plants = [{ count: plantsInBatch.length }]
+    })
+  }
+
+  const totalPlantsCount = activeBatches.reduce((sum, batch: any) => {
+    return sum + (batch.plants?.[0]?.count || 0)
+  }, 0)
+
+  // Get active alarms - need to join through pods to satisfy RLS policy
+  let alarmsQuery = supabase
+    .from('alarms')
+    .select(`
+      *,
+      pods!inner(
+        id,
+        rooms!inner(
+          id,
+          sites!inner(
+            id,
+            organization_id
+          )
+        )
+      )
+    `)
+    .in('status', ['triggered', 'escalated'])
+    .order('triggered_at', { ascending: false })
+    .limit(3)
+
+  if (!isAllSitesMode && siteId) {
+    alarmsQuery = alarmsQuery.eq('pods.rooms.sites.id', siteId)
+  } else {
+    alarmsQuery = alarmsQuery.eq('pods.rooms.sites.organization_id', organizationId)
+  }
+
+  const { data: activeAlarms, error: alarmsError } = await alarmsQuery
+  
+  // Get total alarm count (excluding info severity for the stat card)
+  let alarmCountQuery = supabase
+    .from('alarms')
+    .select(`
+      id,
+      pods!inner(
+        id,
+        rooms!inner(
+          id,
+          sites!inner(
+            id,
+            organization_id
+          )
+        )
+      )
+    `)
+    .in('status', ['triggered', 'escalated'])
+    .in('severity', ['warning', 'critical'])
+
+  if (!isAllSitesMode && siteId) {
+    alarmCountQuery = alarmCountQuery.eq('pods.rooms.sites.id', siteId)
+  } else {
+    alarmCountQuery = alarmCountQuery.eq('pods.rooms.sites.organization_id', organizationId)
+  }
+
+  const { data: alarmCountData } = await alarmCountQuery
+  const activeAlarmsCount = alarmCountData?.length || 0
+
+  // Get inventory items - filter by organization_id instead of site_id for RLS
+  const { data: allInventory, error: inventoryError } = await supabase
+    .from('inventory_items')
+    .select('id, name, current_quantity, minimum_quantity, site_id')
+    .eq('organization_id', organizationId)
+    .eq('is_active', true)
+
+  // Filter to this site (or all sites) and low stock items
+  const siteInventory = isAllSitesMode
+    ? allInventory || []
+    : allInventory?.filter(item => item.site_id === siteId) || []
+  const lowStockItems = siteInventory.filter(item =>
+    item.minimum_quantity && item.current_quantity <= item.minimum_quantity
+  ) || []
+  const lowStockCount = lowStockItems.length
+
+  // Get environmental data from latest telemetry readings
+  let podsQuery = supabase
+    .from('pods')
+    .select(`
+      id,
+      rooms!inner(
+        site_id,
+        sites!inner(
+          organization_id
+        )
+      )
+    `)
+    .eq('is_active', true)
+
+  if (!isAllSitesMode && siteId) {
+    podsQuery = podsQuery.eq('rooms.site_id', siteId)
+  } else {
+    podsQuery = podsQuery.eq('rooms.sites.organization_id', organizationId)
+  }
+
+  const { data: pods } = await podsQuery
+
+  const podIds = pods?.map(p => p.id) || []
+  
+  let envData = {
+    avgTemp: 0,
+    avgHumidity: 0,
+    avgCO2: 0,
+    podsOnline: 0,
+    totalPods: podIds.length
+  }
+
+  if (podIds.length > 0) {
+    // Get latest telemetry for each pod (within last hour for relevance)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { data: telemetryData, error: telemetryError } = await supabase
+      .from('telemetry_readings')
+      .select('pod_id, temperature_c, humidity_pct, co2_ppm, timestamp')
+      .in('pod_id', podIds)
+      .gte('timestamp', oneHourAgo)
+      .order('timestamp', { ascending: false })
+
+    if (telemetryData && telemetryData.length > 0) {
+      // Get most recent reading per pod that has actual values
+      const latestByPod = new Map()
+      telemetryData.forEach(reading => {
+        if (!latestByPod.has(reading.pod_id)) {
+          // Only use readings that have at least one non-null value
+          if (reading.temperature_c != null || reading.humidity_pct != null || reading.co2_ppm != null) {
+            latestByPod.set(reading.pod_id, reading)
+          }
+        }
+      })
+
+      const latestReadings = Array.from(latestByPod.values())
+      
+      if (latestReadings.length > 0) {
+        const temps = latestReadings.filter(r => r.temperature_c != null).map(r => r.temperature_c!)
+        const humids = latestReadings.filter(r => r.humidity_pct != null).map(r => r.humidity_pct!)
+        const co2s = latestReadings.filter(r => r.co2_ppm != null).map(r => r.co2_ppm!)
+
+        envData.avgTemp = temps.length > 0 ? temps.reduce((a, b) => a + b, 0) / temps.length : 0
+        envData.avgHumidity = humids.length > 0 ? humids.reduce((a, b) => a + b, 0) / humids.length : 0
+        envData.avgCO2 = co2s.length > 0 ? co2s.reduce((a, b) => a + b, 0) / co2s.length : 0
+        envData.podsOnline = latestReadings.length
+      }
+    }
+  }
+
+  // Get growth metrics - track plant counts and batches over last 12 weeks
+  const twelveWeeksAgo = new Date()
+  twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84)
+
+  // Get only active batches created in the last 12 weeks
+  let batchHistoryQuery = supabase
+    .from('batches')
+    .select('id, created_at, plant_count')
+    .eq('organization_id', organizationId)
+    .eq('status', 'active')
+    .gte('created_at', twelveWeeksAgo.toISOString())
+    .order('created_at', { ascending: true })
+
+  if (!isAllSitesMode && siteId) {
+    batchHistoryQuery = batchHistoryQuery.eq('site_id', siteId)
+  }
+
+  const { data: batchHistory } = await batchHistoryQuery
+
+  // Get plant counts from batch_plants table for more accurate tracking
+  const batchIds = batchHistory?.map(b => b.id) || []
+  let plantsByBatch: Record<string, number> = {}
+  
+  if (batchIds.length > 0) {
+    const { data: batchPlantCounts } = await supabase
+      .from('batch_plants')
+      .select('batch_id')
+      .in('batch_id', batchIds)
+    
+    // Count plants per batch
+    batchPlantCounts?.forEach(p => {
+      plantsByBatch[p.batch_id] = (plantsByBatch[p.batch_id] || 0) + 1
+    })
+  }
+
+  // Aggregate by week (12 weeks of data)
+  // Each week spans 7 days, starting from the oldest week going to current
+  const weeklyData = []
+  const now = new Date()
+  now.setHours(23, 59, 59, 999) // End of today
+  
+  for (let i = 11; i >= 0; i--) {
+    // Calculate week boundaries going backwards from today
+    const weekEnd = new Date(now)
+    weekEnd.setDate(now.getDate() - (i * 7))
+    weekEnd.setHours(23, 59, 59, 999)
+    
+    const weekStart = new Date(weekEnd)
+    weekStart.setDate(weekEnd.getDate() - 6)
+    weekStart.setHours(0, 0, 0, 0)
+    
+    const batchesThisWeek = batchHistory?.filter(b => {
+      const created = new Date(b.created_at)
+      return created >= weekStart && created <= weekEnd
+    }) || []
+    
+    // Use plant count from batch_plants if available, otherwise fall back to batch.plant_count
+    const plantsThisWeek = batchesThisWeek.reduce((sum, b) => {
+      const plantCount = plantsByBatch[b.id] || b.plant_count || 0
+      return sum + plantCount
+    }, 0)
+    
+    weeklyData.push({
+      name: i === 0 ? 'This Week' : i === 1 ? 'Last Week' : `${i} wks ago`,
+      plants: plantsThisWeek,
+      batches: batchesThisWeek.length
+    })
+  }
+
+  // Pass raw weekly data to client (client will calculate cumulative based on selected weeks)
+  // Calculate totals for default 4-week view
+  const last4Weeks = weeklyData.slice(-4)
+  let cumulativePlants = 0
+  last4Weeks.forEach(week => {
+    cumulativePlants += week.plants
+  })
+
+  // Calculate growth percentage for default view
+  const growthPercent = '0.00' // Client will recalculate based on selection
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard Overview</h1>
-        <p className="text-muted-foreground">
-          Welcome back! Here&apos;s what&apos;s happening with your operations.
-        </p>
-      </div>
-
       {/* Onboarding banner (shows once per browser) */}
       <WelcomeBanner role={userRole} jurisdictionId={jurisdictionId ?? undefined} />
-
-      {/* Key metrics cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Batches</CardTitle>
-            <Sprout className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.stats.activeBatches}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{dashboardData.stats.activeBatchesChange}</span> from last month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Plants</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.stats.totalPlants.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{dashboardData.stats.totalPlantsChange}</span> from last week
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Alarms</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.stats.activeAlarms}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">{dashboardData.stats.activeAlarmsChange}</span> from yesterday
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.stats.lowStockItems}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-orange-600">+{dashboardData.stats.lowStockItemsChange}</span> from last week
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Recent Batches */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sprout className="h-5 w-5" />
-              Recent Batches
-            </CardTitle>
-            <CardDescription>
-              Latest batch activity and status updates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {dashboardData.recentBatches.map((batch) => (
-                <div key={batch.id} className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{batch.id}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {batch.strain} • {batch.plants} plants
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="secondary" className="mb-1">
-                      {batch.stage}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground">
-                      Day {batch.daysInStage}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Button variant="outline" className="w-full mt-4">
-              View All Batches
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Environmental Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Thermometer className="h-5 w-5" />
-              Environmental Status
-            </CardTitle>
-            <CardDescription>
-              Current environmental conditions across all pods
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg Temperature</p>
-                  <p className="text-2xl font-bold">{dashboardData.environmentalStatus.avgTemperature}°F</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg Humidity</p>
-                  <p className="text-2xl font-bold">{dashboardData.environmentalStatus.avgHumidity}%</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg CO2</p>
-                  <p className="text-2xl font-bold">{dashboardData.environmentalStatus.avgCO2} ppm</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pods Online</p>
-                  <p className="text-2xl font-bold">
-                    {dashboardData.environmentalStatus.podsOnline}/{dashboardData.environmentalStatus.totalPods}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <Button variant="outline" className="w-full mt-4">
-              View Environmental Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Alerts and notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            Recent Alerts
-          </CardTitle>
-          <CardDescription>
-            System alerts and notifications requiring attention
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {dashboardData.alerts.map((alert) => (
-              <div key={alert.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className={`h-4 w-4 ${
-                    alert.severity === 'high' ? 'text-red-500' :
-                    alert.severity === 'medium' ? 'text-orange-500' :
-                    'text-yellow-500'
-                  }`} />
-                  <div>
-                    <p className="text-sm font-medium">{alert.message}</p>
-                    <p className="text-xs text-muted-foreground">{alert.time}</p>
-                  </div>
-                </div>
-                <Badge variant={
-                  alert.severity === 'high' ? 'destructive' :
-                  alert.severity === 'medium' ? 'default' :
-                  'secondary'
-                }>
-                  {alert.severity}
-                </Badge>
-              </div>
-            ))}
-          </div>
-          <Button variant="outline" className="w-full mt-4">
-            View All Alerts
-          </Button>
-        </CardContent>
-      </Card>
+      
+      {/* Client-side dashboard content */}
+      <DashboardClient 
+        siteId={siteId}
+        organizationId={organizationId}
+        userId={userId}
+        jurisdictionId={jurisdictionId}
+        stats={{
+          activeBatches: activeBatchesCount || 0,
+          totalPlants: totalPlantsCount,
+          activeAlarms: activeAlarmsCount || 0,
+          lowStockItems: lowStockCount
+        }}
+        environmental={envData}
+        batches={activeBatches || []}
+        alarms={activeAlarms || []}
+        growthData={weeklyData}
+        totalPlants={cumulativePlants}
+        growthPercent={growthPercent}
+      />
     </div>
   )
 }

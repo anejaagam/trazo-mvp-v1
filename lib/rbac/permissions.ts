@@ -53,6 +53,64 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     resource: 'batch',
     action: 'quarantine'
   },
+  'batch:harvest': {
+    key: 'batch:harvest',
+    name: 'Record Harvest',
+    description: 'Record harvest data, yield weights, and quality metrics',
+    resource: 'batch',
+    action: 'harvest'
+  },
+  'batch:assign_pod': {
+    key: 'batch:assign_pod',
+    name: 'Assign Batch to Location',
+    description: 'Assign batches to pods/growing areas',
+    resource: 'batch',
+    action: 'assign_pod'
+  },
+  'batch:tasks_link': {
+    key: 'batch:tasks_link',
+    name: 'Link Tasks to Batch',
+    description: 'Link SOP templates and tasks to batches for automated workflow management',
+    resource: 'batch',
+    action: 'tasks_link'
+  },
+  'batch:packet_generate': {
+    key: 'batch:packet_generate',
+    name: 'Generate Batch Packet',
+    description: 'Generate comprehensive batch documentation packets (PDF/HTML) for compliance and reporting',
+    resource: 'batch',
+    action: 'packet_generate'
+  },
+
+  // Cultivar permissions
+  'cultivar:view': {
+    key: 'cultivar:view',
+    name: 'View Cultivars',
+    description: 'View cultivar (strain/variety) information and details',
+    resource: 'cultivar',
+    action: 'view'
+  },
+  'cultivar:create': {
+    key: 'cultivar:create',
+    name: 'Create Cultivars',
+    description: 'Add new cultivars (strains/varieties) to the system',
+    resource: 'cultivar',
+    action: 'create'
+  },
+  'cultivar:edit': {
+    key: 'cultivar:edit',
+    name: 'Edit Cultivars',
+    description: 'Edit cultivar details and characteristics',
+    resource: 'cultivar',
+    action: 'edit'
+  },
+  'cultivar:delete': {
+    key: 'cultivar:delete',
+    name: 'Delete Cultivars',
+    description: 'Delete cultivars from the system',
+    resource: 'cultivar',
+    action: 'delete'
+  },
 
   // Inventory permissions
   'inventory:view': {
@@ -105,6 +163,50 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     action: 'transfer'
   },
 
+  // Waste permissions
+  'waste:view': {
+    key: 'waste:view',
+    name: 'View Waste Logs',
+    description: 'View waste disposal records and compliance documentation',
+    resource: 'waste',
+    action: 'view'
+  },
+  'waste:create': {
+    key: 'waste:create',
+    name: 'Record Waste',
+    description: 'Create waste disposal records with compliance documentation',
+    resource: 'waste',
+    action: 'create'
+  },
+  'waste:update': {
+    key: 'waste:update',
+    name: 'Update Waste Logs',
+    description: 'Edit waste records within 24-hour compliance window',
+    resource: 'waste',
+    action: 'update'
+  },
+  'waste:witness': {
+    key: 'waste:witness',
+    name: 'Witness Waste Disposal',
+    description: 'Act as licensed witness for waste disposal activities',
+    resource: 'waste',
+    action: 'witness'
+  },
+  'waste:export': {
+    key: 'waste:export',
+    name: 'Export Waste Reports',
+    description: 'Export waste data and compliance packets for regulatory reporting',
+    resource: 'waste',
+    action: 'export'
+  },
+  'waste:delete': {
+    key: 'waste:delete',
+    name: 'Delete Waste Logs',
+    description: 'Delete waste records within 24-hour window (before Metrc sync)',
+    resource: 'waste',
+    action: 'delete'
+  },
+
   // Task permissions
   'task:view': {
     key: 'task:view',
@@ -140,6 +242,13 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     description: 'Mark tasks as complete and provide evidence',
     resource: 'task',
     action: 'complete'
+  },
+  'task:retain_original_evidence': {
+    key: 'task:retain_original_evidence',
+    name: 'Retain Original Evidence Files',
+    description: 'Bypass compression for evidence to preserve original files',
+    resource: 'task',
+    action: 'retain_original_evidence'
   },
   'task:delete': {
     key: 'task:delete',
@@ -279,6 +388,13 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     description: 'Generate new compliance reports',
     resource: 'compliance',
     action: 'report_create'
+  },
+  'compliance:sync': {
+    key: 'compliance:sync',
+    name: 'Sync Compliance Data',
+    description: 'Trigger manual sync operations with Metrc and other compliance systems',
+    resource: 'compliance',
+    action: 'sync'
   },
   'evidence:upload': {
     key: 'evidence:upload',
@@ -448,6 +564,43 @@ export const PERMISSIONS: Record<PermissionKey, Permission> = {
     description: 'Configure third-party integrations and SSO',
     resource: 'organization',
     action: 'integrations'
+  },
+
+  // Developer Dashboard permissions (platform developers only)
+  'dev:dashboard': {
+    key: 'dev:dashboard',
+    name: 'View Dev Dashboard',
+    description: 'Access the developer dashboard overview',
+    resource: 'dev',
+    action: 'dashboard'
+  },
+  'dev:errors': {
+    key: 'dev:errors',
+    name: 'View Error Logs',
+    description: 'View and manage platform-wide error logs',
+    resource: 'dev',
+    action: 'errors'
+  },
+  'dev:users_approve': {
+    key: 'dev:users_approve',
+    name: 'Approve Organizations',
+    description: 'Approve or reject organization applications',
+    resource: 'dev',
+    action: 'users_approve'
+  },
+  'dev:logs': {
+    key: 'dev:logs',
+    name: 'View Audit Logs',
+    description: 'View developer audit logs',
+    resource: 'dev',
+    action: 'logs'
+  },
+  'dev:metrics': {
+    key: 'dev:metrics',
+    name: 'View Platform Metrics',
+    description: 'View platform-wide metrics and statistics',
+    resource: 'dev',
+    action: 'metrics'
   },
 
   // Wildcard permission

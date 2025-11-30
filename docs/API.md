@@ -201,6 +201,55 @@ const token = session?.access_token
 
 ---
 
+## Workflow API
+
+### Move Task in Hierarchy
+**Endpoint:** `POST /api/workflows/tasks/[taskId]/reparent`
+
+**Request Body:**
+```json
+{
+  "parentTaskId": "task-parent-id-or-null"
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "id": "task-123",
+    "parent_task_id": "task-parent",
+    "hierarchy_level": 2
+  },
+  "error": null
+}
+```
+
+**Notes:**
+- Requires `task:update` permission.
+- Validates against descendant loops and `MAX_TASK_HIERARCHY_LEVEL`.
+
+### Recurring Task Generation Cron
+**Endpoint:** `GET /api/cron/generate-recurring-tasks`
+
+**Description:** Vercel cron job that instantiates future `schedule_mode="recurring"` tasks using the `recurring_pattern` and `recurring_config`. Requires `CRON_SECRET` header (`Authorization: Bearer <secret>`).
+
+**Response:**
+```json
+{
+  "success": true,
+  "durationMs": 152,
+  "seedsChecked": 4,
+  "created": 3,
+  "skipped": 1,
+  "errors": []
+}
+```
+
+**Permissions Required:** Service role credentials + cron secret.
+
+---
+
 ### Get Pod Status
 **Endpoint:** `GET /api/monitoring/pods/[id]`
 

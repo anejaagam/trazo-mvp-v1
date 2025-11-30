@@ -5,7 +5,11 @@ import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardHeader } from '@/components/dashboard/header'
 import { DashboardBreadcrumbs } from '@/components/dashboard/breadcrumbs'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from 'sonner'
 import { isDevModeActive, DEV_MOCK_USER, DEV_MODE_BANNER, logDevMode } from '@/lib/dev-mode'
+import { SiteClientWrapper } from './site-client-wrapper'
+import { getServerSiteContext } from '@/lib/site/server'
+import type { ServerSiteContext } from '@/lib/site/types'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -50,6 +54,7 @@ export default async function DashboardLayout({
         
         {/* Global toast notifications */}
         <Toaster />
+        <SonnerToaster position="top-right" />
       </div>
     )
   }
@@ -70,7 +75,7 @@ export default async function DashboardLayout({
     .from('users')
     .select(`
       *,
-      organization:organizations(*)
+      organization:organizations!users_organization_id_fkey(*)
     `)
     .eq('id', user.id)
     .single()
@@ -86,33 +91,43 @@ export default async function DashboardLayout({
   //   redirect('/unauthorized')
   // }
 
+  // Get site context for the user
+  const siteContext = await getServerSiteContext(
+    user.id,
+    userDetails.role,
+    userDetails.organization_id
+  )
+
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <DashboardSidebar 
-        user={userDetails}
-        className="hidden md:flex w-64" 
-      />
-      
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <DashboardHeader 
+    <SiteClientWrapper siteContext={siteContext}>
+      <div className="flex h-screen bg-background">
+        {/* Sidebar */}
+        <DashboardSidebar
           user={userDetails}
-          className="h-16 border-b border-border px-6" 
+          className="hidden md:flex w-64"
         />
-        
-        {/* Breadcrumbs */}
-        <DashboardBreadcrumbs className="px-6 py-3 border-b border-border" />
-        
-        {/* Page content */}
-        <main className="flex-1 overflow-auto p-6">
-          {children}
-        </main>
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <DashboardHeader
+            user={userDetails}
+            className="h-16 border-b border-border px-6"
+          />
+
+          {/* Breadcrumbs */}
+          <DashboardBreadcrumbs className="px-6 py-3 border-b border-border" />
+
+          {/* Page content */}
+          <main className="flex-1 overflow-auto p-6">
+            {children}
+          </main>
+        </div>
+
+        {/* Global toast notifications */}
+        <Toaster />
+        <SonnerToaster position="top-right" />
       </div>
-      
-      {/* Global toast notifications */}
-      <Toaster />
-    </div>
+    </SiteClientWrapper>
   )
 }

@@ -48,7 +48,8 @@ export function useJurisdiction(jurisdictionId: JurisdictionId | null | undefine
   }, [jurisdictionId])
 
   const isStageTransitionAllowed = useCallback((fromStage: string, toStage: string): boolean => {
-    return jurisdictionId ? isBatchStageTransitionAllowed(jurisdictionId, fromStage, toStage) : false
+    // Let the function handle null/undefined jurisdictionId (allows all transitions when not configured)
+    return isBatchStageTransitionAllowed(jurisdictionId, fromStage, toStage)
   }, [jurisdictionId])
 
   const getComplianceReportTypesCallback = useCallback((): string[] => {
@@ -60,9 +61,9 @@ export function useJurisdiction(jurisdictionId: JurisdictionId | null | undefine
   }, [jurisdictionId])
 
   // Computed properties for common checks
-  const requiresPlantTags = jurisdiction?.rules.batch.require_plant_tags || false
-  const requiresMetrc = jurisdiction?.rules.batch.require_metrc_id || false
-  const requiresWitness = jurisdiction?.rules.waste.require_witness || false
+  const requiresPlantTags = jurisdiction?.rules?.batch?.require_plant_tags || false
+  const requiresMetrc = jurisdiction?.rules?.batch?.require_metrc_id || false
+  const requiresWitness = jurisdiction?.rules?.waste?.require_witness || false
   const isCannabiJurisdiction = jurisdiction?.plant_type === 'cannabis'
   const isProduceJurisdiction = jurisdiction?.plant_type === 'produce'
 

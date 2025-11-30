@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Lato } from "next/font/google";
 import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
+import { ErrorBoundary } from "@/lib/errors/error-boundary";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -33,7 +34,7 @@ const helveticaLocal = localFont({
   variable: "--font-helvetica",
   display: "swap",
   src: [
-    { path: "./fonts/helvetica/helvetica-light-587ebe5a59211.ttf", weight: "300", style: "normal" },
+    { path: "./fonts/helvetica/Helvetica.ttf", weight: "300", style: "normal" },
     { path: "./fonts/helvetica/Helvetica.ttf", weight: "400", style: "normal" },
     { path: "./fonts/helvetica/Helvetica-Oblique.ttf", weight: "400", style: "italic" },
     { path: "./fonts/helvetica/Helvetica-Bold.ttf", weight: "700", style: "normal" },
@@ -47,15 +48,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-  <body className={`${playfairDisplay.variable} ${lato.variable} ${helveticaLocal.variable} font-body antialiased`}>
+    <html lang="en" suppressHydrationWarning className="h-full overflow-hidden">
+  <body className={`${playfairDisplay.variable} ${lato.variable} ${helveticaLocal.variable} font-body antialiased h-full overflow-hidden`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

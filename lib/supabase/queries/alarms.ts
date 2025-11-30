@@ -45,7 +45,9 @@ export async function getAlarms(
       .from('alarms')
       .select(`
         *,
-        pod:pods!inner(id, name, room:rooms!inner(id, name, site_id))
+        pod:pods!inner(id, name, room_id, room:rooms!inner(id, name, site_id)),
+        acknowledged_by_user:users!alarms_acknowledged_by_fkey(id, email, full_name),
+        resolved_by_user:users!alarms_resolved_by_fkey(id, email, full_name)
       `)
       .order('triggered_at', { ascending: false });
     
@@ -60,7 +62,17 @@ export async function getAlarms(
       query = query.eq('severity', filters.severity);
     }
     if (filters?.status) {
-      query = query.eq('status', filters.status);
+      // Map UI status values to database status values
+      // UI: 'active' = database: 'triggered' or 'escalated' (unresolved alarms)
+      // UI: 'acknowledged' = database: has acknowledged_at but no resolved_at
+      // UI: 'resolved' = database: 'resolved' or has resolved_at
+      if (filters.status === 'active') {
+        query = query.in('status', ['triggered', 'escalated']);
+      } else if (filters.status === 'acknowledged') {
+        query = query.not('acknowledged_at', 'is', null).is('resolved_at', null);
+      } else if (filters.status === 'resolved') {
+        query = query.not('resolved_at', 'is', null);
+      }
     }
     if (filters?.triggered_after) {
       query = query.gte('triggered_at', filters.triggered_after);
@@ -73,7 +85,19 @@ export async function getAlarms(
     
     if (error) throw error;
     
-    return { data: data as AlarmWithDetails[] || [], error: null };
+    // Transform nested data to match AlarmWithDetails type
+    const transformedData = (data || []).map((alarm: Record<string, unknown>) => {
+      const pod = alarm.pod as { id: string; name: string; room_id: string; room?: { id: string; name: string; site_id: string } } | null;
+      const room = pod?.room || { id: '', name: 'Unknown', site_id: '' };
+      
+      return {
+        ...alarm,
+        pod: pod ? { id: pod.id, name: pod.name, room_id: pod.room_id } : { id: '', name: 'Unknown', room_id: '' },
+        room: { id: room.id, name: room.name, site_id: room.site_id },
+      };
+    });
+    
+    return { data: transformedData as AlarmWithDetails[], error: null };
   } catch (error) {
     console.error('Error in getAlarms:', error);
     return {
@@ -733,5 +757,265 @@ export async function acknowledgeAlarmClient(
       data: null,
       error: error instanceof Error ? error : new Error('Unknown error'),
     };
+  }
+}
+
+// =====================================================
+// RECIPE ADHERENCE CHECKING
+// =====================================================
+
+/**
+ * Check if telemetry readings are within recipe setpoint ranges
+ * Generates alarms for out-of-range values
+ * 
+ * @param podId - UUID of the pod
+ * @param recipeActivationId - Active recipe activation ID
+ * @returns Recipe adherence metrics and generated alarms
+ */
+export async function checkRecipeAdherence(
+  podId: string,
+  recipeActivationId: string
+): Promise<QueryResult<{
+  in_range_count: number
+  out_of_range_count: number
+  critical_deviations: Array<{
+    parameter: string
+    current_value: number
+    target_value: number
+    deviation_pct: number
+  }>
+  alarms_generated: number
+}>> {
+  try {
+    const supabase = await createServerClient()
+    
+    // Get active recipe setpoints for current stage
+    const { data: activation } = await supabase
+      .from('recipe_activations')
+      .select(`
+        id,
+        current_stage_index,
+        recipe_version:recipe_versions!inner(
+          id,
+          recipe_stages!inner(
+            id,
+            order_index,
+            environmental_setpoints(
+              id,
+              parameter_type,
+              value,
+              min_value,
+              max_value,
+              unit
+            )
+          )
+        )
+      `)
+      .eq('id', recipeActivationId)
+      .eq('status', 'active')
+      .single()
+    
+    if (!activation) {
+      return {
+        data: {
+          in_range_count: 0,
+          out_of_range_count: 0,
+          critical_deviations: [],
+          alarms_generated: 0,
+        },
+        error: null,
+      }
+    }
+    
+    // Get latest telemetry reading
+    const { data: reading } = await supabase
+      .from('telemetry_readings')
+      .select('*')
+      .eq('pod_id', podId)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .single()
+    
+    if (!reading) {
+      return {
+        data: {
+          in_range_count: 0,
+          out_of_range_count: 0,
+          critical_deviations: [],
+          alarms_generated: 0,
+        },
+        error: null,
+      }
+    }
+    
+    // Check each setpoint against current values
+    let inRangeCount = 0
+    let outOfRangeCount = 0
+    const criticalDeviations: Array<{
+      parameter: string
+      current_value: number
+      target_value: number
+      deviation_pct: number
+    }> = []
+    let alarmsGenerated = 0
+    
+    // Type assertion for nested data structure
+    const recipeVersion = activation.recipe_version as unknown as {
+      recipe_stages: Array<{
+        order_index: number
+        environmental_setpoints: Array<{
+          id: string
+          parameter_type: string
+          value: number | null
+          min_value: number | null
+          max_value: number | null
+          unit: string | null
+        }>
+      }>
+    }
+    
+    // Get setpoints for current stage
+    const currentStage = recipeVersion.recipe_stages.find(
+      (stage) => stage.order_index === activation.current_stage_index
+    )
+    
+    if (!currentStage) {
+      return {
+        data: {
+          in_range_count: 0,
+          out_of_range_count: 0,
+          critical_deviations: [],
+          alarms_generated: 0,
+        },
+        error: null,
+      }
+    }
+    
+    // Check each environmental setpoint
+    for (const setpoint of currentStage.environmental_setpoints) {
+      let currentValue: number | null = null
+      const targetValue: number | null = setpoint.value
+      const minValue: number | null = setpoint.min_value
+      const maxValue: number | null = setpoint.max_value
+      
+      // Map parameter to telemetry field
+      switch (setpoint.parameter_type) {
+        case 'temperature':
+          currentValue = reading.temperature_c
+          break
+        case 'humidity':
+          currentValue = reading.humidity_pct
+          break
+        case 'co2':
+          currentValue = reading.co2_ppm
+          break
+        case 'vpd':
+          currentValue = reading.vpd_kpa
+          break
+        case 'light_intensity':
+          currentValue = reading.light_intensity_ppfd
+          break
+        default:
+          continue
+      }
+      
+      if (currentValue === null) continue
+      
+      // Determine if in range
+      let isInRange = false
+      let deviation = 0
+      let deviationPct = 0
+      
+      if (minValue !== null && maxValue !== null) {
+        isInRange = currentValue >= minValue && currentValue <= maxValue
+        if (targetValue !== null) {
+          deviation = currentValue - targetValue
+          deviationPct = (deviation / targetValue) * 100
+        }
+      } else if (targetValue !== null) {
+        // Use ±10% tolerance if no range specified
+        const tolerance = targetValue * 0.1
+        isInRange = Math.abs(currentValue - targetValue) <= tolerance
+        deviation = currentValue - targetValue
+        deviationPct = (deviation / targetValue) * 100
+      }
+      
+      if (isInRange) {
+        inRangeCount++
+      } else {
+        outOfRangeCount++
+        
+        // Track critical deviations (>20%)
+        if (Math.abs(deviationPct) > 20 && targetValue !== null) {
+          criticalDeviations.push({
+            parameter: setpoint.parameter_type,
+            current_value: currentValue,
+            target_value: targetValue,
+            deviation_pct: deviationPct,
+          })
+          
+          // Generate alarm for critical deviation
+          const severity: AlarmSeverity = Math.abs(deviationPct) > 30 ? 'critical' : 'warning'
+          
+          // Check if alarm already exists for this condition (within last 5 minutes)
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+          const { data: existingAlarms } = await supabase
+            .from('alarms')
+            .select('id')
+            .eq('pod_id', podId)
+            .eq('alarm_type', `recipe_deviation_${setpoint.parameter_type}`)
+            .eq('status', 'triggered')
+            .gte('triggered_at', fiveMinutesAgo)
+            .limit(1)
+          
+          if (!existingAlarms || existingAlarms.length === 0) {
+            // Create new alarm
+            const { error: alarmError } = await supabase
+              .from('alarms')
+              .insert({
+                pod_id: podId,
+                alarm_type: `recipe_deviation_${setpoint.parameter_type}`,
+                severity,
+                message: `${setpoint.parameter_type} is ${deviationPct > 0 ? 'above' : 'below'} recipe target by ${Math.abs(deviationPct).toFixed(1)}%`,
+                metadata: {
+                  parameter: setpoint.parameter_type,
+                  current_value: currentValue,
+                  target_value: targetValue,
+                  deviation_pct: deviationPct,
+                  recipe_activation_id: recipeActivationId,
+                  setpoint_id: setpoint.id,
+                },
+                status: 'triggered',
+                triggered_at: new Date().toISOString(),
+              })
+            
+            if (!alarmError) {
+              alarmsGenerated++
+            }
+          }
+        }
+      }
+    }
+    
+    return {
+      data: {
+        in_range_count: inRangeCount,
+        out_of_range_count: outOfRangeCount,
+        critical_deviations: criticalDeviations,
+        alarms_generated: alarmsGenerated,
+      },
+      error: null,
+    }
+  } catch (error) {
+    console.error('Error checking recipe adherence:', error)
+    return {
+      data: {
+        in_range_count: 0,
+        out_of_range_count: 0,
+        critical_deviations: [],
+        alarms_generated: 0,
+      },
+      error: error instanceof Error ? error : new Error('Unknown error'),
+    }
   }
 }

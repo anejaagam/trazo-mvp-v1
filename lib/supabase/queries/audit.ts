@@ -111,15 +111,27 @@ export async function logAuditEvent(
 ): Promise<AuditEvent> {
   const supabase = await createClient();
 
+  // Get user's organization_id
+  const { data: userData } = await supabase
+    .from('users')
+    .select('organization_id')
+    .eq('id', userId)
+    .single();
+
+  if (!userData?.organization_id) {
+    throw new Error('User organization not found');
+  }
+
   const { data, error } = await supabase
     .from('audit_log')
     .insert({
+      organization_id: userData.organization_id,
       user_id: userId,
       entity_type: entityType,
       entity_id: entityId,
       action,
-      changes,
-      metadata,
+      old_values: changes || null,
+      new_values: metadata || null,
       ip_address: ipAddress,
       user_agent: userAgent,
       timestamp: new Date().toISOString(),

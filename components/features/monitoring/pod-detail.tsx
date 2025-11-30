@@ -1,16 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EnvironmentChart } from './environment-chart'
 import { EquipmentControlCard } from './equipment-control-card'
-import { Clock, RefreshCw, Thermometer, Droplets, Wind, Sun } from 'lucide-react'
+import { Clock, RefreshCw, Thermometer, Droplets, Wind, Sun, CheckCircle2, AlertTriangle, XCircle, Activity } from 'lucide-react'
 import { useTelemetry } from '@/hooks/use-telemetry'
 import { usePermissions } from '@/hooks/use-permissions'
+import { getActiveRecipe } from '@/app/actions/monitoring'
+import { deactivateRecipe } from '@/app/actions/recipes'
+import { createClient } from '@/lib/supabase/client'
 import type { EquipmentControlRecord } from '@/lib/supabase/queries/equipment-controls'
 import type { EquipmentControlRecord as TypedEquipmentControlRecord } from '@/types/equipment'
+import { EquipmentState } from '@/types/equipment'
+import type { ActiveRecipeDetails, EnvironmentalSetpoint } from '@/types/recipe'
+import type { RoleKey } from '@/lib/rbac/types'
+import type { TelemetryReading } from '@/types/telemetry'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { getActiveBatchesForPod, getBatchStageHistorySummary, type PodBatchSummary } from '@/lib/supabase/queries/batches-client'
+import type { BatchStageHistory } from '@/types/batch'
 
 interface PodDetailProps {
   podId: string
@@ -18,16 +38,46 @@ interface PodDetailProps {
   roomName: string
   deviceToken?: string | null
   stage?: string
+  activeRecipe?: ActiveRecipeDetails | null
+  isBatchManaged?: boolean
   onBack?: () => void
 }
 
-export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodDetailProps) {
+export function PodDetail({ podId, podName, roomName, deviceToken, stage, activeRecipe: initialActiveRecipe, isBatchManaged = false }: PodDetailProps) {
   const [timeWindow] = useState<24 | 168 | 720>(24) // 24h, 7d, 30d
   const [equipmentControls, setEquipmentControls] = useState<EquipmentControlRecord[]>([])
   const [equipmentLoading, setEquipmentLoading] = useState(true)
+  const [activeRecipe, setActiveRecipe] = useState<ActiveRecipeDetails | null>(initialActiveRecipe || null)
+  const [recipeLoading, setRecipeLoading] = useState(!initialActiveRecipe)
+  const [userRole, setUserRole] = useState<RoleKey | null>(null)
+  const [overrideMode, setOverrideMode] = useState(false)
+  const [pendingChanges, setPendingChanges] = useState<Map<string, { state: EquipmentState; level?: number }>>(new Map())
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const [activeBatch, setActiveBatch] = useState<PodBatchSummary | null>(null)
+  const [batchTimeline, setBatchTimeline] = useState<BatchStageHistory[]>([])
+  
+  // Fetch user role
+  useEffect(() => {
+    async function fetchUserRole() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        if (userData?.role) {
+          setUserRole(userData.role as RoleKey)
+        }
+      }
+    }
+    fetchUserRole()
+  }, [])
   
   // Permission check
-  const { can } = usePermissions('org_admin')
+  const { can } = usePermissions(userRole)
   
   // Fetch real-time telemetry
   const { reading, loading: telemetryLoading, error: telemetryError } = useTelemetry({
@@ -35,6 +85,28 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
     realtime: true,
     autoFetch: true
   })
+  
+  // Fetch active recipe for this pod (only if not provided as prop)
+  useEffect(() => {
+    if (initialActiveRecipe) {
+      // Recipe already provided as prop, skip fetching
+      setActiveRecipe(initialActiveRecipe)
+      setRecipeLoading(false)
+      return
+    }
+    
+    async function fetchActiveRecipe() {
+      setRecipeLoading(true)
+      const { data, error } = await getActiveRecipe('pod', podId)
+      if (!error && data) {
+        setActiveRecipe(data)
+      } else {
+        setActiveRecipe(null)
+      }
+      setRecipeLoading(false)
+    }
+    fetchActiveRecipe()
+  }, [podId, initialActiveRecipe])
   
   // Fetch equipment controls
   useEffect(() => {
@@ -55,6 +127,27 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
     
     fetchEquipmentControls()
   }, [podId])
+
+  useEffect(() => {
+    async function loadBatchContext() {
+      try {
+        const { data } = await getActiveBatchesForPod(podId)
+        const summary = data?.[0] || null
+        setActiveBatch(summary || null)
+        if (summary) {
+          const { data: history } = await getBatchStageHistorySummary(summary.id)
+          setBatchTimeline(history || [])
+        } else {
+          setBatchTimeline([])
+        }
+      } catch (error) {
+        console.error('Failed to load batch context', error)
+        setActiveBatch(null)
+        setBatchTimeline([])
+      }
+    }
+    loadBatchContext()
+  }, [podId])
   
   // Calculate VPD (Vapor Pressure Deficit)
   const calculateVPD = (temp: number, rh: number): number => {
@@ -73,10 +166,171 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
     return `${hoursAgo}h ago`
   }
   
+  // Extract equipment states from telemetry data
+  const getEquipmentFromTelemetry = () => {
+    if (!reading) return []
+    
+    const equipmentStates: Record<string, { 
+      state: number; 
+      mode: 'MANUAL' | 'AUTOMATIC'; 
+      override: boolean; 
+      level?: number; 
+      schedule_enabled?: boolean 
+    }> = {}
+
+    // Check equipment_states JSONB field first (new format with AUTO mode support)
+    const equipmentStatesData = reading.equipment_states as Record<string, {
+      state?: number;
+      mode?: number;
+      override?: boolean;
+      level?: number;
+      schedule_enabled?: boolean;
+    }> | null
+
+    if (equipmentStatesData && Object.keys(equipmentStatesData).length > 0) {
+      // Use equipment_states JSONB field (has AUTO mode support from TagoIO)
+      Object.entries(equipmentStatesData).forEach(([equipType, control]) => {
+        equipmentStates[equipType] = {
+          state: control.state ?? 0,
+          mode: control.mode === 1 ? 'AUTOMATIC' : 'MANUAL',
+          override: control.override ?? false,
+          level: control.level,
+          schedule_enabled: control.schedule_enabled ?? false,
+        }
+      })
+    } else {
+      // Fallback to boolean fields from telemetry (no AUTO mode support)
+      // This happens when TagoIO only sends sensor data, not equipment control data
+      const mapping: Record<string, { key: string; readingField: keyof TelemetryReading }> = {
+        'lighting': { key: 'lighting', readingField: 'lights_on' },
+        'co2_injection': { key: 'co2_injection', readingField: 'co2_injection_active' },
+        'cooling': { key: 'cooling', readingField: 'cooling_active' },
+        'heating': { key: 'heating', readingField: 'heating_active' },
+        'dehumidifier': { key: 'dehumidifier', readingField: 'dehumidifier_active' },
+        'humidifier': { key: 'humidifier', readingField: 'humidifier_active' },
+        'exhaust_fan': { key: 'exhaust_fan', readingField: 'exhaust_fan_active' },
+        'circulation_fan': { key: 'circulation_fan', readingField: 'circulation_fan_active' },
+      }
+
+      Object.entries(mapping).forEach(([equipType, { readingField }]) => {
+        const booleanActive = reading[readingField] as boolean | null
+        
+        equipmentStates[equipType] = {
+          state: booleanActive ? 1 : 0,
+          mode: 'MANUAL',
+          override: false,
+          level: undefined,
+          schedule_enabled: false,
+        }
+      })
+    }
+    
+    // If no equipment states found, return empty array (will fall back to equipment_controls table)
+    if (Object.keys(equipmentStates).length === 0) {
+      return []
+    }
+    
+    // Convert to EquipmentControlRecord format for display
+    const result = Object.entries(equipmentStates).map(([equipType, state]) => ({
+      id: `telemetry-${equipType}`,
+      pod_id: podId,
+      equipment_type: equipType,
+      state: state.state,
+      mode: state.mode === 'AUTOMATIC' ? 1 : 0,
+      override: state.override,
+      schedule_enabled: state.schedule_enabled || false,
+      level: state.level || 0,
+      auto_config: null,
+      last_state_change: reading.timestamp,
+      last_mode_change: reading.timestamp,
+      changed_by: null,
+      created_at: reading.timestamp,
+      updated_at: reading.timestamp,
+    } as EquipmentControlRecord))
+    
+    return result
+  }
+  
   const handleRefresh = () => {
     // Trigger a manual refresh by forcing component re-render
     // The useTelemetry hook will fetch fresh data
     window.location.reload()
+  }
+
+  const batchHealthScore = computeBatchHealthScore(activeRecipe, reading)
+  
+  const handleRemoveRecipe = async () => {
+    if (!activeRecipe?.activation?.id || !userRole) {
+      toast.error('Unable to remove recipe')
+      return
+    }
+    
+    setRemoving(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        toast.error('You must be logged in to remove a recipe')
+        return
+      }
+      
+      // Deactivate the recipe using server action (includes audit logging)
+      const { error: deactivateError } = await deactivateRecipe(
+        activeRecipe.activation.id,
+        user.id,
+        `Manual removal from ${podName} via monitoring dashboard`
+      )
+      
+      if (deactivateError) {
+        console.error('Error deactivating recipe:', deactivateError)
+        toast.error('Failed to remove recipe')
+        return
+      }
+      
+      // Refresh the active recipe state
+      setActiveRecipe(null)
+      setShowRemoveDialog(false)
+      toast.success(`Recipe removed from ${podName}`)
+      
+      // Refresh after a short delay to allow state to update
+      setTimeout(() => handleRefresh(), 1000)
+    } catch (error) {
+      console.error('Error removing recipe:', error)
+      toast.error('Failed to remove recipe')
+    } finally {
+      setRemoving(false)
+    }
+  }
+  
+  // Helper to get setpoint for a parameter type
+  const getSetpoint = (parameterType: string): EnvironmentalSetpoint | null => {
+    if (!activeRecipe?.activation?.current_stage?.setpoints) return null
+    return activeRecipe.activation.current_stage.setpoints.find(
+      sp => sp.parameter_type === parameterType && sp.enabled
+    ) || null
+  }
+  
+  // Helper to check if value is in range
+  const checkInRange = (value: number, setpoint: EnvironmentalSetpoint | null): 
+    { status: 'ok' | 'warning' | 'critical' | 'none'; deviation?: number } => {
+    if (!setpoint) return { status: 'none' }
+    
+    const target = setpoint.value || setpoint.day_value || 0
+    const min = setpoint.min_value || (target - (setpoint.deadband || 0))
+    const max = setpoint.max_value || (target + (setpoint.deadband || 0))
+    const deviation = value - target
+    
+    if (value < min || value > max) {
+      // Critical: outside min/max bounds
+      return { status: 'critical', deviation }
+    } else if (setpoint.deadband && Math.abs(deviation) > setpoint.deadband) {
+      // Warning: outside deadband
+      return { status: 'warning', deviation }
+    } else {
+      // OK: within acceptable range
+      return { status: 'ok', deviation }
+    }
   }
   
   // Check permission
@@ -95,7 +349,18 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
         <div className="flex items-center gap-4">
           
           <div>
-            <h1 className="text-3xl font-bold">{podName}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">{podName}</h1>
+              {!recipeLoading && (
+                activeRecipe?.activation?.recipe ? (
+                  <Badge variant="secondary" className="text-xs">
+                    Recipe: {activeRecipe.activation.recipe.name} - {activeRecipe.activation.current_stage?.name || 'Stage 1'}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs">No Recipe</Badge>
+                )
+              )}
+            </div>
             <p className="text-muted-foreground">
               {roomName}{stage ? ` • ${stage}` : ''}
             </p>
@@ -107,13 +372,37 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
             <Clock className="w-4 h-4" />
             Last update: {reading ? getTimeAgo(reading.timestamp) : '--'}
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
+          {activeRecipe?.activation && can('control:recipe_apply') && !isBatchManaged && (
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => setShowRemoveDialog(true)}
+              disabled={removing}
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Remove Recipe
+            </Button>
+          )}
+          {activeRecipe?.activation && isBatchManaged && (
+            <div className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded">
+              Recipe managed by batch: {activeRecipe.activation.scope_name}
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
       </div>
       
+      {activeBatch && (
+        <BatchInfoCard batch={activeBatch} healthScore={batchHealthScore} />
+      )}
+
+      <RecipeAdherenceCard recipe={activeRecipe} telemetry={reading} />
+
+      {batchTimeline.length > 0 && <BatchTimeline timeline={batchTimeline} />}
+
       {/* Loading State */}
       {telemetryLoading && (
         <div className="py-12 text-center">
@@ -152,12 +441,48 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
                     </span>
                     <span className="text-muted-foreground">°C</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {reading.temp_sensor_fault ? (
                       <Badge variant="destructive" className="text-xs">Fault</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">OK</Badge>
-                    )}
+                    ) : (() => {
+                      const setpoint = getSetpoint('temperature')
+                      if (!setpoint || reading.temperature_c === null) {
+                        return <Badge variant="secondary" className="text-xs">OK</Badge>
+                      }
+                      const { status } = checkInRange(reading.temperature_c, setpoint)
+                      const min = setpoint.min_value ?? 0
+                      const max = setpoint.max_value ?? 0
+                      const value = reading.temperature_c
+                      
+                      let message = ''
+                      if (value < min) {
+                        message = `${(min - value).toFixed(1)}°C below range`
+                      } else if (value > max) {
+                        message = `${(value - max).toFixed(1)}°C above range`
+                      } else {
+                        // In range - show how much headroom to nearest boundary
+                        const belowMax = (max - value).toFixed(1)
+                        const aboveMin = (value - min).toFixed(1)
+                        message = `${Math.min(parseFloat(belowMax), parseFloat(aboveMin)).toFixed(1)}°C within range`
+                      }
+                      
+                      return (
+                        <>
+                          <Badge 
+                            variant={status === 'ok' ? 'default' : status === 'warning' ? 'secondary' : 'destructive'}
+                            className="text-xs"
+                          >
+                            {status === 'ok' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                            {status === 'warning' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                            {status === 'critical' && <XCircle className="w-3 h-3 mr-1" />}
+                            {status === 'ok' ? 'In Range' : status === 'warning' ? 'Deviation' : 'Out of Range'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {message}
+                          </span>
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -179,12 +504,48 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
                     </span>
                     <span className="text-muted-foreground">%</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {reading.humidity_sensor_fault ? (
                       <Badge variant="destructive" className="text-xs">Fault</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">OK</Badge>
-                    )}
+                    ) : (() => {
+                      const setpoint = getSetpoint('humidity')
+                      if (!setpoint || reading.humidity_pct === null) {
+                        return <Badge variant="secondary" className="text-xs">OK</Badge>
+                      }
+                      const { status } = checkInRange(reading.humidity_pct, setpoint)
+                      const min = setpoint.min_value ?? 0
+                      const max = setpoint.max_value ?? 0
+                      const value = reading.humidity_pct
+                      
+                      let message = ''
+                      if (value < min) {
+                        message = `${(min - value).toFixed(1)}% below range`
+                      } else if (value > max) {
+                        message = `${(value - max).toFixed(1)}% above range`
+                      } else {
+                        // In range - show how much headroom to nearest boundary
+                        const belowMax = (max - value).toFixed(1)
+                        const aboveMin = (value - min).toFixed(1)
+                        message = `${Math.min(parseFloat(belowMax), parseFloat(aboveMin)).toFixed(1)}% within range`
+                      }
+                      
+                      return (
+                        <>
+                          <Badge 
+                            variant={status === 'ok' ? 'default' : status === 'warning' ? 'secondary' : 'destructive'}
+                            className="text-xs"
+                          >
+                            {status === 'ok' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                            {status === 'warning' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                            {status === 'critical' && <XCircle className="w-3 h-3 mr-1" />}
+                            {status === 'ok' ? 'In Range' : status === 'warning' ? 'Deviation' : 'Out of Range'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {message}
+                          </span>
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -206,12 +567,48 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
                     </span>
                     <span className="text-muted-foreground text-sm">ppm</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {reading.co2_sensor_fault ? (
                       <Badge variant="destructive" className="text-xs">Fault</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">OK</Badge>
-                    )}
+                    ) : (() => {
+                      const setpoint = getSetpoint('co2')
+                      if (!setpoint || reading.co2_ppm === null) {
+                        return <Badge variant="secondary" className="text-xs">OK</Badge>
+                      }
+                      const { status } = checkInRange(reading.co2_ppm, setpoint)
+                      const min = setpoint.min_value ?? 0
+                      const max = setpoint.max_value ?? 0
+                      const value = reading.co2_ppm
+                      
+                      let message = ''
+                      if (value < min) {
+                        message = `${Math.round(min - value)}ppm below range`
+                      } else if (value > max) {
+                        message = `${Math.round(value - max)}ppm above range`
+                      } else {
+                        // In range - show how much headroom to nearest boundary
+                        const belowMax = max - value
+                        const aboveMin = value - min
+                        message = `${Math.round(Math.min(belowMax, aboveMin))}ppm within range`
+                      }
+                      
+                      return (
+                        <>
+                          <Badge 
+                            variant={status === 'ok' ? 'default' : status === 'warning' ? 'secondary' : 'destructive'}
+                            className="text-xs"
+                          >
+                            {status === 'ok' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                            {status === 'warning' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                            {status === 'critical' && <XCircle className="w-3 h-3 mr-1" />}
+                            {status === 'ok' ? 'In Range' : status === 'warning' ? 'Deviation' : 'Out of Range'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {message}
+                          </span>
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -243,7 +640,12 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
             {/* VPD Card */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">VPD</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">VPD</CardTitle>
+                  <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+                    Derived
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -255,41 +657,117 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
                     </span>
                     <span className="text-muted-foreground text-sm">kPa</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Derived metric
-                  </div>
+                  {(() => {
+                    const vpdValue = reading.temperature_c && reading.humidity_pct
+                      ? calculateVPD(reading.temperature_c, reading.humidity_pct)
+                      : reading.vpd_kpa ?? null
+                    
+                    // Typical VPD ranges: 0.4-0.8 for veg, 0.8-1.2 for flower
+                    // Using general optimal range of 0.8-1.2 kPa
+                    const minVPD = 0.8
+                    const maxVPD = 1.2
+                    
+                    if (vpdValue === null) {
+                      return (
+                        <div className="text-xs text-muted-foreground">
+                          No data
+                        </div>
+                      )
+                    }
+                    
+                    const inRange = vpdValue >= minVPD && vpdValue <= maxVPD
+                    
+                    return (
+                      <div className={`text-xs font-medium ${inRange ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                        {inRange ? '✓ In range' : '⚠ Out of range'} ({minVPD}-{maxVPD} kPa)
+                      </div>
+                    )
+                  })()}
                 </div>
               </CardContent>
             </Card>
           </div>
-          {/* Equipment Controls (AUTO Mode Support) */}
+          
+          {/* Equipment Controls with Global Override */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Equipment Status & Controls</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">Equipment Status & Controls</CardTitle>
+                {can('equipment:override') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                    onClick={() => {
+                      if (overrideMode) {
+                        // Cancel - reset pending changes
+                        setPendingChanges(new Map())
+                        setOverrideMode(false)
+                        toast.info('Override mode cancelled', { description: 'No changes were saved' })
+                      } else {
+                        setOverrideMode(true)
+                      }
+                    }}
+                  >
+                    {overrideMode ? 'Cancel' : 'Override Controls'}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {equipmentLoading || telemetryLoading ? (
                 <p className="text-sm text-muted-foreground">Loading equipment status...</p>
-              ) : equipmentControls.length > 0 ? (
-                /* Show advanced controls if equipment_controls exist */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {equipmentControls.map((control) => (
-                    <EquipmentControlCard
-                      key={control.id}
-                      equipment={control as unknown as TypedEquipmentControlRecord}
-                      onStateChange={async (state, level) => {
-                        // TODO: Call API to update equipment state
-                        console.log('State change:', { equipment: control.equipment_type, state, level })
-                        // Refresh equipment controls after update
-                        const response = await fetch(`/api/equipment-controls?podId=${podId}`)
-                        if (response.ok) {
-                          const data = await response.json()
-                          setEquipmentControls(data)
-                        }
-                      }}
-                      onOverrideToggle={async (override) => {
-                        // TODO: Call API to toggle override
-                        console.log('Override toggle:', { equipment: control.equipment_type, override })
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Equipment display logic:
+                      - Override mode: Show equipment_controls (database config for editing)
+                      - Default mode: Show telemetry equipment_states (real-time from TagoIO)
+                      - Fallback: If no telemetry equipment data, show equipment_controls
+                    */}
+                    {(() => {
+                      const telemetryEquipment = getEquipmentFromTelemetry()
+                      const displayData = overrideMode 
+                        ? equipmentControls 
+                        : (telemetryEquipment.length > 0 ? telemetryEquipment : equipmentControls)
+                      
+                      return displayData.map((control) => (
+                        <EquipmentControlCard
+                          key={control.id}
+                          equipment={control as unknown as TypedEquipmentControlRecord}
+                          userRole={userRole}
+                          overrideMode={overrideMode}
+                          onStateChange={(equipmentId, state, level) => {
+                            // Store pending changes in Map
+                            const newChanges = new Map(pendingChanges)
+                            newChanges.set(equipmentId, { state, level })
+                            setPendingChanges(newChanges)
+                          }}
+                        />
+                      ))
+                    })()}
+                  </div>
+                  
+                  {/* Save button when in override mode */}
+                  {overrideMode && pendingChanges.size > 0 && (
+                    <Button
+                      className="w-full"
+                      onClick={async () => {
+                        // TODO: When TagoIO integration is ready, send commands here
+                        // Loop through pendingChanges and send each to TagoIO
+                        // for (const [equipmentId, change] of pendingChanges.entries()) {
+                        //   await sendTagoIOCommand(podId, equipmentId, change.state, change.level)
+                        // }
+                        
+                        toast.success(
+                          `${pendingChanges.size} equipment change(s) applied`,
+                          { description: 'Commands will be sent to TagoIO when integration is complete' }
+                        )
+                        
+                        // Clear pending changes and exit override mode
+                        setPendingChanges(new Map())
+                        setOverrideMode(false)
+                        
                         // Refresh equipment controls
                         const response = await fetch(`/api/equipment-controls?podId=${podId}`)
                         if (response.ok) {
@@ -297,132 +775,11 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
                           setEquipmentControls(data)
                         }
                       }}
-                      onConfigureAuto={() => {
-                        // AUTO configuration handled by modal in EquipmentControlCard
-                      }}
-                    />
-                  ))}
+                    >
+                      Save {pendingChanges.size} Change{pendingChanges.size !== 1 ? 's' : ''}
+                    </Button>
+                  )}
                 </div>
-              ) : reading ? (
-                /* Fallback: Show enhanced equipment status from telemetry with AUTO mode support */
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {(() => {
-                    // Parse equipment_states JSONB for AUTO mode information
-                    let equipmentStates = reading.equipment_states as Record<string, {
-                      state: number
-                      mode: 'MANUAL' | 'AUTOMATIC'
-                      override: boolean
-                      level?: number
-                      schedule_enabled?: boolean
-                    }> | null
-
-                    // Fallback: If equipment_states is empty, parse raw_data
-                    if (!equipmentStates && reading.raw_data) {
-                      const rawData = reading.raw_data as { 
-                        variables?: Record<string, { 
-                          value: number
-                          metadata?: {
-                            ov?: number
-                            mode?: number
-                            level?: number
-                            schedule?: number
-                          }
-                        }> 
-                      }
-                      if (rawData.variables) {
-                        equipmentStates = {}
-                        const vars = rawData.variables
-                        
-                        // Map TagoIO variables to equipment states
-                        const mapping: Record<string, string> = {
-                          'light_state': 'lighting',
-                          'co2_valve': 'co2_injection',
-                          'cooling_valve': 'cooling',
-                          'heating_valve': 'heating',
-                          'dehum': 'dehumidifier',
-                          'hum': 'humidifier',
-                          'ex_fan': 'exhaust_fan',
-                          'circ_fan': 'circulation_fan',
-                        }
-
-                        Object.entries(mapping).forEach(([tagoVar, equipKey]) => {
-                          const data = vars[tagoVar]
-                          if (data?.metadata) {
-                            const meta = data.metadata
-                            // TagoIO: ov=2 means AUTO, ov=0/1 means MANUAL
-                            const isAuto = meta.ov === 2
-                            equipmentStates![equipKey] = {
-                              state: data.value || 0,
-                              mode: isAuto ? 'AUTOMATIC' : 'MANUAL',
-                              override: meta.ov === 1,
-                              level: meta.level,
-                              schedule_enabled: meta.schedule === 1,
-                            }
-                          }
-                        })
-                      }
-                    }
-
-                    // Helper to render equipment with AUTO mode support
-                    const renderEquipment = (
-                      name: string,
-                      booleanActive: boolean | null,
-                      stateKey: string
-                    ) => {
-                      if (booleanActive === null) return null
-
-                      const equipmentState = equipmentStates?.[stateKey]
-                      const isAuto = equipmentState?.mode === 'AUTOMATIC'
-                      const level = equipmentState?.level
-
-                      // Don't show redundant equipment (both cooling AND heating if both off)
-                      // Only show if active OR if it's the primary control for that function
-                      const isPrimary = ['lighting', 'co2_injection', 'exhaust_fan', 'circulation_fan'].includes(stateKey)
-                      if (!booleanActive && !isPrimary && !isAuto) return null
-
-                      // Build status label: "AUTO (On)" or "AUTO (Off)" or just "On"/"Off"
-                      let statusLabel: string
-                      let statusClass: string
-
-                      if (isAuto) {
-                        statusLabel = booleanActive ? 'AUTO (On)' : 'AUTO (Off)'
-                        statusClass = booleanActive ? 'text-blue-600 font-medium' : 'text-blue-500'
-                      } else {
-                        statusLabel = booleanActive ? 'On' : 'Off'
-                        statusClass = booleanActive ? 'text-green-600 font-medium' : 'text-muted-foreground'
-                      }
-
-                      // Add power level if available and equipment is on
-                      if (level !== undefined && level > 0 && booleanActive) {
-                        statusLabel += ` ${level}%`
-                      }
-
-                      return (
-                        <div key={stateKey} className="flex items-center justify-between p-3 border rounded-lg">
-                          <span className="text-sm font-medium">{name}</span>
-                          <span className={`text-sm ${statusClass}`}>
-                            {statusLabel}
-                          </span>
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <>
-                        {renderEquipment('Lighting', reading.lights_on, 'lighting')}
-                        {renderEquipment('CO₂ Injection', reading.co2_injection_active, 'co2_injection')}
-                        {renderEquipment('Cooling', reading.cooling_active, 'cooling')}
-                        {renderEquipment('Heating', reading.heating_active, 'heating')}
-                        {renderEquipment('Dehumidifier', reading.dehumidifier_active, 'dehumidifier')}
-                        {renderEquipment('Humidifier', reading.humidifier_active, 'humidifier')}
-                        {renderEquipment('Exhaust Fan', reading.exhaust_fan_active, 'exhaust_fan')}
-                        {renderEquipment('Circulation Fan', reading.circulation_fan_active, 'circulation_fan')}
-                      </>
-                    )
-                  })()}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No equipment data available. Waiting for telemetry...</p>
               )}
             </CardContent>
           </Card>
@@ -454,6 +811,167 @@ export function PodDetail({ podId, podName, roomName, deviceToken, stage }: PodD
           </CardContent>
         </Card>
       )}
+      
+      {/* Remove Recipe Confirmation Dialog */}
+      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Recipe from {podName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the current recipe ({activeRecipe?.activation?.recipe?.name || 'Unknown'}) 
+              and stop tracking its progress. The recipe itself will remain in your library.
+              <br /><br />
+              This action will be logged in the audit trail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveRecipe}
+              disabled={removing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removing ? 'Removing...' : 'Remove Recipe'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  )
+}
+
+function computeBatchHealthScore(recipe: ActiveRecipeDetails | null, telemetry: TelemetryReading | null) {
+  if (!recipe || !telemetry) return 50
+
+  const metrics = [
+    { key: 'temperature', actual: telemetry.temperature_c, weight: 5, unit: '°C' },
+    { key: 'humidity', actual: telemetry.humidity_pct, weight: 4, unit: '%' },
+    { key: 'co2', actual: telemetry.co2_ppm, weight: 3, unit: 'ppm' },
+  ]
+
+  let score = 100
+  metrics.forEach((metric) => {
+    if (metric.actual == null) return
+    const setpoint = recipe.current_setpoints.find((sp) => sp.parameter_type === metric.key)
+    if (!setpoint) return
+    const min = setpoint.min_value ?? setpoint.value ?? metric.actual
+    const max = setpoint.max_value ?? setpoint.value ?? metric.actual
+    if (metric.actual < min) {
+      score -= Math.min(20, (min - metric.actual) * metric.weight)
+    } else if (metric.actual > max) {
+      score -= Math.min(20, (metric.actual - max) * metric.weight)
+    }
+  })
+
+  return Math.max(0, Math.min(100, Math.round(score)))
+}
+
+function BatchInfoCard({ batch, healthScore }: { batch: PodBatchSummary; healthScore: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>Batch {batch.batch_number}</span>
+          <Badge variant={healthScore > 70 ? 'secondary' : 'destructive'}>{healthScore}%</Badge>
+        </CardTitle>
+        <CardDescription>Stage: {batch.stage}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex gap-6 text-sm">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Plants</p>
+          <p className="text-lg font-semibold">{batch.plant_count.toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Started</p>
+          <p className="text-lg font-semibold">
+            {batch.start_date ? new Date(batch.start_date).toLocaleDateString() : '—'}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function RecipeAdherenceCard({
+  recipe,
+  telemetry,
+}: {
+  recipe: ActiveRecipeDetails | null
+  telemetry: TelemetryReading | null
+}) {
+  if (!recipe) return null
+
+  const metrics = [
+    { key: 'temperature', label: 'Temperature', unit: '°C', actual: telemetry?.temperature_c ?? null },
+    { key: 'humidity', label: 'Humidity', unit: '%', actual: telemetry?.humidity_pct ?? null },
+    { key: 'co2', label: 'CO₂', unit: 'ppm', actual: telemetry?.co2_ppm ?? null },
+  ]
+
+  const getSetpoint = (parameterType: string) =>
+    recipe.current_setpoints.find((sp) => sp.parameter_type === parameterType)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recipe adherence</CardTitle>
+        <CardDescription>{recipe.activation.recipe?.name || 'Active recipe'}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-3">
+        {metrics.map((metric) => {
+          const setpoint = getSetpoint(metric.key)
+          const min = setpoint?.min_value ?? setpoint?.value ?? null
+          const max = setpoint?.max_value ?? setpoint?.value ?? null
+          const actual = metric.actual
+          const inRange =
+            actual != null && min != null && max != null && actual >= min && actual <= max
+          return (
+            <div key={metric.key} className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">{metric.label}</p>
+              <p className="text-lg font-semibold">
+                {actual != null ? `${actual.toFixed(1)} ${metric.unit}` : '—'}
+              </p>
+              {setpoint ? (
+                <p className="text-xs text-muted-foreground">
+                  Target: {min?.toFixed(1)} - {max?.toFixed(1)} {metric.unit}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">No target defined</p>
+              )}
+              {setpoint && actual != null && (
+                <Badge className="mt-2" variant={inRange ? 'secondary' : 'destructive'}>
+                  {inRange ? 'On target' : 'Out of range'}
+                </Badge>
+              )}
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
+function BatchTimeline({ timeline }: { timeline: BatchStageHistory[] }) {
+  if (!timeline.length) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Batch timeline</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {timeline.map((entry) => (
+          <div key={entry.id} className="flex items-center gap-3 text-sm">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="font-medium capitalize">{entry.stage}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(entry.started_at).toLocaleDateString()}
+                {entry.ended_at && ` → ${new Date(entry.ended_at).toLocaleDateString()}`}
+              </p>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   )
 }

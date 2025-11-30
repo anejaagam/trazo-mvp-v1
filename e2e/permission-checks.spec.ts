@@ -90,7 +90,7 @@ test.describe('Permission Checks', () => {
       // Should see navigation
       await expect(page.getByRole('navigation')).toBeVisible();
       
-      // May see batch management, environmental controls, etc.
+      // May see crop management, environmental controls, etc.
       // Exact navigation depends on RBAC configuration
       await expect(page.getByText(/batch|environmental|site/i).first()).toBeVisible();
     });
@@ -119,7 +119,7 @@ test.describe('Permission Checks', () => {
   });
 
   test.describe('Head Grower Permissions', () => {
-    test('should have batch management access', async ({ page }) => {
+    test('should have crop management access', async ({ page }) => {
       await page.goto('/auth/login');
       await page.fill('[name="email"]', 'grower@greenleaf.example');
       await page.fill('[name="password"]', 'YourTestPassword123!');

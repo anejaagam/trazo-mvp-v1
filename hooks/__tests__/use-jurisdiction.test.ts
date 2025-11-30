@@ -99,7 +99,7 @@ describe('useJurisdiction', () => {
     });
   });
 
-  describe('batch management', () => {
+  describe('crop management', () => {
     it('should return allowed batch stages for Maryland', () => {
       const { result } = renderHook(() => useJurisdiction('maryland_cannabis' as JurisdictionId));
 

@@ -5,6 +5,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient, getStoredRegion, setStoredRegion } from '@/lib/supabase/client';
 import type { Region } from '@/lib/types/region';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
 
 export function LoginForm() {
   const router = useRouter();
@@ -72,12 +75,38 @@ export function LoginForm() {
         // Update last_sign_in and activate invited users
         // This handles the case where invited users are logging in for the first time
         try {
-          // First check current status
+          // First check current status and organization
           const { data: userData } = await supabase
             .from('users')
-            .select('status')
+            .select('status, organization_id, role')
             .eq('id', data.user.id)
             .single();
+
+          // Skip approval check for developers (they don't belong to organizations)
+          if (userData?.role !== 'developer' && userData?.organization_id) {
+            // Check organization approval status
+            const { data: orgData } = await supabase
+              .from('organizations')
+              .select('approval_status, name')
+              .eq('id', userData.organization_id)
+              .single();
+
+            if (orgData?.approval_status === 'pending') {
+              // Organization not yet approved - sign out and show message
+              await supabase.auth.signOut();
+              setError('Your organization is pending approval. You will be notified once approved.');
+              setLoading(false);
+              return;
+            }
+
+            if (orgData?.approval_status === 'rejected') {
+              // Organization was rejected - sign out and show message
+              await supabase.auth.signOut();
+              setError('Your organization was not approved for access. Please contact support for more information.');
+              setLoading(false);
+              return;
+            }
+          }
           
           // Update user with new login time and activate if invited
           await supabase
@@ -106,76 +135,99 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleLogin} className="space-y-6">
+      {/* Error Message */}
       {error && (
-        <div className="p-3 bg-error-50 border border-error-200 text-error-700 rounded-md text-sm">
-          {error}
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
 
+      {/* Email Input */}
       <div className="space-y-2">
-        <label htmlFor="email" className="block text-sm font-medium text-secondary-800">
-          Email or Username
+        <label htmlFor="email" className="block text-sm font-medium text-secondary-700">
+          Email address
         </label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={loading}
-          className="w-full px-3 py-2 bg-brand-lighter-green-400/40 border border-secondary-500 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lightest-green-800 focus:border-transparent"
-          placeholder="Enter your email or username"
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Mail className="h-5 w-5 text-secondary-400" />
+          </div>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder="you@example.com"
+          />
+        </div>
       </div>
 
+      {/* Password Input */}
       <div className="space-y-2">
-        <label htmlFor="password" className="block text-sm font-medium text-secondary-800">
+        <label htmlFor="password" className="block text-sm font-medium text-secondary-700">
           Password
         </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          disabled={loading}
-          className="w-full px-3 py-2 bg-brand-lighter-green-400/40 border border-secondary-500 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-lightest-green-800 focus:border-transparent"
-          placeholder="Enter your password"
-        />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Lock className="h-5 w-5 text-secondary-400" />
+          </div>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={loading}
+            className="w-full pl-10 pr-4 py-3 bg-white border-2 border-secondary-200 rounded-xl text-secondary-800 placeholder:text-secondary-400 focus:outline-none focus:border-brand-lighter-green-500 focus:ring-2 focus:ring-brand-lighter-green-500/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            placeholder="Enter your password"
+          />
+        </div>
       </div>
 
       {/* Forgot Password Link */}
-      <div className="text-center">
+      <div className="flex justify-end">
         <a 
           href="/auth/forgot-password" 
-          className="text-sm text-neutral-400 hover:text-neutral-600 transition-colors"
+          className="text-sm text-brand-lighter-green-700 hover:text-brand-lighter-green-800 font-medium transition-colors"
         >
-          Forgot Password?
+          Forgot password?
         </a>
       </div>
 
       {/* Login Button */}
-      <div className="flex justify-center">
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-brand-lightest-green-800 text-secondary-800 hover:bg-brand-lightest-green-700 disabled:bg-gray-400 disabled:text-gray-600 font-medium px-8 py-2 rounded-md transition-colors text-lg"
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
+      <Button
+        type="submit"
+        disabled={loading}
+        loading={loading}
+        className="w-full h-12 text-base font-semibold"
+        size="lg"
+      >
+        {loading ? 'Signing in...' : 'Sign in'}
+      </Button>
+
+      {/* Divider */}
+      <div className="relative my-8">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-secondary-200"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-4 bg-gradient-to-b from-brand-lighter-green-50/30 to-white text-secondary-500">
+            New to Trazo?
+          </span>
+        </div>
       </div>
 
       {/* Sign up link */}
-      <div className="text-center pt-4">
-        <p className="text-sm text-neutral-600">
-          Don&apos;t have an account?{' '}
-          <a 
-            href="/auth/sign-up" 
-            className="text-information-600 hover:text-information-800 font-medium"
-          >
-            Sign up
-          </a>
-        </p>
+      <div className="text-center">
+        <a 
+          href="/auth/sign-up" 
+          className="inline-flex items-center justify-center w-full h-12 px-6 border-2 border-secondary-300 rounded-3xl text-secondary-700 font-semibold hover:border-brand-lighter-green-500 hover:text-brand-lighter-green-700 transition-all duration-200"
+        >
+          Create an account
+        </a>
       </div>
     </form>
   );

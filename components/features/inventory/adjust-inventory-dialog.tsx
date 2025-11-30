@@ -31,13 +31,17 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import { Loader2, AlertTriangle, TrendingUp, TrendingDown, FileText } from 'lucide-react'
 import { usePermissions } from '@/hooks/use-permissions'
 import { getInventoryItems } from '@/lib/supabase/queries/inventory-client'
 import { getLotsByItem } from '@/lib/supabase/queries/inventory-lots-client'
 import { createMovement } from '@/lib/supabase/queries/inventory-movements-client'
+import { createWasteLog as createWasteLogAction } from '@/app/actions/waste'
 import type { InventoryItemWithStock } from '@/types/inventory'
 import type { RoleKey } from '@/lib/rbac/types'
+import type { WasteUnit } from '@/types/waste'
 import { isDevModeActive } from '@/lib/dev-mode'
 
 interface InventoryLot {
@@ -95,6 +99,7 @@ export function AdjustInventoryDialog({
   const [availableLots, setAvailableLots] = useState<InventoryLot[]>([])
   const [selectedItem, setSelectedItem] = useState<InventoryItemWithStock | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [createWasteLog, setCreateWasteLog] = useState(false)
 
   const form = useForm<AdjustFormData>({
     defaultValues: {
@@ -107,41 +112,7 @@ export function AdjustInventoryDialog({
     },
   })
 
-  // Load items on mount
-  useEffect(() => {
-    if (open) {
-      loadItems()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, siteId])
-
-  // Set pre-selected item
-  useEffect(() => {
-    if (preSelectedItem) {
-      form.setValue('item_id', preSelectedItem.id)
-      setSelectedItem(preSelectedItem)
-      loadLotsForItem(preSelectedItem.id)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preSelectedItem])
-
-  // Load lots when item changes
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'item_id' && value.item_id) {
-        const item = items.find(i => i.id === value.item_id)
-        setSelectedItem(item || null)
-        loadLotsForItem(value.item_id)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form, items])
-
-  // Check permission
-  if (!can('inventory:update')) {
-    return null
-  }
-
+  // Define loadItems and loadLotsForItem BEFORE useEffect hooks that use them
   const loadItems = async () => {
     setIsLoadingItems(true)
     setError(null)
@@ -198,6 +169,41 @@ export function AdjustInventoryDialog({
     } finally {
       setIsLoadingLots(false)
     }
+  }
+
+  // Load items on mount
+  useEffect(() => {
+    if (open) {
+      loadItems()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, siteId])
+
+  // Set pre-selected item
+  useEffect(() => {
+    if (preSelectedItem) {
+      form.setValue('item_id', preSelectedItem.id)
+      setSelectedItem(preSelectedItem)
+      loadLotsForItem(preSelectedItem.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preSelectedItem])
+
+  // Load lots when item changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'item_id' && value.item_id) {
+        const item = items.find(i => i.id === value.item_id)
+        setSelectedItem(item || null)
+        loadLotsForItem(value.item_id)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form, items])
+
+  // Check permission
+  if (!can('inventory:update')) {
+    return null
   }
 
   const getReasonLabel = (reason: AdjustmentReason): string => {
@@ -286,10 +292,53 @@ export function AdjustInventoryDialog({
       // 1. Update quantity_remaining
       // 2. Set is_active = false when quantity reaches 0
 
+      // Create waste log if requested (for damaged/spoiled decreases)
+      if (createWasteLog &&
+          data.adjustment_type === 'decrease' &&
+          ['damaged', 'spoiled'].includes(data.reason)) {
+        try {
+          const wasteResult = await createWasteLogAction({
+            organization_id: organizationId,
+            site_id: siteId,
+            performed_by: userId,
+
+            // Source
+            source_type: 'inventory',
+            source_id: selectedItem.id,
+            inventory_item_id: selectedItem.id,
+            inventory_lot_id: data.lot_id || undefined,
+
+            // Waste details
+            waste_type: selectedItem.item_type === 'equipment' ? 'equipment' :
+                       selectedItem.item_type === 'packaging' ? 'packaging' :
+                       'other',
+            reason: getReasonLabel(data.reason),
+            quantity,
+            unit_of_measure: selectedItem.unit_of_measure as WasteUnit,
+            disposal_method: 'landfill',
+            disposed_at: new Date().toISOString(),
+
+            // Notes
+            notes: `Automatic waste log from inventory adjustment. Item: ${selectedItem.name}${data.notes ? `. ${data.notes}` : ''}`,
+          })
+
+          if (!wasteResult.success) {
+            console.error('Failed to create waste log:', wasteResult.error)
+            // Don't fail the adjustment if waste log creation fails
+          } else {
+            console.log('Created waste log for inventory adjustment:', wasteResult.wasteLogId)
+          }
+        } catch (wasteError) {
+          console.error('Error creating waste log:', wasteError)
+          // Don't fail the adjustment if waste log creation fails
+        }
+      }
+
       // Success
       form.reset()
       setSelectedItem(null)
       setAvailableLots([])
+      setCreateWasteLog(false)
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
@@ -314,7 +363,6 @@ export function AdjustInventoryDialog({
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -556,6 +604,31 @@ export function AdjustInventoryDialog({
               )}
             />
 
+            {/* Waste Log Checkbox - Only for damaged/spoiled decreases */}
+            {adjustmentType === 'decrease' &&
+             ['damaged', 'spoiled'].includes(form.watch('reason')) &&
+             selectedItem && (
+              <div className="flex items-start space-x-3 rounded-md border p-4 bg-muted/50">
+                <Checkbox
+                  id="create-waste-log"
+                  checked={createWasteLog}
+                  onCheckedChange={(checked) => setCreateWasteLog(checked === true)}
+                />
+                <div className="flex-1 space-y-1">
+                  <Label
+                    htmlFor="create-waste-log"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Create waste disposal record
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically log this inventory waste ({parsedQuantity || 0} {selectedItem.unit_of_measure}) for compliance tracking.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Notes */}
             <FormField
               control={form.control}
@@ -574,7 +647,7 @@ export function AdjustInventoryDialog({
                     />
                   </FormControl>
                   <FormDescription>
-                    {adjustmentType === 'decrease' 
+                    {adjustmentType === 'decrease'
                       ? 'Required for decreasing adjustments. Explain what happened.'
                       : 'Provide additional context for this adjustment'
                     }
@@ -598,6 +671,7 @@ export function AdjustInventoryDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
               >
                 Cancel
               </Button>

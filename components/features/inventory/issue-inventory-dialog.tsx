@@ -38,7 +38,9 @@ import {
   getLotsByItem,
   getAvailableLots,
 } from '@/lib/supabase/queries/inventory-lots-client'
+import { getBatches } from '@/lib/supabase/queries/batches-client'
 import type { InventoryItemWithStock } from '@/types/inventory'
+import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
 import { isDevModeActive } from '@/lib/dev-mode'
 import type { RoleKey } from '@/lib/rbac/types'
 
@@ -99,7 +101,9 @@ export function IssueInventoryDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingItems, setIsLoadingItems] = useState(false)
   const [isLoadingLots, setIsLoadingLots] = useState(false)
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false)
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
+  const [batches, setBatches] = useState<BatchListItem[]>([])
   const [availableLots, setAvailableLots] = useState<InventoryLot[]>([])
   const [filteredLots, setFilteredLots] = useState<InventoryLot[]>([])
   const [availableLocations, setAvailableLocations] = useState<string[]>([])
@@ -123,10 +127,11 @@ export function IssueInventoryDialog({
     },
   })
 
-  // Load items on mount
+  // Load items and batches on mount
   useEffect(() => {
     if (open) {
       loadItems()
+      loadBatches()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, siteId])
@@ -237,6 +242,23 @@ export function IssueInventoryDialog({
       setError('Failed to load inventory items')
     } finally {
       setIsLoadingItems(false)
+    }
+  }
+
+  const loadBatches = async () => {
+    setIsLoadingBatches(true)
+    try {
+      const { data, error: fetchError } = await getBatches(organizationId, siteId, {
+        status: ['active', 'quarantined'],
+      })
+
+      if (fetchError) throw fetchError
+      setBatches(data || [])
+    } catch (err) {
+      console.error('Error loading batches:', err)
+      // Don't set error state - batches are optional
+    } finally {
+      setIsLoadingBatches(false)
     }
   }
 
@@ -495,8 +517,8 @@ export function IssueInventoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent disableOutsideClose disableEscapeClose>
-        <DialogHeader>
+      <DialogContent disableOutsideClose className="max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Issue Inventory
@@ -508,7 +530,7 @@ export function IssueInventoryDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-y-auto pr-2 flex-1">
             {/* Item Selection */}
             <FormField
               control={form.control}
@@ -516,24 +538,30 @@ export function IssueInventoryDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Item *</FormLabel>
-                  <Select
-                    disabled={isLoadingItems || !!preSelectedItem}
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an item..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {items.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name} {item.sku && `(${item.sku})`} - {item.available_quantity} {item.unit_of_measure}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {preSelectedItem ? (
+                    <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                      {preSelectedItem.name} {preSelectedItem.sku && `(${preSelectedItem.sku})`} - {preSelectedItem.available_quantity} {preSelectedItem.unit_of_measure}
+                    </div>
+                  ) : (
+                    <Select
+                      disabled={isLoadingItems}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an item..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {items.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name} {item.sku && `(${item.sku})`} - {item.available_quantity} {item.unit_of_measure}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormDescription>
                     Only showing items with available stock
                   </FormDescription>
@@ -770,9 +798,25 @@ export function IssueInventoryDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Batch ID *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter batch ID..." {...field} />
-                      </FormControl>
+                      <Select
+                        disabled={isLoadingBatches || batches.length === 0}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={isLoadingBatches ? "Loading batches..." : batches.length === 0 ? "No active batches available" : "Select a batch..."} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {batches.map((batch) => (
+                            <SelectItem key={batch.id} value={batch.id}>
+                              {batch.batch_number} - {batch.stage} 
+                              {batch.cultivar?.name && ` (${batch.cultivar.name})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
                         The cultivation batch receiving this inventory
                       </FormDescription>
@@ -859,12 +903,13 @@ export function IssueInventoryDialog({
               </Alert>
             )}
 
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
               >
                 Cancel
               </Button>

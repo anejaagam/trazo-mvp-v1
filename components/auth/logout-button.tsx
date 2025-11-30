@@ -22,7 +22,7 @@ export function LogoutButton() {
   };
 
   return (
-    <Button onClick={logout} variant="outline" size="sm">
+    <Button onClick={logout} variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full justify-start">
       Logout
     </Button>
   );

@@ -31,6 +31,16 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:delete',
       'batch:stage_change',
       'batch:quarantine',
+      'batch:harvest',
+      'batch:assign_pod',
+      'batch:tasks_link',
+      'batch:packet_generate',
+      
+      // Full cultivar management
+      'cultivar:view',
+      'cultivar:create',
+      'cultivar:edit',
+      'cultivar:delete',
       
       // Full inventory management
       'inventory:view',
@@ -41,12 +51,21 @@ export const ROLES: Record<RoleKey, Role> = {
       'inventory:waste',
       'inventory:transfer',
       
+      // Full waste management
+      'waste:view',
+      'waste:create',
+      'waste:update',
+      'waste:delete',
+      'waste:witness',
+      'waste:export',
+      
       // Full task management
       'task:view',
       'task:create',
       'task:update',
       'task:assign',
       'task:complete',
+      'task:retain_original_evidence',
       'task:delete',
       
       // Full control management
@@ -69,6 +88,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'compliance:view',
       'compliance:export',
       'compliance:report_create',
+      'compliance:sync',
       'evidence:upload',
       'evidence:lock',
       'audit:view',
@@ -97,11 +117,22 @@ export const ROLES: Record<RoleKey, Role> = {
       'batch:update',
       'batch:stage_change',
       'batch:quarantine',
+      'batch:harvest',
+      'batch:assign_pod',
+      'batch:tasks_link',
+      'batch:packet_generate',
+      
+      // Cultivar management (full)
+      'cultivar:view',
+      'cultivar:create',
+      'cultivar:edit',
+      'cultivar:delete',
       
       // Recipe and control management
       'control:view',
       'control:recipe_create',
       'control:recipe_edit',
+      'control:recipe_delete',
       'control:recipe_apply',
       'control:schedule',
       'control:override',
@@ -112,10 +143,24 @@ export const ROLES: Record<RoleKey, Role> = {
       'task:update',
       'task:assign',
       'task:complete',
+      'task:retain_original_evidence',
       
-      // Inventory viewing and consumption
+      // Full inventory management
       'inventory:view',
+      'inventory:create',
+      'inventory:update',
+      'inventory:delete',
       'inventory:consume',
+      'inventory:waste',
+      'inventory:transfer',
+      
+      // Waste management
+      'waste:view',
+      'waste:create',
+      'waste:update',
+      'waste:delete',
+      'waste:witness',
+      'waste:export',
       
       // Alarm handling
       'alarm:view',
@@ -125,6 +170,10 @@ export const ROLES: Record<RoleKey, Role> = {
       // Monitoring
       'monitoring:view',
       'monitoring:export',
+      
+      // Pod configuration
+      'pod:configure',
+      'pod:calibrate',
       
       // Equipment Control (AUTO Mode) - Full access
       'equipment:control:manual',
@@ -143,13 +192,22 @@ export const ROLES: Record<RoleKey, Role> = {
     isSystemRole: true,
     permissions: [
       'dashboard:view',
-      // Basic batch viewing
+      // Basic batch viewing and creation
       'batch:view',
+      'batch:create',
       'batch:update', // Basic updates like plant counts
+      
+      // Basic cultivar viewing
+      'cultivar:view',
       
       // Basic inventory operations
       'inventory:view',
       'inventory:consume',
+      
+      // Waste recording and witnessing
+      'waste:view',
+      'waste:create',
+      'waste:witness',
       
       // Task execution
       'task:view',
@@ -188,6 +246,7 @@ export const ROLES: Record<RoleKey, Role> = {
       'compliance:export',
       'compliance:submit',
       'compliance:report_create',
+      'compliance:sync',
       
       // Evidence management
       'evidence:upload',
@@ -199,15 +258,27 @@ export const ROLES: Record<RoleKey, Role> = {
       
       // Viewing access to operations
       'batch:view',
+      'batch:quarantine', // Can quarantine batches for QA issues
+      'batch:packet_generate', // Can generate batch packets for compliance
+      'cultivar:view',
       'inventory:view',
       'task:view',
       'alarm:view',
       'monitoring:view',
       
+      // Full waste management for compliance oversight
+      'waste:view',
+      'waste:create',
+      'waste:update',
+      'waste:delete',
+      'waste:witness',
+      'waste:export',
+      
       // Task management for compliance tasks
       'task:create',
       'task:assign',
       'task:update',
+      'task:retain_original_evidence',
     ],
   },
 
@@ -220,7 +291,9 @@ export const ROLES: Record<RoleKey, Role> = {
       'dashboard:view',
       // View-only access across all areas
       'batch:view',
+      'cultivar:view',
       'inventory:view',
+      'waste:view',
       'task:view',
       'compliance:view',
       'alarm:view',
@@ -278,6 +351,14 @@ export const ROLES: Record<RoleKey, Role> = {
       'system:test',
     ],
   },
+
+  developer: {
+    id: 'developer',
+    name: 'Developer',
+    description: 'Platform developer with full access for debugging and organization approval',
+    isSystemRole: true,
+    permissions: ['*'], // Full access to everything including dev-specific features
+  },
 }
 
 // Helper functions
@@ -309,6 +390,7 @@ export const ROLE_HIERARCHY = {
   operational: ['head_grower', 'operator'],
   specialized: ['compliance_qa', 'executive_viewer'],
   temporary: ['installer_tech', 'support'],
+  developer: ['developer'],
 } as const
 
 export function getRolesByCategory(category: keyof typeof ROLE_HIERARCHY): Role[] {

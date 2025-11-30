@@ -86,21 +86,26 @@ export default async function FeaturePage() {
 ### 5) What's In-Scope vs Deferred
 
 **✅ COMPLETE for MVP:**
-- Inventory feature (full CRUD, lot tracking, FIFO/LIFO, alerts)
-- Production endpoints: 4 total (GET/POST `/api/inventory/items`, PATCH/DELETE `/api/inventory/items/[id]`)
-- Admin features (user management, roles, permissions, audit logs)
-- Signup flow (organization creation, jurisdiction selection)
+- Inventory feature (full CRUD, lot tracking, FIFO/LIFO, alerts) - Phase 8
+- Monitoring & Telemetry (real-time monitoring, TagoIO integration) - Phase 10
+- Recipe Management (environmental control recipes, deprecation system) - Phase 11
+- Admin features (user management, roles, permissions, audit logs) - Phase 3-6
+- Signup flow (organization creation, jurisdiction selection) - Phase 2
+- Production endpoints: 4 inventory endpoints + monitoring/telemetry endpoints
+
+**🔄 IN PROGRESS:**
+- Batch Management (Phase 12) - Phase 0 Research Complete, database schema exists, needs domain enhancement
 
 **⏸️ DEFERRED:**
-- Inventory movements & alerts API endpoints (dev-only movements route exists)
-- Waste disposal endpoints and shared waste workflow
-- Batch management integration (Phase 13)
+- Batch Management Phase 1-7 implementation (database enhancement, backend, frontend, testing)
+- Task management & SOPs (Phase 13)
 - Compliance engine (Phase 14)
+- Alarms & notifications (Phase 15)
 
 ### 6) Next Focus Preview
-- **Current Phase:** Phase 10 - Monitoring & Telemetry (86% complete)
-- **Next Up:** Phase 9 - Deployment & Integration Testing
-- **Then:** Environmental Controls (Phase 11) → Batch Management → Tasks → Compliance
+- **Current Phase:** Phase 12 - Batch Management (Phase 0 Research Complete)
+- **Next Up:** Phase 12 Phase 1 - Database Enhancement (1-2 days)
+- **Then:** Batch Management Phase 2-7 (Backend, Frontend, Integration) → Task Management → Compliance Engine
 
 ---
 

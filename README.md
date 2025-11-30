@@ -15,7 +15,7 @@ TRAZO is a Next.js 15 (App Router) cultivation facility management system with m
 - 📖 **[Documentation](/docs/README.md)** - Complete docs navigation hub
 - 🚀 **[API Reference](/docs/API.md)** - REST API documentation
 - 📋 **[Current Status](/docs/current/index.md)** - Detailed feature status
-- 🗺️ **[Roadmap](/docs/ROADMAP.md)** - Integration roadmap & deployment guide
+- 🗺️ **[Roadmap](/docs/roadmap/index.md)** - Integration roadmap & deployment guide
 - 🤝 **[Contributing](CONTRIBUTING.md)** - Development guidelines
 - 📝 **[Changelog](CHANGELOG.md)** - Version history
 
@@ -96,8 +96,12 @@ This project uses Jest for unit and integration tests and Playwright for end-to-
 /hooks/                 # Custom React hooks (usePermissions, useJurisdiction)
 /types/                 # TypeScript interfaces
 /docs/                  # 📚 Complete documentation
-  /API.md               # REST API reference
-  /archived_docs/       # Historical documentation
+  /current/             # Current status dashboard
+  /roadmap/             # Integration roadmap
+  /project-history/     # Past phase completion reports
+  /technical-reports/   # Deep dives & analysis
+  /agent-context/       # AI Agent context & prompts
+  /archived_docs/       # Legacy documentation
 /e2e/                   # Playwright end-to-end tests
 ```
 
@@ -111,7 +115,7 @@ This project uses Jest for unit and integration tests and Playwright for end-to-
 
 ### Developer Guides
 - **[Current Status](/docs/current/index.md)** - Detailed feature implementation status (split into 6 focused guides)
-- **[Integration Roadmap](/docs/ROADMAP.md)** - Step-by-step integration guide (57KB)
+- **[Integration Roadmap](/docs/roadmap/index.md)** - Step-by-step integration guide
 - **[Copilot Instructions](.github/copilot-instructions.md)** - AI assistant development patterns
 
 ### Archived Documentation

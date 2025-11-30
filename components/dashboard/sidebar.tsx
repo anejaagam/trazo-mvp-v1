@@ -7,11 +7,11 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { RoleKey, PermissionKey } from '@/lib/rbac/types'
-import { 
-  Building2, 
-  BarChart3, 
-  Package, 
-  Sprout, 
+import {
+  Building2,
+  BarChart3,
+  Package,
+  Sprout,
   Thermometer,
   ClipboardList,
   AlertTriangle,
@@ -19,11 +19,21 @@ import {
   FileText,
   Trash2,
   Users,
-  Shield
+  Shield,
+  Beaker,
+  Bell,
+  BookCheck,
+  BookOpenCheck,
+  FlaskConical,
+  Leaf,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePermissions } from '@/hooks/use-permissions'
+import { useTaskCount } from '@/hooks/use-task-count'
+import { useAlarms } from '@/hooks/use-alarms'
+import { createClient } from '@/lib/supabase/client'
+import { SiteIndicator } from './site-selector'
 
 interface DashboardSidebarProps {
   user: {
@@ -31,6 +41,7 @@ interface DashboardSidebarProps {
     role: string
     additional_permissions?: string[]
     organization?: {
+      id?: string
       name: string
       jurisdiction: string
     }
@@ -52,6 +63,133 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
   const router = useRouter()
   const { can } = usePermissions(user.role as RoleKey, user.additional_permissions || [])
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [batchBadges, setBatchBadges] = useState<{ active: number; harvest: number }>({ active: 0, harvest: 0 })
+  const [lowStockCount, setLowStockCount] = useState<number>(0)
+  const [notificationCount, setNotificationCount] = useState<number>(0)
+  
+  // Use the task count hook for real-time updates
+  const { count: myTaskCount } = useTaskCount({ userId: user.id, realtime: true })
+  
+  // Use the alarms hook for real-time alarm count updates
+  const { activeCount: alarmCount } = useAlarms({ realtime: true, status: 'active' })
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user.organization?.id || !user.id) return
+    
+    const supabase = createClient()
+    let siteIdCache: string | null = null
+
+    const loadCounts = async () => {
+      // Get user's site assignment (cache it to avoid repeated queries)
+      if (!siteIdCache) {
+        const { data: siteAssignment } = await supabase
+          .from('user_site_assignments')
+          .select('site_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1)
+          .single()
+        
+        siteIdCache = siteAssignment?.site_id || null
+      }
+      
+      const queries = [
+        supabase
+          .from('batches')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', user.organization?.id)
+          .in('status', ['active', 'quarantined']),
+        supabase
+          .from('batches')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', user.organization?.id)
+          .eq('stage', 'harvest'),
+      ]
+      
+      // Add inventory alerts query if user has a site
+      if (siteIdCache) {
+        queries.push(
+          supabase
+            .from('inventory_stock_balances')
+            .select('*', { count: 'exact', head: true })
+            .eq('site_id', siteIdCache)
+            .in('stock_status', ['below_par', 'reorder', 'out_of_stock'])
+        )
+      }
+      
+      const results = await Promise.all(queries)
+      const [{ count: activeCount }, { count: harvestCount }, lowStockResult] = results
+
+      setBatchBadges({ active: activeCount || 0, harvest: harvestCount || 0 })
+      if (lowStockResult) {
+        setLowStockCount(lowStockResult.count || 0)
+      }
+
+      // Get unread notifications count
+      const { count: unreadNotifs } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .is('read_at', null)
+
+      setNotificationCount(unreadNotifs || 0)
+    }
+
+    // Initial load
+    loadCounts()
+
+    // Set up realtime subscriptions for inventory changes
+    const inventoryChannel = supabase
+      .channel('sidebar-inventory-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'inventory_items' },
+        (payload) => {
+          console.log('Inventory ITEMS change detected:', payload)
+          loadCounts()
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'inventory_movements' },
+        (payload) => {
+          console.log('Inventory MOVEMENTS change detected:', payload)
+          loadCounts()
+        }
+      )
+      .subscribe((status) => {
+        console.log('Inventory channel subscription status:', status)
+      })
+
+    // Set up realtime subscriptions for batch changes
+    const batchChannel = supabase
+      .channel('sidebar-batch-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'batches' },
+        () => {
+          loadCounts()
+        }
+      )
+      .subscribe()
+
+    // Alarm real-time is handled by useAlarms hook
+
+    // Set up realtime subscriptions for notification changes
+    const notificationChannel = supabase
+      .channel('sidebar-notification-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => {
+          loadCounts()
+        }
+      )
+      .subscribe()
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(inventoryChannel)
+      supabase.removeChannel(batchChannel)
+      supabase.removeChannel(notificationChannel)
+    }
+  }, [user.organization?.id, user.id])
 
   const navItems: NavItem[] = [
     {
@@ -61,7 +199,14 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       permission: 'dashboard:view'
     },
     {
-      title: 'Batch Management',
+      title: 'Alarms & Notifications',
+      href: '/dashboard/alarms',
+      icon: <Bell className="h-4 w-4" />,
+      permission: 'alarm:view',
+      badge: (alarmCount + notificationCount) > 0 ? String(alarmCount + notificationCount) : undefined,
+    },
+    {
+      title: 'Crop Management',
       href: '/dashboard/batches',
       icon: <Sprout className="h-4 w-4" />,
       permission: 'batch:view',
@@ -69,21 +214,37 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         {
           title: 'Active Batches',
           href: '/dashboard/batches/active',
-          icon: <Sprout className="h-4 w-4" />,
-          permission: 'batch:view'
+          icon: <Sprout className="h-4 w-4" />, 
+          permission: 'batch:view',
+          badge: batchBadges.active ? String(batchBadges.active) : undefined,
         },
         {
-          title: 'Planning',
-          href: '/dashboard/batches/planning',
-          icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'batch:create'
+          title: 'Cultivars',
+          href: '/dashboard/cultivars',
+          icon: <Beaker className="h-4 w-4" />,
+          permission: 'cultivar:view',
         },
+        
         {
           title: 'Harvest Queue',
           href: '/dashboard/batches/harvest',
           icon: <Package className="h-4 w-4" />,
-          permission: 'batch:stage_change'
-        }
+          permission: 'batch:stage_change',
+          badge: batchBadges.harvest ? String(batchBadges.harvest) : undefined,
+        },
+        {
+          title: 'Individual Plants',
+          href: '/dashboard/batches/plants',
+          icon: <Leaf className="h-4 w-4" />,
+          permission: 'batch:view',
+        },
+        {
+          title: 'Planning - Coming soon',
+          href: '/dashboard/batches/planning',
+          icon: <ClipboardList className="h-4 w-4" />, 
+          permission: 'batch:create'
+        },
+        
       ]
     },
     {
@@ -115,80 +276,47 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           href: '/dashboard/inventory/alerts',
           icon: <AlertTriangle className="h-4 w-4" />,
           permission: 'inventory:view',
-          badge: '3' // TODO: Get actual count from real data
-        },
-        {
-          title: 'Waste Tracking',
-          href: '/dashboard/inventory/waste',
-          icon: <Trash2 className="h-4 w-4" />,
-          permission: 'inventory:waste'
+          badge: lowStockCount > 0 ? String(lowStockCount) : undefined,
         }
       ]
     },
     {
-      title: 'Monitoring',
+      title: 'Monitoring & Controls',
       href: '/dashboard/monitoring',
       icon: <Thermometer className="h-4 w-4" />,
-      permission: 'monitoring:view',
       children: [
         {
-          title: 'Fleet Overview',
+          title: 'Monitoring Overview',
           href: '/dashboard/monitoring',
           icon: <BarChart3 className="h-4 w-4" />,
           permission: 'monitoring:view'
         },
         {
-          title: 'Alarms',
-          href: '/dashboard/monitoring/alarms',
-          icon: <AlertTriangle className="h-4 w-4" />,
-          permission: 'alarm:view',
-          badge: '2' // TODO: Get actual count from useAlarmSummary
-        }
-      ]
-    },
-    {
-      title: 'Environmental Controls',
-      href: '/dashboard/environmental',
-      icon: <Settings className="h-4 w-4" />,
-      permission: 'control:view',
-      children: [
-        {
           title: 'Recipes',
-          href: '/dashboard/environmental/recipes',
-          icon: <Settings className="h-4 w-4" />,
-          permission: 'control:view'
-        },
-        {
-          title: 'Schedules',
-          href: '/dashboard/environmental/schedules',
-          icon: <ClipboardList className="h-4 w-4" />,
+          href: '/dashboard/recipes',
+          icon: <Beaker className="h-4 w-4" />,
           permission: 'control:view'
         }
       ]
     },
     {
       title: 'Tasks & Workflows',
-      href: '/dashboard/tasks',
+      href: '/dashboard/workflows',
       icon: <ClipboardList className="h-4 w-4" />,
       permission: 'task:view',
       children: [
         {
           title: 'My Tasks',
-          href: '/dashboard/tasks/assigned',
+          href: '/dashboard/workflows',
           icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'task:view'
+          permission: 'task:view',
+          badge: myTaskCount > 0 ? String(myTaskCount) : undefined
         },
         {
-          title: 'SOPs',
-          href: '/dashboard/tasks/sops',
+          title: 'Templates',
+          href: '/dashboard/workflows/templates',
           icon: <FileText className="h-4 w-4" />,
           permission: 'task:view'
-        },
-        {
-          title: 'Schedule',
-          href: '/dashboard/tasks/schedule',
-          icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'task:assign'
         }
       ]
     },
@@ -196,46 +324,40 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
       title: 'Waste Management',
       href: '/dashboard/waste',
       icon: <Trash2 className="h-4 w-4" />,
-      permission: 'inventory:waste',
+      permission: 'waste:view',
       children: [
         {
-          title: 'Disposal Log',
-          href: '/dashboard/waste/disposal',
-          icon: <Trash2 className="h-4 w-4" />,
-          permission: 'inventory:waste'
+          title: 'Disposal Logs',
+          href: '/dashboard/waste',
+          icon: <ClipboardList className="h-4 w-4" />,
+          permission: 'waste:view'
         },
         {
-          title: 'Schedule Disposal',
-          href: '/dashboard/waste/schedule',
-          icon: <ClipboardList className="h-4 w-4" />,
-          permission: 'inventory:waste'
+          title: 'Record Disposal',
+          href: '/dashboard/waste/record',
+          icon: <Trash2 className="h-4 w-4" />,
+          permission: 'waste:create'
         }
       ]
     },
     {
       title: 'Compliance',
-      href: '/dashboard/compliance',
-      icon: <Shield className="h-4 w-4" />,
+      href: '/dashboard/compliance/sync',
+      icon: <BookCheck className="h-4 w-4" />,
       permission: 'compliance:view',
       children: [
         {
-          title: 'Reports',
-          href: '/dashboard/compliance/reports',
-          icon: <FileText className="h-4 w-4" />,
-          permission: 'compliance:view'
+          title: 'Metrc Sync',
+          href: '/dashboard/compliance/sync',
+          icon: <BookOpenCheck className="h-4 w-4" />,
+          permission: 'compliance:sync'
         },
         {
-          title: 'Evidence Vault',
-          href: '/dashboard/compliance/evidence',
-          icon: <Shield className="h-4 w-4" />,
-          permission: 'compliance:view'
-        },
-        {
-          title: 'Audit Trail',
-          href: '/dashboard/compliance/audit',
-          icon: <FileText className="h-4 w-4" />,
-          permission: 'audit:view'
-        }
+        title: 'Lab Tests',
+  href: '/dashboard/lab-tests',
+  icon: <FlaskConical className="h-4 w-4" />  ,
+  permission: 'compliance:sync'
+}
       ]
     }
   ]
@@ -285,6 +407,12 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
           permission: 'audit:view'
         },
         {
+          title: 'Compliance API Keys',
+          href: '/dashboard/admin/compliance',
+          icon: <Shield className="h-4 w-4" />,
+          permission: 'compliance:sync'
+        },
+        {
           title: 'Pod Device Tokens',
           href: '/dashboard/admin/api-tokens',
           icon: <Settings className="h-4 w-4" />,
@@ -300,13 +428,39 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
     })
   }
 
+  const hasPermissionForItem = (item: NavItem) => !item.permission || can(item.permission as PermissionKey)
+
+  const hasAccessibleDescendant = (children?: NavItem[]): boolean => {
+    if (!children) return false
+    for (const child of children) {
+      if (hasPermissionForItem(child)) return true
+      if (hasAccessibleDescendant(child.children)) return true
+    }
+    return false
+  }
+
+  const getFirstAccessibleChildHref = (children?: NavItem[]): string | undefined => {
+    if (!children) return undefined
+    for (const child of children) {
+      if (hasPermissionForItem(child)) {
+        return child.href
+      }
+      const nested = getFirstAccessibleChildHref(child.children)
+      if (nested) return nested
+    }
+    return undefined
+  }
+
   const renderNavItem = (item: NavItem, depth = 0) => {
-    const isActive = pathname === item.href || 
-      (item.children && item.children.some(child => pathname.startsWith(child.href)))
+    const childIsActive = item.children?.some(child => hasPermissionForItem(child) && pathname.startsWith(child.href))
+    const isActive = pathname === item.href || !!childIsActive
     const isExpanded = expanded[item.href] ?? false
     
-    // Check permissions
-    if (item.permission && !can(item.permission as PermissionKey)) {
+    if (!hasPermissionForItem(item)) {
+      return null
+    }
+
+    if (item.children && !hasAccessibleDescendant(item.children)) {
       return null
     }
 
@@ -345,8 +499,8 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
                   onlyThisExpanded[parent.href] = parent.href === item.href
                 }
                 setExpanded(onlyThisExpanded)
-                const firstChildHref = item.children?.[0]?.href
-                if (firstChildHref) router.push(firstChildHref)
+                const firstAccessibleChildHref = getFirstAccessibleChildHref(item.children)
+                if (firstAccessibleChildHref) router.push(firstAccessibleChildHref)
               }}
             >
               {item.icon}
@@ -381,6 +535,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             alt="Trazo Logo"
             width={40}
             height={40}
+            style={{ height: 'auto' }}
             className="object-contain dark:hidden"
           />
           <Image
@@ -388,6 +543,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
             alt="Trazo Logo"
             width={40}
             height={40}
+            style={{ height: 'auto' }}
             className="object-contain hidden dark:block"
           />
             <span className="font-helvetica text-[#E5F4EA] tracking-[0.09em] text-xl md:text-2xl">TRAZO</span>
@@ -400,6 +556,7 @@ export function DashboardSidebar({ user, className }: DashboardSidebarProps) {
         <div className="text-xs text-muted-foreground capitalize">
           {user.organization?.jurisdiction?.replace('_', ' ')} • {user.role?.replace('_', ' ')}
         </div>
+        <SiteIndicator className="mt-2" />
       </div>
 
       {/* Navigation */}

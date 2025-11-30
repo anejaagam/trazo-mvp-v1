@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { getOrCreateDefaultSite } from '@/lib/supabase/queries/sites'
+import { getServerSiteId } from '@/lib/site/server'
 import {
   Card,
   CardContent,
@@ -54,19 +55,12 @@ export default async function LowStockAlertsPage() {
       redirect('/dashboard')
     }
 
-    // Then get site assignments separately
-    const { data: siteAssignments } = await supabase
-      .from('user_site_assignments')
-      .select('site_id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-
-    // Get site_id from user_site_assignments or get/create default site
-    if (siteAssignments?.[0]?.site_id) {
-      siteId = siteAssignments[0].site_id
+    // Get site_id from site context (cookie-based)
+    const contextSiteId = await getServerSiteId()
+    if (contextSiteId && contextSiteId !== 'all') {
+      siteId = contextSiteId
     } else {
-      // No site assignment, get or create a default site for the organization
+      // Fallback to default site if no site selected or "all sites" mode
       const { data: defaultSiteId } = await getOrCreateDefaultSite(userData.organization_id)
       siteId = defaultSiteId || userData.organization_id
     }

@@ -17,23 +17,27 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreVertical, UserCheck, UserX, Mail, Shield } from 'lucide-react';
+import { Search, MoreVertical, UserCheck, UserX, Mail, Shield, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserWithOrg, UserStatus } from '@/types/admin';
 import type { RoleKey } from '@/lib/rbac/types';
 import { UserRoleDialog } from '@/components/features/admin/user-role-dialog';
+import { UserSiteAssignmentDialog } from '@/components/features/admin/user-site-assignment-dialog';
 
 interface UserTableProps {
   users: UserWithOrg[];
   inviterRole: import('@/lib/rbac/types').RoleKey;
+  organizationId: string;
   onUserUpdated?: () => void;
 }
 
-export function UserTable({ users, inviterRole, onUserUpdated }: UserTableProps) {
+export function UserTable({ users, inviterRole, organizationId, onUserUpdated }: UserTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [siteDialogOpen, setSiteDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserName, setSelectedUserName] = useState<string | undefined>(undefined);
   const [selectedUserRole, setSelectedUserRole] = useState<RoleKey | undefined>(undefined);
 
   const filteredUsers = users.filter(
@@ -163,6 +167,12 @@ export function UserTable({ users, inviterRole, onUserUpdated }: UserTableProps)
     setRoleDialogOpen(true);
   };
 
+  const openSiteDialog = (user: UserWithOrg) => {
+    setSelectedUserId(user.id);
+    setSelectedUserName(user.full_name);
+    setSiteDialogOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       {/* Search */}
@@ -273,6 +283,10 @@ export function UserTable({ users, inviterRole, onUserUpdated }: UserTableProps)
                             <Shield className="mr-2 h-4 w-4" />
                             Manage Roles
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openSiteDialog(user)}>
+                            <Building2 className="mr-2 h-4 w-4" />
+                            Manage Sites
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -294,6 +308,15 @@ export function UserTable({ users, inviterRole, onUserUpdated }: UserTableProps)
         userId={selectedUserId}
         currentRole={selectedUserRole}
         inviterRole={inviterRole}
+        onUpdated={onUserUpdated}
+      />
+
+      <UserSiteAssignmentDialog
+        open={siteDialogOpen}
+        onClose={() => setSiteDialogOpen(false)}
+        userId={selectedUserId}
+        userName={selectedUserName}
+        organizationId={organizationId}
         onUpdated={onUserUpdated}
       />
     </div>

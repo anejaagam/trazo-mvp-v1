@@ -166,6 +166,19 @@
     opacity: 0;
   }
 
+  @keyframes pulse-slow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.85;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+
   /*
     Dark-mode defensive overrides
     Many components use hard-coded `bg-white`, `bg-white/*`, `border-white`, or `text-black` utilities.

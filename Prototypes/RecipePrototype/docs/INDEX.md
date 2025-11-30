@@ -20,6 +20,11 @@ All documentation is located in the `/docs/` directory and organized into focuse
 - **[DATA-TYPES.md](DATA-TYPES.md)**: TypeScript type definitions, enums, validation bounds
 - **[DATA-ENTITIES.md](DATA-ENTITIES.md)**: Core entity interfaces, relationships, constraints
 
+### Workflows (Coming Soon)
+- **WORKFLOWS-RECIPES.md**: Recipe creation, editing, versioning workflows
+- **WORKFLOWS-OPERATIONS.md**: Schedules, batch groups, override workflows  
+- **WORKFLOWS-AUDIT.md**: Audit trail usage, troubleshooting, best practices
+
 ---
 
 ## Document Summaries
@@ -158,31 +163,32 @@ All documentation is located in the `/docs/` directory and organized into focuse
 ## Reading Paths
 
 ### For Product Managers / Stakeholders
-1. Start: **[README.md](README.md)**
-2. Understand architecture: **[ARCHITECTURE.md](ARCHITECTURE.md)**
-3. Review components: **[COMPONENTS-MAIN.md](COMPONENTS-MAIN.md)**
+1. Start: **README.md**
+2. Understand features: **WORKFLOWS-RECIPES.md** (when added)
+3. Learn operations: **WORKFLOWS-OPERATIONS.md** (when added)
 
 ### For Frontend Developers
-1. Start: **[README.md](README.md)**
-2. Architecture: **[ARCHITECTURE.md](ARCHITECTURE.md)**
-3. Components: **[COMPONENTS-MAIN.md](COMPONENTS-MAIN.md)**
-4. UI patterns: **[COMPONENTS-UI.md](COMPONENTS-UI.md)**
-5. Data types: **[DATA-TYPES.md](DATA-TYPES.md)**
+1. Start: **README.md**
+2. Architecture: **ARCHITECTURE.md**
+3. Components: **COMPONENTS-MAIN.md**
+4. UI patterns: **COMPONENTS-UI.md**
+5. Data types: **DATA-TYPES.md**
 
 ### For Backend Developers / API Developers
-1. Start: **[README.md](README.md)**
-2. Architecture: **[ARCHITECTURE.md](ARCHITECTURE.md)**
-3. Data types: **[DATA-TYPES.md](DATA-TYPES.md)**
-4. Entities: **[DATA-ENTITIES.md](DATA-ENTITIES.md)**
+1. Start: **README.md**
+2. Architecture: **ARCHITECTURE.md**
+3. Data types: **DATA-TYPES.md**
+4. Entities: **DATA-ENTITIES.md**
 
 ### For QA / Testing
-1. Start: **[README.md](README.md)**
-2. Components: **[COMPONENTS-MAIN.md](COMPONENTS-MAIN.md)**
-3. Data model: **[DATA-ENTITIES.md](DATA-ENTITIES.md)**
+1. Start: **README.md**
+2. Workflows: **WORKFLOWS-RECIPES.md** (when added)
+3. Operations: **WORKFLOWS-OPERATIONS.md** (when added)
+4. Troubleshooting: **WORKFLOWS-AUDIT.md** (when added)
 
 ### For DevOps / Infrastructure
-1. Start: **[README.md](README.md)**
-2. Architecture: **[ARCHITECTURE.md](ARCHITECTURE.md)** (especially deployment section)
+1. Start: **README.md**
+2. Architecture: **ARCHITECTURE.md** (especially deployment section)
 
 ---
 

@@ -162,7 +162,7 @@ describe('RBAC Roles', () => {
         
         // But not an excessive number (except org_admin with wildcard)
         if (!role.permissions.includes('*')) {
-          expect(role.permissions.length).toBeLessThan(50);
+          expect(role.permissions.length).toBeLessThan(65); // Increased to accommodate waste permissions
         }
       });
     });

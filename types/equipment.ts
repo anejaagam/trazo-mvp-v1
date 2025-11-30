@@ -390,7 +390,7 @@ export function getEquipmentStateColor(state: EquipmentState): string {
     case EquipmentState.ON:
       return 'bg-green-500';
     case EquipmentState.AUTO:
-      return 'bg-blue-500';
+      return 'bg-gray-400 text-white';
     default:
       return 'bg-gray-400';
   }

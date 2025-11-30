@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<integration-plan>
+  <metadata>
+    <module>Recipe Management & Environmental Control</module>
+    <version>1.0.0</version>
+    <date>2025-11-11</date>
+    <phase>11</phase>
+    <estimated-duration>5-7 days</estimated-duration>
+    <dependencies>
+      <dependency>Monitoring Module (Phase 10 - Complete)</dependency>
+      <dependency>Inventory Module (Phase 9 - Complete)</dependency>
+      <dependency>RBAC System (Active)</dependency>
+      <dependency>Jurisdiction System (Active)</dependency>
+    </dependencies>
+  </metadata>
+
+  <pre-integration-analysis>
+    <step id="1.1" checkpoint="true">
+      <action>Analyze RecipePrototype Components</action>
+      <location>/Prototypes/RecipePrototype/</location>
+      <tasks>
+        <task>Document all React components in src/components/</task>
+        <task>Map Material-UI components to shadcn/ui equivalents</task>
+        <task>Identify reusable business logic and validations</task>
+        <task>Extract mock data structure from src/data/</task>
+      </tasks>
+      <documentation>
+        <create>/docs/roadmap/integration-deployment/recipe-component-mapping.md</create>
+        <content>
+          - Component inventory with shadcn/ui mappings
+          - Business logic to preserve
+          - Data structures to implement
+          - Components to discard/replace
+        </content>
+      </documentation>
+      <validation>
+        <check>All prototype components documented</check>
+        <check>Mapping to existing UI components complete</check>
+      </validation>
+    </step>
+
+    <step id="1.2">
+      <action>Review Environmental Control Requirements</action>
+      <location>/Prototypes/MonitoringAndTelemeteryPrototype/</location>
+      <tasks>
+        <task>Identify control points in monitoring module</task>
+        <task>Document control override requirements</task>
+        <task>Map RBAC permissions needed</task>
+      </tasks>
+      <documentation>
+        <update>/docs/roadmap/planning-progress/feature-roadmap.md</update>
+        <content>Mark Recipe Management as "In Progress"</content>
+      </documentation>
+    </step>
+  </pre-integration-analysis>
+
+  <database-setup>
+    <step id="2.1" checkpoint="true">
+      <action>Create Recipe Schema</action>
+      <location>/lib/supabase/schema.sql</location>
+      <tasks>
+        <task>Create recipes table with versioning</task>
+        <task>Create recipe_stages table</task>
+        <task>Create environmental_setpoints table</task>
+        <task>Create nutrient_formulas table</task>
+        <task>Create recipe_activations table</task>
+        <task>Create control_overrides table</task>
+        <task>Create control_logs table</task>
+      </tasks>
+      <mcp-action>
+        <server>supabase-us</server>
+        <command>Execute SQL schema updates</command>
+        <replicate-to>supabase-canada</replicate-to>
+      </mcp-action>
+      <validation>
+        <check>Tables created in both US and Canada regions</check>
+        <check>RLS policies applied</check>
+        <check>Foreign keys properly configured</check>
+      </validation>
+    </step>
+
+    <step id="2.2">
+      <action>Create Database Functions</action>
+      <location>/lib/supabase/functions/</location>
+      <tasks>
+        <task>Create activate_recipe() function</task>
+        <task>Create deactivate_recipe() function</task>
+        <task>Create log_control_override() function</task>
+        <task>Create get_active_recipe_for_batch() function</task>
+      </tasks>
+      <mcp-action>
+        <server>supabase-us</server>
+        <command>Create database functions</command>
+        <replicate-to>supabase-canada</replicate-to>
+      </mcp-action>
+    </step>
+
+    <step id="2.3">
+      <action>Seed Development Data</action>
+      <location>/lib/supabase/seed.sql</location>
+      <tasks>
+        <task>Add sample recipes for Cannabis (Oregon/Maryland)</task>
+        <task>Add sample recipes for Produce (PrimusGFS)</task>
+        <task>Add recipe stages with environmental setpoints</task>
+        <task>Use mock data from RecipePrototype as reference</task>
+      </tasks>
+      <command>npm run seed:dev</command>
+      <validation>
+        <check>At least 3 recipes per jurisdiction type</check>
+        <check>All stages have complete setpoints</check>
+      </validation>
+    </step>
+  </database-setup>
+
+  <backend-implementation>
+    <step id="3.1" checkpoint="true">
+      <action>Create Recipe Query Functions</action>
+      <location>/lib/supabase/queries/recipes.ts</location>
+      <tasks>
+        <task>Implement getRecipes(siteId, filters)</task>
+        <task>Implement getRecipeById(id)</task>
+        <task>Implement createRecipe(data)</task>
+        <task>Implement updateRecipe(id, data)</task>
+        <task>Implement deleteRecipe(id)</task>
+        <task>Implement activateRecipe(recipeId, batchId)</task>
+        <task>Implement getActiveRecipeForBatch(batchId)</task>
+      </tasks>
+      <testing>
+        <create>/lib/supabase/queries/__tests__/recipes.test.ts</create>
+        <coverage>95%+</coverage>
+      </testing>
+    </step>
+
+    <step id="3.2">
+      <action>Create Environmental Control Functions</action>
+      <location>/lib/supabase/queries/environmental-controls.ts</location>
+      <tasks>
+        <task>Implement getControlStatus(siteId)</task>
+        <task>Implement overrideControl(controlType, value, userId)</task>
+        <task>Implement getControlHistory(siteId, timeRange)</task>
+        <task>Implement clearOverride(controlId)</task>
+      </tasks>
+      <testing>
+        <create>/lib/supabase/queries/__tests__/environmental-controls.test.ts</create>
+      </testing>
+    </step>
+
+    <step id="3.3">
+      <action>Create TagoIO Utility Functions</action>
+      <location>/lib/utils/tagio-controls.ts</location>
+      <tasks>
+        <task>Create sendControlCommand() - console.log only</task>
+        <task>Create getDeviceStatus() - mock response</task>
+        <task>Add TODO comments for actual implementation</task>
+        <task>Document TagoIO integration requirements</task>
+      </tasks>
+      <note>DO NOT send actual commands to TagoIO - console.log only</note>
+    </step>
+
+    <step id="3.4">
+      <action>Update RBAC Permissions</action>
+      <location>/lib/rbac/permissions.ts</location>
+      <tasks>
+        <task>Add recipes:view, recipes:create, recipes:edit, recipes:delete</task>
+        <task>Add controls:view, controls:override, controls:emergency</task>
+        <task>Update role permissions mapping</task>
+      </tasks>
+      <validation>
+        <check>Permissions added to appropriate roles</check>
+        <check>canPerformAction() works with new permissions</check>
+      </validation>
+    </step>
+  </backend-implementation>
+
+  <frontend-integration>
+    <step id="4.1" checkpoint="true">
+      <action>Adapt Recipe List Component</action>
+      <source>/Prototypes/RecipePrototype/src/components/RecipeList.tsx</source>
+      <target>/components/features/recipes/recipe-list.tsx</target>
+      <tasks>
+        <task>Convert Material-UI to shadcn/ui components</task>
+        <task>Add usePermissions() for RBAC</task>
+        <task>Add useJurisdiction() for compliance</task>
+        <task>Connect to Supabase queries instead of mock data</task>
+        <task>Implement loading and error states</task>
+      </tasks>
+      <validation>
+        <check>Component renders with real data</check>
+        <check>RBAC permissions enforced</check>
+        <check>Jurisdiction-specific recipes shown</check>
+      </validation>
+    </step>
+
+    <step id="4.2">
+      <action>Adapt Recipe Form Component</action>
+      <source>/Prototypes/RecipePrototype/src/components/RecipeForm.tsx</source>
+      <target>/components/features/recipes/recipe-form.tsx</target>
+      <tasks>
+        <task>Use shadcn/ui Form components</task>
+        <task>Implement react-hook-form with zod validation</task>
+        <task>Add stage management interface</task>
+        <task>Add environmental setpoint configuration</task>
+        <task>Add nutrient formula management</task>
+      </tasks>
+    </step>
+
+    <step id="4.3">
+      <action>Create Recipe Dashboard Page</action>
+      <location>/app/dashboard/recipes/page.tsx</location>
+      <tasks>
+        <task>Create server component with RBAC check</task>
+        <task>Fetch user permissions and site data</task>
+        <task>Render RecipeList with proper props</task>
+        <task>Add navigation to monitoring dashboard</task>
+      </tasks>
+      <pattern>Follow /app/dashboard/inventory/page.tsx pattern</pattern>
+    </step>
+
+    <step id="4.4">
+      <action>Create Recipe Detail Pages</action>
+      <location>/app/dashboard/recipes/[id]/</location>
+      <tasks>
+        <task>Create page.tsx for recipe details</task>
+        <task>Create edit/page.tsx for recipe editing</task>
+        <task>Add activation workflow UI</task>
+      </tasks>
+    </step>
+
+    <step id="4.5" checkpoint="true">
+      <action>Enhance Monitoring Dashboard</action>
+      <location>/app/dashboard/monitoring/</location>
+      <tasks>
+        <task>Add environmental control panel component</task>
+        <task>Display recipe target values alongside actual</task>
+        <task>Add control override buttons with RBAC</task>
+        <task>Show control status indicators</task>
+        <task>Add control history drawer</task>
+      </tasks>
+      <components>
+        <create>/components/features/monitoring/control-panel.tsx</create>
+        <create>/components/features/monitoring/control-override-dialog.tsx</create>
+        <update>/components/features/monitoring/monitoring-dashboard.tsx</update>
+      </components>
+    </step>
+
+    <step id="4.6">
+      <action>Update Monitoring Alarms</action>
+      <location>/components/features/monitoring/</location>
+      <tasks>
+        <task>Fetch active recipe thresholds</task>
+        <task>Compare sensor values to recipe setpoints</task>
+        <task>Generate alerts when out of range</task>
+        <task>Display recipe adherence metrics</task>
+      </tasks>
+    </step>
+
+    <step id="4.7">
+      <action>Add Navigation Items</action>
+      <location>/components/layout/sidebar.tsx</location>
+      <tasks>
+        <task>Add Recipes menu item with icon</task>
+        <task>Add permission check for visibility</task>
+        <task>Update navigation structure</task>
+      </tasks>
+    </step>
+  </frontend-integration>
+
+  <testing-phase>
+    <step id="5.1" checkpoint="true">
+      <action>Unit Testing</action>
+      <tasks>
+        <task>Test all recipe query functions</task>
+        <task>Test environmental control functions</task>
+        <task>Test RBAC permissions for recipes and controls</task>
+        <task>Test jurisdiction-specific logic</task>
+      </tasks>
+      <command>npm test -- --coverage</command>
+      <validation>
+        <check>Maintain 94.8%+ pass rate</check>
+        <check>All new code has tests</check>
+      </validation>
+    </step>
+
+    <step id="5.2">
+      <action>Integration Testing</action>
+      <tasks>
+        <task>Test recipe activation workflow</task>
+        <task>Test control override logging</task>
+        <task>Test monitoring integration</task>
+        <task>Test multi-region data sync</task>
+      </tasks>
+      <documentation>
+        <create>/docs/testing/recipe-integration-tests.md</create>
+      </documentation>
+    </step>
+
+    <step id="5.3">
+      <action>E2E Testing Scenarios</action>
+      <dev-mode>NEXT_PUBLIC_DEV_MODE=true</dev-mode>
+      <scenarios>
+        <scenario>Create recipe → Activate on batch → Monitor adherence</scenario>
+        <scenario>Override control → Check logs → Clear override</scenario>
+        <scenario>Change recipe → Update thresholds → Verify alarms</scenario>
+      </scenarios>
+    </step>
+  </testing-phase>
+
+  <documentation-phase>
+    <step id="6.1" checkpoint="true">
+      <action>Update Feature Documentation</action>
+      <tasks>
+        <task>Create /docs/current/feature-recipes.md</task>
+        <task>Create /docs/current/feature-environmental-controls.md</task>
+        <task>Update /docs/current/index.md with new features</task>
+        <task>Update /docs/roadmap/planning-progress/feature-roadmap.md</task>
+      </tasks>
+      <content>
+        - Feature overview and capabilities
+        - User workflows and permissions
+        - API documentation
+        - Database schema
+        - Integration points
+      </content>
+    </step>
+
+    <step id="6.2">
+      <action>Create User Guides</action>
+      <location>/docs/guides/</location>
+      <tasks>
+        <task>Recipe creation guide</task>
+        <task>Environmental control guide</task>
+        <task>Troubleshooting guide</task>
+      </tasks>
+    </step>
+
+    <step id="6.3">
+      <action>Update Integration Checklist</action>
+      <location>/docs/roadmap/integration-deployment/integration-checklist.md</location>
+      <tasks>
+        <task>Mark Recipe Management as complete</task>
+        <task>Document lessons learned</task>
+        <task>Update next steps for Phase 12</task>
+      </tasks>
+    </step>
+  </documentation-phase>
+
+  <deployment-preparation>
+    <step id="7.1" checkpoint="true">
+      <action>Build Verification</action>
+      <commands>
+        <command>npm run build</command>
+        <command>npm run lint</command>
+        <command>npm test</command>
+      </commands>
+      <validation>
+        <check>No build errors</check>
+        <check>No lint errors</check>
+        <check>All tests pass</check>
+      </validation>
+    </step>
+
+    <step id="7.2">
+      <action>Staging Deployment</action>
+      <mcp-action>
+        <server>vercel</server>
+        <command>Deploy to staging environment</command>
+      </mcp-action>
+      <tasks>
+        <task>Deploy to Vercel staging</task>
+        <task>Verify both US and Canada regions work</task>
+        <task>Test with real user accounts</task>
+      </tasks>
+    </step>
+
+    <step id="7.3">
+      <action>Final Validation</action>
+      <checklist>
+        <item>All RecipePrototype features integrated</item>
+        <item>Environmental controls functional (console only)</item>
+        <item>Monitoring integration complete</item>
+        <item>RBAC permissions enforced</item>
+        <item>Jurisdiction compliance verified</item>
+        <item>Documentation complete</item>
+        <item>Tests maintain 94.8%+ pass rate</item>
+      </checklist>
+    </step>
+  </deployment-preparation>
+
+  <progress-tracking>
+    <checkpoints>
+      <checkpoint id="1.1" name="Analysis Complete" />
+      <checkpoint id="2.1" name="Database Ready" />
+      <checkpoint id="3.1" name="Backend Complete" />
+      <checkpoint id="4.1" name="Frontend Started" />
+      <checkpoint id="4.5" name="Integration Complete" />
+      <checkpoint id="5.1" name="Testing Complete" />
+      <checkpoint id="6.1" name="Documentation Complete" />
+      <checkpoint id="7.1" name="Ready for Production" />
+    </checkpoints>
+    
+    <documentation-trail>
+      <doc>/docs/roadmap/integration-deployment/recipe-component-mapping.md</doc>
+      <doc>/docs/roadmap/planning-progress/feature-roadmap.md</doc>
+      <doc>/docs/current/feature-recipes.md</doc>
+      <doc>/docs/current/feature-environmental-controls.md</doc>
+      <doc>/docs/testing/recipe-integration-tests.md</doc>
+    </documentation-trail>
+
+    <validation-gates>
+      <gate after="2.1">Database schema verified in both regions</gate>
+      <gate after="3.1">All backend functions tested</gate>
+      <gate after="4.5">UI components integrated and functional</gate>
+      <gate after="5.1">Test coverage maintained above 94.8%</gate>
+      <gate after="7.1">Build successful, ready for deployment</gate>
+    </validation-gates>
+  </progress-tracking>
+
+  <agent-instructions>
+    <note>Always check existing documentation before starting each step</note>
+    <note>Use MCP servers to verify database changes in both regions</note>
+    <note>Reference AGENT_INSTRUCTIONS.md for detailed patterns</note>
+    <note>DO NOT send actual commands to TagoIO - console.log only</note>
+    <note>Update documentation after each checkpoint</note>
+    <note>Ask for clarification if any assumption needs validation</note>
+    <note>Maintain existing code patterns and quality standards</note>
+  </agent-instructions>
+</integration-plan>

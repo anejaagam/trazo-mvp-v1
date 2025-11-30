@@ -1,0 +1,450 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { MoreVertical, Eye, Edit, Trash2, Beaker, Leaf, ChefHat, Building2, Layers } from 'lucide-react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Checkbox } from '@/components/ui/checkbox'
+import { usePermissions } from '@/hooks/use-permissions'
+import type { RoleKey } from '@/lib/rbac/types'
+import { BatchModal } from './batch-modal'
+import { BatchDetailDialog } from './batch-detail-dialog'
+import { DeleteBatchDialog } from './delete-batch-dialog'
+import type { BatchListItem } from '@/lib/supabase/queries/batches-client'
+import { deleteBatchAction } from '@/app/actions/batches'
+import type { JurisdictionId, PlantType } from '@/lib/jurisdiction/types'
+import { useToast } from '@/components/ui/use-toast'
+
+interface BatchTableProps {
+  batches: BatchListItem[]
+  loading: boolean
+  onRefresh: () => void
+  userId: string
+  userRole: string
+  jurisdictionId?: JurisdictionId | null
+  plantType: PlantType
+  selectedBatchIds?: Set<string>
+  onSelectionChange?: (selected: Set<string>) => void
+  showSiteColumn?: boolean
+  siteNames?: Record<string, string>
+}
+
+export function BatchTable({
+  batches,
+  loading,
+  onRefresh,
+  userId,
+  userRole,
+  jurisdictionId,
+  plantType,
+  selectedBatchIds: externalSelectedIds,
+  onSelectionChange,
+  showSiteColumn = false,
+  siteNames = {},
+}: BatchTableProps) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const { can } = usePermissions(userRole as RoleKey, [])
+  const [internalSelectedRows, setInternalSelectedRows] = useState<Record<string, boolean>>({})
+  
+  // Use external selection if provided, otherwise internal
+  const selectedRows = externalSelectedIds 
+    ? Object.fromEntries(Array.from(externalSelectedIds).map(id => [id, true]))
+    : internalSelectedRows
+  const [selectedBatch, setSelectedBatch] = useState<BatchListItem | null>(null)
+  const [showDetailDialog, setShowDetailDialog] = useState(false)
+  const [editingBatch, setEditingBatch] = useState<BatchListItem | null>(null)
+  const [deletingBatch, setDeletingBatch] = useState<BatchListItem | null>(null)
+
+  const allSelected = useMemo(() => {
+    if (!batches.length) return false
+    return batches.every((batch) => selectedRows[batch.id])
+  }, [batches, selectedRows])
+
+  const toggleAll = (checked: boolean) => {
+    if (onSelectionChange) {
+      onSelectionChange(checked ? new Set(batches.map(b => b.id)) : new Set())
+    } else {
+      if (!checked) {
+        setInternalSelectedRows({})
+        return
+      }
+      const next: Record<string, boolean> = {}
+      batches.forEach((batch) => {
+        next[batch.id] = true
+      })
+      setInternalSelectedRows(next)
+    }
+  }
+
+  const handleRowSelection = (batchId: string, checked: boolean) => {
+    if (onSelectionChange && externalSelectedIds) {
+      const newSet = new Set(externalSelectedIds)
+      if (checked) {
+        newSet.add(batchId)
+      } else {
+        newSet.delete(batchId)
+      }
+      onSelectionChange(newSet)
+    } else {
+      setInternalSelectedRows((prev) => {
+        const next = { ...prev }
+        if (checked) {
+          next[batchId] = true
+        } else {
+          delete next[batchId]
+        }
+        return next
+      })
+    }
+  }
+
+  const handleDeleteBatch = async (reason: string, createWasteLog?: boolean) => {
+    if (!deletingBatch) return
+
+    try {
+      const result = await deleteBatchAction({
+        batchId: deletingBatch.id,
+        reason,
+        createWasteLog,
+      })
+
+      if (!result.success) {
+        toast({
+          title: 'Deletion Failed',
+          description: result.error || 'Unable to delete batch',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      toast({
+        title: 'Batch Deleted',
+        description: `Batch ${deletingBatch.batch_number} has been marked as destroyed${result.wasteLogId ? ' and waste log created' : ''}`,
+      })
+      
+      setDeletingBatch(null)
+      onRefresh()
+    } catch (error) {
+      console.error('Failed to delete batch:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  if (!loading && batches.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed p-8 text-center">
+        <p className="text-sm text-muted-foreground">No batches found. Use the Create Batch button to get started.</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={(checked) => toggleAll(Boolean(checked))}
+                  aria-label="Select all"
+                />
+              </TableHead>
+              <TableHead>Batch</TableHead>
+              {showSiteColumn && <TableHead>Site</TableHead>}
+              <TableHead>Stage</TableHead>
+              <TableHead>Key Metric</TableHead>
+              <TableHead>Pods</TableHead>
+              <TableHead>Recipe</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={showSiteColumn ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">
+                  Loading batches…
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading &&
+              batches.map((batch) => {
+                const activeAssignments = (batch.pod_assignments || []).filter((assignment) => !assignment.removed_at)
+                const cultivarLabel = batch.cultivar?.name || batch.cultivar_id || 'Unknown cultivar'
+                const keyMetric = getKeyMetric(batch)
+                // Calculate total plant count from assignments, or fall back to batch.plant_count
+                const assignmentTotal = activeAssignments.reduce((sum, assignment) => sum + (assignment.plant_count || 0), 0)
+                const totalPlants = assignmentTotal > 0 ? assignmentTotal : (batch.plant_count || 0)
+                const isDestroyed = batch.status === 'destroyed'
+                return (
+                  <TableRow 
+                    key={batch.id} 
+                    className={`${isDestroyed ? 'opacity-50 bg-muted/20' : 'hover:bg-muted/50 cursor-pointer'}`}
+                    onClick={isDestroyed ? undefined : () => {
+                      router.push(`/dashboard/batches/${batch.id}`)
+                    }}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={Boolean(selectedRows[batch.id])}
+                        onCheckedChange={(checked) => handleRowSelection(batch.id, Boolean(checked))}
+                        aria-label={`Select batch ${batch.batch_number}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{batch.batch_number}</span>
+                        <span className="text-xs text-muted-foreground">{cultivarLabel}</span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <Badge variant="outline" className="gap-1">
+                            {batch.domain_type === 'cannabis' ? <Leaf className="h-3 w-3" /> : <ChefHat className="h-3 w-3" />}
+                            {batch.domain_type === 'cannabis' ? 'Cannabis' : 'Produce'}
+                          </Badge>
+                          {totalPlants > 0 && (
+                            <Badge variant="secondary">{totalPlants.toLocaleString()} units</Badge>
+                          )}
+                          {/* Tracking mode badge for cannabis batches */}
+                          {batch.domain_type === 'cannabis' && totalPlants > 0 && (
+                            (batch as any).tracking_mode === 'open_loop' ? (
+                              // Open loop: batch-level tracking, show batch tag if assigned
+                              <Badge variant="secondary" className="gap-1 text-xs border-blue-200 bg-blue-50 text-blue-700">
+                                <Layers className="h-3 w-3" />
+                                {(batch as any).batch_tag_label
+                                  ? `Tag: ...${(batch as any).batch_tag_label.slice(-8)}`
+                                  : 'Open Loop'
+                                }
+                              </Badge>
+                            ) : (
+                              // Closed loop or undefined: show individual tag progress
+                              <Badge
+                                variant={
+                                  !batch.metrc_plant_labels || batch.metrc_plant_labels.length === 0
+                                    ? 'destructive'
+                                    : batch.metrc_plant_labels.length < totalPlants
+                                    ? 'outline'
+                                    : 'default'
+                                }
+                                className="gap-1 text-xs"
+                              >
+                                {batch.metrc_plant_labels?.length || 0}/{totalPlants} tagged
+                              </Badge>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    {showSiteColumn && (
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-sm">
+                            {siteNames[batch.site_id] || batch.site_id.slice(0, 8)}
+                          </span>
+                        </div>
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <Badge variant={getStageVariant(batch.stage)}>{batch.stage.replace('_', ' ')}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-sm font-medium">{keyMetric.label}</p>
+                      <p className="text-xs text-muted-foreground">{keyMetric.value || '—'}</p>
+                    </TableCell>
+                    <TableCell>
+                      {activeAssignments.length === 0 && <span className="text-xs text-muted-foreground">Unassigned</span>}
+                      {activeAssignments.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {activeAssignments.slice(0, 2).map((assignment) => (
+                            <Badge key={assignment.id} variant="outline">
+                              {assignment.pod?.name || 'Pod'}
+                              {assignment.plant_count ? ` · ${assignment.plant_count}` : ''}
+                            </Badge>
+                          ))}
+                          {activeAssignments.length > 2 && (
+                            <Badge variant="secondary">+{activeAssignments.length - 2}</Badge>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {batch.active_recipe ? (
+                        <Badge variant="secondary" className="gap-1">
+                          <Beaker className="h-3 w-3" />
+                          {batch.active_recipe.name}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">None</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {batch.status === 'quarantined' ? (
+                        <Badge variant="destructive">Quarantined</Badge>
+                      ) : batch.status === 'destroyed' ? (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive">Destroyed</Badge>
+                      ) : (
+                        <Badge variant="outline">{batch.status}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      {isDestroyed ? (
+                        <Badge variant="outline" className="text-xs">Archived</Badge>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                router.push(`/dashboard/batches/${batch.id}`)
+                              }}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            {can('batch:update') && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setEditingBatch(batch)
+                                }}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {can('batch:delete') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeletingBatch(batch)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {editingBatch && (
+        <BatchModal
+          isOpen={Boolean(editingBatch)}
+          onClose={() => setEditingBatch(null)}
+          onSuccess={() => {
+            setEditingBatch(null)
+            onRefresh()
+          }}
+          siteId={editingBatch.site_id}
+          organizationId={editingBatch.organization_id}
+          userId={userId}
+          batch={editingBatch}
+          jurisdictionId={jurisdictionId}
+          plantType={plantType}
+        />
+      )}
+
+      {showDetailDialog && selectedBatch && (
+        <BatchDetailDialog
+          batch={selectedBatch}
+          isOpen={showDetailDialog}
+          onClose={() => {
+            setShowDetailDialog(false)
+            setSelectedBatch(null)
+          }}
+          onRefresh={onRefresh}
+          userId={userId}
+          userRole={userRole as RoleKey}
+          jurisdictionId={jurisdictionId}
+          plantType={plantType}
+        />
+      )}
+
+      {deletingBatch && (
+        <DeleteBatchDialog
+          batch={deletingBatch}
+          isOpen={Boolean(deletingBatch)}
+          onClose={() => setDeletingBatch(null)}
+          onConfirm={handleDeleteBatch}
+          jurisdictionId={jurisdictionId}
+        />
+      )}
+    </>
+  )
+}
+
+function getStageVariant(stage: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  const map: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    vegetative: 'secondary',
+    flowering: 'outline',
+    harvest: 'default',
+    harvest_ready: 'secondary',
+    harvesting: 'outline',
+    drying: 'secondary',
+    curing: 'outline',
+    packaging: 'secondary',
+    completed: 'default',
+    quarantined: 'destructive',
+  }
+  return map[stage] || 'default'
+}
+
+function getKeyMetric(batch: BatchListItem): { label: string; value?: string | number | null } {
+  if (batch.domain_type === 'cannabis') {
+    if (batch.thc_content) {
+      return { label: 'THC %', value: `${batch.thc_content}%` }
+    }
+    if (batch.lighting_schedule) {
+      return { label: 'Lighting', value: batch.lighting_schedule }
+    }
+    return { label: 'Cannabis metric', value: 'N/A' }
+  }
+
+  if (batch.domain_type === 'produce') {
+    if (batch.grade) {
+      return { label: 'Grade', value: batch.grade }
+    }
+    if (batch.brix_level) {
+      return { label: 'Brix', value: `${batch.brix_level}°` }
+    }
+    return { label: 'Produce metric', value: 'N/A' }
+  }
+
+  return { label: 'Metric', value: '—' }
+}

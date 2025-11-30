@@ -234,7 +234,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent disableOutsideClose disableEscapeClose>
+      <DialogContent disableOutsideClose>
         <DialogHeader>
           <DialogTitle>
             <div className="flex items-center gap-2">

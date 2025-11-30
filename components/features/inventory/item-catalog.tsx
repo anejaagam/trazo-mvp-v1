@@ -57,11 +57,14 @@ import {
   ArrowUpDown,
   Plus,
   Trash2,
+  Building2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { RoleKey } from '@/lib/rbac/types'
 import type { InventoryItemWithStock, ItemType } from '@/types/inventory'
 import { isDevModeActive } from '@/lib/dev-mode'
+import { isAllSitesMode, ALL_SITES_ID } from '@/lib/site/types'
+import { AlertTitle } from '@/components/ui/alert'
 
 interface ItemCatalogProps {
   organizationId: string
@@ -94,6 +97,7 @@ export function ItemCatalog({
   onBatchDelete,
 }: ItemCatalogProps) {
   const { can } = usePermissions(userRole as RoleKey)
+  const isAggregateView = isAllSitesMode(siteId)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<InventoryItemWithStock[]>([])
@@ -112,6 +116,7 @@ export function ItemCatalog({
   
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+  const [siteNames, setSiteNames] = useState<Record<string, string>>({})
 
   // Load items from database (only when backend filters change)
   useEffect(() => {
@@ -137,9 +142,15 @@ export function ItemCatalog({
         let query = supabase
           .from('inventory_items')
           .select('*')
-          .eq('site_id', siteId)
           .eq('is_active', isActive)
           .order('name', { ascending: true })
+
+        // Apply site filter - aggregate view queries by organization
+        if (isAggregateView) {
+          query = query.eq('organization_id', organizationId)
+        } else {
+          query = query.eq('site_id', siteId)
+        }
 
         // Apply item type filter
         if (itemType !== 'all') {
@@ -150,6 +161,25 @@ export function ItemCatalog({
 
         if (queryError) throw queryError
         setItems(data || [])
+
+        // Fetch site names when in aggregate view
+        if (isAggregateView && data && data.length > 0) {
+          const uniqueSiteIds = [...new Set(data.map((item: any) => item.site_id).filter(Boolean))]
+          if (uniqueSiteIds.length > 0) {
+            const { data: sitesData } = await supabase
+              .from('sites')
+              .select('id, name')
+              .in('id', uniqueSiteIds)
+
+            if (sitesData) {
+              const names: Record<string, string> = {}
+              sitesData.forEach((site) => {
+                names[site.id] = site.name
+              })
+              setSiteNames(names)
+            }
+          }
+        }
       } catch (err) {
         console.error('Error loading items:', err)
         setError('Failed to load inventory items')
@@ -160,7 +190,7 @@ export function ItemCatalog({
 
     loadItems()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, siteId, isActive, itemType])
+  }, [organizationId, siteId, isActive, itemType, isAggregateView])
 
   // Apply client-side filters and sorting
   useEffect(() => {
@@ -312,23 +342,35 @@ export function ItemCatalog({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Inventory Catalog</CardTitle>
-            <CardDescription>
-              Browse and manage all inventory items
-            </CardDescription>
+    <div className="space-y-4">
+      {/* All Sites Banner */}
+      {isAggregateView && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <Building2 className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900">Viewing All Sites</AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Showing inventory items from all sites in your organization. Select a specific site to add or modify items.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Inventory Catalog</CardTitle>
+              <CardDescription>
+                Browse and manage all inventory items
+              </CardDescription>
+            </div>
+            {can('inventory:create') && onCreateItem && !isAggregateView && (
+              <Button onClick={onCreateItem}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </Button>
+            )}
           </div>
-          {can('inventory:create') && onCreateItem && (
-            <Button onClick={onCreateItem}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent>
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -387,6 +429,7 @@ export function ItemCatalog({
           <Button
             variant={isActive ? 'default' : 'outline'}
             onClick={() => setIsActive(!isActive)}
+            className={!isActive ? 'border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800' : ''}
           >
             <Filter className="h-4 w-4 mr-2" />
             {isActive ? 'Active' : 'All Items'}
@@ -486,6 +529,9 @@ export function ItemCatalog({
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
+                  {isAggregateView && (
+                    <TableHead className="w-[140px] text-left">Site</TableHead>
+                  )}
                   <TableHead className="w-[120px] text-center">
                     <Button
                       variant="ghost"
@@ -562,7 +608,7 @@ export function ItemCatalog({
                           aria-label={`Select ${item.name}`}
                         />
                       </TableCell>
-                      <TableCell 
+                      <TableCell
                         className="font-medium w-[250px] text-left"
                       >
                         <div>
@@ -576,6 +622,16 @@ export function ItemCatalog({
                           )}
                         </div>
                       </TableCell>
+                      {isAggregateView && (
+                        <TableCell className="w-[140px] text-left">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm">
+                              {siteNames[(item as any).site_id] || (item as any).site_id?.slice(0, 8)}
+                            </span>
+                          </div>
+                        </TableCell>
+                      )}
                       <TableCell className="w-[120px] text-center">
                         {item.sku ? (
                           <code className="text-xs bg-muted px-2 py-1 rounded">
@@ -690,6 +746,7 @@ export function ItemCatalog({
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   )
 }

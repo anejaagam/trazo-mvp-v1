@@ -16,7 +16,7 @@ import {
   type PodWithSiteInfo 
 } from '@/lib/supabase/queries/pods'
 import { validateTagoIOCredentials } from '@/lib/supabase/queries/integration-settings'
-import { getOrCreateDefaultRoom } from '@/lib/supabase/queries/default-room'
+import { initializeEquipmentControls } from '@/lib/supabase/queries/equipment-controls'
 
 // ============================================================================
 // Response Types
@@ -58,12 +58,16 @@ async function validateUserPermissions(): Promise<{
       .single()
     
     if (userError || !userData?.organization_id || !userData?.role) {
+      console.error('validateUserPermissions: Missing organization or role', { userError, organizationId: userData?.organization_id, role: userData?.role })
       return null
     }
     
     // Check permissions (org:integrations or user:create for admin roles)
-    if (!canPerformAction(userData.role, 'org:integrations') && 
-        !canPerformAction(userData.role, 'user:create')) {
+    const hasOrgIntegrations = canPerformAction(userData.role, 'org:integrations')
+    const hasUserCreate = canPerformAction(userData.role, 'user:create')
+    
+    if (!hasOrgIntegrations.allowed && !hasUserCreate.allowed) {
+      console.error('validateUserPermissions: Insufficient permissions', { role: userData.role, hasOrgIntegrations, hasUserCreate })
       return null
     }
     
@@ -81,6 +85,92 @@ async function validateUserPermissions(): Promise<{
 // ============================================================================
 // Server Actions
 // ============================================================================
+
+/**
+ * Get all active rooms for the current user's organization
+ */
+export async function getOrganizationRooms(): Promise<ActionResponse<Array<{
+  id: string
+  name: string
+  site_id: string
+  site_name: string
+  room_type: string
+  capacity_pods?: number
+  pod_count?: number
+}>>> {
+  try {
+    const userAuth = await validateUserPermissions()
+    if (!userAuth) {
+      console.error('getOrganizationRooms: User validation failed')
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    console.log('getOrganizationRooms: Fetching rooms for org:', userAuth.organizationId)
+
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .select(`
+        id,
+        name,
+        site_id,
+        room_type,
+        capacity_pods,
+        sites!inner (
+          id,
+          name,
+          organization_id
+        )
+      `)
+      .eq('sites.organization_id', userAuth.organizationId)
+      .eq('is_active', true)
+      .order('name', { ascending: true })
+
+    if (error) {
+      console.error('getOrganizationRooms: Query error:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log('getOrganizationRooms: Found', data?.length || 0, 'rooms')
+
+    // Get pod counts for each room
+    const { data: podCounts } = await supabase
+      .from('pods')
+      .select('room_id')
+      .eq('is_active', true)
+
+    const podCountMap = new Map<string, number>()
+    podCounts?.forEach(pod => {
+      podCountMap.set(pod.room_id, (podCountMap.get(pod.room_id) || 0) + 1)
+    })
+
+    const rooms = data?.map(room => ({
+      id: room.id,
+      name: room.name,
+      site_id: room.site_id,
+      site_name: (room.sites as unknown as { name: string }).name,
+      room_type: room.room_type,
+      capacity_pods: room.capacity_pods,
+      pod_count: podCountMap.get(room.id) || 0,
+    })) || []
+
+    // Sort by site name first, then room name (client-side since Supabase can't order by joined columns)
+    rooms.sort((a, b) => {
+      const siteCompare = a.site_name.localeCompare(b.site_name)
+      if (siteCompare !== 0) return siteCompare
+      return a.name.localeCompare(b.name)
+    })
+
+    return { success: true, data: rooms }
+  } catch (error) {
+    console.error('Error in getOrganizationRooms:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch rooms',
+    }
+  }
+}
 
 /**
  * Get all pods for the current user's organization
@@ -271,11 +361,12 @@ export async function validateDeviceToken(
 
 /**
  * Create a new pod with device token
- * Automatically assigns to default room/site
+ * Requires roomId - user must select a room before creating pod
  */
 export async function createPodWithToken(
   podName: string,
-  deviceToken: string
+  deviceToken: string,
+  roomId: string
 ): Promise<ActionResponse<{ podId: string; podName: string }>> {
   try {
     const userAuth = await validateUserPermissions()
@@ -291,40 +382,23 @@ export async function createPodWithToken(
       return { success: false, error: validation.error || 'Invalid device token' }
     }
 
-    // Get or create default site for the organization
-    const { data: siteData } = await supabase
-      .from('sites')
-      .select('id')
-      .eq('organization_id', userAuth.organizationId)
-      .limit(1)
+    // Validate room exists and belongs to user's organization
+    const { data: roomData, error: roomError } = await supabase
+      .from('rooms')
+      .select('id, site_id, sites!inner(organization_id)')
+      .eq('id', roomId)
+      .eq('is_active', true)
       .single()
 
-    let siteId: string
-
-    if (!siteData) {
-      // Create default site if none exists
-      const { data: newSite, error: siteError } = await supabase
-        .from('sites')
-        .insert({
-          organization_id: userAuth.organizationId,
-          name: 'Main Facility',
-          site_type: 'indoor',
-          is_active: true,
-        })
-        .select('id')
-        .single()
-
-      if (siteError || !newSite) {
-        return { success: false, error: 'Failed to create default site' }
-      }
-      
-      siteId = newSite.id
-    } else {
-      siteId = siteData.id
+    if (roomError || !roomData) {
+      return { success: false, error: 'Invalid room selection' }
     }
 
-    // Get or create default room
-    const roomId = await getOrCreateDefaultRoom(siteId)
+    const roomOrganizationId = (roomData.sites as unknown as { organization_id: string }).organization_id
+
+    if (roomOrganizationId !== userAuth.organizationId) {
+      return { success: false, error: 'Room does not belong to your organization' }
+    }
 
     // Create the pod
     const { data: newPod, error: podError } = await supabase
@@ -341,6 +415,13 @@ export async function createPodWithToken(
 
     if (podError || !newPod) {
       return { success: false, error: 'Failed to create pod' }
+    }
+
+    // Initialize equipment controls automatically
+    const equipmentResult = await initializeEquipmentControls(newPod.id)
+    if (equipmentResult.error) {
+      console.error('Warning: Failed to initialize equipment controls:', equipmentResult.error)
+      // Don't fail pod creation if equipment init fails, just log it
     }
 
     return {

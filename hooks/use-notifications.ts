@@ -21,12 +21,14 @@ interface NotificationDisplay {
   user_id: string;
   title: string;
   message: string;
-  category: 'alarm' | 'system' | 'export' | 'maintenance';
-  severity: 'critical' | 'warning' | 'info';
+  category: 'alarm' | 'system' | 'export' | 'maintenance' | 'task' | 'inventory' | 'batch';
+  severity?: 'critical' | 'warning' | 'info';
+  urgency?: 'high' | 'medium' | 'low';
   is_read: boolean;
   created_at: string;
   read_at: string | null;
   related_alarm_id: string | null;
+  metadata?: any;
 }
 
 // =====================================================
@@ -97,19 +99,22 @@ export function useNotifications({
       if (queryError) throw queryError;
 
       // Transform to display format
-      // NOTE: notifications table has basic fields, we'll need to enhance with alarm data later
       const displayNotifications: NotificationDisplay[] = (data || []).map(notif => ({
         id: notif.id,
         alarm_id: notif.alarm_id,
         user_id: notif.user_id,
-        title: 'Alarm Notification', // notifications table doesn't have title - extract from message or alarm
+        title: notif.category === 'task' 
+          ? (notif.message || '').split(':')[0] // Extract title from message for tasks
+          : 'Alarm Notification',
         message: notif.message || '',
-        category: 'alarm', // Default category - could be enhanced with alarm data
-        severity: 'info', // Default severity - would need to join with alarms table
-        is_read: notif.status === 'read',
+        category: notif.category || 'alarm',
+        severity: notif.severity,
+        urgency: notif.urgency,
+        is_read: notif.read_at !== null || notif.status === 'read',
         created_at: notif.sent_at,
         read_at: notif.read_at,
-        related_alarm_id: notif.alarm_id
+        related_alarm_id: notif.alarm_id,
+        metadata: notif.metadata
       }));
 
       setNotifications(displayNotifications);
@@ -210,14 +215,18 @@ export function useNotifications({
               id: String(newNotif.id || ''),
               alarm_id: newNotif.alarm_id ? String(newNotif.alarm_id) : null,
               user_id: String(newNotif.user_id || ''),
-              title: String(newNotif.title || 'Notification'),
+              title: newNotif.category === 'task'
+                ? String(newNotif.message || '').split(':')[0]
+                : String(newNotif.title || 'Notification'),
               message: String(newNotif.message || ''),
               category: (newNotif.category as NotificationDisplay['category']) || 'system',
-              severity: (newNotif.severity as NotificationDisplay['severity']) || 'info',
-              is_read: newNotif.status === 'read',
+              severity: newNotif.severity ? (newNotif.severity as NotificationDisplay['severity']) : undefined,
+              urgency: newNotif.urgency ? (newNotif.urgency as NotificationDisplay['urgency']) : undefined,
+              is_read: newNotif.read_at !== null || newNotif.status === 'read',
               created_at: String(newNotif.sent_at || ''),
               read_at: newNotif.read_at ? String(newNotif.read_at) : null,
-              related_alarm_id: newNotif.alarm_id ? String(newNotif.alarm_id) : null
+              related_alarm_id: newNotif.alarm_id ? String(newNotif.alarm_id) : null,
+              metadata: newNotif.metadata
             };
             
             setNotifications(prev => [displayNotif, ...prev]);

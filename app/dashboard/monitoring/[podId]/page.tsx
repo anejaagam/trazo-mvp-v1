@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { canPerformAction } from '@/lib/rbac/guards'
 import { isDevModeActive, DEV_MOCK_USER, logDevMode } from '@/lib/dev-mode'
 import { PodDetailDashboard } from '@/components/features/monitoring/pod-detail-dashboard'
+import type { ActiveRecipeDetails, StageType, EnvironmentalSetpoint, NutrientFormula } from '@/types/recipe'
 
 interface PodDetailPageProps {
   params: Promise<{
@@ -28,6 +29,7 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
   let podName = 'Pod'
   let roomName = 'Room'
   let deviceToken: string | null = null
+  let activeRecipe: ActiveRecipeDetails | null = null
 
   // DEV MODE: Use mock data
   if (isDevModeActive()) {
@@ -120,14 +122,150 @@ export default async function PodDetailPage({ params }: PodDetailPageProps) {
     notFound()
   }
 
+  // Fetch active recipe for this pod using service client to bypass RLS
+  console.log('🔍 Fetching active recipe for pod:', podId)
+  const { createServiceClient } = await import('@/lib/supabase/service')
+  const serviceSupabase = createServiceClient('US')
+  
+  // First check if pod is assigned to a batch with an active recipe
+  const { data: batchAssignment } = await serviceSupabase
+    .from('batch_pod_assignments')
+    .select('batch_id, batches!inner(batch_number)')
+    .eq('pod_id', podId)
+    .is('removed_at', null)
+    .limit(1)
+    .maybeSingle()
+
+  let activationData = null
+  let activationError = null
+
+  // If pod is in a batch, check for batch recipe first
+  if (batchAssignment?.batch_id) {
+    console.log('🔍 Pod is in batch, checking for batch recipe:', batchAssignment.batch_id)
+    const { data, error } = await serviceSupabase
+      .from('recipe_activations')
+      .select(`
+        *,
+        recipe:recipes(*),
+        recipe_version:recipe_versions(*)
+      `)
+      .eq('scope_type', 'batch')
+      .eq('scope_id', batchAssignment.batch_id)
+      .eq('is_active', true)
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    activationData = data
+    activationError = error
+  }
+
+  // If no batch recipe found, fall back to pod-specific recipe
+  if (!activationData && !activationError) {
+    console.log('🔍 No batch recipe found, checking for pod-specific recipe')
+    const { data, error } = await serviceSupabase
+      .from('recipe_activations')
+      .select(`
+        *,
+        recipe:recipes(*),
+        recipe_version:recipe_versions(*)
+      `)
+      .eq('scope_type', 'pod')
+      .eq('scope_id', podId)
+      .eq('is_active', true)
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    activationData = data
+    activationError = error
+  }
+  
+  if (activationError) {
+    console.error('❌ Error fetching active recipe:', activationError)
+  } else if (activationData) {
+    console.log('✅ Found active recipe:', {
+      recipeId: activationData.recipe_id,
+      recipeName: activationData.recipe?.name,
+      scopeName: activationData.scope_name
+    })
+    
+    // Fetch stages with setpoints
+    const { data: stages } = await serviceSupabase
+      .from('recipe_stages')
+      .select(`
+        *,
+        setpoints:environmental_setpoints(*),
+        nutrient_formula:nutrient_formulas(*)
+      `)
+      .eq('recipe_version_id', activationData.recipe_version_id)
+      .order('order_index', { ascending: true })
+    
+    const currentStage = stages?.find((s: { id: string }) => s.id === activationData.current_stage_id)
+    const currentSetpoints = currentStage?.setpoints || []
+    
+    activeRecipe = {
+      activation: {
+        ...activationData,
+        current_stage: currentStage ? {
+          id: currentStage.id,
+          recipe_version_id: currentStage.recipe_version_id,
+          name: currentStage.name,
+          stage_type: currentStage.stage_type,
+          order_index: currentStage.order_index,
+          duration_days: currentStage.duration_days,
+          description: currentStage.description,
+          color_code: currentStage.color_code,
+          created_at: currentStage.created_at,
+          setpoints: currentStage.setpoints || [],
+          nutrient_formula: currentStage.nutrient_formula?.[0] || null,
+        } : undefined,
+      },
+      stages: stages?.map((stage: {
+        id: string
+        recipe_version_id: string
+        name: string
+        stage_type: StageType
+        order_index: number
+        duration_days: number
+        description: string | null
+        color_code: string | null
+        created_at: string
+        setpoints: EnvironmentalSetpoint[]
+        nutrient_formula: NutrientFormula[] | null
+      }) => ({
+        id: stage.id,
+        recipe_version_id: stage.recipe_version_id,
+        name: stage.name,
+        stage_type: stage.stage_type,
+        order_index: stage.order_index,
+        duration_days: stage.duration_days,
+        description: stage.description,
+        color_code: stage.color_code,
+        created_at: stage.created_at,
+        setpoints: stage.setpoints || [],
+        nutrient_formula: stage.nutrient_formula?.[0] || null,
+      })) || [],
+      current_setpoints: currentSetpoints,
+      active_overrides: [],
+    }
+  } else {
+    console.log('ℹ️ No active recipe found for pod:', podId)
+  }
+
   return (
-    <PodDetailDashboard
-      podId={podId}
-      podName={podName}
-      roomName={roomName}
-      userRole={userRole}
-      userId={userId}
-      deviceToken={deviceToken}
-    />
+    <>
+      {/* Pod Monitoring Dashboard (includes Back to Fleet button at top) */}
+      <PodDetailDashboard
+        podId={podId}
+        podName={podName}
+        roomName={roomName}
+        userRole={userRole}
+        userId={userId}
+        deviceToken={deviceToken}
+        activeRecipe={activeRecipe}
+        isBatchManaged={activationData?.scope_type === 'batch'}
+      />
+    </>
   )
 }

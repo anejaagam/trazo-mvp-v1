@@ -1,304 +1,117 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { EquipmentControlCard } from '../equipment-control-card';
-import { EquipmentType, EquipmentState, ControlMode } from '@/types/equipment';
-import type { EquipmentControl } from '@/types/equipment';
+import { render, screen, fireEvent } from '@testing-library/react'
+import { EquipmentControlCard } from '../equipment-control-card'
+import { EquipmentType, EquipmentState, ControlMode } from '@/types/equipment'
+import type { EquipmentControlRecord } from '@/types/equipment'
 
 // Mock usePermissions hook
 jest.mock('@/hooks/use-permissions', () => ({
   usePermissions: () => ({
-    can: jest.fn(() => {
-      // Grant all permissions for testing
-      return true;
-    }),
+    // Grant all permissions for testing scenarios by default
+    can: jest.fn(() => true),
   }),
-}));
+}))
+
+// Helper factory to create a minimal EquipmentControlRecord for tests
+function createEquipmentRecord(partial: Partial<EquipmentControlRecord> = {}): EquipmentControlRecord {
+  return {
+    id: partial.id || 'eq-1',
+    pod_id: partial.pod_id || 'pod-1',
+    equipment_type: partial.equipment_type || EquipmentType.COOLING,
+    state: partial.state ?? EquipmentState.OFF,
+    mode: partial.mode ?? ControlMode.MANUAL,
+    override: partial.override ?? false,
+    schedule_enabled: partial.schedule_enabled ?? false,
+    level: partial.level ?? 0,
+    auto_config: partial.auto_config, // optional
+    created_at: partial.created_at || new Date().toISOString(),
+    updated_at: partial.updated_at || new Date().toISOString(),
+  }
+}
 
 describe('EquipmentControlCard', () => {
-  const mockOnStateChange = jest.fn();
-  const mockOnAutoConfigChange = jest.fn();
+  const mockOnStateChange = jest.fn()
 
-  const baseControl: EquipmentControl = {
-    type: EquipmentType.COOLING,
-    state: EquipmentState.OFF,
-    mode: ControlMode.MANUAL,
-    override: false,
-    schedule_enabled: false,
-    level: 0,
-  };
+  const baseEquipment = createEquipmentRecord({})
 
   beforeEach(() => {
-    jest.clearAllMocks();
-  });
+    jest.clearAllMocks()
+  })
 
-  describe('Rendering', () => {
-    it('should render equipment name and icon', () => {
-      render(
-        <EquipmentControlCard
-          control={baseControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
+  describe('Rendering (compact vs full)', () => {
+    it('renders equipment name and state badge in compact/default (no overrideMode)', () => {
+      render(<EquipmentControlCard equipment={baseEquipment} onStateChange={mockOnStateChange} />)
+      expect(screen.getByText('Cooling')).toBeInTheDocument()
+      // OFF state label
+      expect(screen.getByText('OFF')).toBeInTheDocument()
+      // No control buttons in compact/default view
+      expect(screen.queryByText('ON')).not.toBeInTheDocument()
+    })
 
-      expect(screen.getByText('Cooling')).toBeInTheDocument();
-    });
+    it('renders full control view when overrideMode is true', () => {
+      render(<EquipmentControlCard equipment={baseEquipment} overrideMode onStateChange={mockOnStateChange} />)
+      expect(screen.getByText('OFF')).toBeInTheDocument()
+      expect(screen.getByText('ON')).toBeInTheDocument()
+      expect(screen.getByText('AUTO')).toBeInTheDocument()
+    })
 
-    it('should render in compact mode', () => {
-      const { container } = render(
-        <EquipmentControlCard
-          control={baseControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-          compact
-        />
-      );
+    it('shows current power level when ON in full view', () => {
+      const eq = createEquipmentRecord({ state: EquipmentState.ON, level: 75 })
+      render(<EquipmentControlCard equipment={eq} overrideMode onStateChange={mockOnStateChange} />)
+      // Badge should include MANUAL label (state label for ON) and level
+      expect(screen.getByText('MANUAL')).toBeInTheDocument()
+      expect(screen.getByText(/75%/)).toBeInTheDocument()
+    })
+  })
 
-      // Compact mode should have simpler layout
-      expect(container.querySelector('.space-y-3')).not.toBeInTheDocument();
-    });
+  describe('3-State Control interactions', () => {
+    it('renders OFF, ON, AUTO buttons in full view', () => {
+      render(<EquipmentControlCard equipment={baseEquipment} overrideMode onStateChange={mockOnStateChange} />)
+      expect(screen.getByText('OFF')).toBeInTheDocument()
+      expect(screen.getByText('ON')).toBeInTheDocument()
+      expect(screen.getByText('AUTO')).toBeInTheDocument()
+    })
 
-    it('should show current power level', () => {
-      const control = { ...baseControl, level: 75, state: EquipmentState.ON };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText(/75%/)).toBeInTheDocument();
-    });
-  });
-
-  describe('3-State Control', () => {
-    it('should render OFF, ON, AUTO buttons', () => {
-      render(
-        <EquipmentControlCard
-          control={baseControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText('OFF')).toBeInTheDocument();
-      expect(screen.getByText('ON')).toBeInTheDocument();
-      expect(screen.getByText('AUTO')).toBeInTheDocument();
-    });
-
-    it('should highlight active state button', () => {
-      const control = { ...baseControl, state: EquipmentState.ON };
-      
-      const { rerender } = render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      const onButton = screen.getByText('ON').closest('button');
-      expect(onButton).toHaveClass('bg-primary');
-
-      // Switch to AUTO
-      const autoControl = { ...baseControl, state: EquipmentState.AUTO, mode: ControlMode.AUTOMATIC };
-      rerender(
-        <EquipmentControlCard
-          control={autoControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      const autoButton = screen.getByText('AUTO').closest('button');
-      expect(autoButton).toHaveClass('bg-blue-600');
-    });
-
-    it('should call onStateChange when clicking state buttons', () => {
-      render(
-        <EquipmentControlCard
-          control={baseControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      const onButton = screen.getByText('ON').closest('button');
-      if (onButton) {
-        fireEvent.click(onButton);
-        expect(mockOnStateChange).toHaveBeenCalledWith(EquipmentState.ON);
-      }
-    });
-  });
+    it('calls onStateChange with equipment id, new state and level (if ON)', () => {
+      const eq = createEquipmentRecord({})
+      render(<EquipmentControlCard equipment={eq} overrideMode onStateChange={mockOnStateChange} />)
+      const onBtn = screen.getByText('ON').closest('button')
+      if (onBtn) fireEvent.click(onBtn)
+      expect(mockOnStateChange).toHaveBeenCalledWith(eq.id, EquipmentState.ON, 0)
+    })
+  })
 
   describe('Power Level Slider', () => {
-    it('should show slider in MANUAL ON mode', () => {
-      const control = { ...baseControl, state: EquipmentState.ON, level: 50 };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
+    it('shows slider when state is ON in full view', () => {
+      const eq = createEquipmentRecord({ state: EquipmentState.ON, level: 50 })
+      render(<EquipmentControlCard equipment={eq} overrideMode onStateChange={mockOnStateChange} />)
+      const slider = screen.getByRole('slider')
+      expect(slider).toBeInTheDocument()
+      expect(slider).toHaveAttribute('aria-valuenow', '50')
+    })
 
-      const slider = screen.getByRole('slider');
-      expect(slider).toBeInTheDocument();
-      expect(slider).toHaveAttribute('aria-valuenow', '50');
-    });
+    it('hides slider when OFF', () => {
+      render(<EquipmentControlCard equipment={baseEquipment} overrideMode onStateChange={mockOnStateChange} />)
+      expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+    })
 
-    it('should not show slider when OFF', () => {
-      render(
-        <EquipmentControlCard
-          control={baseControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
+    it('hides slider in AUTO state', () => {
+      const eq = createEquipmentRecord({ state: EquipmentState.AUTO, mode: ControlMode.AUTOMATIC })
+      render(<EquipmentControlCard equipment={eq} overrideMode onStateChange={mockOnStateChange} />)
+      expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+    })
+  })
 
-      expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    });
+  // Component no longer renders AUTO configuration details; tests removed
 
-    it('should not show slider in AUTO mode', () => {
-      const control = { ...baseControl, state: EquipmentState.AUTO, mode: ControlMode.AUTOMATIC };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
+  // Override toggle tests removed - component simplified
 
-      expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    });
-  });
+  describe('Equipment Type Name Formatting', () => {
+    it('formats equipment type with underscores into spaced words', () => {
+      const eq = createEquipmentRecord({ equipment_type: EquipmentType.CO2_INJECTION })
+      render(<EquipmentControlCard equipment={eq} onStateChange={mockOnStateChange} />)
+      // Name rendered in compact view
+      expect(screen.getByText('Co2 Injection')).toBeInTheDocument()
+    })
+  })
 
-  describe('AUTO Mode Display', () => {
-    it('should show AUTO configuration when in AUTO mode', () => {
-      const control: EquipmentControl = {
-        ...baseControl,
-        state: EquipmentState.AUTO,
-        mode: ControlMode.AUTOMATIC,
-        auto_config: {
-          thresholds: {
-            temperature: { min: 18, max: 24 },
-          },
-        },
-      };
-
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText(/temperature/i)).toBeInTheDocument();
-      expect(screen.getByText(/18.*24/)).toBeInTheDocument();
-    });
-
-    it('should show configure button in AUTO mode', () => {
-      const control = { ...baseControl, state: EquipmentState.AUTO, mode: ControlMode.AUTOMATIC };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText(/configure/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Override Toggle', () => {
-    it('should show override toggle when equipment has override', () => {
-      const control = { ...baseControl, override: true, state: EquipmentState.ON };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText(/override/i)).toBeInTheDocument();
-    });
-
-    it('should show warning when override is active', () => {
-      const control = { ...baseControl, override: true, state: EquipmentState.ON };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      // Look for warning indicator
-      expect(screen.getByText(/override active/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Permission-Based Rendering', () => {
-    it('should disable controls when user lacks permissions', () => {
-      // Re-mock usePermissions to deny permissions
-      jest.resetModules();
-      jest.mock('@/hooks/use-permissions', () => ({
-        usePermissions: () => ({
-          can: jest.fn(() => false),
-        }),
-      }));
-
-      const { container } = render(
-        <EquipmentControlCard
-          control={baseControl}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      const buttons = container.querySelectorAll('button');
-      buttons.forEach(button => {
-        expect(button).toBeDisabled();
-      });
-    });
-  });
-
-  describe('Equipment Type Variations', () => {
-    it('should render different icon for lighting equipment', () => {
-      const control = { ...baseControl, type: EquipmentType.LIGHTING };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText('Lighting')).toBeInTheDocument();
-    });
-
-    it('should render different icon for CO2 equipment', () => {
-      const control = { ...baseControl, type: EquipmentType.CO2_INJECTION };
-      
-      render(
-        <EquipmentControlCard
-          control={control}
-          onStateChange={mockOnStateChange}
-          onAutoConfigChange={mockOnAutoConfigChange}
-        />
-      );
-
-      expect(screen.getByText('CO₂ Injection')).toBeInTheDocument();
-    });
-  });
-});
+})

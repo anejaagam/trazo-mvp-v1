@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
    typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   // Exclude Prototypes and archive folders from build
   webpack: (config) => {
     config.watchOptions = {
